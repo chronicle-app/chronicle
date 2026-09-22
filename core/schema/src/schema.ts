@@ -58,6 +58,7 @@ export type ActionAndChildren =
   | CancelActionAndChildren
   | CompleteActionAndChildren
   | DeleteActionAndChildren
+  | ExecuteActionAndChildren
   | PlanActionAndChildren
   | UpdateActionAndChildren;
 
@@ -79,6 +80,7 @@ export const ActionSchema: z.ZodType<Action> = z
 export interface Entity extends Omit<Base, '@type'> {
   '@type': 'Entity';
   about?: EntityAndChildren[];
+  body?: string;
   description?: string;
   handle?: string;
   isPartOf?: EntityAndChildren[];
@@ -88,11 +90,18 @@ export interface Entity extends Omit<Base, '@type'> {
 }
 
 export type EntityAndChildren =
-  Entity | AgentAndChildren | CollectionAndChildren | TagAndChildren | TaskAndChildren;
+  | Entity
+  | AgentAndChildren
+  | CollectionAndChildren
+  | CommandAndChildren
+  | RealmAndChildren
+  | TagAndChildren
+  | TaskAndChildren;
 
 const EntityProperties = {
   ...BaseProperties,
   about: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
+  body: z.lazy(() => z.string()).optional(),
   description: z.lazy(() => z.string()).optional(),
   handle: z.lazy(() => z.string()).optional(),
   isPartOf: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
@@ -111,12 +120,14 @@ export const EntitySchema: z.ZodType<Entity> = z
 // Agent, child of https://schema.chronicle.app/Entity
 export interface Agent extends Omit<Entity, '@type'> {
   '@type': 'Agent';
+  memberOf?: EntityAndChildren[];
 }
 
-export type AgentAndChildren = Agent;
+export type AgentAndChildren = Agent | PersonAndChildren;
 
 const AgentProperties = {
   ...EntityProperties,
+  memberOf: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
 };
 
 export const AgentSchema: z.ZodType<Agent> = z
@@ -162,6 +173,24 @@ export const CollectionSchema: z.ZodType<Collection> = z
   })
   .superRefine(requireNodeIdentity);
 
+// Command, child of https://schema.chronicle.app/Entity
+export interface Command extends Omit<Entity, '@type'> {
+  '@type': 'Command';
+}
+
+export type CommandAndChildren = Command;
+
+const CommandProperties = {
+  ...EntityProperties,
+};
+
+export const CommandSchema: z.ZodType<Command> = z
+  .object({
+    '@type': z.literal('Command'),
+    ...CommandProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // CompleteAction, child of https://schema.chronicle.app/Action
 export interface CompleteAction extends Omit<Action, '@type'> {
   '@type': 'CompleteAction';
@@ -198,6 +227,42 @@ export const DeleteActionSchema: z.ZodType<DeleteAction> = z
   })
   .superRefine(requireNodeIdentity);
 
+// ExecuteAction, child of https://schema.chronicle.app/Action
+export interface ExecuteAction extends Omit<Action, '@type'> {
+  '@type': 'ExecuteAction';
+}
+
+export type ExecuteActionAndChildren = ExecuteAction;
+
+const ExecuteActionProperties = {
+  ...ActionProperties,
+};
+
+export const ExecuteActionSchema: z.ZodType<ExecuteAction> = z
+  .object({
+    '@type': z.literal('ExecuteAction'),
+    ...ExecuteActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Person, child of https://schema.chronicle.app/Agent
+export interface Person extends Omit<Agent, '@type'> {
+  '@type': 'Person';
+}
+
+export type PersonAndChildren = Person;
+
+const PersonProperties = {
+  ...AgentProperties,
+};
+
+export const PersonSchema: z.ZodType<Person> = z
+  .object({
+    '@type': z.literal('Person'),
+    ...PersonProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // PlanAction, child of https://schema.chronicle.app/Action
 export interface PlanAction extends Omit<Action, '@type'> {
   '@type': 'PlanAction';
@@ -231,6 +296,24 @@ export const ProjectSchema: z.ZodType<Project> = z
   .object({
     '@type': z.literal('Project'),
     ...ProjectProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Realm, child of https://schema.chronicle.app/Entity
+export interface Realm extends Omit<Entity, '@type'> {
+  '@type': 'Realm';
+}
+
+export type RealmAndChildren = Realm;
+
+const RealmProperties = {
+  ...EntityProperties,
+};
+
+export const RealmSchema: z.ZodType<Realm> = z
+  .object({
+    '@type': z.literal('Realm'),
+    ...RealmProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -294,13 +377,21 @@ export const TaskAndChildrenSchema = TaskSchema;
 
 export const TagAndChildrenSchema = TagSchema;
 
+export const RealmAndChildrenSchema = RealmSchema;
+
 export const ProjectAndChildrenSchema = ProjectSchema;
 
 export const PlanActionAndChildrenSchema = PlanActionSchema;
 
+export const PersonAndChildrenSchema = PersonSchema;
+
+export const ExecuteActionAndChildrenSchema = ExecuteActionSchema;
+
 export const DeleteActionAndChildrenSchema = DeleteActionSchema;
 
 export const CompleteActionAndChildrenSchema = CompleteActionSchema;
+
+export const CommandAndChildrenSchema = CommandSchema;
 
 export const CollectionAndChildrenSchema: z.ZodType<CollectionAndChildren> = z
   .discriminatedUnion('@type', [
@@ -317,8 +408,19 @@ export const CollectionAndChildrenSchema: z.ZodType<CollectionAndChildren> = z
   .superRefine(requireNodeIdentity);
 export const CancelActionAndChildrenSchema = CancelActionSchema;
 
-export const AgentAndChildrenSchema = AgentSchema;
+export const AgentAndChildrenSchema: z.ZodType<AgentAndChildren> = z
+  .discriminatedUnion('@type', [
+    z.object({
+      '@type': z.literal('Agent'),
+      ...AgentProperties,
+    }),
 
+    z.object({
+      '@type': z.literal('Person'),
+      ...PersonProperties,
+    }),
+  ])
+  .superRefine(requireNodeIdentity);
 export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
   .discriminatedUnion('@type', [
     z.object({
@@ -337,6 +439,16 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('Realm'),
+      ...RealmProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Command'),
+      ...CommandProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Collection'),
       ...CollectionProperties,
     }),
@@ -349,6 +461,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     z.object({
       '@type': z.literal('Agent'),
       ...AgentProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Person'),
+      ...PersonProperties,
     }),
   ])
   .superRefine(requireNodeIdentity);
@@ -367,6 +484,11 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     z.object({
       '@type': z.literal('PlanAction'),
       ...PlanActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ExecuteAction'),
+      ...ExecuteActionProperties,
     }),
 
     z.object({
@@ -408,6 +530,16 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('Realm'),
+      ...RealmProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Command'),
+      ...CommandProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Collection'),
       ...CollectionProperties,
     }),
@@ -423,6 +555,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('Person'),
+      ...PersonProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Action'),
       ...ActionProperties,
     }),
@@ -435,6 +572,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('PlanAction'),
       ...PlanActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ExecuteAction'),
+      ...ExecuteActionProperties,
     }),
 
     z.object({

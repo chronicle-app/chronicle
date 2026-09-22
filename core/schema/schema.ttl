@@ -107,3 +107,25 @@
   rdfs:comment "about reported by the source.";
   :domainIncludes :Entity;
   :rangeIncludes :Entity .
+
+:Command a rdfs:Class;
+  rdfs:subClassOf :Entity;
+  rdfs:comment "Command described by a source." .
+:Person a rdfs:Class;
+  rdfs:subClassOf :Agent;
+  rdfs:comment "Person described by a source." .
+:Realm a rdfs:Class;
+  rdfs:subClassOf :Entity;
+  rdfs:comment "Realm described by a source." .
+:ExecuteAction a rdfs:Class;
+  rdfs:subClassOf :Action;
+  rdfs:comment "ExecuteAction described by a source." .
+:body a rdf:Property;
+  rdfs:comment "body reported by the source.";
+  owl:maxCardinality 1;
+  :domainIncludes :Entity;
+  :rangeIncludes :Text .
+:memberOf a rdf:Property;
+  rdfs:comment "memberOf reported by the source.";
+  :domainIncludes :Agent;
+  :rangeIncludes :Entity .
