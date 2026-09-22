@@ -1,8 +1,6 @@
 # Working on Chronicle
 
-Chronicle extracts personal history into a shared vocabulary. Treat this as a
-greenfield, extraction-first project. Reuse useful code from
-`../chronicle-internal`, but choose designs and dependencies for this project.
+Chronicle extracts personal history into a shared vocabulary.
 
 - Use TypeScript, ESM, npm workspaces, and Node.js 22.13+.
 - Shared packages live in `core/`; source plugins live in `plugins/`.

@@ -4,6 +4,9 @@
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 
+: a owl:Ontology;
+  owl:versionInfo "0.1.0" .
+
 :Base a rdfs:Class;
   rdfs:comment "The common base for entities and actions described by a source. Each node carries an identity, expressed as @key or @id, so it can be referenced across records." .
 :Entity a rdfs:Class;

@@ -99,31 +99,25 @@ All loaders accept an optional `output` path, otherwise write to stdout. CSV,
 YAML, and table output is flushed at teardown; an empty input writes nothing.
 Logging goes to stderr. Dates in JSON/CSV/table output use ISO strings.
 
-## Migration boundary
+## Scope
 
-The base contracts, runner transformation loop, routing, and four serializers come
-from the existing package; its full implementation remains with private consumers.
-This package is not yet a drop-in replacement for that full API. Changes here:
+This package covers extraction only: contracts, the runner transformation loop,
+routing, and the loaders above. It does not track runs, settle destinations,
+detect absences, or keep hash/frontier cursors, and it adds no store-specific
+snapshot or completeness annotations. Extraction temporality and read time are
+metadata only, and every record goes through normal identity handling.
 
-- Removed run trackers, destination settlement, absence detection, hashes/frontier
-  cursors, and store-specific snapshot/completeness annotations. Extraction
-  temporality/read time remain metadata only. No synthetic identity bypass.
-- Fixed runner validation of the plain `chronicle` marker used by transformers.
-- Fixed JSON colorizer escaping of string values and property names.
-- Made cleanup idempotent and exhaustive after partial setup or cleanup failure.
-
-Media object builders, source-owner identity, and phone normalization helpers are
-now included for iMessage and iCloud enrichment. Attachments remain references;
-this package does not copy their bytes. Attachment downloading, API/archive/CSV
+Media object builders, source-owner identity, and phone normalization helpers
+support iMessage and iCloud enrichment. Attachments remain references; this
+package does not copy their bytes. Attachment downloading, API/archive/CSV
 source adapters, system utilities, CLI flag helpers, and additional presentation
-transforms remain deferred.
+transforms are not included.
 
 SQLite extraction lives in `@chronicle.app/etl-sqlite`, using built-in
 `node:sqlite` and read-only source connections.
 
 `npm run quality` builds and tests the workspace. `npm run packages:check` also
 compiles and runs a complete ETL pipeline using installed tarballs outside the
-monorepo. Publication and private-consumer cutover remain gated as described in
-[RELEASING.md](../../RELEASING.md); neither repository's visibility changes.
+monorepo. Publishing is described in [RELEASING.md](../../RELEASING.md).
 
 MIT. See [LICENSE](LICENSE).

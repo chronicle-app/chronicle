@@ -1,7 +1,6 @@
 # @chronicle.app/eslint-config
 
-Shared ESLint 8 rules for Chronicle JavaScript and TypeScript, adapted from the
-internal repository's oclif-based configuration. Install ESLint 8, TypeScript 5,
+Shared ESLint 8 rules for Chronicle JavaScript and TypeScript. Install ESLint 8, TypeScript 5,
 and Prettier 3 in the consumer, then extend this package:
 
 ```json

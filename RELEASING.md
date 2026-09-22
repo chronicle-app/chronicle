@@ -13,13 +13,36 @@ The manually dispatched **Prepare npm release** workflow performs the same check
 and uploads those tarballs. It has read-only repository permissions, uses no npm
 credentials, and contains no publish step.
 
-## Publication and consumer handoff
+## Versioning
+
+All npm workspaces share the root package version, including the schema package.
+Run `npm run release:version -- 0.2.0` with an explicit version to update every
+package, exact internal dependencies, and the lockfile. This does not create tags
+or publish. `npm run versions:check` checks alignment as part of quality checks.
+
+The vocabulary has an independent stable semantic version in the ontology's
+`owl:versionInfo`. Change it only when the vocabulary contract changes, then run
+`npm run schema:generate`. The schema package exports the generated
+`SCHEMA_VERSION` for future extraction or assertion-log metadata. Package versions
+identify software; vocabulary versions identify data contracts.
+
+Use patch releases for compatible fixes, minor releases for compatible features,
+and major releases for breaking public APIs, including generated types or
+validators. Apply the strongest required bump across all packages, even during
+0.x. A vocabulary version bump does not replace a required software version bump.
+Unchanged packages still receive the shared version.
+
+Review vocabulary changes against the last published snapshot and explicitly
+choose the appropriate schema bump; automation cannot infer semantic compatibility.
+Use immutable `v<package-version>` Git tags for software releases. Release notes
+must record both the software version and vocabulary version.
+
+## Publishing
 
 Before an explicitly approved release:
 
 1. Authenticate with npm and verify access with `npm whoami` and
-   `npm org ls chronicle.app`. Scope ownership/access has not yet been verified
-   from this checkout because npm authentication was unavailable during setup.
+   `npm org ls chronicle.app`.
 2. Confirm package licensing and version availability with `npm view <package>
 versions`. Confirm the version and review every tarball (`tar -tzf <artifact>`).
    If any version changes, update workspace dependency ranges and the lockfile,
@@ -27,19 +50,12 @@ versions`. Confirm the version and review every tarball (`tar -tzf <artifact>`).
 3. After release approval, publish the reviewed tarballs explicitly with
    `npm publish <artifact.tgz> --access public`. Publish shared configs before
    their consumers. No CI event or tag publishes automatically.
-4. Verify the released versions in an isolated consumer before replacing private
-   workspace dependencies with exact npm versions. Remove private source copies
-   only after their consumers build and test against those released versions.
-
-Until that handoff, these packages are migration preparation; the private source
-copies remain in place. Avoid making independent feature changes to both copies.
-The minimal schema is a deliberate staged exception: the private full ontology
-remains until its consumers can migrate to the smaller package's evolving vocabulary.
+4. Verify the released versions by installing them in an isolated consumer.
 
 ## Schema releases
 
-`core/schema/chronicle.ttl` and `@chronicle.app/schema` use the same version from
-`core/schema/package.json`. Keep a single editable ontology in the current tree;
+`core/schema/chronicle.ttl` and `@chronicle.app/schema` have distinct versions. The vocabulary version comes from
+`owl:versionInfo` in the ontology; the npm package follows the shared software version. Keep a single editable ontology in the current tree;
 Git tags preserve old versions without copying them into versioned source files.
 
 - Patch: description corrections that do not change meaning.
@@ -55,12 +71,12 @@ For an approved schema release:
    also saves the packed ontology at
    `artifacts/schema/releases/<version>/chronicle.ttl` and the matching standalone
    HTML reference at `artifacts/schema/releases/<version>/index.html`.
-2. Tag the reviewed release commit as `schema-v<version>` and push that tag as
+2. Tag the reviewed release commit as `v<package-version>` and push that tag as
    part of the approved release. Never move or reuse a release tag. For example,
-   `git show schema-v0.1.0:core/schema/chronicle.ttl` retrieves that release's
+   `git show v0.1.0:core/schema/chronicle.ttl` retrieves that release's
    ontology once the tag exists.
-3. Publish the reviewed npm tarball. Its version, the Git tag, and the ontology
-   snapshot must all refer to the same release.
+3. Publish the reviewed npm tarball. Record its package version and vocabulary version together in the release notes.
+   The Git tag identifies the software release; the snapshot path uses the vocabulary version.
 4. When schema website hosting is configured, publish the snapshot at
    `https://schema.chronicle.app/releases/<version>/chronicle.ttl` and generate
    matching documentation from that snapshot under the same release path.
@@ -69,3 +85,9 @@ For an approved schema release:
 
 The preparation workflow creates artifacts only; it does not create tags,
 publish npm packages, or deploy a website.
+
+Schema HTML describes only the vocabulary version, so an unchanged vocabulary
+produces identical snapshots across software releases. Preparation refuses to
+overwrite differing local snapshots at an existing version. Before deploying,
+compare with the published snapshots too: a fresh checkout cannot detect changes
+to artifacts stored elsewhere. Never overwrite a published snapshot.

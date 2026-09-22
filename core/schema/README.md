@@ -61,17 +61,21 @@ typing; use validators at runtime to enforce identity requirements.
 
 ## Generation and compatibility
 
-The generator is adapted from Chronicle's existing N3/Turtle → TypeScript/Zod
-pipeline. It handles inheritance, domain/range, and OWL cardinality and fails for
-cyclic inheritance or undeclared referenced classes. The minimal package has no
-persistence metadata, derived effects, runtime filesystem parser, or full ontology.
+The generator turns N3/Turtle into TypeScript types and Zod validators. It handles
+inheritance, domain/range, and OWL cardinality and fails for cyclic inheritance or
+undeclared referenced classes. The package has no persistence metadata, derived
+effects, or runtime filesystem parser.
 Generated runtime code depends only on Zod; the TTL is also included in the package.
 
 ## Schema versions
 
-The ontology and this package share one version, declared in `package.json`.
+The npm package follows Chronicle’s shared software version in `package.json`.
+The ontology has an independent version declared with `owl:versionInfo` in
+`chronicle.ttl`, exported as the generated `SCHEMA_VERSION` constant. Software
+releases can advance without changing the vocabulary version.
 `chronicle.ttl` is the only editable ontology; historical versions are preserved
-by immutable Git tags named `schema-v<version>` and versioned npm packages.
+by immutable software Git tags named `v<package-version>` and versioned npm packages.
+Release notes map software versions to vocabulary versions.
 The package exports `@chronicle.app/schema/chronicle.ttl`; the former
 `@chronicle.app/schema/schema.ttl` export remains an alias for compatibility.
 
@@ -82,6 +86,7 @@ also apply during `0.x`. Keep term identifiers such as
 `https://schema.chronicle.app/Task` stable; introduce a new term and deprecate the
 old one when its concept changes fundamentally.
 
+Snapshot paths use the vocabulary version, not the npm package version.
 The publication convention is
 `https://schema.chronicle.app/releases/<version>/chronicle.ttl`, with matching
 documentation under the same release path. Published snapshots must never be
@@ -90,11 +95,9 @@ and term pages should serve the latest released version, rather than unreleased
 changes on `main`. Website hosting is not configured yet; see
 [Preparing a release](../../RELEASING.md) for the release procedure.
 
-This package is **not a drop-in replacement** for the full internal schema. The
-private ontology and its existing consumers remain in place. Add vocabulary only
-when a migrating plugin requires it, preserving existing term identifiers and
-meanings; regenerate and add focused tests alongside each addition. Consumer
-cutovers wait until the required vocabulary exists and compatibility is verified.
+The vocabulary is intentionally small. Add terms only when a plugin needs them,
+keeping existing term identifiers and meanings stable; regenerate and add
+focused tests alongside each addition.
 
 Node.js 22.13+. MIT covers the ontology, generator, generated code, and docs;
 see [LICENSE](LICENSE).

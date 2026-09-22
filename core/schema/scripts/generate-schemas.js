@@ -1,5 +1,6 @@
 import { DataFactory, Parser, Store } from 'n3';
 import fs from 'node:fs';
+import { schemaVersion } from './schema-version.js';
 
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -175,7 +176,7 @@ const sortClassesTopologically = classes => {
   return sorted;
 };
 
-const writeSchemaFile = (classes, properties) =>
+const writeSchemaFile = (classes, properties, version) =>
   new Promise((resolve, reject) => {
     const schemaFile = fs.createWriteStream(outputFilePath, {
       flags: 'w',
@@ -183,6 +184,7 @@ const writeSchemaFile = (classes, properties) =>
 
     schemaFile.on('finish', () => resolve());
     schemaFile.on('error', reject);
+    schemaFile.write(`export const SCHEMA_VERSION = ${JSON.stringify(version)} as const;\n`);
 
     schemaFile.write(
       "// Generated from chronicle.ttl. Do not edit; run npm run schema:generate.\nimport { z } from 'zod';\n\n// Record identity key field: a property path, or a computed {key, value} entry\nexport type KeyField = string | { key: string; value: string };\n\n"
@@ -441,7 +443,7 @@ const main = async () => {
   const { classes, properties } = extractSchemaInfo(store);
 
   fs.mkdirSync(dirname(outputFilePath), { recursive: true });
-  await writeSchemaFile(classes, properties);
+  await writeSchemaFile(classes, properties, schemaVersion(ttlData));
   const formatted = await prettier.format(fs.readFileSync(outputFilePath, 'utf8'), {
     ...prettierConfig,
     parser: 'typescript',
