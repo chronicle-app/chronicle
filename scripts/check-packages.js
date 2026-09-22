@@ -127,6 +127,29 @@ assert.equal(loaded, 1);
 assert.equal(JSON.parse(readFileSync('etl.json', 'utf8')).object.url, 'https://example.com/1');
 `;
   }
+  if (dependencies['@chronicle.app/etl-sqlite']) {
+    source += `
+import { DatabaseSync } from 'node:sqlite';
+import { SqliteExtractor } from '@chronicle.app/etl-sqlite';
+const fixtureDb = new DatabaseSync('source.db');
+fixtureDb.exec("CREATE TABLE items (id TEXT); INSERT INTO items VALUES ('fixture')");
+fixtureDb.close();
+class PackedSqliteExtractor extends SqliteExtractor {
+  static override source = 'fixture';
+  static override strategy = 'sqlite';
+  async *extract() {
+    for (const row of this.db!.prepare('SELECT * FROM items').iterate()) yield this.createRecord(row);
+  }
+}
+const sqliteExtractor = new PackedSqliteExtractor({ input: 'source.db' });
+try {
+  await sqliteExtractor.setup();
+  let count = 0;
+  for await (const record of sqliteExtractor.extract()) { assert.equal(record.data.id, 'fixture'); count++; }
+  assert.equal(count, 1);
+} finally { await sqliteExtractor.teardown(); }
+`;
+  }
   writeFileSync(join(consumer, 'src/index.ts'), source);
   run(['node_modules/typescript/bin/tsc', '-p', 'tsconfig.json'], consumer);
   run(['node_modules/eslint/bin/eslint.js', 'src', '--ext', '.ts'], consumer);
