@@ -11,5 +11,6 @@ Chronicle extracts personal history into a shared vocabulary.
   generated schema code.
 - Test behavior with synthetic files and databases. Keep personal data out of
   fixtures and logs.
+- Add a changeset (`npx changeset`) to pull requests that should ship in a release.
 - Run `npm run quality` for code changes. Run `npm run packages:check` after
   package or dependency changes to verify installed tarballs.
