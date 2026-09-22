@@ -33,3 +33,5 @@ jobs:
         run: npm test
       - name: Check formatting
         run: npm run format:check
+      - name: Check package tarballs
+        run: npm run packages:check

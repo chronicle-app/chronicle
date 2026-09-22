@@ -1,4 +1,8 @@
 {
   "files": [],
-  "references": []
+  "references": [
+    {
+      "path": "core/logging/tsconfig.lib.json"
+    }
+  ]
 }
