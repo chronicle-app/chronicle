@@ -1,0 +1,35 @@
+{
+  "name": "@chronicle.app/tsconfig",
+  "version": "0.1.0",
+  "description": "Shared TypeScript configurations for Chronicle packages",
+  "files": [
+    "base.json",
+    "lib.json",
+    "app.json",
+    "test.json"
+  ],
+  "keywords": [
+    "chronicle",
+    "typescript",
+    "tsconfig"
+  ],
+  "author": "Andrew Louis",
+  "license": "MIT",
+  "homepage": "https://chronicle.app",
+  "bugs": {
+    "url": "https://github.com/chronicle-app/chronicle/issues/new?labels=core:tsconfig&title=[tsconfig]%20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chronicle-app/chronicle.git",
+    "directory": "core/tsconfig"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {}
+}
