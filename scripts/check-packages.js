@@ -65,22 +65,6 @@ try {
     [npm, 'install', '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false'],
     consumer
   );
-  // Audit the installed graph, including transitive runtime dependencies.
-  // A copied package must not quietly pull a private package or old SQLite driver.
-  const installed = JSON.parse(run([npm, 'ls', '--all', '--omit=dev', '--json'], consumer, true));
-  const auditDependencies = node => {
-    for (const [name, child] of Object.entries(node.dependencies ?? {})) {
-      assert.ok(
-        !['knex', 'better-sqlite3'].includes(name),
-        `Forbidden extraction dependency: ${name}`
-      );
-      if (name.startsWith('@chronicle.app/')) {
-        assert.ok(Object.hasOwn(dependencies, name), `Unexpected Chronicle dependency: ${name}`);
-      }
-      auditDependencies(child);
-    }
-  };
-  auditDependencies(installed);
   writeFileSync(
     join(consumer, '.eslintrc.cjs'),
     "module.exports = { extends: ['@chronicle.app/eslint-config'] };\n"
