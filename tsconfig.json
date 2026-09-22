@@ -6,6 +6,9 @@
     },
     {
       "path": "core/schema/tsconfig.lib.json"
+    },
+    {
+      "path": "core/etl/tsconfig.lib.json"
     }
   ]
 }
