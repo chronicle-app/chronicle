@@ -14,16 +14,16 @@ export default class Extract extends SourceDispatchCommand<typeof Extract> {
   static override description = 'Pull a source to stdout as Chronicle JSON-LD';
 
   static override examples = [
-    'chronicle extract spotify',
-    'chronicle extract spotify --type listens',
-    'chronicle extract shell --loader json',
-    'chronicle extract spotify --list-types',
+    'chronicle extract shell --limit 10',
+    'chronicle extract things-todo --type tasks',
+    'chronicle extract claude-code --loader yaml --output sessions.yaml',
+    'chronicle extract things-todo --list-types',
   ];
 
   protected readonly defaultLoaderName = 'json' as const;
 
   protected async handleNonSource(positional: string | undefined): Promise<void> {
     if (positional) this.installPrompt(positional);
-    this.error('Specify a source, e.g. `chronicle extract spotify`. See `chronicle sources`.');
+    this.error('Specify a source, e.g. `chronicle extract shell`. See `chronicle sources`.');
   }
 }
