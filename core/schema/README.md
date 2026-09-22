@@ -61,10 +61,10 @@ typing; use validators at runtime to enforce identity requirements.
 
 ## Generation and compatibility
 
-The generator is adapted from Chronicle's existing N3/Turtle → TypeScript/Zod
-pipeline. It handles inheritance, domain/range, and OWL cardinality and fails for
-cyclic inheritance or undeclared referenced classes. The minimal package has no
-persistence metadata, derived effects, runtime filesystem parser, or full ontology.
+The generator turns N3/Turtle into TypeScript types and Zod validators. It handles
+inheritance, domain/range, and OWL cardinality and fails for cyclic inheritance or
+undeclared referenced classes. The package has no persistence metadata, derived
+effects, or runtime filesystem parser.
 Generated runtime code depends only on Zod; the TTL is also included in the package.
 
 ## Schema versions
@@ -95,11 +95,9 @@ and term pages should serve the latest released version, rather than unreleased
 changes on `main`. Website hosting is not configured yet; see
 [Preparing a release](../../RELEASING.md) for the release procedure.
 
-This package is **not a drop-in replacement** for the full internal schema. The
-private ontology and its existing consumers remain in place. Add vocabulary only
-when a migrating plugin requires it, preserving existing term identifiers and
-meanings; regenerate and add focused tests alongside each addition. Consumer
-cutovers wait until the required vocabulary exists and compatibility is verified.
+The vocabulary is intentionally small. Add terms only when a plugin needs them,
+keeping existing term identifiers and meanings stable; regenerate and add
+focused tests alongside each addition.
 
 Node.js 22.13+. MIT covers the ontology, generator, generated code, and docs;
 see [LICENSE](LICENSE).

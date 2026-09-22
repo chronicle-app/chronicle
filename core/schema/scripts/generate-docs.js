@@ -1,5 +1,4 @@
 import { schemaVersion } from './schema-version.js';
-// Adapted from chronicle-internal's schema model and reference renderers.
 import { Parser, Store } from 'n3';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';

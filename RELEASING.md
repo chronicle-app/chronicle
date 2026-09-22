@@ -37,13 +37,12 @@ choose the appropriate schema bump; automation cannot infer semantic compatibili
 Use immutable `v<package-version>` Git tags for software releases. Release notes
 must record both the software version and vocabulary version.
 
-## Publication and consumer handoff
+## Publishing
 
 Before an explicitly approved release:
 
 1. Authenticate with npm and verify access with `npm whoami` and
-   `npm org ls chronicle.app`. Scope ownership/access has not yet been verified
-   from this checkout because npm authentication was unavailable during setup.
+   `npm org ls chronicle.app`.
 2. Confirm package licensing and version availability with `npm view <package>
 versions`. Confirm the version and review every tarball (`tar -tzf <artifact>`).
    If any version changes, update workspace dependency ranges and the lockfile,
@@ -51,14 +50,7 @@ versions`. Confirm the version and review every tarball (`tar -tzf <artifact>`).
 3. After release approval, publish the reviewed tarballs explicitly with
    `npm publish <artifact.tgz> --access public`. Publish shared configs before
    their consumers. No CI event or tag publishes automatically.
-4. Verify the released versions in an isolated consumer before replacing private
-   workspace dependencies with exact npm versions. Remove private source copies
-   only after their consumers build and test against those released versions.
-
-Until that handoff, these packages are migration preparation; the private source
-copies remain in place. Avoid making independent feature changes to both copies.
-The minimal schema is a deliberate staged exception: the private full ontology
-remains until its consumers can migrate to the smaller package's evolving vocabulary.
+4. Verify the released versions by installing them in an isolated consumer.
 
 ## Schema releases
 

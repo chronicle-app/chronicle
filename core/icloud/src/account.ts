@@ -1,4 +1,4 @@
-/** Local account discovery adapted from the internal macOS iCloud helper. */
+/** Local macOS iCloud account discovery. */
 import { execFileSync } from 'node:child_process';
 import { homedir } from 'node:os';
 import { join } from 'node:path';

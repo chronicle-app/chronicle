@@ -61,8 +61,8 @@ and test scripts run through npm. Shared configuration lives in `core/tsconfig`,
 `core/eslint-config`, and `core/prettier-config`.
 
 Run `npm run packages:check` after `npm run quality` to validate packed packages in
-an isolated consumer. See [Preparing a release](RELEASING.md) for artifacts and the
-publication/consumer handoff process.
+an isolated consumer. See [Preparing a release](RELEASING.md) for artifacts and
+publishing.
 
 ## License
 

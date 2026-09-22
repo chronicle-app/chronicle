@@ -1,6 +1,6 @@
 # @chronicle.app/icloud
 
-Local macOS iCloud account and AddressBook lookup, extracted from the internal helper package. Account lookup reads MobileMeAccounts with `plutil` and falls back to `defaults`; commands use argument arrays and never shell interpolation. No login/auth flow or network request is involved. Other platforms return no account.
+Local macOS iCloud account and AddressBook lookup. Account lookup reads MobileMeAccounts with `plutil` and falls back to `defaults`; commands use argument arrays and never shell interpolation. No login/auth flow or network request is involved. Other platforms return no account.
 
 `getICloudAccount()` selects the logged-in account, or the first account. `buildICloudPersonSchema()` emits a source-keyed Person with the existing `@me` marker, including a source-local fallback when unavailable.
 
