@@ -11,15 +11,18 @@
       "import": "./dist/index.js"
     },
     "./chronicle.ttl": "./chronicle.ttl",
+    "./schema.html": "./docs/schema.html",
     "./schema.ttl": "./chronicle.ttl"
   },
   "files": [
     "dist/*.js",
     "dist/*.d.ts",
-    "chronicle.ttl"
+    "chronicle.ttl",
+    "docs/schema.html"
   ],
   "scripts": {
-    "generate": "node scripts/generate-schemas.js",
+    "generate": "node scripts/generate-schemas.js && npm run generate:docs",
+    "generate:docs": "node scripts/generate-docs.js",
     "generate:check": "node scripts/check-generated.js",
     "build": "tsc -b tsconfig.lib.json",
     "typecheck": "tsc -p tsconfig.json",

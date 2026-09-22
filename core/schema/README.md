@@ -2,8 +2,16 @@
 
 A deliberately small extraction vocabulary with generated TypeScript interfaces
 and Zod validators. The canonical file is [chronicle.ttl](chronicle.ttl); edit it and run
-`npm run schema:generate` from the repository root. `npm run schema:check` verifies
-that committed output matches the ontology without rewriting it.
+`npm run schema:generate` from the repository root. This generates both the
+TypeScript/Zod schemas and [the HTML reference](docs/schema.html).
+`npm run schema:check` verifies that both committed outputs match the ontology
+without rewriting them.
+
+Open `docs/schema.html` directly in a browser; its styles are embedded and it
+requires no server or network access. It includes hierarchy navigation, linked
+`:term` references, inherited properties, ranges, cardinality, and term URIs.
+Use `npm run generate:docs -w @chronicle.app/schema` to regenerate just the HTML.
+The package also exports the page as `@chronicle.app/schema/schema.html`.
 
 ## Vocabulary
 

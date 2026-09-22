@@ -53,7 +53,8 @@ For an approved schema release:
 
 1. Prepare and validate the package using the checks above. Release preparation
    also saves the packed ontology at
-   `artifacts/schema/releases/<version>/chronicle.ttl`.
+   `artifacts/schema/releases/<version>/chronicle.ttl` and the matching standalone
+   HTML reference at `artifacts/schema/releases/<version>/index.html`.
 2. Tag the reviewed release commit as `schema-v<version>` and push that tag as
    part of the approved release. Never move or reuse a release tag. For example,
    `git show schema-v0.1.0:core/schema/chronicle.ttl` retrieves that release's
