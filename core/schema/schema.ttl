@@ -37,3 +37,73 @@
   owl:maxCardinality 1;
   :domainIncludes :Action;
   :rangeIncludes :Entity .
+
+:DateTime a rdfs:Class;
+  rdfs:comment "DateTime described by a source." .
+:Agent a rdfs:Class;
+  rdfs:subClassOf :Entity;
+  rdfs:comment "Agent described by a source." .
+:Task a rdfs:Class;
+  rdfs:subClassOf :Entity;
+  rdfs:comment "Task described by a source." .
+:Collection a rdfs:Class;
+  rdfs:subClassOf :Entity;
+  rdfs:comment "Collection described by a source." .
+:Project a rdfs:Class;
+  rdfs:subClassOf :Collection;
+  rdfs:comment "Project described by a source." .
+:Tag a rdfs:Class;
+  rdfs:subClassOf :Entity;
+  rdfs:comment "Tag described by a source." .
+:PlanAction a rdfs:Class;
+  rdfs:subClassOf :Action;
+  rdfs:comment "PlanAction described by a source." .
+:UpdateAction a rdfs:Class;
+  rdfs:subClassOf :Action;
+  rdfs:comment "UpdateAction described by a source." .
+:CompleteAction a rdfs:Class;
+  rdfs:subClassOf :Action;
+  rdfs:comment "CompleteAction described by a source." .
+:CancelAction a rdfs:Class;
+  rdfs:subClassOf :Action;
+  rdfs:comment "CancelAction described by a source." .
+:DeleteAction a rdfs:Class;
+  rdfs:subClassOf :Action;
+  rdfs:comment "DeleteAction described by a source." .
+:source a rdf:Property;
+  rdfs:comment "source reported by the source.";
+  owl:maxCardinality 1;
+  :domainIncludes :Base;
+  :rangeIncludes :Text .
+:timestamp a rdf:Property;
+  rdfs:comment "timestamp reported by the source.";
+  owl:maxCardinality 1;
+  :domainIncludes :Action;
+  :rangeIncludes :DateTime .
+:agent a rdf:Property;
+  rdfs:comment "agent reported by the source.";
+  owl:maxCardinality 1;
+  :domainIncludes :Action;
+  :rangeIncludes :Agent .
+:sameAs a rdf:Property;
+  rdfs:comment "sameAs reported by the source.";
+  :domainIncludes :Entity;
+  :rangeIncludes :Entity, :Text .
+:description a rdf:Property;
+  rdfs:comment "description reported by the source.";
+  owl:maxCardinality 1;
+  :domainIncludes :Entity;
+  :rangeIncludes :Text .
+:handle a rdf:Property;
+  rdfs:comment "handle reported by the source.";
+  owl:maxCardinality 1;
+  :domainIncludes :Entity;
+  :rangeIncludes :Text .
+:isPartOf a rdf:Property;
+  rdfs:comment "isPartOf reported by the source.";
+  :domainIncludes :Entity;
+  :rangeIncludes :Entity .
+:about a rdf:Property;
+  rdfs:comment "about reported by the source.";
+  :domainIncludes :Entity;
+  :rangeIncludes :Entity .

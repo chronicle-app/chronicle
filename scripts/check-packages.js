@@ -28,11 +28,15 @@ function run(args, cwd, capture = false) {
 
 try {
   const dependencies = {};
-  for (const directory of readdirSync('core', { withFileTypes: true })
-    .filter(entry => entry.isDirectory())
-    .map(entry => entry.name)
-    .sort()) {
-    const cwd = resolve('core', directory);
+  const packageDirectories = ['core', 'plugins']
+    .flatMap(group =>
+      readdirSync(group, { withFileTypes: true })
+        .filter(entry => entry.isDirectory())
+        .map(entry => join(group, entry.name))
+    )
+    .sort();
+  for (const directory of packageDirectories) {
+    const cwd = resolve(directory);
     const pkg = JSON.parse(readFileSync(join(cwd, 'package.json'), 'utf8'));
     const [packed] = JSON.parse(
       run([npm, 'pack', '--json', '--pack-destination', destination], cwd, true)
@@ -149,6 +153,13 @@ try {
   assert.equal(count, 1);
 } finally { await sqliteExtractor.teardown(); }
 `;
+  }
+  for (const directory of packageDirectories.filter(directory =>
+    directory.startsWith('plugins/')
+  )) {
+    const pkg = JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8'));
+    source += `\nconst plugin${directory.split('/').pop().replaceAll('-', '')} = await import('${pkg.name}');\n`;
+    source += `assert.ok(Object.values(plugin${directory.split('/').pop().replaceAll('-', '')}).some(value => typeof value === 'function'));\n`;
   }
   writeFileSync(join(consumer, 'src/index.ts'), source);
   run(['node_modules/typescript/bin/tsc', '-p', 'tsconfig.json'], consumer);
