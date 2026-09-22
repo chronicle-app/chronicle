@@ -22,3 +22,11 @@ export {
 export * from './selfAgent.js';
 export * from './phone.js';
 export * from './media.js';
+export * from './FilterFieldsTransformer.js';
+export * from './Base64TruncateTransformer.js';
+export * from './DownloadAttachmentsTransformer.js';
+export * from './connectors/transformers/DelayTransformer.js';
+export * from './connectors/transformers/SamplingTransformer.js';
+export * from './connectors/csv/CsvExtractor.js';
+export * from './io-extractor-helper.js';
+export * from './utils/string.js';

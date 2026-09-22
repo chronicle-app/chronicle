@@ -1,0 +1,105 @@
+{
+  "name": "@chronicle.app/cli",
+  "description": "Chronicle CLI",
+  "version": "0.1.0",
+  "author": "Andrew Louis",
+  "bin": {
+    "chronicle": "./bin/run.js"
+  },
+  "bugs": {
+    "url": "https://github.com/chronicle-app/chronicle/issues/new?labels=cli&title=[cli]%20"
+  },
+  "dependencies": {
+    "@inkjs/ui": "^2.0.0",
+    "@oclif/core": "^4.2",
+    "@oclif/plugin-autocomplete": "^3.2.11",
+    "@oclif/plugin-commands": "^4.1.11",
+    "@oclif/plugin-help": "^6",
+    "@oclif/plugin-plugins": "^5",
+    "chalk": "^4.1.2",
+    "glob": "^11.0.0",
+    "ink": "^5.0.1",
+    "open": "^10.1.0",
+    "react": "^18.3.1",
+    "zod": "^3.24.1",
+    "@chronicle.app/etl": "0.1.0",
+    "@chronicle.app/schema": "0.1.0",
+    "@chronicle.app/auth": "0.1.0",
+    "@chronicle.app/shell": "0.1.0",
+    "@chronicle.app/things-todo": "0.1.0",
+    "@chronicle.app/imessage": "0.1.0",
+    "@chronicle.app/claude-code": "0.1.0"
+  },
+  "devDependencies": {
+    "@chronicle.app/tsconfig": "0.1.0",
+    "@types/node": "^22.10.1",
+    "@types/react": "^18.3.17",
+    "typescript": "^5.7.2",
+    "oclif": "^4"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "files": [
+    "bin/run.js",
+    "bin/run.cmd",
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "oclif.manifest.json"
+  ],
+  "homepage": "https://chronicle.app",
+  "keywords": [
+    "oclif"
+  ],
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "oclif": {
+    "bin": "chronicle",
+    "dirname": "chronicle",
+    "commands": "./dist/commands",
+    "helpClass": "./dist/help/SourceHelp.js",
+    "plugins": [
+      "@oclif/plugin-help",
+      "@oclif/plugin-plugins",
+      "@oclif/plugin-commands",
+      "@oclif/plugin-autocomplete"
+    ],
+    "topicSeparator": " ",
+    "topics": {
+      "extract": {
+        "description": "Pull records from a source to stdout (Chronicle JSON-LD)"
+      },
+      "sources": {
+        "description": "List installed extraction sources"
+      },
+      "auth": {
+        "description": "Authenticate sources and manage stored credentials"
+      },
+      "config": {
+        "description": "Manage Chronicle configuration"
+      }
+    },
+    "pjson": {
+      "packageManager": "npm"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chronicle-app/chronicle.git",
+    "directory": "apps/cli"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "tsc -b tsconfig.lib.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint src --ext .ts,.tsx,.js",
+    "test": "node --test test/*.test.js",
+    "prepack": "oclif manifest 1>&2",
+    "postpack": "node -e \"require('node:fs').rmSync('oclif.manifest.json', { force: true })\""
+  }
+}

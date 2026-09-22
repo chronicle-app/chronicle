@@ -49,5 +49,6 @@
   },
   "chronicle": {
     "plugin": true
-  }
+  },
+  "oclif": {}
 }

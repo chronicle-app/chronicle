@@ -1,0 +1,24 @@
+{
+  "extends": "@chronicle.app/tsconfig/lib.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
+    "jsx": "react-jsx",
+    "noUnusedLocals": false,
+    "noImplicitOverride": false,
+    "noImplicitReturns": false
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "references": [
+    {
+      "path": "../../core/etl/tsconfig.lib.json"
+    },
+    {
+      "path": "../../core/schema/tsconfig.lib.json"
+    },
+    {
+      "path": "../../core/auth/tsconfig.lib.json"
+    }
+  ]
+}
