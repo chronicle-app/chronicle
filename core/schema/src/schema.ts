@@ -59,6 +59,7 @@ export type ActionAndChildren =
   | CompleteActionAndChildren
   | DeleteActionAndChildren
   | ExecuteActionAndChildren
+  | MessageActionAndChildren
   | PlanActionAndChildren
   | UpdateActionAndChildren;
 
@@ -94,6 +95,8 @@ export type EntityAndChildren =
   | AgentAndChildren
   | CollectionAndChildren
   | CommandAndChildren
+  | MediaObjectAndChildren
+  | MessageAndChildren
   | RealmAndChildren
   | TagAndChildren
   | TaskAndChildren;
@@ -134,6 +137,51 @@ export const AgentSchema: z.ZodType<Agent> = z
   .object({
     '@type': z.literal('Agent'),
     ...AgentProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// MediaObject, child of https://schema.chronicle.app/Entity
+export interface MediaObject extends Omit<Entity, '@type'> {
+  '@type': 'MediaObject';
+  contentPath?: string;
+  mimeType?: string;
+}
+
+export type MediaObjectAndChildren =
+  | MediaObject
+  | AudioObjectAndChildren
+  | DocumentObjectAndChildren
+  | ImageObjectAndChildren
+  | VideoObjectAndChildren;
+
+const MediaObjectProperties = {
+  ...EntityProperties,
+  contentPath: z.lazy(() => z.string()).optional(),
+  mimeType: z.lazy(() => z.string()).optional(),
+};
+
+export const MediaObjectSchema: z.ZodType<MediaObject> = z
+  .object({
+    '@type': z.literal('MediaObject'),
+    ...MediaObjectProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// AudioObject, child of https://schema.chronicle.app/MediaObject
+export interface AudioObject extends Omit<MediaObject, '@type'> {
+  '@type': 'AudioObject';
+}
+
+export type AudioObjectAndChildren = AudioObject;
+
+const AudioObjectProperties = {
+  ...MediaObjectProperties,
+};
+
+export const AudioObjectSchema: z.ZodType<AudioObject> = z
+  .object({
+    '@type': z.literal('AudioObject'),
+    ...AudioObjectProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -227,6 +275,24 @@ export const DeleteActionSchema: z.ZodType<DeleteAction> = z
   })
   .superRefine(requireNodeIdentity);
 
+// DocumentObject, child of https://schema.chronicle.app/MediaObject
+export interface DocumentObject extends Omit<MediaObject, '@type'> {
+  '@type': 'DocumentObject';
+}
+
+export type DocumentObjectAndChildren = DocumentObject;
+
+const DocumentObjectProperties = {
+  ...MediaObjectProperties,
+};
+
+export const DocumentObjectSchema: z.ZodType<DocumentObject> = z
+  .object({
+    '@type': z.literal('DocumentObject'),
+    ...DocumentObjectProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // ExecuteAction, child of https://schema.chronicle.app/Action
 export interface ExecuteAction extends Omit<Action, '@type'> {
   '@type': 'ExecuteAction';
@@ -242,6 +308,64 @@ export const ExecuteActionSchema: z.ZodType<ExecuteAction> = z
   .object({
     '@type': z.literal('ExecuteAction'),
     ...ExecuteActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// ImageObject, child of https://schema.chronicle.app/MediaObject
+export interface ImageObject extends Omit<MediaObject, '@type'> {
+  '@type': 'ImageObject';
+}
+
+export type ImageObjectAndChildren = ImageObject;
+
+const ImageObjectProperties = {
+  ...MediaObjectProperties,
+};
+
+export const ImageObjectSchema: z.ZodType<ImageObject> = z
+  .object({
+    '@type': z.literal('ImageObject'),
+    ...ImageObjectProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Message, child of https://schema.chronicle.app/Entity
+export interface Message extends Omit<Entity, '@type'> {
+  '@type': 'Message';
+  contains?: MediaObjectAndChildren[];
+  recipient?: AgentAndChildren[];
+}
+
+export type MessageAndChildren = Message;
+
+const MessageProperties = {
+  ...EntityProperties,
+  contains: z.lazy(() => z.array(MediaObjectAndChildrenSchema)).optional(),
+  recipient: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
+};
+
+export const MessageSchema: z.ZodType<Message> = z
+  .object({
+    '@type': z.literal('Message'),
+    ...MessageProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// MessageAction, child of https://schema.chronicle.app/Action
+export interface MessageAction extends Omit<Action, '@type'> {
+  '@type': 'MessageAction';
+}
+
+export type MessageActionAndChildren = MessageAction;
+
+const MessageActionProperties = {
+  ...ActionProperties,
+};
+
+export const MessageActionSchema: z.ZodType<MessageAction> = z
+  .object({
+    '@type': z.literal('MessageAction'),
+    ...MessageActionProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -371,6 +495,26 @@ export const UpdateActionSchema: z.ZodType<UpdateAction> = z
   })
   .superRefine(requireNodeIdentity);
 
+// VideoObject, child of https://schema.chronicle.app/MediaObject
+export interface VideoObject extends Omit<MediaObject, '@type'> {
+  '@type': 'VideoObject';
+}
+
+export type VideoObjectAndChildren = VideoObject;
+
+const VideoObjectProperties = {
+  ...MediaObjectProperties,
+};
+
+export const VideoObjectSchema: z.ZodType<VideoObject> = z
+  .object({
+    '@type': z.literal('VideoObject'),
+    ...VideoObjectProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+export const VideoObjectAndChildrenSchema = VideoObjectSchema;
+
 export const UpdateActionAndChildrenSchema = UpdateActionSchema;
 
 export const TaskAndChildrenSchema = TaskSchema;
@@ -385,7 +529,15 @@ export const PlanActionAndChildrenSchema = PlanActionSchema;
 
 export const PersonAndChildrenSchema = PersonSchema;
 
+export const MessageActionAndChildrenSchema = MessageActionSchema;
+
+export const MessageAndChildrenSchema = MessageSchema;
+
+export const ImageObjectAndChildrenSchema = ImageObjectSchema;
+
 export const ExecuteActionAndChildrenSchema = ExecuteActionSchema;
+
+export const DocumentObjectAndChildrenSchema = DocumentObjectSchema;
 
 export const DeleteActionAndChildrenSchema = DeleteActionSchema;
 
@@ -408,6 +560,36 @@ export const CollectionAndChildrenSchema: z.ZodType<CollectionAndChildren> = z
   .superRefine(requireNodeIdentity);
 export const CancelActionAndChildrenSchema = CancelActionSchema;
 
+export const AudioObjectAndChildrenSchema = AudioObjectSchema;
+
+export const MediaObjectAndChildrenSchema: z.ZodType<MediaObjectAndChildren> = z
+  .discriminatedUnion('@type', [
+    z.object({
+      '@type': z.literal('MediaObject'),
+      ...MediaObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('VideoObject'),
+      ...VideoObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ImageObject'),
+      ...ImageObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('DocumentObject'),
+      ...DocumentObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('AudioObject'),
+      ...AudioObjectProperties,
+    }),
+  ])
+  .superRefine(requireNodeIdentity);
 export const AgentAndChildrenSchema: z.ZodType<AgentAndChildren> = z
   .discriminatedUnion('@type', [
     z.object({
@@ -444,6 +626,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('Message'),
+      ...MessageProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Command'),
       ...CommandProperties,
     }),
@@ -456,6 +643,31 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     z.object({
       '@type': z.literal('Project'),
       ...ProjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('MediaObject'),
+      ...MediaObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('VideoObject'),
+      ...VideoObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ImageObject'),
+      ...ImageObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('DocumentObject'),
+      ...DocumentObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('AudioObject'),
+      ...AudioObjectProperties,
     }),
 
     z.object({
@@ -484,6 +696,11 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     z.object({
       '@type': z.literal('PlanAction'),
       ...PlanActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('MessageAction'),
+      ...MessageActionProperties,
     }),
 
     z.object({
@@ -535,6 +752,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('Message'),
+      ...MessageProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Command'),
       ...CommandProperties,
     }),
@@ -547,6 +769,31 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('Project'),
       ...ProjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('MediaObject'),
+      ...MediaObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('VideoObject'),
+      ...VideoObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ImageObject'),
+      ...ImageObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('DocumentObject'),
+      ...DocumentObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('AudioObject'),
+      ...AudioObjectProperties,
     }),
 
     z.object({
@@ -572,6 +819,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('PlanAction'),
       ...PlanActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('MessageAction'),
+      ...MessageActionProperties,
     }),
 
     z.object({
