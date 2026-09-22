@@ -9,7 +9,7 @@ greenfield, extraction-first project. Reuse useful code from
 - Use built-in `node:sqlite` for SQLite extraction and open source databases
   read-only.
 - Keep the schema small. Add terms only when a plugin needs them. Edit
-  `core/schema/schema.ttl`, then run `npm run schema:generate`; do not hand-edit
+  `core/schema/chronicle.ttl`, then run `npm run schema:generate`; do not hand-edit
   generated schema code.
 - Test behavior with synthetic files and databases. Keep personal data out of
   fixtures and logs.

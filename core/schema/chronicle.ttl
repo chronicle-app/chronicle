@@ -1,0 +1,195 @@
+# Chronicle's minimal extraction vocabulary. This is the canonical source.
+@prefix : <https://schema.chronicle.app/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+:Base a rdfs:Class;
+  rdfs:comment "The common base for entities and actions described by a source. Each node carries an identity, expressed as @key or @id, so it can be referenced across records." .
+:Entity a rdfs:Class;
+  rdfs:subClassOf :Base;
+  rdfs:comment "A thing described by a source, such as a person, place, document, or web page. An entity represents the thing itself; actions record what happened to or with it." .
+:Action a rdfs:Class;
+  rdfs:subClassOf :Base;
+  rdfs:comment "An occurrence recorded by a source, such as reading an article, sending a message, or visiting a place. Its :object identifies the entity the action was carried out on." .
+:Text a rdfs:Class;
+  rdfs:comment "A literal string, used for values such as names and source identifiers. Text is carried directly as a property value and has no node identity of its own." .
+:URL a rdfs:Class;
+  rdfs:comment "A Uniform Resource Locator expressed as an absolute URL string, such as https://example.com/article. Used for properties that locate a resource." .
+
+:sourceId a rdf:Property;
+  rdfs:comment "The identifier assigned by the source to an entity or action, such as a record ID or message ID. Represented as text and scoped to the source's own namespace; it need not be globally unique.";
+  owl:maxCardinality 1;
+  :domainIncludes :Base;
+  :rangeIncludes :Text .
+:name a rdf:Property;
+  rdfs:comment "The human-readable name or title of an entity, such as a person's display name, a document title, or a place name.";
+  owl:maxCardinality 1;
+  :domainIncludes :Entity;
+  :rangeIncludes :Text .
+:url a rdf:Property;
+  rdfs:comment "A URL at which the entity can be found, such as a web page's address or a link to a source record.";
+  owl:maxCardinality 1;
+  :domainIncludes :Entity;
+  :rangeIncludes :URL .
+:object a rdf:Property;
+  rdfs:comment "The entity an action is carried out on, such as the article being read, the message being sent, or the place being visited. For movement, the :object identifies where the movement began.";
+  owl:maxCardinality 1;
+  :domainIncludes :Action;
+  :rangeIncludes :Entity .
+
+:DateTime a rdfs:Class;
+  rdfs:comment "An instant anchored in time, including a date and time of day. Represented as a JavaScript Date in extracted records; use only when the source provides enough information to identify an instant." .
+:Agent a rdfs:Class;
+  rdfs:subClassOf :Entity;
+  rdfs:comment "An entity capable of performing an action, such as a person, organization, or software agent. An action's :agent identifies its doer when known." .
+:Task a rdfs:Class;
+  rdfs:subClassOf :Entity;
+  rdfs:comment "A unit of work to be done, such as a to-do item. The task carries its :name and :description; actions record its planning, updates, completion, or cancellation." .
+:Collection a rdfs:Class;
+  rdfs:subClassOf :Entity;
+  rdfs:comment "A grouping of entities declared by a source, such as a list, an area of responsibility, or a section within a project. Members link to the collection through :isPartOf." .
+:Project a rdfs:Class;
+  rdfs:subClassOf :Collection;
+  rdfs:comment "An organized undertaking that groups related work toward an outcome. Tasks and other constituent entities link to the project through :isPartOf." .
+:Tag a rdfs:Class;
+  rdfs:subClassOf :Entity;
+  rdfs:comment "A label used by a source to categorize or describe entities. Represented as an entity with its own identity so the same tag can be referenced by multiple records." .
+:PlanAction a rdfs:Class;
+  rdfs:subClassOf :Action;
+  rdfs:comment "The act of establishing an intention to do something, such as creating a to-do item. The :object identifies the planned work; the :timestamp records when the plan was made." .
+:UpdateAction a rdfs:Class;
+  rdfs:subClassOf :Action;
+  rdfs:comment "A change to an existing entity, such as editing a task's title or notes. The :object identifies the entity that was changed." .
+:CompleteAction a rdfs:Class;
+  rdfs:subClassOf :Action;
+  rdfs:comment "The completion of an activity or piece of work, such as finishing a task or a book. The :object identifies what was completed." .
+:CancelAction a rdfs:Class;
+  rdfs:subClassOf :Action;
+  rdfs:comment "The withdrawal of a plan or intended activity, such as cancelling a task. The :object identifies what was cancelled." .
+:DeleteAction a rdfs:Class;
+  rdfs:subClassOf :Action;
+  rdfs:comment "The removal of an entity from its source, including moving an item to the trash. The :object identifies what was removed." .
+:source a rdf:Property;
+  rdfs:comment "The source system that describes the entity or action, such as things-todo. Provides the source namespace in which identifiers such as :sourceId are interpreted.";
+  owl:maxCardinality 1;
+  :domainIncludes :Base;
+  :rangeIncludes :Text .
+:timestamp a rdf:Property;
+  rdfs:comment "The instant when the action occurred, as reported by the source. Records occurrence time, not the time Chronicle extracted the record.";
+  owl:maxCardinality 1;
+  :domainIncludes :Action;
+  :rangeIncludes :DateTime .
+:agent a rdf:Property;
+  rdfs:comment "The doer of the action, when identified by the source. Omit when no doer is known; an occurrence can be recorded without an agent.";
+  owl:maxCardinality 1;
+  :domainIncludes :Action;
+  :rangeIncludes :Agent .
+:sameAs a rdf:Property;
+  rdfs:comment "Another reference to the same entity, expressed as an entity node or a textual identity reference such as @me. Asserts shared identity, rather than similarity or association.";
+  :domainIncludes :Entity;
+  :rangeIncludes :Entity, :Text .
+:description a rdf:Property;
+  rdfs:comment "Descriptive text supplied by the source about an entity, such as a task's notes or a project's summary.";
+  owl:maxCardinality 1;
+  :domainIncludes :Entity;
+  :rangeIncludes :Text .
+:handle a rdf:Property;
+  rdfs:comment "A contextual identifier for an entity within its namespace, such as a username, channel slug, or tag label. Its meaning depends on the source or context in which it is used.";
+  owl:maxCardinality 1;
+  :domainIncludes :Entity;
+  :rangeIncludes :Text .
+:isPartOf a rdf:Property;
+  rdfs:comment "An entity that this entity forms part of, such as a task's project or collection, or the page containing an excerpt. Each value identifies a containing whole.";
+  :domainIncludes :Entity;
+  :rangeIncludes :Entity .
+:about a rdf:Property;
+  rdfs:comment "An entity representing the subject matter of this entity, such as a topic or tag describing what a task concerns.";
+  :domainIncludes :Entity;
+  :rangeIncludes :Entity .
+
+:Command a rdfs:Class;
+  rdfs:subClassOf :Entity;
+  rdfs:comment "An instruction issued to a computer, such as a shell command. Its :body carries the command text; an :ExecuteAction records an execution of it." .
+:Person a rdfs:Class;
+  rdfs:subClassOf :Agent;
+  rdfs:comment "A human individual represented by a source, such as a message participant or computer user." .
+:Realm a rdfs:Class;
+  rdfs:subClassOf :Entity;
+  rdfs:comment "A bounded account or computing domain, such as a workspace, computer system, or email domain. Agents belong to it through :memberOf; entities located within it use :inRealm." .
+:ExecuteAction a rdfs:Class;
+  rdfs:subClassOf :Action;
+  rdfs:comment "The execution of a command or software resource. The :object identifies what was executed; :agent identifies the doer when known." .
+:body a rdf:Property;
+  rdfs:comment "The textual content of an entity, such as a shell command or message, as supplied by the source.";
+  owl:maxCardinality 1;
+  :domainIncludes :Entity;
+  :rangeIncludes :Text .
+:memberOf a rdf:Property;
+  rdfs:comment "An entity the agent belongs to, such as a realm representing the computer system in which a user account exists.";
+  :domainIncludes :Agent;
+  :rangeIncludes :Entity .
+
+:Message a rdfs:Class;
+  rdfs:subClassOf :Entity;
+  rdfs:comment "A communicated item, such as a text message or chat reply. Its :body carries text, :contains links attachments, and :recipient identifies the intended receivers." .
+:MessageAction a rdfs:Class;
+  rdfs:subClassOf :Action;
+  rdfs:comment "The sending of a message. The :object identifies the message and :agent identifies the sender when known." .
+:MediaObject a rdfs:Class;
+  rdfs:subClassOf :Entity;
+  rdfs:comment "A media artifact, such as an image, audio recording, video, or document. Its :contentPath or :url locates the content, and :mimeType describes its format." .
+:ImageObject a rdfs:Class;
+  rdfs:subClassOf :MediaObject;
+  rdfs:comment "An image artifact, such as a photograph, screenshot, or image attachment." .
+:AudioObject a rdfs:Class;
+  rdfs:subClassOf :MediaObject;
+  rdfs:comment "An audio artifact, such as a voice message, music file, or sound recording." .
+:VideoObject a rdfs:Class;
+  rdfs:subClassOf :MediaObject;
+  rdfs:comment "A video artifact, such as a recorded clip or video attachment, which may include audio." .
+:DocumentObject a rdfs:Class;
+  rdfs:subClassOf :MediaObject;
+  rdfs:comment "A document artifact, such as a PDF, text file, or document attachment." .
+:recipient a rdf:Property;
+  rdfs:comment "An agent the message was directed to. A message can have multiple recipients, such as the other participants in a group conversation.";
+  :domainIncludes :Message;
+  :rangeIncludes :Agent .
+:contains a rdf:Property;
+  rdfs:comment "A media artifact carried by a message, such as an attached image, voice recording, video, or document.";
+  :domainIncludes :Message;
+  :rangeIncludes :MediaObject .
+:contentPath a rdf:Property;
+  rdfs:comment "An absolute filesystem path to the local file containing the media bytes. Describes where the extracted content is available on the source machine.";
+  owl:maxCardinality 1;
+  :domainIncludes :MediaObject;
+  :rangeIncludes :Text .
+:mimeType a rdf:Property;
+  rdfs:comment "The MIME type of the media content, such as image/jpeg, audio/mp4, or application/pdf.";
+  owl:maxCardinality 1;
+  :domainIncludes :MediaObject;
+  :rangeIncludes :Text .
+
+:SoftwareAgent a rdfs:Class;
+  rdfs:subClassOf :Agent;
+  rdfs:comment "Running software acting as a participant, such as an assistant, bot, or automation. It can be the :agent of an action or the :author of a message." .
+:SoftwareApplication a rdfs:Class;
+  rdfs:subClassOf :Entity;
+  rdfs:comment "A software application or model used to perform work. An action can identify it through :instrument, using the source-provided application or model identifier." .
+:Thread a rdfs:Class;
+  rdfs:subClassOf :Collection;
+  rdfs:comment "A conversation explicitly grouped by its source, such as an email thread or assistant chat. Messages link to it through :isPartOf; its :name can carry the conversation title." .
+:instrument a rdf:Property;
+  rdfs:comment "The tool, device, application, or model used to perform an action. The :agent identifies who acted; :instrument identifies what they used.";
+  owl:maxCardinality 1;
+  :domainIncludes :Action;
+  :rangeIncludes :Entity .
+:author a rdf:Property;
+  rdfs:comment "An agent that authored the message content, such as a person or software assistant.";
+  :domainIncludes :Message;
+  :rangeIncludes :Agent .
+:inRealm a rdf:Property;
+  rdfs:comment "The realm in which an entity resides, such as the computer system hosting a conversation or file. Provides context for identifiers that are local to that realm.";
+  owl:maxCardinality 1;
+  :domainIncludes :Entity;
+  :rangeIncludes :Realm .

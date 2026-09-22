@@ -10,7 +10,7 @@ const { namedNode } = DataFactory;
 const store = new Store();
 
 // Optional paths support isolated generation checks without rewriting tracked output.
-const ttlFilePath = process.argv[2] ?? fileURLToPath(new URL('../schema.ttl', import.meta.url));
+const ttlFilePath = process.argv[2] ?? fileURLToPath(new URL('../chronicle.ttl', import.meta.url));
 const outputFilePath =
   process.argv[3] ?? fileURLToPath(new URL('../src/schema.ts', import.meta.url));
 
@@ -185,7 +185,7 @@ const writeSchemaFile = (classes, properties) =>
     schemaFile.on('error', reject);
 
     schemaFile.write(
-      "// Generated from schema.ttl. Do not edit; run npm run schema:generate.\nimport { z } from 'zod';\n\n// Record identity key field: a property path, or a computed {key, value} entry\nexport type KeyField = string | { key: string; value: string };\n\n"
+      "// Generated from chronicle.ttl. Do not edit; run npm run schema:generate.\nimport { z } from 'zod';\n\n// Record identity key field: a property path, or a computed {key, value} entry\nexport type KeyField = string | { key: string; value: string };\n\n"
     );
 
     // Identity comes from the source, expressed as @key or @id, including nested nodes.

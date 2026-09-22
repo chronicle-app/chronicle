@@ -1,0 +1,3218 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Chronicle vocabulary: types, properties, inheritance, and constraints."
+    />
+    <title>Chronicle schema 0.1.0</title>
+    <style>
+      /* Adapted from chronicle-internal's schema reference stylesheet. */
+      :root {
+        color-scheme: light;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        color: #24332f;
+        background: #fff;
+        line-height: 1.65;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+      }
+      a {
+        color: #176651;
+        text-underline-offset: 3px;
+      }
+      a:hover {
+        color: #093d30;
+      }
+      :focus-visible {
+        outline: 3px solid #b17820;
+        outline-offset: 3px;
+      }
+      .skip {
+        position: fixed;
+        top: -100px;
+        z-index: 3;
+        background: white;
+        padding: 12px;
+      }
+      .skip:focus {
+        top: 8px;
+      }
+      .sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        width: 280px;
+        background: #f5f7f5;
+        border-right: 1px solid #dee5df;
+        padding: 24px;
+        overflow: auto;
+      }
+      .brand {
+        display: block;
+        font-size: 24px;
+        font-weight: 700;
+        text-decoration: none;
+      }
+      .muted,
+      .eyebrow,
+      .uri,
+      footer {
+        color: #5c6c64;
+        font-size: 13px;
+      }
+      .eyebrow {
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        font-weight: 600;
+      }
+      .tree,
+      .tree ul {
+        list-style: none;
+        padding: 0;
+        margin: 6px 0;
+      }
+      .tree ul {
+        margin-left: 10px;
+        padding-left: 10px;
+        border-left: 1px solid #d8e1db;
+      }
+      .tree li {
+        font-size: 13px;
+        margin: 5px 0;
+        overflow-wrap: anywhere;
+      }
+      .tree a {
+        text-decoration: none;
+      }
+      main {
+        margin-left: 280px;
+        padding: 48px clamp(24px, 5vw, 80px);
+        max-width: 1500px;
+      }
+      h1 {
+        font-size: clamp(28px, 3vw, 42px);
+        line-height: 1.2;
+        letter-spacing: -0.035em;
+        max-width: 22ch;
+      }
+      h2 {
+        font-size: 24px;
+        margin: 36px 0 12px;
+      }
+      h3 {
+        font-size: 24px;
+        margin: 6px 0 16px;
+      }
+      h3 a {
+        text-decoration: none;
+      }
+      h4 {
+        font-size: 15px;
+        margin: 24px 0 10px;
+      }
+      p {
+        max-width: 76ch;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.88em;
+        background: #f1f4f1;
+        border-radius: 3px;
+        padding: 2px 4px;
+        overflow-wrap: anywhere;
+      }
+      .term {
+        padding: 20px 0 32px;
+        border-top: 1px solid #dce5dd;
+        scroll-margin-top: 20px;
+      }
+      .term:target {
+        border-top-color: #176651;
+      }
+      .table-wrap {
+        overflow-x: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+        font-size: 14px;
+      }
+      th {
+        color: #56675c;
+        font-size: 12px;
+        background: #f6f8f5;
+      }
+      th,
+      td {
+        padding: 12px;
+        vertical-align: top;
+        border-bottom: 1px solid #e1e7e1;
+      }
+      td:first-child {
+        white-space: nowrap;
+      }
+      dl {
+        display: grid;
+        grid-template-columns: 110px 1fr;
+        gap: 8px 16px;
+        font-size: 14px;
+      }
+      dt {
+        font-weight: 600;
+      }
+      dd {
+        margin: 0;
+      }
+      .uri {
+        margin-top: 24px;
+      }
+      @media (max-width: 800px) {
+        .sidebar {
+          position: static;
+          width: auto;
+          border-right: 0;
+          border-bottom: 1px solid #dee5df;
+        }
+        .sidebar nav {
+          max-height: 260px;
+          overflow: auto;
+        }
+        main {
+          margin-left: 0;
+          padding: 28px 20px;
+        }
+      }
+      @media print {
+        .sidebar,
+        .skip {
+          display: none;
+        }
+        main {
+          margin: 0;
+          padding: 0;
+        }
+        .table-wrap {
+          overflow: visible;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip" href="#reference">Skip to reference</a>
+    <aside class="sidebar">
+      <a class="brand" href="#overview">Chronicle</a>
+      <p class="muted">Schema reference · 0.1.0</p>
+      <nav aria-label="Schema navigation">
+        <h2><a href="#types">Types</a></h2>
+        <ul class="tree">
+          <li>
+            <a href="#Base">:Base</a>
+            <ul>
+              <li>
+                <a href="#Action">:Action</a>
+                <ul>
+                  <li><a href="#CancelAction">:CancelAction</a></li>
+                  <li><a href="#CompleteAction">:CompleteAction</a></li>
+                  <li><a href="#DeleteAction">:DeleteAction</a></li>
+                  <li><a href="#ExecuteAction">:ExecuteAction</a></li>
+                  <li><a href="#MessageAction">:MessageAction</a></li>
+                  <li><a href="#PlanAction">:PlanAction</a></li>
+                  <li><a href="#UpdateAction">:UpdateAction</a></li>
+                </ul>
+              </li>
+              <li>
+                <a href="#Entity">:Entity</a>
+                <ul>
+                  <li>
+                    <a href="#Agent">:Agent</a>
+                    <ul>
+                      <li><a href="#Person">:Person</a></li>
+                      <li><a href="#SoftwareAgent">:SoftwareAgent</a></li>
+                    </ul>
+                  </li>
+                  <li>
+                    <a href="#Collection">:Collection</a>
+                    <ul>
+                      <li><a href="#Project">:Project</a></li>
+                      <li><a href="#Thread">:Thread</a></li>
+                    </ul>
+                  </li>
+                  <li><a href="#Command">:Command</a></li>
+                  <li>
+                    <a href="#MediaObject">:MediaObject</a>
+                    <ul>
+                      <li><a href="#AudioObject">:AudioObject</a></li>
+                      <li><a href="#DocumentObject">:DocumentObject</a></li>
+                      <li><a href="#ImageObject">:ImageObject</a></li>
+                      <li><a href="#VideoObject">:VideoObject</a></li>
+                    </ul>
+                  </li>
+                  <li><a href="#Message">:Message</a></li>
+                  <li><a href="#Realm">:Realm</a></li>
+                  <li><a href="#SoftwareApplication">:SoftwareApplication</a></li>
+                  <li><a href="#Tag">:Tag</a></li>
+                  <li><a href="#Task">:Task</a></li>
+                </ul>
+              </li>
+            </ul>
+          </li>
+          <li><a href="#DateTime">:DateTime</a></li>
+          <li><a href="#Text">:Text</a></li>
+          <li><a href="#URL">:URL</a></li>
+        </ul>
+        <h2><a href="#properties">Properties</a></h2>
+        <ul class="tree">
+          <li><a href="#about">:about</a></li>
+          <li><a href="#agent">:agent</a></li>
+          <li><a href="#author">:author</a></li>
+          <li><a href="#body">:body</a></li>
+          <li><a href="#contains">:contains</a></li>
+          <li><a href="#contentPath">:contentPath</a></li>
+          <li><a href="#description">:description</a></li>
+          <li><a href="#handle">:handle</a></li>
+          <li><a href="#inRealm">:inRealm</a></li>
+          <li><a href="#instrument">:instrument</a></li>
+          <li><a href="#isPartOf">:isPartOf</a></li>
+          <li><a href="#memberOf">:memberOf</a></li>
+          <li><a href="#mimeType">:mimeType</a></li>
+          <li><a href="#name">:name</a></li>
+          <li><a href="#object">:object</a></li>
+          <li><a href="#recipient">:recipient</a></li>
+          <li><a href="#sameAs">:sameAs</a></li>
+          <li><a href="#source">:source</a></li>
+          <li><a href="#sourceId">:sourceId</a></li>
+          <li><a href="#timestamp">:timestamp</a></li>
+          <li><a href="#url">:url</a></li>
+        </ul>
+      </nav>
+    </aside>
+    <main id="reference">
+      <header id="overview">
+        <p class="eyebrow">Chronicle vocabulary</p>
+        <h1>A shared vocabulary for personal history.</h1>
+        <p>Reference for 30 types and 21 properties, generated from <code>chronicle.ttl</code>.</p>
+        <p class="muted">
+          Package version 0.1.0. Use your browser’s Find command to search this page.
+        </p>
+        <p>
+          Types inherit their parents’ properties. Cardinality gives the minimum and maximum number
+          of values: <code>0…1</code> is optional and single-valued;
+          <code>0…unbounded</code> permits multiple values.
+        </p>
+      </header>
+      <h2 id="types">Types</h2>
+      <section class="term" id="Action">
+        <header>
+          <p class="eyebrow">Type</p>
+          <h3><a href="#Action">:Action</a></h3>
+        </header>
+        <p>
+          An occurrence recorded by a source, such as reading an article, sending a message, or
+          visiting a place. Its <a href="#object">:object</a> identifies the entity the action was
+          carried out on.
+        </p>
+        <p><strong>Parent types:</strong> <a href="#Base">:Base</a></p>
+        <p>
+          <strong>Subtypes:</strong> <a href="#CancelAction">:CancelAction</a>,
+          <a href="#CompleteAction">:CompleteAction</a>, <a href="#DeleteAction">:DeleteAction</a>,
+          <a href="#ExecuteAction">:ExecuteAction</a>, <a href="#MessageAction">:MessageAction</a>,
+          <a href="#PlanAction">:PlanAction</a>, <a href="#UpdateAction">:UpdateAction</a>
+        </p>
+        <h4>Properties defined here</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#agent">:agent</a></td>
+                <td><a href="#Agent">:Agent</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+              <tr>
+                <td><a href="#instrument">:instrument</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+              <tr>
+                <td><a href="#object">:object</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+              <tr>
+                <td><a href="#timestamp">:timestamp</a></td>
+                <td><a href="#DateTime">:DateTime</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <h4>Inherited properties</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#source">:source</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sourceId">:sourceId</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="uri">URI: <code>https://schema.chronicle.app/Action</code></p>
+      </section>
+      <section class="term" id="Agent">
+        <header>
+          <p class="eyebrow">Type</p>
+          <h3><a href="#Agent">:Agent</a></h3>
+        </header>
+        <p>
+          An entity capable of performing an action, such as a person, organization, or software
+          agent. An action&#39;s <a href="#agent">:agent</a> identifies its doer when known.
+        </p>
+        <p><strong>Parent types:</strong> <a href="#Entity">:Entity</a></p>
+        <p>
+          <strong>Subtypes:</strong> <a href="#Person">:Person</a>,
+          <a href="#SoftwareAgent">:SoftwareAgent</a>
+        </p>
+        <h4>Properties defined here</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#memberOf">:memberOf</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Agent">:Agent</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <h4>Inherited properties</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#about">:about</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#body">:body</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#description">:description</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#handle">:handle</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#inRealm">:inRealm</a></td>
+                <td><a href="#Realm">:Realm</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#isPartOf">:isPartOf</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#name">:name</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sameAs">:sameAs</a></td>
+                <td><a href="#Entity">:Entity</a>, <a href="#Text">:Text</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#source">:source</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sourceId">:sourceId</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#url">:url</a></td>
+                <td><a href="#URL">:URL</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="uri">URI: <code>https://schema.chronicle.app/Agent</code></p>
+      </section>
+      <section class="term" id="AudioObject">
+        <header>
+          <p class="eyebrow">Type</p>
+          <h3><a href="#AudioObject">:AudioObject</a></h3>
+        </header>
+        <p>An audio artifact, such as a voice message, music file, or sound recording.</p>
+        <p><strong>Parent types:</strong> <a href="#MediaObject">:MediaObject</a></p>
+
+        <p class="muted">No properties declared directly on this type.</p>
+        <h4>Inherited properties</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#about">:about</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#body">:body</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#contentPath">:contentPath</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#MediaObject">:MediaObject</a></td>
+              </tr>
+              <tr>
+                <td><a href="#description">:description</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#handle">:handle</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#inRealm">:inRealm</a></td>
+                <td><a href="#Realm">:Realm</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#isPartOf">:isPartOf</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#mimeType">:mimeType</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#MediaObject">:MediaObject</a></td>
+              </tr>
+              <tr>
+                <td><a href="#name">:name</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sameAs">:sameAs</a></td>
+                <td><a href="#Entity">:Entity</a>, <a href="#Text">:Text</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#source">:source</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sourceId">:sourceId</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#url">:url</a></td>
+                <td><a href="#URL">:URL</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="uri">URI: <code>https://schema.chronicle.app/AudioObject</code></p>
+      </section>
+      <section class="term" id="Base">
+        <header>
+          <p class="eyebrow">Type</p>
+          <h3><a href="#Base">:Base</a></h3>
+        </header>
+        <p>
+          The common base for entities and actions described by a source. Each node carries an
+          identity, expressed as @key or @id, so it can be referenced across records.
+        </p>
+
+        <p>
+          <strong>Subtypes:</strong> <a href="#Action">:Action</a>, <a href="#Entity">:Entity</a>
+        </p>
+        <h4>Properties defined here</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#source">:source</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sourceId">:sourceId</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="uri">URI: <code>https://schema.chronicle.app/Base</code></p>
+      </section>
+      <section class="term" id="CancelAction">
+        <header>
+          <p class="eyebrow">Type</p>
+          <h3><a href="#CancelAction">:CancelAction</a></h3>
+        </header>
+        <p>
+          The withdrawal of a plan or intended activity, such as cancelling a task. The
+          <a href="#object">:object</a> identifies what was cancelled.
+        </p>
+        <p><strong>Parent types:</strong> <a href="#Action">:Action</a></p>
+
+        <p class="muted">No properties declared directly on this type.</p>
+        <h4>Inherited properties</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#agent">:agent</a></td>
+                <td><a href="#Agent">:Agent</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+              <tr>
+                <td><a href="#instrument">:instrument</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+              <tr>
+                <td><a href="#object">:object</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+              <tr>
+                <td><a href="#source">:source</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sourceId">:sourceId</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#timestamp">:timestamp</a></td>
+                <td><a href="#DateTime">:DateTime</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="uri">URI: <code>https://schema.chronicle.app/CancelAction</code></p>
+      </section>
+      <section class="term" id="Collection">
+        <header>
+          <p class="eyebrow">Type</p>
+          <h3><a href="#Collection">:Collection</a></h3>
+        </header>
+        <p>
+          A grouping of entities declared by a source, such as a list, an area of responsibility, or
+          a section within a project. Members link to the collection through
+          <a href="#isPartOf">:isPartOf</a>.
+        </p>
+        <p><strong>Parent types:</strong> <a href="#Entity">:Entity</a></p>
+        <p>
+          <strong>Subtypes:</strong> <a href="#Project">:Project</a>, <a href="#Thread">:Thread</a>
+        </p>
+        <p class="muted">No properties declared directly on this type.</p>
+        <h4>Inherited properties</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#about">:about</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#body">:body</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#description">:description</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#handle">:handle</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#inRealm">:inRealm</a></td>
+                <td><a href="#Realm">:Realm</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#isPartOf">:isPartOf</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#name">:name</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sameAs">:sameAs</a></td>
+                <td><a href="#Entity">:Entity</a>, <a href="#Text">:Text</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#source">:source</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sourceId">:sourceId</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#url">:url</a></td>
+                <td><a href="#URL">:URL</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="uri">URI: <code>https://schema.chronicle.app/Collection</code></p>
+      </section>
+      <section class="term" id="Command">
+        <header>
+          <p class="eyebrow">Type</p>
+          <h3><a href="#Command">:Command</a></h3>
+        </header>
+        <p>
+          An instruction issued to a computer, such as a shell command. Its
+          <a href="#body">:body</a> carries the command text; an
+          <a href="#ExecuteAction">:ExecuteAction</a> records an execution of it.
+        </p>
+        <p><strong>Parent types:</strong> <a href="#Entity">:Entity</a></p>
+
+        <p class="muted">No properties declared directly on this type.</p>
+        <h4>Inherited properties</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#about">:about</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#body">:body</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#description">:description</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#handle">:handle</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#inRealm">:inRealm</a></td>
+                <td><a href="#Realm">:Realm</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#isPartOf">:isPartOf</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#name">:name</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sameAs">:sameAs</a></td>
+                <td><a href="#Entity">:Entity</a>, <a href="#Text">:Text</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#source">:source</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sourceId">:sourceId</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#url">:url</a></td>
+                <td><a href="#URL">:URL</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="uri">URI: <code>https://schema.chronicle.app/Command</code></p>
+      </section>
+      <section class="term" id="CompleteAction">
+        <header>
+          <p class="eyebrow">Type</p>
+          <h3><a href="#CompleteAction">:CompleteAction</a></h3>
+        </header>
+        <p>
+          The completion of an activity or piece of work, such as finishing a task or a book. The
+          <a href="#object">:object</a> identifies what was completed.
+        </p>
+        <p><strong>Parent types:</strong> <a href="#Action">:Action</a></p>
+
+        <p class="muted">No properties declared directly on this type.</p>
+        <h4>Inherited properties</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#agent">:agent</a></td>
+                <td><a href="#Agent">:Agent</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+              <tr>
+                <td><a href="#instrument">:instrument</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+              <tr>
+                <td><a href="#object">:object</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+              <tr>
+                <td><a href="#source">:source</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sourceId">:sourceId</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#timestamp">:timestamp</a></td>
+                <td><a href="#DateTime">:DateTime</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="uri">URI: <code>https://schema.chronicle.app/CompleteAction</code></p>
+      </section>
+      <section class="term" id="DateTime">
+        <header>
+          <p class="eyebrow">Type</p>
+          <h3><a href="#DateTime">:DateTime</a></h3>
+        </header>
+        <p>
+          An instant anchored in time, including a date and time of day. Represented as a JavaScript
+          Date in extracted records; use only when the source provides enough information to
+          identify an instant.
+        </p>
+
+        <p class="muted">No properties declared directly on this type.</p>
+
+        <p class="uri">URI: <code>https://schema.chronicle.app/DateTime</code></p>
+      </section>
+      <section class="term" id="DeleteAction">
+        <header>
+          <p class="eyebrow">Type</p>
+          <h3><a href="#DeleteAction">:DeleteAction</a></h3>
+        </header>
+        <p>
+          The removal of an entity from its source, including moving an item to the trash. The
+          <a href="#object">:object</a> identifies what was removed.
+        </p>
+        <p><strong>Parent types:</strong> <a href="#Action">:Action</a></p>
+
+        <p class="muted">No properties declared directly on this type.</p>
+        <h4>Inherited properties</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#agent">:agent</a></td>
+                <td><a href="#Agent">:Agent</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+              <tr>
+                <td><a href="#instrument">:instrument</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+              <tr>
+                <td><a href="#object">:object</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+              <tr>
+                <td><a href="#source">:source</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sourceId">:sourceId</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#timestamp">:timestamp</a></td>
+                <td><a href="#DateTime">:DateTime</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="uri">URI: <code>https://schema.chronicle.app/DeleteAction</code></p>
+      </section>
+      <section class="term" id="DocumentObject">
+        <header>
+          <p class="eyebrow">Type</p>
+          <h3><a href="#DocumentObject">:DocumentObject</a></h3>
+        </header>
+        <p>A document artifact, such as a PDF, text file, or document attachment.</p>
+        <p><strong>Parent types:</strong> <a href="#MediaObject">:MediaObject</a></p>
+
+        <p class="muted">No properties declared directly on this type.</p>
+        <h4>Inherited properties</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#about">:about</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#body">:body</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#contentPath">:contentPath</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#MediaObject">:MediaObject</a></td>
+              </tr>
+              <tr>
+                <td><a href="#description">:description</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#handle">:handle</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#inRealm">:inRealm</a></td>
+                <td><a href="#Realm">:Realm</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#isPartOf">:isPartOf</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#mimeType">:mimeType</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#MediaObject">:MediaObject</a></td>
+              </tr>
+              <tr>
+                <td><a href="#name">:name</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sameAs">:sameAs</a></td>
+                <td><a href="#Entity">:Entity</a>, <a href="#Text">:Text</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#source">:source</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sourceId">:sourceId</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#url">:url</a></td>
+                <td><a href="#URL">:URL</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="uri">URI: <code>https://schema.chronicle.app/DocumentObject</code></p>
+      </section>
+      <section class="term" id="Entity">
+        <header>
+          <p class="eyebrow">Type</p>
+          <h3><a href="#Entity">:Entity</a></h3>
+        </header>
+        <p>
+          A thing described by a source, such as a person, place, document, or web page. An entity
+          represents the thing itself; actions record what happened to or with it.
+        </p>
+        <p><strong>Parent types:</strong> <a href="#Base">:Base</a></p>
+        <p>
+          <strong>Subtypes:</strong> <a href="#Agent">:Agent</a>,
+          <a href="#Collection">:Collection</a>, <a href="#Command">:Command</a>,
+          <a href="#MediaObject">:MediaObject</a>, <a href="#Message">:Message</a>,
+          <a href="#Realm">:Realm</a>, <a href="#SoftwareApplication">:SoftwareApplication</a>,
+          <a href="#Tag">:Tag</a>, <a href="#Task">:Task</a>
+        </p>
+        <h4>Properties defined here</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#about">:about</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#body">:body</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#description">:description</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#handle">:handle</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#inRealm">:inRealm</a></td>
+                <td><a href="#Realm">:Realm</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#isPartOf">:isPartOf</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#name">:name</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sameAs">:sameAs</a></td>
+                <td><a href="#Entity">:Entity</a>, <a href="#Text">:Text</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#url">:url</a></td>
+                <td><a href="#URL">:URL</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <h4>Inherited properties</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#source">:source</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sourceId">:sourceId</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="uri">URI: <code>https://schema.chronicle.app/Entity</code></p>
+      </section>
+      <section class="term" id="ExecuteAction">
+        <header>
+          <p class="eyebrow">Type</p>
+          <h3><a href="#ExecuteAction">:ExecuteAction</a></h3>
+        </header>
+        <p>
+          The execution of a command or software resource. The
+          <a href="#object">:object</a> identifies what was executed;
+          <a href="#agent">:agent</a> identifies the doer when known.
+        </p>
+        <p><strong>Parent types:</strong> <a href="#Action">:Action</a></p>
+
+        <p class="muted">No properties declared directly on this type.</p>
+        <h4>Inherited properties</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#agent">:agent</a></td>
+                <td><a href="#Agent">:Agent</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+              <tr>
+                <td><a href="#instrument">:instrument</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+              <tr>
+                <td><a href="#object">:object</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+              <tr>
+                <td><a href="#source">:source</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sourceId">:sourceId</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#timestamp">:timestamp</a></td>
+                <td><a href="#DateTime">:DateTime</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="uri">URI: <code>https://schema.chronicle.app/ExecuteAction</code></p>
+      </section>
+      <section class="term" id="ImageObject">
+        <header>
+          <p class="eyebrow">Type</p>
+          <h3><a href="#ImageObject">:ImageObject</a></h3>
+        </header>
+        <p>An image artifact, such as a photograph, screenshot, or image attachment.</p>
+        <p><strong>Parent types:</strong> <a href="#MediaObject">:MediaObject</a></p>
+
+        <p class="muted">No properties declared directly on this type.</p>
+        <h4>Inherited properties</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#about">:about</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#body">:body</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#contentPath">:contentPath</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#MediaObject">:MediaObject</a></td>
+              </tr>
+              <tr>
+                <td><a href="#description">:description</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#handle">:handle</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#inRealm">:inRealm</a></td>
+                <td><a href="#Realm">:Realm</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#isPartOf">:isPartOf</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#mimeType">:mimeType</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#MediaObject">:MediaObject</a></td>
+              </tr>
+              <tr>
+                <td><a href="#name">:name</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sameAs">:sameAs</a></td>
+                <td><a href="#Entity">:Entity</a>, <a href="#Text">:Text</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#source">:source</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sourceId">:sourceId</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#url">:url</a></td>
+                <td><a href="#URL">:URL</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="uri">URI: <code>https://schema.chronicle.app/ImageObject</code></p>
+      </section>
+      <section class="term" id="MediaObject">
+        <header>
+          <p class="eyebrow">Type</p>
+          <h3><a href="#MediaObject">:MediaObject</a></h3>
+        </header>
+        <p>
+          A media artifact, such as an image, audio recording, video, or document. Its
+          <a href="#contentPath">:contentPath</a> or <a href="#url">:url</a> locates the content,
+          and <a href="#mimeType">:mimeType</a> describes its format.
+        </p>
+        <p><strong>Parent types:</strong> <a href="#Entity">:Entity</a></p>
+        <p>
+          <strong>Subtypes:</strong> <a href="#AudioObject">:AudioObject</a>,
+          <a href="#DocumentObject">:DocumentObject</a>, <a href="#ImageObject">:ImageObject</a>,
+          <a href="#VideoObject">:VideoObject</a>
+        </p>
+        <h4>Properties defined here</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#contentPath">:contentPath</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#MediaObject">:MediaObject</a></td>
+              </tr>
+              <tr>
+                <td><a href="#mimeType">:mimeType</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#MediaObject">:MediaObject</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <h4>Inherited properties</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#about">:about</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#body">:body</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#description">:description</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#handle">:handle</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#inRealm">:inRealm</a></td>
+                <td><a href="#Realm">:Realm</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#isPartOf">:isPartOf</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#name">:name</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sameAs">:sameAs</a></td>
+                <td><a href="#Entity">:Entity</a>, <a href="#Text">:Text</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#source">:source</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sourceId">:sourceId</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#url">:url</a></td>
+                <td><a href="#URL">:URL</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="uri">URI: <code>https://schema.chronicle.app/MediaObject</code></p>
+      </section>
+      <section class="term" id="Message">
+        <header>
+          <p class="eyebrow">Type</p>
+          <h3><a href="#Message">:Message</a></h3>
+        </header>
+        <p>
+          A communicated item, such as a text message or chat reply. Its
+          <a href="#body">:body</a> carries text, <a href="#contains">:contains</a> links
+          attachments, and <a href="#recipient">:recipient</a> identifies the intended receivers.
+        </p>
+        <p><strong>Parent types:</strong> <a href="#Entity">:Entity</a></p>
+
+        <h4>Properties defined here</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#author">:author</a></td>
+                <td><a href="#Agent">:Agent</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Message">:Message</a></td>
+              </tr>
+              <tr>
+                <td><a href="#contains">:contains</a></td>
+                <td><a href="#MediaObject">:MediaObject</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Message">:Message</a></td>
+              </tr>
+              <tr>
+                <td><a href="#recipient">:recipient</a></td>
+                <td><a href="#Agent">:Agent</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Message">:Message</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <h4>Inherited properties</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#about">:about</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#body">:body</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#description">:description</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#handle">:handle</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#inRealm">:inRealm</a></td>
+                <td><a href="#Realm">:Realm</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#isPartOf">:isPartOf</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#name">:name</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sameAs">:sameAs</a></td>
+                <td><a href="#Entity">:Entity</a>, <a href="#Text">:Text</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#source">:source</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sourceId">:sourceId</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#url">:url</a></td>
+                <td><a href="#URL">:URL</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="uri">URI: <code>https://schema.chronicle.app/Message</code></p>
+      </section>
+      <section class="term" id="MessageAction">
+        <header>
+          <p class="eyebrow">Type</p>
+          <h3><a href="#MessageAction">:MessageAction</a></h3>
+        </header>
+        <p>
+          The sending of a message. The <a href="#object">:object</a> identifies the message and
+          <a href="#agent">:agent</a> identifies the sender when known.
+        </p>
+        <p><strong>Parent types:</strong> <a href="#Action">:Action</a></p>
+
+        <p class="muted">No properties declared directly on this type.</p>
+        <h4>Inherited properties</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#agent">:agent</a></td>
+                <td><a href="#Agent">:Agent</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+              <tr>
+                <td><a href="#instrument">:instrument</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+              <tr>
+                <td><a href="#object">:object</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+              <tr>
+                <td><a href="#source">:source</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sourceId">:sourceId</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#timestamp">:timestamp</a></td>
+                <td><a href="#DateTime">:DateTime</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="uri">URI: <code>https://schema.chronicle.app/MessageAction</code></p>
+      </section>
+      <section class="term" id="Person">
+        <header>
+          <p class="eyebrow">Type</p>
+          <h3><a href="#Person">:Person</a></h3>
+        </header>
+        <p>
+          A human individual represented by a source, such as a message participant or computer
+          user.
+        </p>
+        <p><strong>Parent types:</strong> <a href="#Agent">:Agent</a></p>
+
+        <p class="muted">No properties declared directly on this type.</p>
+        <h4>Inherited properties</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#about">:about</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#body">:body</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#description">:description</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#handle">:handle</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#inRealm">:inRealm</a></td>
+                <td><a href="#Realm">:Realm</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#isPartOf">:isPartOf</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#memberOf">:memberOf</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Agent">:Agent</a></td>
+              </tr>
+              <tr>
+                <td><a href="#name">:name</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sameAs">:sameAs</a></td>
+                <td><a href="#Entity">:Entity</a>, <a href="#Text">:Text</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#source">:source</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sourceId">:sourceId</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#url">:url</a></td>
+                <td><a href="#URL">:URL</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="uri">URI: <code>https://schema.chronicle.app/Person</code></p>
+      </section>
+      <section class="term" id="PlanAction">
+        <header>
+          <p class="eyebrow">Type</p>
+          <h3><a href="#PlanAction">:PlanAction</a></h3>
+        </header>
+        <p>
+          The act of establishing an intention to do something, such as creating a to-do item. The
+          <a href="#object">:object</a> identifies the planned work; the
+          <a href="#timestamp">:timestamp</a> records when the plan was made.
+        </p>
+        <p><strong>Parent types:</strong> <a href="#Action">:Action</a></p>
+
+        <p class="muted">No properties declared directly on this type.</p>
+        <h4>Inherited properties</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#agent">:agent</a></td>
+                <td><a href="#Agent">:Agent</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+              <tr>
+                <td><a href="#instrument">:instrument</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+              <tr>
+                <td><a href="#object">:object</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+              <tr>
+                <td><a href="#source">:source</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sourceId">:sourceId</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#timestamp">:timestamp</a></td>
+                <td><a href="#DateTime">:DateTime</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="uri">URI: <code>https://schema.chronicle.app/PlanAction</code></p>
+      </section>
+      <section class="term" id="Project">
+        <header>
+          <p class="eyebrow">Type</p>
+          <h3><a href="#Project">:Project</a></h3>
+        </header>
+        <p>
+          An organized undertaking that groups related work toward an outcome. Tasks and other
+          constituent entities link to the project through <a href="#isPartOf">:isPartOf</a>.
+        </p>
+        <p><strong>Parent types:</strong> <a href="#Collection">:Collection</a></p>
+
+        <p class="muted">No properties declared directly on this type.</p>
+        <h4>Inherited properties</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#about">:about</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#body">:body</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#description">:description</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#handle">:handle</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#inRealm">:inRealm</a></td>
+                <td><a href="#Realm">:Realm</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#isPartOf">:isPartOf</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#name">:name</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sameAs">:sameAs</a></td>
+                <td><a href="#Entity">:Entity</a>, <a href="#Text">:Text</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#source">:source</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sourceId">:sourceId</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#url">:url</a></td>
+                <td><a href="#URL">:URL</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="uri">URI: <code>https://schema.chronicle.app/Project</code></p>
+      </section>
+      <section class="term" id="Realm">
+        <header>
+          <p class="eyebrow">Type</p>
+          <h3><a href="#Realm">:Realm</a></h3>
+        </header>
+        <p>
+          A bounded account or computing domain, such as a workspace, computer system, or email
+          domain. Agents belong to it through <a href="#memberOf">:memberOf</a>; entities located
+          within it use <a href="#inRealm">:inRealm</a>.
+        </p>
+        <p><strong>Parent types:</strong> <a href="#Entity">:Entity</a></p>
+
+        <p class="muted">No properties declared directly on this type.</p>
+        <h4>Inherited properties</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#about">:about</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#body">:body</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#description">:description</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#handle">:handle</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#inRealm">:inRealm</a></td>
+                <td><a href="#Realm">:Realm</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#isPartOf">:isPartOf</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#name">:name</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sameAs">:sameAs</a></td>
+                <td><a href="#Entity">:Entity</a>, <a href="#Text">:Text</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#source">:source</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sourceId">:sourceId</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#url">:url</a></td>
+                <td><a href="#URL">:URL</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="uri">URI: <code>https://schema.chronicle.app/Realm</code></p>
+      </section>
+      <section class="term" id="SoftwareAgent">
+        <header>
+          <p class="eyebrow">Type</p>
+          <h3><a href="#SoftwareAgent">:SoftwareAgent</a></h3>
+        </header>
+        <p>
+          Running software acting as a participant, such as an assistant, bot, or automation. It can
+          be the <a href="#agent">:agent</a> of an action or the <a href="#author">:author</a> of a
+          message.
+        </p>
+        <p><strong>Parent types:</strong> <a href="#Agent">:Agent</a></p>
+
+        <p class="muted">No properties declared directly on this type.</p>
+        <h4>Inherited properties</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#about">:about</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#body">:body</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#description">:description</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#handle">:handle</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#inRealm">:inRealm</a></td>
+                <td><a href="#Realm">:Realm</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#isPartOf">:isPartOf</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#memberOf">:memberOf</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Agent">:Agent</a></td>
+              </tr>
+              <tr>
+                <td><a href="#name">:name</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sameAs">:sameAs</a></td>
+                <td><a href="#Entity">:Entity</a>, <a href="#Text">:Text</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#source">:source</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sourceId">:sourceId</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#url">:url</a></td>
+                <td><a href="#URL">:URL</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="uri">URI: <code>https://schema.chronicle.app/SoftwareAgent</code></p>
+      </section>
+      <section class="term" id="SoftwareApplication">
+        <header>
+          <p class="eyebrow">Type</p>
+          <h3><a href="#SoftwareApplication">:SoftwareApplication</a></h3>
+        </header>
+        <p>
+          A software application or model used to perform work. An action can identify it through
+          <a href="#instrument">:instrument</a>, using the source-provided application or model
+          identifier.
+        </p>
+        <p><strong>Parent types:</strong> <a href="#Entity">:Entity</a></p>
+
+        <p class="muted">No properties declared directly on this type.</p>
+        <h4>Inherited properties</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#about">:about</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#body">:body</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#description">:description</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#handle">:handle</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#inRealm">:inRealm</a></td>
+                <td><a href="#Realm">:Realm</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#isPartOf">:isPartOf</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#name">:name</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sameAs">:sameAs</a></td>
+                <td><a href="#Entity">:Entity</a>, <a href="#Text">:Text</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#source">:source</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sourceId">:sourceId</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#url">:url</a></td>
+                <td><a href="#URL">:URL</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="uri">URI: <code>https://schema.chronicle.app/SoftwareApplication</code></p>
+      </section>
+      <section class="term" id="Tag">
+        <header>
+          <p class="eyebrow">Type</p>
+          <h3><a href="#Tag">:Tag</a></h3>
+        </header>
+        <p>
+          A label used by a source to categorize or describe entities. Represented as an entity with
+          its own identity so the same tag can be referenced by multiple records.
+        </p>
+        <p><strong>Parent types:</strong> <a href="#Entity">:Entity</a></p>
+
+        <p class="muted">No properties declared directly on this type.</p>
+        <h4>Inherited properties</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#about">:about</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#body">:body</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#description">:description</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#handle">:handle</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#inRealm">:inRealm</a></td>
+                <td><a href="#Realm">:Realm</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#isPartOf">:isPartOf</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#name">:name</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sameAs">:sameAs</a></td>
+                <td><a href="#Entity">:Entity</a>, <a href="#Text">:Text</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#source">:source</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sourceId">:sourceId</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#url">:url</a></td>
+                <td><a href="#URL">:URL</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="uri">URI: <code>https://schema.chronicle.app/Tag</code></p>
+      </section>
+      <section class="term" id="Task">
+        <header>
+          <p class="eyebrow">Type</p>
+          <h3><a href="#Task">:Task</a></h3>
+        </header>
+        <p>
+          A unit of work to be done, such as a to-do item. The task carries its
+          <a href="#name">:name</a> and <a href="#description">:description</a>; actions record its
+          planning, updates, completion, or cancellation.
+        </p>
+        <p><strong>Parent types:</strong> <a href="#Entity">:Entity</a></p>
+
+        <p class="muted">No properties declared directly on this type.</p>
+        <h4>Inherited properties</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#about">:about</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#body">:body</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#description">:description</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#handle">:handle</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#inRealm">:inRealm</a></td>
+                <td><a href="#Realm">:Realm</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#isPartOf">:isPartOf</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#name">:name</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sameAs">:sameAs</a></td>
+                <td><a href="#Entity">:Entity</a>, <a href="#Text">:Text</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#source">:source</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sourceId">:sourceId</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#url">:url</a></td>
+                <td><a href="#URL">:URL</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="uri">URI: <code>https://schema.chronicle.app/Task</code></p>
+      </section>
+      <section class="term" id="Text">
+        <header>
+          <p class="eyebrow">Type</p>
+          <h3><a href="#Text">:Text</a></h3>
+        </header>
+        <p>
+          A literal string, used for values such as names and source identifiers. Text is carried
+          directly as a property value and has no node identity of its own.
+        </p>
+
+        <p class="muted">No properties declared directly on this type.</p>
+
+        <p class="uri">URI: <code>https://schema.chronicle.app/Text</code></p>
+      </section>
+      <section class="term" id="Thread">
+        <header>
+          <p class="eyebrow">Type</p>
+          <h3><a href="#Thread">:Thread</a></h3>
+        </header>
+        <p>
+          A conversation explicitly grouped by its source, such as an email thread or assistant
+          chat. Messages link to it through <a href="#isPartOf">:isPartOf</a>; its
+          <a href="#name">:name</a> can carry the conversation title.
+        </p>
+        <p><strong>Parent types:</strong> <a href="#Collection">:Collection</a></p>
+
+        <p class="muted">No properties declared directly on this type.</p>
+        <h4>Inherited properties</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#about">:about</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#body">:body</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#description">:description</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#handle">:handle</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#inRealm">:inRealm</a></td>
+                <td><a href="#Realm">:Realm</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#isPartOf">:isPartOf</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#name">:name</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sameAs">:sameAs</a></td>
+                <td><a href="#Entity">:Entity</a>, <a href="#Text">:Text</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#source">:source</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sourceId">:sourceId</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#url">:url</a></td>
+                <td><a href="#URL">:URL</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="uri">URI: <code>https://schema.chronicle.app/Thread</code></p>
+      </section>
+      <section class="term" id="UpdateAction">
+        <header>
+          <p class="eyebrow">Type</p>
+          <h3><a href="#UpdateAction">:UpdateAction</a></h3>
+        </header>
+        <p>
+          A change to an existing entity, such as editing a task&#39;s title or notes. The
+          <a href="#object">:object</a> identifies the entity that was changed.
+        </p>
+        <p><strong>Parent types:</strong> <a href="#Action">:Action</a></p>
+
+        <p class="muted">No properties declared directly on this type.</p>
+        <h4>Inherited properties</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#agent">:agent</a></td>
+                <td><a href="#Agent">:Agent</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+              <tr>
+                <td><a href="#instrument">:instrument</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+              <tr>
+                <td><a href="#object">:object</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+              <tr>
+                <td><a href="#source">:source</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sourceId">:sourceId</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#timestamp">:timestamp</a></td>
+                <td><a href="#DateTime">:DateTime</a></td>
+                <td>0…1</td>
+                <td><a href="#Action">:Action</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="uri">URI: <code>https://schema.chronicle.app/UpdateAction</code></p>
+      </section>
+      <section class="term" id="URL">
+        <header>
+          <p class="eyebrow">Type</p>
+          <h3><a href="#URL">:URL</a></h3>
+        </header>
+        <p>
+          A Uniform Resource Locator expressed as an absolute URL string, such as
+          https://example.com/article. Used for properties that locate a resource.
+        </p>
+
+        <p class="muted">No properties declared directly on this type.</p>
+
+        <p class="uri">URI: <code>https://schema.chronicle.app/URL</code></p>
+      </section>
+      <section class="term" id="VideoObject">
+        <header>
+          <p class="eyebrow">Type</p>
+          <h3><a href="#VideoObject">:VideoObject</a></h3>
+        </header>
+        <p>
+          A video artifact, such as a recorded clip or video attachment, which may include audio.
+        </p>
+        <p><strong>Parent types:</strong> <a href="#MediaObject">:MediaObject</a></p>
+
+        <p class="muted">No properties declared directly on this type.</p>
+        <h4>Inherited properties</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Property</th>
+                <th scope="col">Value type</th>
+                <th scope="col">Cardinality</th>
+                <th scope="col">Declared on</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#about">:about</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#body">:body</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#contentPath">:contentPath</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#MediaObject">:MediaObject</a></td>
+              </tr>
+              <tr>
+                <td><a href="#description">:description</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#handle">:handle</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#inRealm">:inRealm</a></td>
+                <td><a href="#Realm">:Realm</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#isPartOf">:isPartOf</a></td>
+                <td><a href="#Entity">:Entity</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#mimeType">:mimeType</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#MediaObject">:MediaObject</a></td>
+              </tr>
+              <tr>
+                <td><a href="#name">:name</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sameAs">:sameAs</a></td>
+                <td><a href="#Entity">:Entity</a>, <a href="#Text">:Text</a></td>
+                <td>0…unbounded</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+              <tr>
+                <td><a href="#source">:source</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#sourceId">:sourceId</a></td>
+                <td><a href="#Text">:Text</a></td>
+                <td>0…1</td>
+                <td><a href="#Base">:Base</a></td>
+              </tr>
+              <tr>
+                <td><a href="#url">:url</a></td>
+                <td><a href="#URL">:URL</a></td>
+                <td>0…1</td>
+                <td><a href="#Entity">:Entity</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="uri">URI: <code>https://schema.chronicle.app/VideoObject</code></p>
+      </section>
+      <h2 id="properties">Properties</h2>
+      <section class="term" id="about">
+        <header>
+          <p class="eyebrow">Property</p>
+          <h3><a href="#about">:about</a></h3>
+        </header>
+        <p>
+          An entity representing the subject matter of this entity, such as a topic or tag
+          describing what a task concerns.
+        </p>
+        <dl>
+          <dt>Applies to</dt>
+          <dd><a href="#Entity">:Entity</a> and their subtypes</dd>
+          <dt>Value type</dt>
+          <dd><a href="#Entity">:Entity</a></dd>
+          <dt>Cardinality</dt>
+          <dd>0…unbounded</dd>
+        </dl>
+        <p class="uri">URI: <code>https://schema.chronicle.app/about</code></p>
+      </section>
+      <section class="term" id="agent">
+        <header>
+          <p class="eyebrow">Property</p>
+          <h3><a href="#agent">:agent</a></h3>
+        </header>
+        <p>
+          The doer of the action, when identified by the source. Omit when no doer is known; an
+          occurrence can be recorded without an agent.
+        </p>
+        <dl>
+          <dt>Applies to</dt>
+          <dd><a href="#Action">:Action</a> and their subtypes</dd>
+          <dt>Value type</dt>
+          <dd><a href="#Agent">:Agent</a></dd>
+          <dt>Cardinality</dt>
+          <dd>0…1</dd>
+        </dl>
+        <p class="uri">URI: <code>https://schema.chronicle.app/agent</code></p>
+      </section>
+      <section class="term" id="author">
+        <header>
+          <p class="eyebrow">Property</p>
+          <h3><a href="#author">:author</a></h3>
+        </header>
+        <p>An agent that authored the message content, such as a person or software assistant.</p>
+        <dl>
+          <dt>Applies to</dt>
+          <dd><a href="#Message">:Message</a> and their subtypes</dd>
+          <dt>Value type</dt>
+          <dd><a href="#Agent">:Agent</a></dd>
+          <dt>Cardinality</dt>
+          <dd>0…unbounded</dd>
+        </dl>
+        <p class="uri">URI: <code>https://schema.chronicle.app/author</code></p>
+      </section>
+      <section class="term" id="body">
+        <header>
+          <p class="eyebrow">Property</p>
+          <h3><a href="#body">:body</a></h3>
+        </header>
+        <p>
+          The textual content of an entity, such as a shell command or message, as supplied by the
+          source.
+        </p>
+        <dl>
+          <dt>Applies to</dt>
+          <dd><a href="#Entity">:Entity</a> and their subtypes</dd>
+          <dt>Value type</dt>
+          <dd><a href="#Text">:Text</a></dd>
+          <dt>Cardinality</dt>
+          <dd>0…1</dd>
+        </dl>
+        <p class="uri">URI: <code>https://schema.chronicle.app/body</code></p>
+      </section>
+      <section class="term" id="contains">
+        <header>
+          <p class="eyebrow">Property</p>
+          <h3><a href="#contains">:contains</a></h3>
+        </header>
+        <p>
+          A media artifact carried by a message, such as an attached image, voice recording, video,
+          or document.
+        </p>
+        <dl>
+          <dt>Applies to</dt>
+          <dd><a href="#Message">:Message</a> and their subtypes</dd>
+          <dt>Value type</dt>
+          <dd><a href="#MediaObject">:MediaObject</a></dd>
+          <dt>Cardinality</dt>
+          <dd>0…unbounded</dd>
+        </dl>
+        <p class="uri">URI: <code>https://schema.chronicle.app/contains</code></p>
+      </section>
+      <section class="term" id="contentPath">
+        <header>
+          <p class="eyebrow">Property</p>
+          <h3><a href="#contentPath">:contentPath</a></h3>
+        </header>
+        <p>
+          An absolute filesystem path to the local file containing the media bytes. Describes where
+          the extracted content is available on the source machine.
+        </p>
+        <dl>
+          <dt>Applies to</dt>
+          <dd><a href="#MediaObject">:MediaObject</a> and their subtypes</dd>
+          <dt>Value type</dt>
+          <dd><a href="#Text">:Text</a></dd>
+          <dt>Cardinality</dt>
+          <dd>0…1</dd>
+        </dl>
+        <p class="uri">URI: <code>https://schema.chronicle.app/contentPath</code></p>
+      </section>
+      <section class="term" id="description">
+        <header>
+          <p class="eyebrow">Property</p>
+          <h3><a href="#description">:description</a></h3>
+        </header>
+        <p>
+          Descriptive text supplied by the source about an entity, such as a task&#39;s notes or a
+          project&#39;s summary.
+        </p>
+        <dl>
+          <dt>Applies to</dt>
+          <dd><a href="#Entity">:Entity</a> and their subtypes</dd>
+          <dt>Value type</dt>
+          <dd><a href="#Text">:Text</a></dd>
+          <dt>Cardinality</dt>
+          <dd>0…1</dd>
+        </dl>
+        <p class="uri">URI: <code>https://schema.chronicle.app/description</code></p>
+      </section>
+      <section class="term" id="handle">
+        <header>
+          <p class="eyebrow">Property</p>
+          <h3><a href="#handle">:handle</a></h3>
+        </header>
+        <p>
+          A contextual identifier for an entity within its namespace, such as a username, channel
+          slug, or tag label. Its meaning depends on the source or context in which it is used.
+        </p>
+        <dl>
+          <dt>Applies to</dt>
+          <dd><a href="#Entity">:Entity</a> and their subtypes</dd>
+          <dt>Value type</dt>
+          <dd><a href="#Text">:Text</a></dd>
+          <dt>Cardinality</dt>
+          <dd>0…1</dd>
+        </dl>
+        <p class="uri">URI: <code>https://schema.chronicle.app/handle</code></p>
+      </section>
+      <section class="term" id="inRealm">
+        <header>
+          <p class="eyebrow">Property</p>
+          <h3><a href="#inRealm">:inRealm</a></h3>
+        </header>
+        <p>
+          The realm in which an entity resides, such as the computer system hosting a conversation
+          or file. Provides context for identifiers that are local to that realm.
+        </p>
+        <dl>
+          <dt>Applies to</dt>
+          <dd><a href="#Entity">:Entity</a> and their subtypes</dd>
+          <dt>Value type</dt>
+          <dd><a href="#Realm">:Realm</a></dd>
+          <dt>Cardinality</dt>
+          <dd>0…1</dd>
+        </dl>
+        <p class="uri">URI: <code>https://schema.chronicle.app/inRealm</code></p>
+      </section>
+      <section class="term" id="instrument">
+        <header>
+          <p class="eyebrow">Property</p>
+          <h3><a href="#instrument">:instrument</a></h3>
+        </header>
+        <p>
+          The tool, device, application, or model used to perform an action. The
+          <a href="#agent">:agent</a> identifies who acted;
+          <a href="#instrument">:instrument</a> identifies what they used.
+        </p>
+        <dl>
+          <dt>Applies to</dt>
+          <dd><a href="#Action">:Action</a> and their subtypes</dd>
+          <dt>Value type</dt>
+          <dd><a href="#Entity">:Entity</a></dd>
+          <dt>Cardinality</dt>
+          <dd>0…1</dd>
+        </dl>
+        <p class="uri">URI: <code>https://schema.chronicle.app/instrument</code></p>
+      </section>
+      <section class="term" id="isPartOf">
+        <header>
+          <p class="eyebrow">Property</p>
+          <h3><a href="#isPartOf">:isPartOf</a></h3>
+        </header>
+        <p>
+          An entity that this entity forms part of, such as a task&#39;s project or collection, or
+          the page containing an excerpt. Each value identifies a containing whole.
+        </p>
+        <dl>
+          <dt>Applies to</dt>
+          <dd><a href="#Entity">:Entity</a> and their subtypes</dd>
+          <dt>Value type</dt>
+          <dd><a href="#Entity">:Entity</a></dd>
+          <dt>Cardinality</dt>
+          <dd>0…unbounded</dd>
+        </dl>
+        <p class="uri">URI: <code>https://schema.chronicle.app/isPartOf</code></p>
+      </section>
+      <section class="term" id="memberOf">
+        <header>
+          <p class="eyebrow">Property</p>
+          <h3><a href="#memberOf">:memberOf</a></h3>
+        </header>
+        <p>
+          An entity the agent belongs to, such as a realm representing the computer system in which
+          a user account exists.
+        </p>
+        <dl>
+          <dt>Applies to</dt>
+          <dd><a href="#Agent">:Agent</a> and their subtypes</dd>
+          <dt>Value type</dt>
+          <dd><a href="#Entity">:Entity</a></dd>
+          <dt>Cardinality</dt>
+          <dd>0…unbounded</dd>
+        </dl>
+        <p class="uri">URI: <code>https://schema.chronicle.app/memberOf</code></p>
+      </section>
+      <section class="term" id="mimeType">
+        <header>
+          <p class="eyebrow">Property</p>
+          <h3><a href="#mimeType">:mimeType</a></h3>
+        </header>
+        <p>
+          The MIME type of the media content, such as image/jpeg, audio/mp4, or application/pdf.
+        </p>
+        <dl>
+          <dt>Applies to</dt>
+          <dd><a href="#MediaObject">:MediaObject</a> and their subtypes</dd>
+          <dt>Value type</dt>
+          <dd><a href="#Text">:Text</a></dd>
+          <dt>Cardinality</dt>
+          <dd>0…1</dd>
+        </dl>
+        <p class="uri">URI: <code>https://schema.chronicle.app/mimeType</code></p>
+      </section>
+      <section class="term" id="name">
+        <header>
+          <p class="eyebrow">Property</p>
+          <h3><a href="#name">:name</a></h3>
+        </header>
+        <p>
+          The human-readable name or title of an entity, such as a person&#39;s display name, a
+          document title, or a place name.
+        </p>
+        <dl>
+          <dt>Applies to</dt>
+          <dd><a href="#Entity">:Entity</a> and their subtypes</dd>
+          <dt>Value type</dt>
+          <dd><a href="#Text">:Text</a></dd>
+          <dt>Cardinality</dt>
+          <dd>0…1</dd>
+        </dl>
+        <p class="uri">URI: <code>https://schema.chronicle.app/name</code></p>
+      </section>
+      <section class="term" id="object">
+        <header>
+          <p class="eyebrow">Property</p>
+          <h3><a href="#object">:object</a></h3>
+        </header>
+        <p>
+          The entity an action is carried out on, such as the article being read, the message being
+          sent, or the place being visited. For movement, the
+          <a href="#object">:object</a> identifies where the movement began.
+        </p>
+        <dl>
+          <dt>Applies to</dt>
+          <dd><a href="#Action">:Action</a> and their subtypes</dd>
+          <dt>Value type</dt>
+          <dd><a href="#Entity">:Entity</a></dd>
+          <dt>Cardinality</dt>
+          <dd>0…1</dd>
+        </dl>
+        <p class="uri">URI: <code>https://schema.chronicle.app/object</code></p>
+      </section>
+      <section class="term" id="recipient">
+        <header>
+          <p class="eyebrow">Property</p>
+          <h3><a href="#recipient">:recipient</a></h3>
+        </header>
+        <p>
+          An agent the message was directed to. A message can have multiple recipients, such as the
+          other participants in a group conversation.
+        </p>
+        <dl>
+          <dt>Applies to</dt>
+          <dd><a href="#Message">:Message</a> and their subtypes</dd>
+          <dt>Value type</dt>
+          <dd><a href="#Agent">:Agent</a></dd>
+          <dt>Cardinality</dt>
+          <dd>0…unbounded</dd>
+        </dl>
+        <p class="uri">URI: <code>https://schema.chronicle.app/recipient</code></p>
+      </section>
+      <section class="term" id="sameAs">
+        <header>
+          <p class="eyebrow">Property</p>
+          <h3><a href="#sameAs">:sameAs</a></h3>
+        </header>
+        <p>
+          Another reference to the same entity, expressed as an entity node or a textual identity
+          reference such as @me. Asserts shared identity, rather than similarity or association.
+        </p>
+        <dl>
+          <dt>Applies to</dt>
+          <dd><a href="#Entity">:Entity</a> and their subtypes</dd>
+          <dt>Value type</dt>
+          <dd><a href="#Entity">:Entity</a>, <a href="#Text">:Text</a></dd>
+          <dt>Cardinality</dt>
+          <dd>0…unbounded</dd>
+        </dl>
+        <p class="uri">URI: <code>https://schema.chronicle.app/sameAs</code></p>
+      </section>
+      <section class="term" id="source">
+        <header>
+          <p class="eyebrow">Property</p>
+          <h3><a href="#source">:source</a></h3>
+        </header>
+        <p>
+          The source system that describes the entity or action, such as things-todo. Provides the
+          source namespace in which identifiers such as <a href="#sourceId">:sourceId</a> are
+          interpreted.
+        </p>
+        <dl>
+          <dt>Applies to</dt>
+          <dd><a href="#Base">:Base</a> and their subtypes</dd>
+          <dt>Value type</dt>
+          <dd><a href="#Text">:Text</a></dd>
+          <dt>Cardinality</dt>
+          <dd>0…1</dd>
+        </dl>
+        <p class="uri">URI: <code>https://schema.chronicle.app/source</code></p>
+      </section>
+      <section class="term" id="sourceId">
+        <header>
+          <p class="eyebrow">Property</p>
+          <h3><a href="#sourceId">:sourceId</a></h3>
+        </header>
+        <p>
+          The identifier assigned by the source to an entity or action, such as a record ID or
+          message ID. Represented as text and scoped to the source&#39;s own namespace; it need not
+          be globally unique.
+        </p>
+        <dl>
+          <dt>Applies to</dt>
+          <dd><a href="#Base">:Base</a> and their subtypes</dd>
+          <dt>Value type</dt>
+          <dd><a href="#Text">:Text</a></dd>
+          <dt>Cardinality</dt>
+          <dd>0…1</dd>
+        </dl>
+        <p class="uri">URI: <code>https://schema.chronicle.app/sourceId</code></p>
+      </section>
+      <section class="term" id="timestamp">
+        <header>
+          <p class="eyebrow">Property</p>
+          <h3><a href="#timestamp">:timestamp</a></h3>
+        </header>
+        <p>
+          The instant when the action occurred, as reported by the source. Records occurrence time,
+          not the time Chronicle extracted the record.
+        </p>
+        <dl>
+          <dt>Applies to</dt>
+          <dd><a href="#Action">:Action</a> and their subtypes</dd>
+          <dt>Value type</dt>
+          <dd><a href="#DateTime">:DateTime</a></dd>
+          <dt>Cardinality</dt>
+          <dd>0…1</dd>
+        </dl>
+        <p class="uri">URI: <code>https://schema.chronicle.app/timestamp</code></p>
+      </section>
+      <section class="term" id="url">
+        <header>
+          <p class="eyebrow">Property</p>
+          <h3><a href="#url">:url</a></h3>
+        </header>
+        <p>
+          A URL at which the entity can be found, such as a web page&#39;s address or a link to a
+          source record.
+        </p>
+        <dl>
+          <dt>Applies to</dt>
+          <dd><a href="#Entity">:Entity</a> and their subtypes</dd>
+          <dt>Value type</dt>
+          <dd><a href="#URL">:URL</a></dd>
+          <dt>Cardinality</dt>
+          <dd>0…1</dd>
+        </dl>
+        <p class="uri">URI: <code>https://schema.chronicle.app/url</code></p>
+      </section>
+      <footer>Chronicle schema · 0.1.0 · MIT</footer>
+    </main>
+  </body>
+</html>

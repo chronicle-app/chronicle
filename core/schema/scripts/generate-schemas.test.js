@@ -7,12 +7,12 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const generator = fileURLToPath(new URL('generate-schemas.js', import.meta.url));
-const ontology = readFileSync(new URL('../schema.ttl', import.meta.url), 'utf8');
+const ontology = readFileSync(new URL('../chronicle.ttl', import.meta.url), 'utf8');
 
 function generate(ttl) {
   const directory = mkdtempSync(join(tmpdir(), 'chronicle-schema-test-'));
   try {
-    const input = join(directory, 'schema.ttl');
+    const input = join(directory, 'chronicle.ttl');
     const output = join(directory, 'schema.ts');
     writeFileSync(input, ttl);
     const result = spawnSync(process.execPath, [generator, input, output], { encoding: 'utf8' });
