@@ -49,6 +49,7 @@ export const BaseSchema: z.ZodType<Base> = z
 export interface Action extends Omit<Base, '@type'> {
   '@type': 'Action';
   agent?: AgentAndChildren;
+  instrument?: EntityAndChildren;
   object?: EntityAndChildren;
   timestamp?: Date;
 }
@@ -58,12 +59,15 @@ export type ActionAndChildren =
   | CancelActionAndChildren
   | CompleteActionAndChildren
   | DeleteActionAndChildren
+  | ExecuteActionAndChildren
+  | MessageActionAndChildren
   | PlanActionAndChildren
   | UpdateActionAndChildren;
 
 const ActionProperties = {
   ...BaseProperties,
   agent: z.lazy(() => AgentAndChildrenSchema).optional(),
+  instrument: z.lazy(() => EntityAndChildrenSchema).optional(),
   object: z.lazy(() => EntityAndChildrenSchema).optional(),
   timestamp: z.lazy(() => z.coerce.date()).optional(),
 };
@@ -79,8 +83,10 @@ export const ActionSchema: z.ZodType<Action> = z
 export interface Entity extends Omit<Base, '@type'> {
   '@type': 'Entity';
   about?: EntityAndChildren[];
+  body?: string;
   description?: string;
   handle?: string;
+  inRealm?: RealmAndChildren;
   isPartOf?: EntityAndChildren[];
   name?: string;
   sameAs?: (EntityAndChildren | string)[];
@@ -88,13 +94,24 @@ export interface Entity extends Omit<Base, '@type'> {
 }
 
 export type EntityAndChildren =
-  Entity | AgentAndChildren | CollectionAndChildren | TagAndChildren | TaskAndChildren;
+  | Entity
+  | AgentAndChildren
+  | CollectionAndChildren
+  | CommandAndChildren
+  | MediaObjectAndChildren
+  | MessageAndChildren
+  | RealmAndChildren
+  | SoftwareApplicationAndChildren
+  | TagAndChildren
+  | TaskAndChildren;
 
 const EntityProperties = {
   ...BaseProperties,
   about: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
+  body: z.lazy(() => z.string()).optional(),
   description: z.lazy(() => z.string()).optional(),
   handle: z.lazy(() => z.string()).optional(),
+  inRealm: z.lazy(() => RealmAndChildrenSchema).optional(),
   isPartOf: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
   name: z.lazy(() => z.string()).optional(),
   sameAs: z.lazy(() => z.array(z.union([EntityAndChildrenSchema, z.string()]))).optional(),
@@ -111,18 +128,65 @@ export const EntitySchema: z.ZodType<Entity> = z
 // Agent, child of https://schema.chronicle.app/Entity
 export interface Agent extends Omit<Entity, '@type'> {
   '@type': 'Agent';
+  memberOf?: EntityAndChildren[];
 }
 
-export type AgentAndChildren = Agent;
+export type AgentAndChildren = Agent | PersonAndChildren | SoftwareAgentAndChildren;
 
 const AgentProperties = {
   ...EntityProperties,
+  memberOf: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
 };
 
 export const AgentSchema: z.ZodType<Agent> = z
   .object({
     '@type': z.literal('Agent'),
     ...AgentProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// MediaObject, child of https://schema.chronicle.app/Entity
+export interface MediaObject extends Omit<Entity, '@type'> {
+  '@type': 'MediaObject';
+  contentPath?: string;
+  mimeType?: string;
+}
+
+export type MediaObjectAndChildren =
+  | MediaObject
+  | AudioObjectAndChildren
+  | DocumentObjectAndChildren
+  | ImageObjectAndChildren
+  | VideoObjectAndChildren;
+
+const MediaObjectProperties = {
+  ...EntityProperties,
+  contentPath: z.lazy(() => z.string()).optional(),
+  mimeType: z.lazy(() => z.string()).optional(),
+};
+
+export const MediaObjectSchema: z.ZodType<MediaObject> = z
+  .object({
+    '@type': z.literal('MediaObject'),
+    ...MediaObjectProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// AudioObject, child of https://schema.chronicle.app/MediaObject
+export interface AudioObject extends Omit<MediaObject, '@type'> {
+  '@type': 'AudioObject';
+}
+
+export type AudioObjectAndChildren = AudioObject;
+
+const AudioObjectProperties = {
+  ...MediaObjectProperties,
+};
+
+export const AudioObjectSchema: z.ZodType<AudioObject> = z
+  .object({
+    '@type': z.literal('AudioObject'),
+    ...AudioObjectProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -149,7 +213,7 @@ export interface Collection extends Omit<Entity, '@type'> {
   '@type': 'Collection';
 }
 
-export type CollectionAndChildren = Collection | ProjectAndChildren;
+export type CollectionAndChildren = Collection | ProjectAndChildren | ThreadAndChildren;
 
 const CollectionProperties = {
   ...EntityProperties,
@@ -159,6 +223,24 @@ export const CollectionSchema: z.ZodType<Collection> = z
   .object({
     '@type': z.literal('Collection'),
     ...CollectionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Command, child of https://schema.chronicle.app/Entity
+export interface Command extends Omit<Entity, '@type'> {
+  '@type': 'Command';
+}
+
+export type CommandAndChildren = Command;
+
+const CommandProperties = {
+  ...EntityProperties,
+};
+
+export const CommandSchema: z.ZodType<Command> = z
+  .object({
+    '@type': z.literal('Command'),
+    ...CommandProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -198,6 +280,120 @@ export const DeleteActionSchema: z.ZodType<DeleteAction> = z
   })
   .superRefine(requireNodeIdentity);
 
+// DocumentObject, child of https://schema.chronicle.app/MediaObject
+export interface DocumentObject extends Omit<MediaObject, '@type'> {
+  '@type': 'DocumentObject';
+}
+
+export type DocumentObjectAndChildren = DocumentObject;
+
+const DocumentObjectProperties = {
+  ...MediaObjectProperties,
+};
+
+export const DocumentObjectSchema: z.ZodType<DocumentObject> = z
+  .object({
+    '@type': z.literal('DocumentObject'),
+    ...DocumentObjectProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// ExecuteAction, child of https://schema.chronicle.app/Action
+export interface ExecuteAction extends Omit<Action, '@type'> {
+  '@type': 'ExecuteAction';
+}
+
+export type ExecuteActionAndChildren = ExecuteAction;
+
+const ExecuteActionProperties = {
+  ...ActionProperties,
+};
+
+export const ExecuteActionSchema: z.ZodType<ExecuteAction> = z
+  .object({
+    '@type': z.literal('ExecuteAction'),
+    ...ExecuteActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// ImageObject, child of https://schema.chronicle.app/MediaObject
+export interface ImageObject extends Omit<MediaObject, '@type'> {
+  '@type': 'ImageObject';
+}
+
+export type ImageObjectAndChildren = ImageObject;
+
+const ImageObjectProperties = {
+  ...MediaObjectProperties,
+};
+
+export const ImageObjectSchema: z.ZodType<ImageObject> = z
+  .object({
+    '@type': z.literal('ImageObject'),
+    ...ImageObjectProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Message, child of https://schema.chronicle.app/Entity
+export interface Message extends Omit<Entity, '@type'> {
+  '@type': 'Message';
+  author?: AgentAndChildren[];
+  contains?: MediaObjectAndChildren[];
+  recipient?: AgentAndChildren[];
+}
+
+export type MessageAndChildren = Message;
+
+const MessageProperties = {
+  ...EntityProperties,
+  author: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
+  contains: z.lazy(() => z.array(MediaObjectAndChildrenSchema)).optional(),
+  recipient: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
+};
+
+export const MessageSchema: z.ZodType<Message> = z
+  .object({
+    '@type': z.literal('Message'),
+    ...MessageProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// MessageAction, child of https://schema.chronicle.app/Action
+export interface MessageAction extends Omit<Action, '@type'> {
+  '@type': 'MessageAction';
+}
+
+export type MessageActionAndChildren = MessageAction;
+
+const MessageActionProperties = {
+  ...ActionProperties,
+};
+
+export const MessageActionSchema: z.ZodType<MessageAction> = z
+  .object({
+    '@type': z.literal('MessageAction'),
+    ...MessageActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Person, child of https://schema.chronicle.app/Agent
+export interface Person extends Omit<Agent, '@type'> {
+  '@type': 'Person';
+}
+
+export type PersonAndChildren = Person;
+
+const PersonProperties = {
+  ...AgentProperties,
+};
+
+export const PersonSchema: z.ZodType<Person> = z
+  .object({
+    '@type': z.literal('Person'),
+    ...PersonProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // PlanAction, child of https://schema.chronicle.app/Action
 export interface PlanAction extends Omit<Action, '@type'> {
   '@type': 'PlanAction';
@@ -231,6 +427,60 @@ export const ProjectSchema: z.ZodType<Project> = z
   .object({
     '@type': z.literal('Project'),
     ...ProjectProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Realm, child of https://schema.chronicle.app/Entity
+export interface Realm extends Omit<Entity, '@type'> {
+  '@type': 'Realm';
+}
+
+export type RealmAndChildren = Realm;
+
+const RealmProperties = {
+  ...EntityProperties,
+};
+
+export const RealmSchema: z.ZodType<Realm> = z
+  .object({
+    '@type': z.literal('Realm'),
+    ...RealmProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// SoftwareAgent, child of https://schema.chronicle.app/Agent
+export interface SoftwareAgent extends Omit<Agent, '@type'> {
+  '@type': 'SoftwareAgent';
+}
+
+export type SoftwareAgentAndChildren = SoftwareAgent;
+
+const SoftwareAgentProperties = {
+  ...AgentProperties,
+};
+
+export const SoftwareAgentSchema: z.ZodType<SoftwareAgent> = z
+  .object({
+    '@type': z.literal('SoftwareAgent'),
+    ...SoftwareAgentProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// SoftwareApplication, child of https://schema.chronicle.app/Entity
+export interface SoftwareApplication extends Omit<Entity, '@type'> {
+  '@type': 'SoftwareApplication';
+}
+
+export type SoftwareApplicationAndChildren = SoftwareApplication;
+
+const SoftwareApplicationProperties = {
+  ...EntityProperties,
+};
+
+export const SoftwareApplicationSchema: z.ZodType<SoftwareApplication> = z
+  .object({
+    '@type': z.literal('SoftwareApplication'),
+    ...SoftwareApplicationProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -270,6 +520,24 @@ export const TaskSchema: z.ZodType<Task> = z
   })
   .superRefine(requireNodeIdentity);
 
+// Thread, child of https://schema.chronicle.app/Collection
+export interface Thread extends Omit<Collection, '@type'> {
+  '@type': 'Thread';
+}
+
+export type ThreadAndChildren = Thread;
+
+const ThreadProperties = {
+  ...CollectionProperties,
+};
+
+export const ThreadSchema: z.ZodType<Thread> = z
+  .object({
+    '@type': z.literal('Thread'),
+    ...ThreadProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // UpdateAction, child of https://schema.chronicle.app/Action
 export interface UpdateAction extends Omit<Action, '@type'> {
   '@type': 'UpdateAction';
@@ -288,25 +556,72 @@ export const UpdateActionSchema: z.ZodType<UpdateAction> = z
   })
   .superRefine(requireNodeIdentity);
 
+// VideoObject, child of https://schema.chronicle.app/MediaObject
+export interface VideoObject extends Omit<MediaObject, '@type'> {
+  '@type': 'VideoObject';
+}
+
+export type VideoObjectAndChildren = VideoObject;
+
+const VideoObjectProperties = {
+  ...MediaObjectProperties,
+};
+
+export const VideoObjectSchema: z.ZodType<VideoObject> = z
+  .object({
+    '@type': z.literal('VideoObject'),
+    ...VideoObjectProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+export const VideoObjectAndChildrenSchema = VideoObjectSchema;
+
 export const UpdateActionAndChildrenSchema = UpdateActionSchema;
+
+export const ThreadAndChildrenSchema = ThreadSchema;
 
 export const TaskAndChildrenSchema = TaskSchema;
 
 export const TagAndChildrenSchema = TagSchema;
 
+export const SoftwareApplicationAndChildrenSchema = SoftwareApplicationSchema;
+
+export const SoftwareAgentAndChildrenSchema = SoftwareAgentSchema;
+
+export const RealmAndChildrenSchema = RealmSchema;
+
 export const ProjectAndChildrenSchema = ProjectSchema;
 
 export const PlanActionAndChildrenSchema = PlanActionSchema;
 
+export const PersonAndChildrenSchema = PersonSchema;
+
+export const MessageActionAndChildrenSchema = MessageActionSchema;
+
+export const MessageAndChildrenSchema = MessageSchema;
+
+export const ImageObjectAndChildrenSchema = ImageObjectSchema;
+
+export const ExecuteActionAndChildrenSchema = ExecuteActionSchema;
+
+export const DocumentObjectAndChildrenSchema = DocumentObjectSchema;
+
 export const DeleteActionAndChildrenSchema = DeleteActionSchema;
 
 export const CompleteActionAndChildrenSchema = CompleteActionSchema;
+
+export const CommandAndChildrenSchema = CommandSchema;
 
 export const CollectionAndChildrenSchema: z.ZodType<CollectionAndChildren> = z
   .discriminatedUnion('@type', [
     z.object({
       '@type': z.literal('Collection'),
       ...CollectionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Thread'),
+      ...ThreadProperties,
     }),
 
     z.object({
@@ -317,8 +632,54 @@ export const CollectionAndChildrenSchema: z.ZodType<CollectionAndChildren> = z
   .superRefine(requireNodeIdentity);
 export const CancelActionAndChildrenSchema = CancelActionSchema;
 
-export const AgentAndChildrenSchema = AgentSchema;
+export const AudioObjectAndChildrenSchema = AudioObjectSchema;
 
+export const MediaObjectAndChildrenSchema: z.ZodType<MediaObjectAndChildren> = z
+  .discriminatedUnion('@type', [
+    z.object({
+      '@type': z.literal('MediaObject'),
+      ...MediaObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('VideoObject'),
+      ...VideoObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ImageObject'),
+      ...ImageObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('DocumentObject'),
+      ...DocumentObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('AudioObject'),
+      ...AudioObjectProperties,
+    }),
+  ])
+  .superRefine(requireNodeIdentity);
+export const AgentAndChildrenSchema: z.ZodType<AgentAndChildren> = z
+  .discriminatedUnion('@type', [
+    z.object({
+      '@type': z.literal('Agent'),
+      ...AgentProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('SoftwareAgent'),
+      ...SoftwareAgentProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Person'),
+      ...PersonProperties,
+    }),
+  ])
+  .superRefine(requireNodeIdentity);
 export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
   .discriminatedUnion('@type', [
     z.object({
@@ -337,8 +698,33 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('SoftwareApplication'),
+      ...SoftwareApplicationProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Realm'),
+      ...RealmProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Message'),
+      ...MessageProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Command'),
+      ...CommandProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Collection'),
       ...CollectionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Thread'),
+      ...ThreadProperties,
     }),
 
     z.object({
@@ -347,8 +733,43 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('MediaObject'),
+      ...MediaObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('VideoObject'),
+      ...VideoObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ImageObject'),
+      ...ImageObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('DocumentObject'),
+      ...DocumentObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('AudioObject'),
+      ...AudioObjectProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Agent'),
       ...AgentProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('SoftwareAgent'),
+      ...SoftwareAgentProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Person'),
+      ...PersonProperties,
     }),
   ])
   .superRefine(requireNodeIdentity);
@@ -367,6 +788,16 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     z.object({
       '@type': z.literal('PlanAction'),
       ...PlanActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('MessageAction'),
+      ...MessageActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ExecuteAction'),
+      ...ExecuteActionProperties,
     }),
 
     z.object({
@@ -408,8 +839,33 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('SoftwareApplication'),
+      ...SoftwareApplicationProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Realm'),
+      ...RealmProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Message'),
+      ...MessageProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Command'),
+      ...CommandProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Collection'),
       ...CollectionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Thread'),
+      ...ThreadProperties,
     }),
 
     z.object({
@@ -418,8 +874,43 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('MediaObject'),
+      ...MediaObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('VideoObject'),
+      ...VideoObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ImageObject'),
+      ...ImageObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('DocumentObject'),
+      ...DocumentObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('AudioObject'),
+      ...AudioObjectProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Agent'),
       ...AgentProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('SoftwareAgent'),
+      ...SoftwareAgentProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Person'),
+      ...PersonProperties,
     }),
 
     z.object({
@@ -435,6 +926,16 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('PlanAction'),
       ...PlanActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('MessageAction'),
+      ...MessageActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ExecuteAction'),
+      ...ExecuteActionProperties,
     }),
 
     z.object({

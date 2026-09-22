@@ -11,8 +11,14 @@ that committed output matches the ontology without rewriting it.
 - `Entity`: a thing described by a source; adds `name` and `url`.
 - `Action`: an occurrence; adds a single entity-valued `object`.
 
-`Text` and `URL` are literal datatypes. All four properties are optional and
-single-valued. Records carry `@type` and at least one of `@key` (a nonempty list of
+Plugins extend these roots only where their outputs require it: Things adds task
+lifecycle actions and collections/tags; shell adds commands, people, and machine
+realms; iMessage adds messages and attachment media; Claude Code adds threads,
+software agents, and model instruments. Shared properties cover source identity,
+event time, agents, membership, authors, and recipients.
+
+`Text`, `URL`, and `DateTime` are literal datatypes. Properties remain optional;
+`schema.ttl` defines whether each is single-valued or a list. Records carry `@type` and at least one of `@key` (a nonempty list of
 identity fields or computed key entries) or `@id` (an existing identity).
 Identity validation checks that declaration, not the existence or hash of the
 referenced fields. Source-specific extraction owns the values; never invent IDs
@@ -39,7 +45,7 @@ const action = ActionSchema.parse({
 ```
 
 Each type has a `TypeSchema` validator and a `TypeAndChildrenSchema` validator
-that also accepts its descendants. `BaseAndChildrenSchema` accepts all three
+that also accepts its descendants. `BaseAndChildrenSchema` accepts all declared
 record types. Validation checks nested identities, property types, URL syntax,
 and cardinality. Unknown object fields are stripped by Zod; undeclared record
 types are rejected. Import interfaces such as `Entity` and `Action` for static

@@ -1,5 +1,5 @@
 {
-  "name": "@chronicle.app/etl",
+  "name": "@chronicle.app/shell",
   "version": "0.1.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -17,36 +17,26 @@
   "author": "Andrew Louis",
   "license": "MIT",
   "type": "module",
-  "description": "Chronicle ETL framework for data extraction, transformation, and loading",
+  "description": "Chronicle shell extraction plugin",
   "devDependencies": {
     "@chronicle.app/tsconfig": "0.1.0",
-    "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.10.1",
     "typescript": "^5.7.2"
   },
   "homepage": "https://chronicle.app",
-  "bugs": {
-    "url": "https://github.com/chronicle-app/chronicle/issues/new?labels=core:etl&title=[etl]%20"
-  },
   "repository": {
     "type": "git",
     "url": "https://github.com/chronicle-app/chronicle.git",
-    "directory": "core/etl"
+    "directory": "plugins/shell"
   },
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
   },
   "dependencies": {
-    "@chronicle.app/logging": "0.1.0",
+    "@chronicle.app/etl": "0.1.0",
     "@chronicle.app/schema": "0.1.0",
-    "chalk": "^4.1.2",
-    "cli-table3": "^0.6.5",
-    "csv-stringify": "^6.6.0",
-    "flat": "^6.0.1",
-    "js-yaml": "^4.1.0",
-    "zod": "^3.24.1",
-    "phone": "^3.1.52"
+    "zod": "^3.24.1"
   },
   "engines": {
     "node": ">=22.13.0"
@@ -56,5 +46,8 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
+  },
+  "chronicle": {
+    "plugin": true
   }
 }
