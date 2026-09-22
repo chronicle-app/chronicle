@@ -36,15 +36,21 @@
     "schema:generate": "npm run generate -w @chronicle.app/schema",
     "schema:check": "npm run generate:check -w @chronicle.app/schema",
     "release:version": "node scripts/version-packages.js",
-    "versions:check": "node scripts/version-packages.js --check"
+    "versions:check": "node scripts/version-packages.js --check",
+    "prepare": "husky"
   },
   "devDependencies": {
-    "eslint": "^8.57.1",
-    "prettier": "^3.6.2",
-    "typescript": "^5.7.2",
-    "@chronicle.app/tsconfig": "0.1.0",
     "@chronicle.app/eslint-config": "0.1.0",
     "@chronicle.app/prettier-config": "0.1.0",
-    "@types/node": "^22.10.1"
+    "@chronicle.app/tsconfig": "0.1.0",
+    "@types/node": "^22.10.1",
+    "eslint": "^8.57.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.5.1",
+    "prettier": "^3.6.2",
+    "typescript": "^5.7.2"
+  },
+  "lint-staged": {
+    "*": "prettier --write --ignore-unknown"
   }
 }
