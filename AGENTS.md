@@ -1,6 +1,6 @@
 # Working on Chronicle
 
-Chronicle extracts personal history into a shared vocabulary. 
+Chronicle extracts personal history into a shared vocabulary.
 
 - Use TypeScript, ESM, npm workspaces, and Node.js 22.13+.
 - Shared packages live in `core/`; source plugins live in `plugins/`.
