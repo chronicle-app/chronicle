@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -34,6 +42,7 @@ try {
         .filter(entry => entry.isDirectory())
         .map(entry => join(group, entry.name))
     )
+    .filter(directory => existsSync(join(directory, 'package.json')))
     .sort();
   for (const directory of packageDirectories) {
     const cwd = resolve(directory);
@@ -69,6 +78,28 @@ try {
     [npm, 'install', '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false'],
     consumer
   );
+  if (dependencies['@chronicle.app/schema']) {
+    const ontology = run(
+      [
+        '--input-type=module',
+        '-e',
+        `import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const ontology = require.resolve('@chronicle.app/schema/chronicle.ttl');
+assert.equal(require.resolve('@chronicle.app/schema/schema.ttl'), ontology);
+process.stdout.write(readFileSync(ontology, 'utf8'));`,
+      ],
+      consumer,
+      true
+    );
+    assert.equal(ontology, readFileSync('core/schema/chronicle.ttl', 'utf8'));
+    const { version } = JSON.parse(readFileSync('core/schema/package.json', 'utf8'));
+    const snapshotDirectory = resolve('artifacts/schema/releases', version);
+    mkdirSync(snapshotDirectory, { recursive: true });
+    writeFileSync(join(snapshotDirectory, 'chronicle.ttl'), ontology);
+  }
   writeFileSync(
     join(consumer, '.eslintrc.cjs'),
     "module.exports = { extends: ['@chronicle.app/eslint-config'] };\n"

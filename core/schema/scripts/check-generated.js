@@ -10,7 +10,7 @@ try {
   const output = join(directory, 'schema.ts');
   execFileSync(process.execPath, [
     fileURLToPath(new URL('generate-schemas.js', import.meta.url)),
-    fileURLToPath(new URL('../schema.ttl', import.meta.url)),
+    fileURLToPath(new URL('../chronicle.ttl', import.meta.url)),
     output,
   ]);
   assert.equal(
@@ -18,7 +18,7 @@ try {
     readFileSync(new URL('../src/schema.ts', import.meta.url), 'utf8'),
     'Generated schema is stale; run npm run schema:generate and commit the output.'
   );
-  console.log('Generated schema matches schema.ttl.');
+  console.log('Generated schema matches chronicle.ttl.');
 } finally {
   rmSync(directory, { recursive: true, force: true });
 }

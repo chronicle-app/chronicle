@@ -10,12 +10,13 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./schema.ttl": "./schema.ttl"
+    "./chronicle.ttl": "./chronicle.ttl",
+    "./schema.ttl": "./chronicle.ttl"
   },
   "files": [
     "dist/*.js",
     "dist/*.d.ts",
-    "schema.ttl"
+    "chronicle.ttl"
   ],
   "scripts": {
     "generate": "node scripts/generate-schemas.js",

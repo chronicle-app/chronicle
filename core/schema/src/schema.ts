@@ -1,4 +1,4 @@
-// Generated from schema.ttl. Do not edit; run npm run schema:generate.
+// Generated from chronicle.ttl. Do not edit; run npm run schema:generate.
 import { z } from 'zod';
 
 // Record identity key field: a property path, or a computed {key, value} entry
