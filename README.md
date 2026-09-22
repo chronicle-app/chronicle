@@ -14,9 +14,11 @@ together.
 
 ## Repository status
 
-This repository currently contains the monorepo tooling only. The CLI, schema, and source
-plugins have not moved here yet, so the extraction command above is not runnable from this
-checkout. There are no installable packages in this repository yet.
+This repository contains shared TypeScript, ESLint, Prettier, and logging packages, plus a
+[minimal schema](core/schema/README.md) with generated TypeScript/Zod validators.
+The CLI and source plugins have not moved here yet, so the extraction command above
+is not runnable from this checkout. Packages are prepared for release but are not
+published by this repository's workflows.
 
 ## Development
 
@@ -38,14 +40,14 @@ The workspace layout is:
 | `plugins/`  | Source plugins                                              |
 | `tools/`    | Development tools                                           |
 
-These directories will appear as packages are added. Build, lint, and test scripts
-explicitly skip workspace execution while the repository has no packages. Root JavaScript
-is linted and formatting is checked now. Typechecking uses the root TypeScript solution;
-add project references to `tsconfig.json` as packages arrive. Workspace scripts run in npm
-workspace order; maintain dependency order when introducing build dependencies.
+TypeScript builds use the root solution's project references. Add new library projects
+to `tsconfig.json`; TypeScript orders referenced dependencies. Workspace lint, typecheck,
+and test scripts run through npm. Shared configuration lives in `core/tsconfig`,
+`core/eslint-config`, and `core/prettier-config`.
 
-Formatting, ESLint, and the TypeScript base configuration live in root files until the
-shared configuration packages are added.
+Run `npm run packages:check` after `npm run quality` to validate packed packages in
+an isolated consumer. See [Preparing a release](RELEASING.md) for artifacts and the
+publication/consumer handoff process.
 
 ## License
 

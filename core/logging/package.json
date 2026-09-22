@@ -1,0 +1,51 @@
+{
+  "name": "@chronicle.app/logging",
+  "version": "0.1.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/*.js",
+    "dist/*.d.ts"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.lib.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint src --ext .ts,.js",
+    "test": "node --test src/*.test.js"
+  },
+  "keywords": [],
+  "author": "Andrew Louis",
+  "license": "MIT",
+  "type": "module",
+  "description": "Chronicle shared logging utilities",
+  "homepage": "https://chronicle.app",
+  "bugs": {
+    "url": "https://github.com/chronicle-app/chronicle/issues/new?labels=core:logging&title=[logging]%20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chronicle-app/chronicle.git",
+    "directory": "core/logging"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "dependencies": {
+    "chalk": "^4.1.2"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "devDependencies": {
+    "@chronicle.app/tsconfig": "0.1.0",
+    "@types/node": "^22.10.1",
+    "typescript": "^5.7.2"
+  }
+}

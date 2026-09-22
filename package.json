@@ -25,17 +25,24 @@
     "tools/*"
   ],
   "scripts": {
-    "build": "node scripts/run-workspaces.js build",
-    "lint": "eslint scripts .eslintrc.cjs prettier.config.cjs && node scripts/run-workspaces.js lint",
-    "typecheck": "node scripts/typecheck.js",
-    "test": "node scripts/run-workspaces.js test",
+    "build": "tsc -b",
+    "lint": "eslint scripts .eslintrc.cjs prettier.config.cjs && npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
     "format:check": "prettier --check .",
     "format:fix": "prettier --write .",
-    "quality": "npm run build && npm run lint && npm run typecheck && npm run test && npm run format:check"
+    "quality": "npm run schema:check && npm run build && npm run lint && npm run typecheck && npm run test && npm run format:check",
+    "packages:check": "node scripts/check-packages.js",
+    "schema:generate": "npm run generate -w @chronicle.app/schema",
+    "schema:check": "npm run generate:check -w @chronicle.app/schema"
   },
   "devDependencies": {
     "eslint": "^8.57.1",
     "prettier": "^3.6.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "@chronicle.app/tsconfig": "0.1.0",
+    "@chronicle.app/eslint-config": "0.1.0",
+    "@chronicle.app/prettier-config": "0.1.0",
+    "@types/node": "^22.10.1"
   }
 }

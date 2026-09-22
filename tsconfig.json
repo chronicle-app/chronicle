@@ -1,4 +1,11 @@
 {
   "files": [],
-  "references": []
+  "references": [
+    {
+      "path": "core/logging/tsconfig.lib.json"
+    },
+    {
+      "path": "core/schema/tsconfig.lib.json"
+    }
+  ]
 }
