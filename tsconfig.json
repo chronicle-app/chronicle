@@ -12,6 +12,9 @@
     },
     {
       "path": "core/etl-sqlite/tsconfig.lib.json"
+    },
+    {
+      "path": "plugins/things-todo/tsconfig.lib.json"
     }
   ]
 }
