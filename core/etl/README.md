@@ -112,16 +112,14 @@ This package is not yet a drop-in replacement for that full API. Changes here:
 - Fixed JSON colorizer escaping of string values and property names.
 - Made cleanup idempotent and exhaustive after partial setup or cleanup failure.
 
-Deferred until their consumers migrate: media object builders, attachment
-downloading, API/archive/CSV source adapters, system and phone utilities, CLI flag
-helpers, and additional presentation transforms. In particular, media helpers
-would emit ImageObject/AudioObject/etc.; those types are intentionally absent from
-the minimal ontology. No media vocabulary is added in this migration.
+Media object builders, source-owner identity, and phone normalization helpers are
+now included for iMessage and iCloud enrichment. Attachments remain references;
+this package does not copy their bytes. Attachment downloading, API/archive/CSV
+source adapters, system utilities, CLI flag helpers, and additional presentation
+transforms remain deferred.
 
-SQLite belongs exclusively in the later `etl-sqlite` adapter using built-in
-`node:sqlite`, with read-only source opens and tests on Node 22.13+. This package
-has no SQLite implementation or Knex/`better-sqlite3` dependency; CI audits the
-installed tarball dependency tree for those libraries and private packages.
+SQLite extraction lives in `@chronicle.app/etl-sqlite`, using built-in
+`node:sqlite` and read-only source connections.
 
 `npm run quality` builds and tests the workspace. `npm run packages:check` also
 compiles and runs a complete ETL pipeline using installed tarballs outside the

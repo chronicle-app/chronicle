@@ -129,3 +129,43 @@
   rdfs:comment "memberOf reported by the source.";
   :domainIncludes :Agent;
   :rangeIncludes :Entity .
+
+:Message a rdfs:Class;
+  rdfs:subClassOf :Entity;
+  rdfs:comment "Message described by a source." .
+:MessageAction a rdfs:Class;
+  rdfs:subClassOf :Action;
+  rdfs:comment "MessageAction described by a source." .
+:MediaObject a rdfs:Class;
+  rdfs:subClassOf :Entity;
+  rdfs:comment "MediaObject described by a source." .
+:ImageObject a rdfs:Class;
+  rdfs:subClassOf :MediaObject;
+  rdfs:comment "ImageObject described by a source." .
+:AudioObject a rdfs:Class;
+  rdfs:subClassOf :MediaObject;
+  rdfs:comment "AudioObject described by a source." .
+:VideoObject a rdfs:Class;
+  rdfs:subClassOf :MediaObject;
+  rdfs:comment "VideoObject described by a source." .
+:DocumentObject a rdfs:Class;
+  rdfs:subClassOf :MediaObject;
+  rdfs:comment "DocumentObject described by a source." .
+:recipient a rdf:Property;
+  rdfs:comment "recipient reported by the source.";
+  :domainIncludes :Message;
+  :rangeIncludes :Agent .
+:contains a rdf:Property;
+  rdfs:comment "contains reported by the source.";
+  :domainIncludes :Message;
+  :rangeIncludes :MediaObject .
+:contentPath a rdf:Property;
+  rdfs:comment "contentPath reported by the source.";
+  owl:maxCardinality 1;
+  :domainIncludes :MediaObject;
+  :rangeIncludes :Text .
+:mimeType a rdf:Property;
+  rdfs:comment "mimeType reported by the source.";
+  owl:maxCardinality 1;
+  :domainIncludes :MediaObject;
+  :rangeIncludes :Text .
