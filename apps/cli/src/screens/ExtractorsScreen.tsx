@@ -94,18 +94,16 @@ export const ExtractorsScreen: React.FC<ExtractorsScreenProps> = ({ extractors, 
       {extractors.length > 0 && (
         <>
           <Text> </Text>
-          <Box>
-            <Text color={theme.colors.textDim}>Found </Text>
-            <Text>{extractors.length}</Text>
-            <Text color={theme.colors.textDim}> extractors across </Text>
-            <Text>{sourceCount}</Text>
-            <Text color={theme.colors.textDim}> sources. Usage: </Text>
-            <Text color={theme.colors.primary}>chronicle import {'<SOURCE>'}</Text>
-            <Text color={theme.colors.textDim}> or </Text>
+          <Text color={theme.colors.textDim}>
+            Found <Text color={theme.colors.text}>{extractors.length}</Text> extractors across{' '}
+            <Text color={theme.colors.text}>{sourceCount}</Text> sources.
+          </Text>
+          <Text color={theme.colors.textDim}>
+            Usage: <Text color={theme.colors.primary}>chronicle extract {'<SOURCE>'}</Text> or{' '}
             <Text color={theme.colors.primary}>
-              chronicle import {'<SOURCE>'} --via {'<VIA>'} -t {'<TYPE>'}
+              chronicle extract {'<SOURCE>'} --via {'<VIA>'} -t {'<TYPE>'}
             </Text>
-          </Box>
+          </Text>
         </>
       )}
     </Box>

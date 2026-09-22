@@ -12,15 +12,25 @@ contains the code that reads those records and transforms them. The **schema** d
 the shared types and properties that make records from different sources understandable
 together.
 
+## Getting started
+
+With Node.js 22.13 or newer, run the [CLI](apps/cli/README.md) through npx:
+
+```sh
+npx @chronicle.app/cli@latest sources
+npx @chronicle.app/cli@latest extract shell --limit 10
+```
+
+Or install it with `npm install -g @chronicle.app/cli` and run `chronicle`.
+
 ## Repository status
 
-This repository contains shared TypeScript, ESLint, Prettier, and logging packages, plus a
-[minimal schema](core/schema/README.md) with generated TypeScript/Zod validators and
-a [standalone ETL framework](core/etl/README.md) for extraction and serialization.
-Source plugins are available as programmatic extractors and transformers.
-The CLI has not moved here yet, so the extraction command above is not runnable
-from this checkout. Packages are prepared for release but are not
-published by this repository's workflows.
+This repository contains the [CLI](apps/cli/README.md), shared TypeScript, ESLint,
+Prettier, and logging packages, a [minimal schema](core/schema/README.md) with
+generated TypeScript/Zod validators, and a [standalone ETL framework](core/etl/README.md)
+for extraction and serialization. Source plugins are also available as programmatic
+extractors and transformers. Packages are published to npm under `@chronicle.app`;
+see [Preparing a release](RELEASING.md).
 
 ## Source plugins
 

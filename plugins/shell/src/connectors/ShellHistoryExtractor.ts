@@ -24,7 +24,7 @@ interface HistoryEntry {
 
 export class ShellHistoryExtractor extends Extractor<typeof ShellHistoryExtractor> {
   static override source = 'shell';
-  static override description = 'Command history (bash or zsh, auto-detected)';
+  static override description = 'Command history (bash, zsh, or fish, auto-detected)';
 
   static override delivery = 'local' as const;
   static override strategy = 'history';

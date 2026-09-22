@@ -14,10 +14,10 @@ const NEEDS = {
 export default class SourcesInfo extends BaseCommand<typeof SourcesInfo> {
   static override description = 'Show a source: its extractors, record types, and how to run it';
 
-  static override examples = ['chronicle sources info spotify', 'chronicle sources info shell'];
+  static override examples = ['chronicle sources info shell', 'chronicle sources info things-todo'];
 
   static override args = {
-    source: Args.string({ description: 'Source name (e.g. spotify, shell)', required: true }),
+    source: Args.string({ description: 'Source name (e.g. shell, imessage)', required: true }),
   };
 
   async run(): Promise<void> {
@@ -49,14 +49,11 @@ export default class SourcesInfo extends BaseCommand<typeof SourcesInfo> {
     this.log('');
     this.log(theme.textDim('Run it:'));
     this.log(`  ${theme.text(`chronicle extract ${args.source}`)}  ${theme.textDim('→ stdout')}`);
-    this.log(
-      `  ${theme.text(`chronicle import ${args.source}`)}  ${theme.textDim('→ local archive')}`
-    );
     // Point at a way in a bare run would not take.
     const alternate = strategies.find(s => !s.extractors.some(e => e.default));
     if (strategies.length > 1 && alternate) {
       this.log(
-        `  ${theme.text(`chronicle import ${args.source} --via ${alternate.name}`)}  ` +
+        `  ${theme.text(`chronicle extract ${args.source} --via ${alternate.name}`)}  ` +
           theme.textDim('→ a different way in')
       );
     }

@@ -5,32 +5,31 @@ import { getTheme } from '../../theme.js';
 import { renderExtractorsScreen } from '../../screens/index.js';
 
 export default class Sources extends BaseCommand<typeof Sources> {
-  static override description =
-    'List connectors, the records they can pull, and connected direct sources';
+  static override description = 'List installed sources and the records they can pull';
 
   static override aliases = ['list'];
 
   static override examples = [
     'chronicle sources',
-    'chronicle sources --source spotify',
-    'chronicle sources --delivery api',
-    'chronicle sources --record-type listens',
-    'chronicle sources info spotify',
+    'chronicle sources --source shell',
+    'chronicle sources --delivery local',
+    'chronicle sources --record-type messages',
+    'chronicle sources info imessage',
   ];
 
   static override flags = {
     ...BaseCommand.baseFlags,
     source: Flags.string({
-      summary: 'Filter by source (e.g., spotify, lastfm)',
+      summary: 'Filter by source (e.g., shell, imessage)',
       helpGroup: 'FILTER',
     }),
     delivery: Flags.string({
-      summary: 'Filter by delivery — how the source reaches the archive',
+      summary: 'Filter by delivery — how the source is read',
       options: ['export', 'api', 'local', 'direct'],
       helpGroup: 'FILTER',
     }),
     'record-type': Flags.string({
-      summary: 'Filter by record type (e.g., listens, posts)',
+      summary: 'Filter by record type (e.g., messages, tasks)',
       helpGroup: 'FILTER',
     }),
     format: Flags.string({

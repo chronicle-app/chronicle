@@ -31,7 +31,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
   protected abstract handleNonSource(positional: string | undefined): Promise<void>;
 
   static override args = {
-    source: Args.string({ description: 'Source name (e.g. spotify, shell)', required: false }),
+    source: Args.string({ description: 'Source name (e.g. shell, imessage)', required: false }),
   };
 
   static override strict = false;
