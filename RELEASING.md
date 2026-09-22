@@ -39,18 +39,27 @@ must record both the software version and vocabulary version.
 
 ## Publishing
 
-Before an explicitly approved release:
+Before an explicitly approved release, authenticate with npm and verify access with
+`npm whoami` and `npm org ls chronicle.app`. Then, from a clean checkout of `origin/main`:
 
-1. Authenticate with npm and verify access with `npm whoami` and
-   `npm org ls chronicle.app`.
-2. Confirm package licensing and version availability with `npm view <package>
-versions`. Confirm the version and review every tarball (`tar -tzf <artifact>`).
-   If any version changes, update workspace dependency ranges and the lockfile,
-   then rerun all checks and prepare fresh artifacts from the reviewed commit.
-3. After release approval, publish the reviewed tarballs explicitly with
-   `npm publish <artifact.tgz> --access public`. Publish shared configs before
-   their consumers. No CI event or tag publishes automatically.
-4. Verify the released versions by installing them in an isolated consumer.
+```sh
+npm run release:publish
+```
+
+The script runs `npm run quality` and `npm run packages:check`, then publishes each
+tarball from `artifacts/npm/` with `--access public`, after every workspace it
+depends on. Versions already on the registry are skipped, so rerun the command to
+continue after a failed or interrupted publish. npm prompts for two-factor
+authentication as each package publishes. Once every package is on the registry,
+the script tags the commit `v<package-version>` and pushes the tag. No CI event or
+tag publishes automatically.
+
+`npm run release:publish -- --dry-run` runs the checks and `npm publish --dry-run`
+for each tarball. `--registry <url>` publishes to another registry, such as a local
+Verdaccio, to rehearse installation. Neither creates a tag.
+
+After publishing, verify the released versions by installing them in an isolated
+consumer, for example `npx @chronicle.app/cli@latest sources` in an empty directory.
 
 ## Schema releases
 
@@ -71,11 +80,11 @@ For an approved schema release:
    also saves the packed ontology at
    `artifacts/schema/releases/<version>/chronicle.ttl` and the matching standalone
    HTML reference at `artifacts/schema/releases/<version>/index.html`.
-2. Tag the reviewed release commit as `v<package-version>` and push that tag as
-   part of the approved release. Never move or reuse a release tag. For example,
+2. `npm run release:publish` tags the reviewed release commit as `v<package-version>`
+   and pushes that tag. Never move or reuse a release tag. For example,
    `git show v0.1.0:core/schema/chronicle.ttl` retrieves that release's
    ontology once the tag exists.
-3. Publish the reviewed npm tarball. Record its package version and vocabulary version together in the release notes.
+3. Record the package version and vocabulary version together in the release notes.
    The Git tag identifies the software release; the snapshot path uses the vocabulary version.
 4. When schema website hosting is configured, publish the snapshot at
    `https://schema.chronicle.app/releases/<version>/chronicle.ttl` and generate
