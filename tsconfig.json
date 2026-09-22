@@ -27,6 +27,12 @@
     },
     {
       "path": "plugins/claude-code/tsconfig.lib.json"
+    },
+    {
+      "path": "core/auth/tsconfig.lib.json"
+    },
+    {
+      "path": "apps/cli/tsconfig.lib.json"
     }
   ]
 }

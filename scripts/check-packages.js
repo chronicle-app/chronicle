@@ -36,7 +36,7 @@ function run(args, cwd, capture = false) {
 
 try {
   const dependencies = {};
-  const packageDirectories = ['core', 'plugins']
+  const packageDirectories = ['core', 'plugins', 'apps']
     .flatMap(group =>
       readdirSync(group, { withFileTypes: true })
         .filter(entry => entry.isDirectory())
@@ -211,6 +211,85 @@ try {
   run(['node_modules/eslint/bin/eslint.js', 'src', '--ext', '.ts'], consumer);
   run(['node_modules/prettier/bin/prettier.cjs', '--check', 'prettier.config.cjs'], consumer);
   run(['dist/index.js'], consumer);
+  if (dependencies['@chronicle.app/cli']) {
+    const bin = join(consumer, 'node_modules/@chronicle.app/cli/bin/run.js');
+    const result = spawnSync(
+      process.execPath,
+      ['--test', resolve(root, 'apps/cli/test/cli.test.js')],
+      {
+        cwd: consumer,
+        env: { ...process.env, CHRONICLE_TEST_BIN: bin },
+        stdio: 'inherit',
+      }
+    );
+    assert.equal(result.status, 0, 'Installed CLI integration tests failed');
+    const isolatedEnv = {
+      ...process.env,
+      CHRONICLE_CONFIG_DIR: join(consumer, 'config'),
+      CHRONICLE_DATA_DIR: join(consumer, 'data'),
+      CHRONICLE_CACHE_DIR: join(consumer, 'cache'),
+      npm_config_audit: 'false',
+      npm_config_fund: 'false',
+    };
+    const cli = args => {
+      const result = spawnSync(process.execPath, [bin, ...args], {
+        cwd: consumer,
+        env: isolatedEnv,
+        encoding: 'utf8',
+        timeout: 60_000,
+      });
+      assert.equal(result.status, 0, result.stderr || result.error?.message);
+      return result.stdout;
+    };
+    const fixturePlugin = join(consumer, 'fixture-plugin');
+    mkdirSync(fixturePlugin);
+    writeFileSync(
+      join(fixturePlugin, 'package.json'),
+      JSON.stringify({
+        name: 'chronicle-fixture-plugin',
+        version: '1.0.0',
+        type: 'module',
+        main: './index.js',
+        chronicle: { plugin: true },
+        oclif: {},
+      })
+    );
+    writeFileSync(
+      join(fixturePlugin, 'index.js'),
+      `export class Fixture {
+      static source = 'fixture'; static strategy = 'file'; static delivery = 'export';
+      static recordTypes = ['rows']; static schema = { shape: {} };
+      async setup() {} async teardown() {} async determineCount() { return 1; }
+      async *performExtract() { yield { extraction: { source: 'fixture', recordType: 'rows', delivery: 'export' }, data: { name: 'installed fixture' }, schema: 'raw', transformations: [], context: {}, toString: 'fixture' }; }
+    }`
+    );
+    const [packed] = JSON.parse(run([npm, 'pack', '--json'], fixturePlugin, true));
+    cli(['plugins', 'install', `file:${join(fixturePlugin, packed.filename)}`]);
+    assert.ok(
+      JSON.parse(cli(['sources', '--format', 'json'])).some(source => source.source === 'fixture')
+    );
+    assert.equal(JSON.parse(cli(['extract', 'fixture', '--raw'])).name, 'installed fixture');
+    cli(['plugins', 'uninstall', 'chronicle-fixture-plugin']);
+    assert.ok(
+      !JSON.parse(cli(['sources', '--format', 'json'])).some(source => source.source === 'fixture')
+    );
+    const graph = JSON.parse(run([npm, 'ls', '--omit=dev', '--all', '--json'], consumer, true));
+    const allowed = new Set(Object.keys(dependencies));
+    const audit = node => {
+      for (const [name, dependency] of Object.entries(node.dependencies || {})) {
+        assert.ok(
+          !['knex', 'better-sqlite3'].includes(name),
+          `Unexpected SQLite dependency: ${name}`
+        );
+        assert.ok(
+          !name.startsWith('@chronicle.app/') || allowed.has(name),
+          `Unexpected private dependency: ${name}`
+        );
+        audit(dependency);
+      }
+    };
+    audit(graph);
+  }
   // App/test presets must also resolve correctly from installed tarballs.
   for (const preset of ['app', 'test']) {
     writeFileSync(
