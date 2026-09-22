@@ -15,7 +15,8 @@ together.
 ## Repository status
 
 This repository contains shared TypeScript, ESLint, Prettier, and logging packages, plus a
-[minimal schema](core/schema/README.md) with generated TypeScript/Zod validators.
+[minimal schema](core/schema/README.md) with generated TypeScript/Zod validators and
+a [standalone ETL framework](core/etl/README.md) for extraction and serialization.
 The CLI and source plugins have not moved here yet, so the extraction command above
 is not runnable from this checkout. Packages are prepared for release but are not
 published by this repository's workflows.

@@ -65,6 +65,22 @@ try {
     [npm, 'install', '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false'],
     consumer
   );
+  // Audit the installed graph, including transitive runtime dependencies.
+  // A copied package must not quietly pull a private package or old SQLite driver.
+  const installed = JSON.parse(run([npm, 'ls', '--all', '--omit=dev', '--json'], consumer, true));
+  const auditDependencies = node => {
+    for (const [name, child] of Object.entries(node.dependencies ?? {})) {
+      assert.ok(
+        !['knex', 'better-sqlite3'].includes(name),
+        `Forbidden extraction dependency: ${name}`
+      );
+      if (name.startsWith('@chronicle.app/')) {
+        assert.ok(Object.hasOwn(dependencies, name), `Unexpected Chronicle dependency: ${name}`);
+      }
+      auditDependencies(child);
+    }
+  };
+  auditDependencies(installed);
   writeFileSync(
     join(consumer, '.eslintrc.cjs'),
     "module.exports = { extends: ['@chronicle.app/eslint-config'] };\n"
@@ -87,6 +103,45 @@ try {
   if (dependencies['@chronicle.app/schema']) {
     source +=
       "import { EntityAndChildrenSchema } from '@chronicle.app/schema';\nexport const entity = EntityAndChildrenSchema.parse({ '@type': 'Entity', '@key': ['sourceId'], sourceId: 'fixture-1', name: 'Example' });\n";
+  }
+  if (dependencies['@chronicle.app/etl']) {
+    source += `
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import type { Action } from '@chronicle.app/schema';
+import { ChronicleTransformer, Extractor, JsonLoader, Runner, type Record as EtlRecord } from '@chronicle.app/etl';
+
+class PackedExtractor extends Extractor {
+  static override source = 'fixture';
+  static override strategy = 'memory';
+  static override delivery = 'export' as const;
+  static override recordTypes = ['items'];
+  async *extract() {
+    yield this.createRecord({ id: 'fixture-1', url: 'https://example.com/1' });
+  }
+}
+class PackedTransformer extends ChronicleTransformer {
+  protected override async transform(record: EtlRecord): Promise<Action[]> {
+    return [{ '@type': 'Action', '@key': ['sourceId'], sourceId: record.data.id,
+      object: { '@type': 'Entity', '@key': ['url'], url: record.data.url } }];
+  }
+}
+const runner = new Runner({ streamExtraction: true, quiet: true })
+  .addExtractor(new PackedExtractor({}))
+  .addTransformer(new PackedTransformer())
+  .addLoader(new JsonLoader({ output: 'etl.json' }));
+let loaded = 0;
+try {
+  await runner.setup();
+  for await (const log of runner.run()) {
+    assert.equal(log.error, undefined);
+    assert.equal(log.validationErrors, undefined);
+    loaded += log.results.filter(result => result.success).length;
+  }
+} finally { await runner.teardown(); }
+assert.equal(loaded, 1);
+assert.equal(JSON.parse(readFileSync('etl.json', 'utf8')).object.url, 'https://example.com/1');
+`;
   }
   writeFileSync(join(consumer, 'src/index.ts'), source);
   run(['node_modules/typescript/bin/tsc', '-p', 'tsconfig.json'], consumer);
