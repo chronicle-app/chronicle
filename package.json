@@ -1,0 +1,41 @@
+{
+  "name": "chronicle",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Extract your digital history into a shared vocabulary.",
+  "type": "module",
+  "author": "Andrew Louis",
+  "license": "MIT",
+  "homepage": "https://chronicle.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chronicle-app/chronicle.git"
+  },
+  "bugs": {
+    "url": "https://github.com/chronicle-app/chronicle/issues"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "workspaces": [
+    "core/*",
+    "packages/*",
+    "apps/*",
+    "plugins/*",
+    "tools/*"
+  ],
+  "scripts": {
+    "build": "node scripts/run-workspaces.js build",
+    "lint": "eslint scripts .eslintrc.cjs prettier.config.cjs && node scripts/run-workspaces.js lint",
+    "typecheck": "node scripts/typecheck.js",
+    "test": "node scripts/run-workspaces.js test",
+    "format:check": "prettier --check .",
+    "format:fix": "prettier --write .",
+    "quality": "npm run build && npm run lint && npm run typecheck && npm run test && npm run format:check"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.1",
+    "prettier": "^3.6.2",
+    "typescript": "^5.7.2"
+  }
+}
