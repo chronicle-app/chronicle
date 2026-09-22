@@ -15,8 +15,15 @@ const packages = root.workspaces.flatMap(pattern => {
 });
 const names = new Set(packages.map(({ pkg }) => pkg.name));
 const sections = ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies'];
-const argument = process.argv[2];
-assert.ok(argument, 'Use npm run release:version -- <version> or npm run versions:check');
+let argument = process.argv[2];
+assert.ok(argument, 'Use --sync, --check, or an explicit <version>');
+if (argument === '--sync') {
+  // After `changeset version`: carry the workspaces' shared version to the root,
+  // internal dependencies, and lockfile.
+  const versions = new Set(packages.map(({ pkg }) => pkg.version));
+  assert.equal(versions.size, 1, 'Workspaces disagree on the version: ' + [...versions].join(', '));
+  [argument] = versions;
+}
 const entries = [{ path: 'package.json', pkg: root }, ...packages];
 
 if (argument === '--check') {

@@ -15,10 +15,15 @@ credentials, and contains no publish step.
 
 ## Versioning
 
-All npm workspaces share the root package version, including the schema package.
-Run `npm run release:version -- 0.2.0` with an explicit version to update every
-package, exact internal dependencies, and the lockfile. This does not create tags
-or publish. `npm run versions:check` checks alignment as part of quality checks.
+Releases are driven by [Changesets](https://github.com/changesets/changesets). A pull
+request that should ship adds a changeset with `npx changeset`: choose the bump and
+write the changelog entry. All `@chronicle.app` packages form one fixed group, so
+they share a version, and the strongest pending bump applies to every package.
+
+`npm run release:version` applies pending changesets: it bumps every package,
+writes changelogs, then carries the shared version to the root package, exact
+internal dependencies, and the lockfile. `npm run versions:check` checks alignment
+as part of quality checks.
 
 The vocabulary has an independent stable semantic version in the ontology's
 `owl:versionInfo`. Change it only when the vocabulary contract changes, then run
@@ -28,35 +33,35 @@ identify software; vocabulary versions identify data contracts.
 
 Use patch releases for compatible fixes, minor releases for compatible features,
 and major releases for breaking public APIs, including generated types or
-validators. Apply the strongest required bump across all packages, even during
-0.x. A vocabulary version bump does not replace a required software version bump.
-Unchanged packages still receive the shared version.
+validators, even during 0.x. A vocabulary version bump does not replace a required
+software version bump.
 
 Review vocabulary changes against the last published snapshot and explicitly
 choose the appropriate schema bump; automation cannot infer semantic compatibility.
-Use immutable `v<package-version>` Git tags for software releases. Release notes
-must record both the software version and vocabulary version.
+Each release has one immutable `v<package-version>` tag and GitHub release, whose
+notes record both the software version and vocabulary version.
 
 ## Publishing
 
-Before an explicitly approved release, authenticate with npm and verify access with
-`npm whoami` and `npm org ls chronicle.app`. Then, from a clean checkout of `origin/main`:
+The **Release** workflow runs on every push to `main`:
 
-```sh
-npm run release:publish
-```
+- With pending changesets, it opens or updates a **Version Packages** pull request
+  that runs `npm run release:version`. Merging that pull request approves the release.
+- With versions not yet on npm, it runs `npm run quality` and
+  `npm run packages:check`, packs the tarballs, and publishes them through npm
+  trusted publishing, with no stored npm token. It then creates the
+  `v<package-version>` tag and GitHub release with `scripts/tag-release.js`.
 
-The script runs `npm run quality` and `npm run packages:check`, then publishes each
-tarball from `artifacts/npm/` with `--access public`, after every workspace it
-depends on. Versions already on the registry are skipped, so rerun the command to
-continue after a failed or interrupted publish. npm prompts for two-factor
-authentication as each package publishes. Once every package is on the registry,
-the script tags the commit `v<package-version>` and pushes the tag. No CI event or
-tag publishes automatically.
+Only the publish job can publish to npm or write releases; the version and pack
+jobs cannot. Each package's trusted publisher on npmjs.com names this repository
+and `release.yml`. Pull requests opened with the workflow token do not trigger
+other workflows, so CI does not run on the Version Packages pull request itself.
 
-`npm run release:publish -- --dry-run` runs the checks and `npm publish --dry-run`
-for each tarball. `--registry <url>` publishes to another registry, such as a local
-Verdaccio, to rehearse installation. Neither creates a tag.
+To publish from a local checkout instead, such as before trusted publishers exist,
+authenticate with npm and run `npm run release` from a clean `main`. It runs the
+same checks, publishes every version not already on the registry, and creates the
+release with `gh`. npm asks for two-factor authentication. Rerun it to continue
+after an interrupted publish.
 
 After publishing, verify the released versions by installing them in an isolated
 consumer, for example `npx @chronicle.app/cli@latest sources` in an empty directory.
@@ -80,8 +85,8 @@ For an approved schema release:
    also saves the packed ontology at
    `artifacts/schema/releases/<version>/chronicle.ttl` and the matching standalone
    HTML reference at `artifacts/schema/releases/<version>/index.html`.
-2. `npm run release:publish` tags the reviewed release commit as `v<package-version>`
-   and pushes that tag. Never move or reuse a release tag. For example,
+2. Publishing creates the `v<package-version>` tag and GitHub release on the
+   release commit. Never move or reuse a release tag. For example,
    `git show v0.1.0:core/schema/chronicle.ttl` retrieves that release's
    ontology once the tag exists.
 3. Record the package version and vocabulary version together in the release notes.
