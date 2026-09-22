@@ -1,0 +1,39 @@
+# Chronicle's minimal extraction vocabulary. This is the canonical source.
+@prefix : <https://schema.chronicle.app/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+:Base a rdfs:Class;
+  rdfs:comment "An identity-bearing node described by a source." .
+:Entity a rdfs:Class;
+  rdfs:subClassOf :Base;
+  rdfs:comment "A thing described by a source." .
+:Action a rdfs:Class;
+  rdfs:subClassOf :Base;
+  rdfs:comment "An occurrence involving an entity." .
+:Text a rdfs:Class;
+  rdfs:comment "A text value." .
+:URL a rdfs:Class;
+  rdfs:comment "A URL value." .
+
+:sourceId a rdf:Property;
+  rdfs:comment "The source id of the object";
+  owl:maxCardinality 1;
+  :domainIncludes :Base;
+  :rangeIncludes :Text .
+:name a rdf:Property;
+  rdfs:comment "The name of the entity";
+  owl:maxCardinality 1;
+  :domainIncludes :Entity;
+  :rangeIncludes :Text .
+:url a rdf:Property;
+  rdfs:comment "The URL of the entity";
+  owl:maxCardinality 1;
+  :domainIncludes :Entity;
+  :rangeIncludes :URL .
+:object a rdf:Property;
+  rdfs:comment "The object of the action";
+  owl:maxCardinality 1;
+  :domainIncludes :Action;
+  :rangeIncludes :Entity .

@@ -31,8 +31,10 @@
     "test": "npm run test --workspaces --if-present",
     "format:check": "prettier --check .",
     "format:fix": "prettier --write .",
-    "quality": "npm run build && npm run lint && npm run typecheck && npm run test && npm run format:check",
-    "packages:check": "node scripts/check-packages.js"
+    "quality": "npm run schema:check && npm run build && npm run lint && npm run typecheck && npm run test && npm run format:check",
+    "packages:check": "node scripts/check-packages.js",
+    "schema:generate": "npm run generate -w @chronicle.app/schema",
+    "schema:check": "npm run generate:check -w @chronicle.app/schema"
   },
   "devDependencies": {
     "eslint": "^8.57.1",

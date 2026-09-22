@@ -1,0 +1,53 @@
+{
+  "name": "@chronicle.app/schema",
+  "version": "0.1.0",
+  "description": "Minimal Chronicle extraction vocabulary and generated TypeScript/Zod schemas",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./schema.ttl": "./schema.ttl"
+  },
+  "files": [
+    "dist/*.js",
+    "dist/*.d.ts",
+    "schema.ttl"
+  ],
+  "scripts": {
+    "generate": "node scripts/generate-schemas.js",
+    "generate:check": "node scripts/check-generated.js",
+    "build": "tsc -b tsconfig.lib.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test src/*.test.js scripts/*.test.js",
+    "lint": "eslint src scripts --ext .ts,.js"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "dependencies": {
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@chronicle.app/tsconfig": "0.1.0",
+    "@chronicle.app/prettier-config": "0.1.0",
+    "@types/node": "^22.10.1",
+    "n3": "^1.23.1",
+    "prettier": "^3.6.2",
+    "typescript": "^5.7.2"
+  },
+  "author": "Andrew Louis",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chronicle-app/chronicle.git",
+    "directory": "core/schema"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}
