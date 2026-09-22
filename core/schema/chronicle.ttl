@@ -107,3 +107,89 @@
   rdfs:comment "An entity representing the subject matter of this entity, such as a topic or tag describing what a task concerns.";
   :domainIncludes :Entity;
   :rangeIncludes :Entity .
+
+:Command a rdfs:Class;
+  rdfs:subClassOf :Entity;
+  rdfs:comment "An instruction issued to a computer, such as a shell command. Its :body carries the command text; an :ExecuteAction records an execution of it." .
+:Person a rdfs:Class;
+  rdfs:subClassOf :Agent;
+  rdfs:comment "A human individual represented by a source, such as a message participant or computer user." .
+:Realm a rdfs:Class;
+  rdfs:subClassOf :Entity;
+  rdfs:comment "A bounded account or computing domain, such as a workspace, computer system, or email domain. Agents belong to it through :memberOf; entities located within it use :inRealm." .
+:ExecuteAction a rdfs:Class;
+  rdfs:subClassOf :Action;
+  rdfs:comment "The execution of a command or software resource. The :object identifies what was executed; :agent identifies the doer when known." .
+:body a rdf:Property;
+  rdfs:comment "The textual content of an entity, such as a shell command or message, as supplied by the source.";
+  owl:maxCardinality 1;
+  :domainIncludes :Entity;
+  :rangeIncludes :Text .
+:memberOf a rdf:Property;
+  rdfs:comment "An entity the agent belongs to, such as a realm representing the computer system in which a user account exists.";
+  :domainIncludes :Agent;
+  :rangeIncludes :Entity .
+
+:Message a rdfs:Class;
+  rdfs:subClassOf :Entity;
+  rdfs:comment "A communicated item, such as a text message or chat reply. Its :body carries text, :contains links attachments, and :recipient identifies the intended receivers." .
+:MessageAction a rdfs:Class;
+  rdfs:subClassOf :Action;
+  rdfs:comment "The sending of a message. The :object identifies the message and :agent identifies the sender when known." .
+:MediaObject a rdfs:Class;
+  rdfs:subClassOf :Entity;
+  rdfs:comment "A media artifact, such as an image, audio recording, video, or document. Its :contentPath or :url locates the content, and :mimeType describes its format." .
+:ImageObject a rdfs:Class;
+  rdfs:subClassOf :MediaObject;
+  rdfs:comment "An image artifact, such as a photograph, screenshot, or image attachment." .
+:AudioObject a rdfs:Class;
+  rdfs:subClassOf :MediaObject;
+  rdfs:comment "An audio artifact, such as a voice message, music file, or sound recording." .
+:VideoObject a rdfs:Class;
+  rdfs:subClassOf :MediaObject;
+  rdfs:comment "A video artifact, such as a recorded clip or video attachment, which may include audio." .
+:DocumentObject a rdfs:Class;
+  rdfs:subClassOf :MediaObject;
+  rdfs:comment "A document artifact, such as a PDF, text file, or document attachment." .
+:recipient a rdf:Property;
+  rdfs:comment "An agent the message was directed to. A message can have multiple recipients, such as the other participants in a group conversation.";
+  :domainIncludes :Message;
+  :rangeIncludes :Agent .
+:contains a rdf:Property;
+  rdfs:comment "A media artifact carried by a message, such as an attached image, voice recording, video, or document.";
+  :domainIncludes :Message;
+  :rangeIncludes :MediaObject .
+:contentPath a rdf:Property;
+  rdfs:comment "An absolute filesystem path to the local file containing the media bytes. Describes where the extracted content is available on the source machine.";
+  owl:maxCardinality 1;
+  :domainIncludes :MediaObject;
+  :rangeIncludes :Text .
+:mimeType a rdf:Property;
+  rdfs:comment "The MIME type of the media content, such as image/jpeg, audio/mp4, or application/pdf.";
+  owl:maxCardinality 1;
+  :domainIncludes :MediaObject;
+  :rangeIncludes :Text .
+
+:SoftwareAgent a rdfs:Class;
+  rdfs:subClassOf :Agent;
+  rdfs:comment "Running software acting as a participant, such as an assistant, bot, or automation. It can be the :agent of an action or the :author of a message." .
+:SoftwareApplication a rdfs:Class;
+  rdfs:subClassOf :Entity;
+  rdfs:comment "A software application or model used to perform work. An action can identify it through :instrument, using the source-provided application or model identifier." .
+:Thread a rdfs:Class;
+  rdfs:subClassOf :Collection;
+  rdfs:comment "A conversation explicitly grouped by its source, such as an email thread or assistant chat. Messages link to it through :isPartOf; its :name can carry the conversation title." .
+:instrument a rdf:Property;
+  rdfs:comment "The tool, device, application, or model used to perform an action. The :agent identifies who acted; :instrument identifies what they used.";
+  owl:maxCardinality 1;
+  :domainIncludes :Action;
+  :rangeIncludes :Entity .
+:author a rdf:Property;
+  rdfs:comment "An agent that authored the message content, such as a person or software assistant.";
+  :domainIncludes :Message;
+  :rangeIncludes :Agent .
+:inRealm a rdf:Property;
+  rdfs:comment "The realm in which an entity resides, such as the computer system hosting a conversation or file. Provides context for identifiers that are local to that realm.";
+  owl:maxCardinality 1;
+  :domainIncludes :Entity;
+  :rangeIncludes :Realm .

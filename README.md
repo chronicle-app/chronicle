@@ -17,9 +17,23 @@ together.
 This repository contains shared TypeScript, ESLint, Prettier, and logging packages, plus a
 [minimal schema](core/schema/README.md) with generated TypeScript/Zod validators and
 a [standalone ETL framework](core/etl/README.md) for extraction and serialization.
-The CLI and source plugins have not moved here yet, so the extraction command above
-is not runnable from this checkout. Packages are prepared for release but are not
+Source plugins are available as programmatic extractors and transformers.
+The CLI has not moved here yet, so the extraction command above is not runnable
+from this checkout. Packages are prepared for release but are not
 published by this repository's workflows.
+
+## Source plugins
+
+| Source                                           | Package                                      |
+| ------------------------------------------------ | -------------------------------------------- |
+| Things 3                                         | [things-todo](plugins/things-todo/README.md) |
+| Shell history (bash, zsh, fish)                  | [shell](plugins/shell/README.md)             |
+| iMessage/SMS, with iCloud and contact enrichment | [imessage](plugins/imessage/README.md)       |
+| Claude Code transcripts                          | [claude-code](plugins/claude-code/README.md) |
+
+SQLite sources use the [read-only Node SQLite adapter](core/etl-sqlite/README.md).
+Each plugin exports an extractor and transformer for use with the ETL Runner.
+Tests use synthetic files and databases; they do not need access to personal data.
 
 ## Development
 

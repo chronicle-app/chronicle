@@ -15,6 +15,18 @@
     },
     {
       "path": "plugins/things-todo/tsconfig.lib.json"
+    },
+    {
+      "path": "plugins/shell/tsconfig.lib.json"
+    },
+    {
+      "path": "plugins/imessage/tsconfig.lib.json"
+    },
+    {
+      "path": "core/icloud/tsconfig.lib.json"
+    },
+    {
+      "path": "plugins/claude-code/tsconfig.lib.json"
     }
   ]
 }
