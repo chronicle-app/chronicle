@@ -9,6 +9,9 @@
     },
     {
       "path": "core/etl/tsconfig.lib.json"
+    },
+    {
+      "path": "core/etl-sqlite/tsconfig.lib.json"
     }
   ]
 }
