@@ -5,105 +5,105 @@
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 
 :Base a rdfs:Class;
-  rdfs:comment "An identity-bearing node described by a source." .
+  rdfs:comment "The common base for entities and actions described by a source. Each node carries an identity, expressed as @key or @id, so it can be referenced across records." .
 :Entity a rdfs:Class;
   rdfs:subClassOf :Base;
-  rdfs:comment "A thing described by a source." .
+  rdfs:comment "A thing described by a source, such as a person, place, document, or web page. An entity represents the thing itself; actions record what happened to or with it." .
 :Action a rdfs:Class;
   rdfs:subClassOf :Base;
-  rdfs:comment "An occurrence involving an entity." .
+  rdfs:comment "An occurrence recorded by a source, such as reading an article, sending a message, or visiting a place. Its object identifies the entity the action was carried out on." .
 :Text a rdfs:Class;
-  rdfs:comment "A text value." .
+  rdfs:comment "A literal string, used for values such as names and source identifiers. Text is carried directly as a property value and has no node identity of its own." .
 :URL a rdfs:Class;
-  rdfs:comment "A URL value." .
+  rdfs:comment "A Uniform Resource Locator expressed as an absolute URL string, such as https://example.com/article. Used for properties that locate a resource." .
 
 :sourceId a rdf:Property;
-  rdfs:comment "The source id of the object";
+  rdfs:comment "The identifier assigned by the source to an entity or action, such as a record ID or message ID. Represented as text and scoped to the source's own namespace; it need not be globally unique.";
   owl:maxCardinality 1;
   :domainIncludes :Base;
   :rangeIncludes :Text .
 :name a rdf:Property;
-  rdfs:comment "The name of the entity";
+  rdfs:comment "The human-readable name or title of an entity, such as a person's display name, a document title, or a place name.";
   owl:maxCardinality 1;
   :domainIncludes :Entity;
   :rangeIncludes :Text .
 :url a rdf:Property;
-  rdfs:comment "The URL of the entity";
+  rdfs:comment "A URL at which the entity can be found, such as a web page's address or a link to a source record.";
   owl:maxCardinality 1;
   :domainIncludes :Entity;
   :rangeIncludes :URL .
 :object a rdf:Property;
-  rdfs:comment "The object of the action";
+  rdfs:comment "The entity an action is carried out on, such as the article being read, the message being sent, or the place being visited. For movement, the object identifies where the movement began.";
   owl:maxCardinality 1;
   :domainIncludes :Action;
   :rangeIncludes :Entity .
 
 :DateTime a rdfs:Class;
-  rdfs:comment "DateTime described by a source." .
+  rdfs:comment "An instant anchored in time, including a date and time of day. Represented as a JavaScript Date in extracted records; use only when the source provides enough information to identify an instant." .
 :Agent a rdfs:Class;
   rdfs:subClassOf :Entity;
-  rdfs:comment "Agent described by a source." .
+  rdfs:comment "An entity capable of performing an action, such as a person, organization, or software agent. An action's agent identifies its doer when known." .
 :Task a rdfs:Class;
   rdfs:subClassOf :Entity;
-  rdfs:comment "Task described by a source." .
+  rdfs:comment "A unit of work to be done, such as a to-do item. The task carries its name and description; actions record its planning, updates, completion, or cancellation." .
 :Collection a rdfs:Class;
   rdfs:subClassOf :Entity;
-  rdfs:comment "Collection described by a source." .
+  rdfs:comment "A grouping of entities declared by a source, such as a list, an area of responsibility, or a section within a project. Members link to the collection through isPartOf." .
 :Project a rdfs:Class;
   rdfs:subClassOf :Collection;
-  rdfs:comment "Project described by a source." .
+  rdfs:comment "An organized undertaking that groups related work toward an outcome. Tasks and other constituent entities link to the project through isPartOf." .
 :Tag a rdfs:Class;
   rdfs:subClassOf :Entity;
-  rdfs:comment "Tag described by a source." .
+  rdfs:comment "A label used by a source to categorize or describe entities. Represented as an entity with its own identity so the same tag can be referenced by multiple records." .
 :PlanAction a rdfs:Class;
   rdfs:subClassOf :Action;
-  rdfs:comment "PlanAction described by a source." .
+  rdfs:comment "The act of establishing an intention to do something, such as creating a to-do item. The object identifies the planned work; the timestamp records when the plan was made." .
 :UpdateAction a rdfs:Class;
   rdfs:subClassOf :Action;
-  rdfs:comment "UpdateAction described by a source." .
+  rdfs:comment "A change to an existing entity, such as editing a task's title or notes. The object identifies the entity that was changed." .
 :CompleteAction a rdfs:Class;
   rdfs:subClassOf :Action;
-  rdfs:comment "CompleteAction described by a source." .
+  rdfs:comment "The completion of an activity or piece of work, such as finishing a task or a book. The object identifies what was completed." .
 :CancelAction a rdfs:Class;
   rdfs:subClassOf :Action;
-  rdfs:comment "CancelAction described by a source." .
+  rdfs:comment "The withdrawal of a plan or intended activity, such as cancelling a task. The object identifies what was cancelled." .
 :DeleteAction a rdfs:Class;
   rdfs:subClassOf :Action;
-  rdfs:comment "DeleteAction described by a source." .
+  rdfs:comment "The removal of an entity from its source, including moving an item to the trash. The object identifies what was removed." .
 :source a rdf:Property;
-  rdfs:comment "source reported by the source.";
+  rdfs:comment "The source system that describes the entity or action, such as things-todo. Provides the source namespace in which identifiers such as sourceId are interpreted.";
   owl:maxCardinality 1;
   :domainIncludes :Base;
   :rangeIncludes :Text .
 :timestamp a rdf:Property;
-  rdfs:comment "timestamp reported by the source.";
+  rdfs:comment "The instant when the action occurred, as reported by the source. Records occurrence time, not the time Chronicle extracted the record.";
   owl:maxCardinality 1;
   :domainIncludes :Action;
   :rangeIncludes :DateTime .
 :agent a rdf:Property;
-  rdfs:comment "agent reported by the source.";
+  rdfs:comment "The doer of the action, when identified by the source. Omit when no doer is known; an occurrence can be recorded without an agent.";
   owl:maxCardinality 1;
   :domainIncludes :Action;
   :rangeIncludes :Agent .
 :sameAs a rdf:Property;
-  rdfs:comment "sameAs reported by the source.";
+  rdfs:comment "Another reference to the same entity, expressed as an entity node or a textual identity reference such as @me. Asserts shared identity, rather than similarity or association.";
   :domainIncludes :Entity;
   :rangeIncludes :Entity, :Text .
 :description a rdf:Property;
-  rdfs:comment "description reported by the source.";
+  rdfs:comment "Descriptive text supplied by the source about an entity, such as a task's notes or a project's summary.";
   owl:maxCardinality 1;
   :domainIncludes :Entity;
   :rangeIncludes :Text .
 :handle a rdf:Property;
-  rdfs:comment "handle reported by the source.";
+  rdfs:comment "A contextual identifier for an entity within its namespace, such as a username, channel slug, or tag label. Its meaning depends on the source or context in which it is used.";
   owl:maxCardinality 1;
   :domainIncludes :Entity;
   :rangeIncludes :Text .
 :isPartOf a rdf:Property;
-  rdfs:comment "isPartOf reported by the source.";
+  rdfs:comment "An entity that this entity forms part of, such as a task's project or collection, or the page containing an excerpt. Each value identifies a containing whole.";
   :domainIncludes :Entity;
   :rangeIncludes :Entity .
 :about a rdf:Property;
-  rdfs:comment "about reported by the source.";
+  rdfs:comment "An entity representing the subject matter of this entity, such as a topic or tag describing what a task concerns.";
   :domainIncludes :Entity;
   :rangeIncludes :Entity .
