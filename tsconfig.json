@@ -24,6 +24,9 @@
     },
     {
       "path": "core/icloud/tsconfig.lib.json"
+    },
+    {
+      "path": "plugins/claude-code/tsconfig.lib.json"
     }
   ]
 }

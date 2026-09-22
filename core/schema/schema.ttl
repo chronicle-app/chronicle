@@ -169,3 +169,27 @@
   owl:maxCardinality 1;
   :domainIncludes :MediaObject;
   :rangeIncludes :Text .
+
+:SoftwareAgent a rdfs:Class;
+  rdfs:subClassOf :Agent;
+  rdfs:comment "SoftwareAgent described by a source." .
+:SoftwareApplication a rdfs:Class;
+  rdfs:subClassOf :Entity;
+  rdfs:comment "SoftwareApplication described by a source." .
+:Thread a rdfs:Class;
+  rdfs:subClassOf :Collection;
+  rdfs:comment "Thread described by a source." .
+:instrument a rdf:Property;
+  rdfs:comment "instrument reported by the source.";
+  owl:maxCardinality 1;
+  :domainIncludes :Action;
+  :rangeIncludes :Entity .
+:author a rdf:Property;
+  rdfs:comment "author reported by the source.";
+  :domainIncludes :Message;
+  :rangeIncludes :Agent .
+:inRealm a rdf:Property;
+  rdfs:comment "inRealm reported by the source.";
+  owl:maxCardinality 1;
+  :domainIncludes :Entity;
+  :rangeIncludes :Realm .

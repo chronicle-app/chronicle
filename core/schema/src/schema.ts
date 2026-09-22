@@ -49,6 +49,7 @@ export const BaseSchema: z.ZodType<Base> = z
 export interface Action extends Omit<Base, '@type'> {
   '@type': 'Action';
   agent?: AgentAndChildren;
+  instrument?: EntityAndChildren;
   object?: EntityAndChildren;
   timestamp?: Date;
 }
@@ -66,6 +67,7 @@ export type ActionAndChildren =
 const ActionProperties = {
   ...BaseProperties,
   agent: z.lazy(() => AgentAndChildrenSchema).optional(),
+  instrument: z.lazy(() => EntityAndChildrenSchema).optional(),
   object: z.lazy(() => EntityAndChildrenSchema).optional(),
   timestamp: z.lazy(() => z.coerce.date()).optional(),
 };
@@ -84,6 +86,7 @@ export interface Entity extends Omit<Base, '@type'> {
   body?: string;
   description?: string;
   handle?: string;
+  inRealm?: RealmAndChildren;
   isPartOf?: EntityAndChildren[];
   name?: string;
   sameAs?: (EntityAndChildren | string)[];
@@ -98,6 +101,7 @@ export type EntityAndChildren =
   | MediaObjectAndChildren
   | MessageAndChildren
   | RealmAndChildren
+  | SoftwareApplicationAndChildren
   | TagAndChildren
   | TaskAndChildren;
 
@@ -107,6 +111,7 @@ const EntityProperties = {
   body: z.lazy(() => z.string()).optional(),
   description: z.lazy(() => z.string()).optional(),
   handle: z.lazy(() => z.string()).optional(),
+  inRealm: z.lazy(() => RealmAndChildrenSchema).optional(),
   isPartOf: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
   name: z.lazy(() => z.string()).optional(),
   sameAs: z.lazy(() => z.array(z.union([EntityAndChildrenSchema, z.string()]))).optional(),
@@ -126,7 +131,7 @@ export interface Agent extends Omit<Entity, '@type'> {
   memberOf?: EntityAndChildren[];
 }
 
-export type AgentAndChildren = Agent | PersonAndChildren;
+export type AgentAndChildren = Agent | PersonAndChildren | SoftwareAgentAndChildren;
 
 const AgentProperties = {
   ...EntityProperties,
@@ -208,7 +213,7 @@ export interface Collection extends Omit<Entity, '@type'> {
   '@type': 'Collection';
 }
 
-export type CollectionAndChildren = Collection | ProjectAndChildren;
+export type CollectionAndChildren = Collection | ProjectAndChildren | ThreadAndChildren;
 
 const CollectionProperties = {
   ...EntityProperties,
@@ -332,6 +337,7 @@ export const ImageObjectSchema: z.ZodType<ImageObject> = z
 // Message, child of https://schema.chronicle.app/Entity
 export interface Message extends Omit<Entity, '@type'> {
   '@type': 'Message';
+  author?: AgentAndChildren[];
   contains?: MediaObjectAndChildren[];
   recipient?: AgentAndChildren[];
 }
@@ -340,6 +346,7 @@ export type MessageAndChildren = Message;
 
 const MessageProperties = {
   ...EntityProperties,
+  author: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
   contains: z.lazy(() => z.array(MediaObjectAndChildrenSchema)).optional(),
   recipient: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
 };
@@ -441,6 +448,42 @@ export const RealmSchema: z.ZodType<Realm> = z
   })
   .superRefine(requireNodeIdentity);
 
+// SoftwareAgent, child of https://schema.chronicle.app/Agent
+export interface SoftwareAgent extends Omit<Agent, '@type'> {
+  '@type': 'SoftwareAgent';
+}
+
+export type SoftwareAgentAndChildren = SoftwareAgent;
+
+const SoftwareAgentProperties = {
+  ...AgentProperties,
+};
+
+export const SoftwareAgentSchema: z.ZodType<SoftwareAgent> = z
+  .object({
+    '@type': z.literal('SoftwareAgent'),
+    ...SoftwareAgentProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// SoftwareApplication, child of https://schema.chronicle.app/Entity
+export interface SoftwareApplication extends Omit<Entity, '@type'> {
+  '@type': 'SoftwareApplication';
+}
+
+export type SoftwareApplicationAndChildren = SoftwareApplication;
+
+const SoftwareApplicationProperties = {
+  ...EntityProperties,
+};
+
+export const SoftwareApplicationSchema: z.ZodType<SoftwareApplication> = z
+  .object({
+    '@type': z.literal('SoftwareApplication'),
+    ...SoftwareApplicationProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // Tag, child of https://schema.chronicle.app/Entity
 export interface Tag extends Omit<Entity, '@type'> {
   '@type': 'Tag';
@@ -474,6 +517,24 @@ export const TaskSchema: z.ZodType<Task> = z
   .object({
     '@type': z.literal('Task'),
     ...TaskProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Thread, child of https://schema.chronicle.app/Collection
+export interface Thread extends Omit<Collection, '@type'> {
+  '@type': 'Thread';
+}
+
+export type ThreadAndChildren = Thread;
+
+const ThreadProperties = {
+  ...CollectionProperties,
+};
+
+export const ThreadSchema: z.ZodType<Thread> = z
+  .object({
+    '@type': z.literal('Thread'),
+    ...ThreadProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -517,9 +578,15 @@ export const VideoObjectAndChildrenSchema = VideoObjectSchema;
 
 export const UpdateActionAndChildrenSchema = UpdateActionSchema;
 
+export const ThreadAndChildrenSchema = ThreadSchema;
+
 export const TaskAndChildrenSchema = TaskSchema;
 
 export const TagAndChildrenSchema = TagSchema;
+
+export const SoftwareApplicationAndChildrenSchema = SoftwareApplicationSchema;
+
+export const SoftwareAgentAndChildrenSchema = SoftwareAgentSchema;
 
 export const RealmAndChildrenSchema = RealmSchema;
 
@@ -550,6 +617,11 @@ export const CollectionAndChildrenSchema: z.ZodType<CollectionAndChildren> = z
     z.object({
       '@type': z.literal('Collection'),
       ...CollectionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Thread'),
+      ...ThreadProperties,
     }),
 
     z.object({
@@ -598,6 +670,11 @@ export const AgentAndChildrenSchema: z.ZodType<AgentAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('SoftwareAgent'),
+      ...SoftwareAgentProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Person'),
       ...PersonProperties,
     }),
@@ -621,6 +698,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('SoftwareApplication'),
+      ...SoftwareApplicationProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Realm'),
       ...RealmProperties,
     }),
@@ -638,6 +720,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     z.object({
       '@type': z.literal('Collection'),
       ...CollectionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Thread'),
+      ...ThreadProperties,
     }),
 
     z.object({
@@ -673,6 +760,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     z.object({
       '@type': z.literal('Agent'),
       ...AgentProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('SoftwareAgent'),
+      ...SoftwareAgentProperties,
     }),
 
     z.object({
@@ -747,6 +839,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('SoftwareApplication'),
+      ...SoftwareApplicationProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Realm'),
       ...RealmProperties,
     }),
@@ -764,6 +861,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('Collection'),
       ...CollectionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Thread'),
+      ...ThreadProperties,
     }),
 
     z.object({
@@ -799,6 +901,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('Agent'),
       ...AgentProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('SoftwareAgent'),
+      ...SoftwareAgentProperties,
     }),
 
     z.object({
