@@ -11,7 +11,7 @@
   rdfs:comment "A thing described by a source, such as a person, place, document, or web page. An entity represents the thing itself; actions record what happened to or with it." .
 :Action a rdfs:Class;
   rdfs:subClassOf :Base;
-  rdfs:comment "An occurrence recorded by a source, such as reading an article, sending a message, or visiting a place. Its object identifies the entity the action was carried out on." .
+  rdfs:comment "An occurrence recorded by a source, such as reading an article, sending a message, or visiting a place. Its :object identifies the entity the action was carried out on." .
 :Text a rdfs:Class;
   rdfs:comment "A literal string, used for values such as names and source identifiers. Text is carried directly as a property value and has no node identity of its own." .
 :URL a rdfs:Class;
@@ -33,7 +33,7 @@
   :domainIncludes :Entity;
   :rangeIncludes :URL .
 :object a rdf:Property;
-  rdfs:comment "The entity an action is carried out on, such as the article being read, the message being sent, or the place being visited. For movement, the object identifies where the movement began.";
+  rdfs:comment "The entity an action is carried out on, such as the article being read, the message being sent, or the place being visited. For movement, the :object identifies where the movement began.";
   owl:maxCardinality 1;
   :domainIncludes :Action;
   :rangeIncludes :Entity .
@@ -42,36 +42,36 @@
   rdfs:comment "An instant anchored in time, including a date and time of day. Represented as a JavaScript Date in extracted records; use only when the source provides enough information to identify an instant." .
 :Agent a rdfs:Class;
   rdfs:subClassOf :Entity;
-  rdfs:comment "An entity capable of performing an action, such as a person, organization, or software agent. An action's agent identifies its doer when known." .
+  rdfs:comment "An entity capable of performing an action, such as a person, organization, or software agent. An action's :agent identifies its doer when known." .
 :Task a rdfs:Class;
   rdfs:subClassOf :Entity;
-  rdfs:comment "A unit of work to be done, such as a to-do item. The task carries its name and description; actions record its planning, updates, completion, or cancellation." .
+  rdfs:comment "A unit of work to be done, such as a to-do item. The task carries its :name and :description; actions record its planning, updates, completion, or cancellation." .
 :Collection a rdfs:Class;
   rdfs:subClassOf :Entity;
-  rdfs:comment "A grouping of entities declared by a source, such as a list, an area of responsibility, or a section within a project. Members link to the collection through isPartOf." .
+  rdfs:comment "A grouping of entities declared by a source, such as a list, an area of responsibility, or a section within a project. Members link to the collection through :isPartOf." .
 :Project a rdfs:Class;
   rdfs:subClassOf :Collection;
-  rdfs:comment "An organized undertaking that groups related work toward an outcome. Tasks and other constituent entities link to the project through isPartOf." .
+  rdfs:comment "An organized undertaking that groups related work toward an outcome. Tasks and other constituent entities link to the project through :isPartOf." .
 :Tag a rdfs:Class;
   rdfs:subClassOf :Entity;
   rdfs:comment "A label used by a source to categorize or describe entities. Represented as an entity with its own identity so the same tag can be referenced by multiple records." .
 :PlanAction a rdfs:Class;
   rdfs:subClassOf :Action;
-  rdfs:comment "The act of establishing an intention to do something, such as creating a to-do item. The object identifies the planned work; the timestamp records when the plan was made." .
+  rdfs:comment "The act of establishing an intention to do something, such as creating a to-do item. The :object identifies the planned work; the :timestamp records when the plan was made." .
 :UpdateAction a rdfs:Class;
   rdfs:subClassOf :Action;
-  rdfs:comment "A change to an existing entity, such as editing a task's title or notes. The object identifies the entity that was changed." .
+  rdfs:comment "A change to an existing entity, such as editing a task's title or notes. The :object identifies the entity that was changed." .
 :CompleteAction a rdfs:Class;
   rdfs:subClassOf :Action;
-  rdfs:comment "The completion of an activity or piece of work, such as finishing a task or a book. The object identifies what was completed." .
+  rdfs:comment "The completion of an activity or piece of work, such as finishing a task or a book. The :object identifies what was completed." .
 :CancelAction a rdfs:Class;
   rdfs:subClassOf :Action;
-  rdfs:comment "The withdrawal of a plan or intended activity, such as cancelling a task. The object identifies what was cancelled." .
+  rdfs:comment "The withdrawal of a plan or intended activity, such as cancelling a task. The :object identifies what was cancelled." .
 :DeleteAction a rdfs:Class;
   rdfs:subClassOf :Action;
-  rdfs:comment "The removal of an entity from its source, including moving an item to the trash. The object identifies what was removed." .
+  rdfs:comment "The removal of an entity from its source, including moving an item to the trash. The :object identifies what was removed." .
 :source a rdf:Property;
-  rdfs:comment "The source system that describes the entity or action, such as things-todo. Provides the source namespace in which identifiers such as sourceId are interpreted.";
+  rdfs:comment "The source system that describes the entity or action, such as things-todo. Provides the source namespace in which identifiers such as :sourceId are interpreted.";
   owl:maxCardinality 1;
   :domainIncludes :Base;
   :rangeIncludes :Text .
