@@ -1,3 +1,4 @@
+import { schemaVersion } from './schema-version.js';
 // Adapted from chronicle-internal's schema model and reference renderers.
 import { Parser, Store } from 'n3';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -16,7 +17,8 @@ const escape = value =>
     char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]
   );
 
-export async function renderDocumentation(ttl, version) {
+export async function renderDocumentation(ttl) {
+  const version = schemaVersion(ttl);
   const store = new Store(new Parser().parse(ttl));
   const values = (subject, predicate) =>
     store.getQuads(subject, predicate, null).map(quad => quad.object.value);
@@ -132,7 +134,7 @@ export async function renderDocumentation(ttl, version) {
     <main id="reference"><header id="overview"><p class="eyebrow">Chronicle vocabulary</p>
     <h1>A shared vocabulary for personal history.</h1>
     <p>Reference for ${classes.length} types and ${properties.length} properties, generated from <code>chronicle.ttl</code>.</p>
-    <p class="muted">Package version ${escape(version)}. Use your browser’s Find command to search this page.</p>
+    <p class="muted">Vocabulary version ${escape(version)}. Use your browser’s Find command to search this page.</p>
     <p>Types inherit their parents’ properties. Cardinality gives the minimum and maximum number of values: <code>0…1</code> is optional and single-valued; <code>0…unbounded</code> permits multiple values.</p></header>
     <h2 id="types">Types</h2>${classSections}<h2 id="properties">Properties</h2>${propertySections}
     <footer>Chronicle schema · ${escape(version)} · MIT</footer></main></body></html>`,
@@ -143,8 +145,7 @@ export async function renderDocumentation(ttl, version) {
 async function main() {
   const ttlPath = process.argv[2] || fileURLToPath(new URL('../chronicle.ttl', import.meta.url));
   const output = process.argv[3] || fileURLToPath(new URL('../docs/schema.html', import.meta.url));
-  const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
-  const html = await renderDocumentation(readFileSync(ttlPath, 'utf8'), version);
+  const html = await renderDocumentation(readFileSync(ttlPath, 'utf8'));
   mkdirSync(dirname(output), { recursive: true });
   writeFileSync(output, html);
   console.log('Schema HTML generated successfully!');

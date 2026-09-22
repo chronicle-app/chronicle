@@ -1,3 +1,4 @@
+export const SCHEMA_VERSION = '0.1.0' as const;
 // Generated from chronicle.ttl. Do not edit; run npm run schema:generate.
 import { z } from 'zod';
 

@@ -69,9 +69,13 @@ Generated runtime code depends only on Zod; the TTL is also included in the pack
 
 ## Schema versions
 
-The ontology and this package share one version, declared in `package.json`.
+The npm package follows Chronicle’s shared software version in `package.json`.
+The ontology has an independent version declared with `owl:versionInfo` in
+`chronicle.ttl`, exported as the generated `SCHEMA_VERSION` constant. Software
+releases can advance without changing the vocabulary version.
 `chronicle.ttl` is the only editable ontology; historical versions are preserved
-by immutable Git tags named `schema-v<version>` and versioned npm packages.
+by immutable software Git tags named `v<package-version>` and versioned npm packages.
+Release notes map software versions to vocabulary versions.
 The package exports `@chronicle.app/schema/chronicle.ttl`; the former
 `@chronicle.app/schema/schema.ttl` export remains an alias for compatibility.
 
@@ -82,6 +86,7 @@ also apply during `0.x`. Keep term identifiers such as
 `https://schema.chronicle.app/Task` stable; introduce a new term and deprecate the
 old one when its concept changes fundamentally.
 
+Snapshot paths use the vocabulary version, not the npm package version.
 The publication convention is
 `https://schema.chronicle.app/releases/<version>/chronicle.ttl`, with matching
 documentation under the same release path. Published snapshots must never be

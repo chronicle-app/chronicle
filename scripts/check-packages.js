@@ -34,6 +34,18 @@ function run(args, cwd, capture = false) {
   return result.stdout;
 }
 
+function saveSnapshot(path, content) {
+  if (existsSync(path)) {
+    assert.equal(
+      readFileSync(path, 'utf8'),
+      content,
+      'Schema snapshot changed without a version bump: ' + path
+    );
+  } else {
+    writeFileSync(path, content);
+  }
+}
+
 try {
   const dependencies = {};
   const packageDirectories = ['core', 'plugins', 'apps']
@@ -95,10 +107,18 @@ process.stdout.write(readFileSync(ontology, 'utf8'));`,
       true
     );
     assert.equal(ontology, readFileSync('core/schema/chronicle.ttl', 'utf8'));
-    const { version } = JSON.parse(readFileSync('core/schema/package.json', 'utf8'));
+    const version = run(
+      [
+        '--input-type=module',
+        '-e',
+        "import { SCHEMA_VERSION } from '@chronicle.app/schema'; process.stdout.write(SCHEMA_VERSION);",
+      ],
+      consumer,
+      true
+    );
     const snapshotDirectory = resolve('artifacts/schema/releases', version);
     mkdirSync(snapshotDirectory, { recursive: true });
-    writeFileSync(join(snapshotDirectory, 'chronicle.ttl'), ontology);
+    saveSnapshot(join(snapshotDirectory, 'chronicle.ttl'), ontology);
     const html = run(
       [
         '--input-type=module',
@@ -112,7 +132,7 @@ process.stdout.write(readFileSync(require.resolve('@chronicle.app/schema/schema.
       true
     );
     assert.equal(html, readFileSync('core/schema/docs/schema.html', 'utf8'));
-    writeFileSync(join(snapshotDirectory, 'index.html'), html);
+    saveSnapshot(join(snapshotDirectory, 'index.html'), html);
   }
   writeFileSync(
     join(consumer, '.eslintrc.cjs'),

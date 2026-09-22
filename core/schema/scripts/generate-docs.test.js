@@ -8,6 +8,7 @@ const fixture = `
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
+: a owl:Ontology; owl:versionInfo "0.2.0" .
 :Base a rdfs:Class .
 :Child a rdfs:Class; rdfs:subClassOf :Base;
   rdfs:comment "Uses :label, :Unknown, and <script>alert('x')</script>." .
@@ -30,7 +31,7 @@ test('HTML documents inherited fields, ranges, cardinality, and safely linked de
   assert.match(child, /:Unknown/);
   assert.match(child, /&lt;script&gt;/);
   assert.doesNotMatch(html, /<script|href="#Unknown"/);
-  assert.match(html, /Package version 0\.2\.0/);
+  assert.match(html, /Vocabulary version 0\.2\.0/);
   const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
   assert.equal(new Set(ids).size, ids.length);
   for (const [, target] of html.matchAll(/href="#([^"]+)"/g)) {
@@ -51,8 +52,7 @@ test('HTML generation rejects inheritance cycles and missing parents', async () 
 
 test('HTML generation is deterministic and matches the committed reference', async () => {
   const ttl = readFileSync(new URL('../chronicle.ttl', import.meta.url), 'utf8');
-  const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
-  const html = await renderDocumentation(ttl, version);
-  assert.equal(html, await renderDocumentation(ttl, version));
+  const html = await renderDocumentation(ttl);
+  assert.equal(html, await renderDocumentation(ttl));
   assert.equal(html, readFileSync(new URL('../docs/schema.html', import.meta.url), 'utf8'));
 });
