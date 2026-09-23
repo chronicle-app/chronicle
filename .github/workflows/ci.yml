@@ -33,6 +33,13 @@ jobs:
         run: npm run typecheck
       - name: Test
         run: npm test
+      - name: Build schema docs
+        run: npm run schema:docs:build
+      - name: Upload schema docs
+        uses: actions/upload-artifact@v4
+        with:
+          name: schema-docs
+          path: core/schema/build/site
       - name: Check formatting
         run: npm run format:check
       - name: Check package tarballs

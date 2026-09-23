@@ -83,8 +83,7 @@ For an approved schema release:
 
 1. Prepare and validate the package using the checks above. Release preparation
    also saves the packed ontology at
-   `artifacts/schema/releases/<version>/chronicle.ttl` and the matching standalone
-   HTML reference at `artifacts/schema/releases/<version>/index.html`.
+   `artifacts/schema/releases/<version>/chronicle.ttl`.
 2. Publishing creates the `v<package-version>` tag and GitHub release on the
    release commit. Never move or reuse a release tag. For example,
    `git show v0.1.0:core/schema/chronicle.ttl` retrieves that release's
@@ -100,8 +99,10 @@ For an approved schema release:
 The preparation workflow creates artifacts only; it does not create tags,
 publish npm packages, or deploy a website.
 
-Schema HTML describes only the vocabulary version, so an unchanged vocabulary
-produces identical snapshots across software releases. Preparation refuses to
+The snapshot is the ontology alone, so an unchanged vocabulary produces
+identical snapshots across software releases. The documentation site also
+carries guides and examples, which change between vocabulary versions; build it
+with `npm run schema:docs:build`. Preparation refuses to
 overwrite differing local snapshots at an existing version. Before deploying,
 compare with the published snapshots too: a fresh checkout cannot detect changes
 to artifacts stored elsewhere. Never overwrite a published snapshot.

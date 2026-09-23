@@ -1,0 +1,567 @@
+# Documentation examples for the Chronicle vocabulary. Not part of the runtime
+# schema: only the documentation site and its tests read this file.
+#
+# Each example has an rdfs:label (title), an rdfs:comment (explanation, where
+# :term links to the reference), and one rdf:value: a sample record written as
+# nested blank nodes. doc:key lists the record's identity fields; it becomes
+# @key in Chronicle JSON. Terms link to an example with skos:example, and the
+# ontology itself (:) links the examples featured on the home page.
+#
+# All people, accounts, machines, content, and identifiers are illustrative.
+
+@prefix : <https://schema.chronicle.app/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix doc: <https://schema.chronicle.app/docs/> .
+@prefix example: <https://schema.chronicle.app/examples/> .
+
+example:shell-command
+  rdfs:label "Running a shell command";
+  rdfs:comment """
+An :ExecuteAction records one command from shell history. The :agent is the
+account that ran it: a :Person known by a username, scoped to the machine
+through :memberOf, and linked to you with :sameAs. The :Command carries the
+command text in :body.
+
+Shell history has no record IDs, so the action is keyed by what identifies it:
+when it ran, what ran, and which account on which machine ran it.
+""";
+  rdf:value [
+    a :ExecuteAction;
+    doc:key ("@type" "source" "timestamp" "object.body" "agent.handle" "agent.memberOf[*].handle");
+    :source "shell";
+    :timestamp "2026-03-14T09:26:53.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "handle" "memberOf[*].handle");
+      :source "shell";
+      :handle "sam";
+      :memberOf [
+        a :Realm;
+        doc:key ("@type" "source" "handle");
+        :source "hostname";
+        :handle "studio"
+      ];
+      :sameAs "@me"
+    ];
+    :object [
+      a :Command;
+      doc:key ("@type" "source" "body" "action.timestamp");
+      :source "shell";
+      :body "git log --oneline -5"
+    ]
+  ] .
+
+example:task-completed
+  rdfs:label "Completing a to-do";
+  rdfs:comment """
+A :CompleteAction marks a :Task as done. The task sits inside a :Project and
+an area of responsibility, both linked with :isPartOf, and is tagged with a
+:Tag through :about.
+
+Every record is keyed by the to-do app's own identifiers. The app has a single
+user, so the :agent is keyed by source alone and linked to you with :sameAs.
+""";
+  rdf:value [
+    a :CompleteAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "things-todo";
+    :sourceId "5nT2kQv8Lw3xRb1YcHd9pA";
+    :timestamp "2026-04-02T17:45:10.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source");
+      :source "things-todo";
+      :name "Sam Rivera";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Task;
+      doc:key ("@type" "source" "sourceId");
+      :source "things-todo";
+      :sourceId "5nT2kQv8Lw3xRb1YcHd9pA";
+      :name "Renew passport";
+      :description "Two photos are in the top desk drawer.";
+      :isPartOf [
+        a :Project;
+        doc:key ("@type" "source" "sourceId");
+        :source "things-todo";
+        :sourceId "Hq4mVz7Ns2Ck8Ew5Ty1Lp";
+        :name "Trip to Lisbon"
+      ], [
+        a :Collection;
+        doc:key ("@type" "source" "sourceId");
+        :source "things-todo";
+        :sourceId "Ua6Rj3Mf9Xs2Gb7Kd4Wn8e";
+        :name "Personal"
+      ];
+      :about [
+        a :Tag;
+        doc:key ("@type" "source" "sourceId");
+        :source "things-todo";
+        :sourceId "Zc1Fy8Pq5Hv3Ln6Jt2Bs9o";
+        :handle "errands";
+        :name "errands"
+      ]
+    ]
+  ] .
+
+example:task-planned
+  rdfs:label "Creating a to-do";
+  rdfs:comment """
+A :PlanAction records the moment a :Task was created: the intention to do
+something. Its :timestamp is when the plan was made, not when the work is due.
+""";
+  rdf:value [
+    a :PlanAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "things-todo";
+    :sourceId "5nT2kQv8Lw3xRb1YcHd9pA";
+    :timestamp "2026-03-20T08:12:31.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source");
+      :source "things-todo";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Task;
+      doc:key ("@type" "source" "sourceId");
+      :source "things-todo";
+      :sourceId "5nT2kQv8Lw3xRb1YcHd9pA";
+      :name "Renew passport"
+    ]
+  ] .
+
+example:task-edited
+  rdfs:label "Editing a to-do";
+  rdfs:comment """
+An :UpdateAction records a change to an existing entity. The :object carries
+the entity as it is now; the action records that and when it changed.
+""";
+  rdf:value [
+    a :UpdateAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "things-todo";
+    :sourceId "5nT2kQv8Lw3xRb1YcHd9pA";
+    :timestamp "2026-03-28T19:03:44.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source");
+      :source "things-todo";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Task;
+      doc:key ("@type" "source" "sourceId");
+      :source "things-todo";
+      :sourceId "5nT2kQv8Lw3xRb1YcHd9pA";
+      :name "Renew passport";
+      :description "Two photos are in the top desk drawer."
+    ]
+  ] .
+
+example:task-cancelled
+  rdfs:label "Cancelling a to-do";
+  rdfs:comment """
+A :CancelAction withdraws a plan. The :Task still exists; it was not done.
+""";
+  rdf:value [
+    a :CancelAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "things-todo";
+    :sourceId "Rw8Ke2Nd5Sg1Hx4Vb7Qm3t";
+    :timestamp "2026-04-11T12:30:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source");
+      :source "things-todo";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Task;
+      doc:key ("@type" "source" "sourceId");
+      :source "things-todo";
+      :sourceId "Rw8Ke2Nd5Sg1Hx4Vb7Qm3t";
+      :name "Book airport shuttle"
+    ]
+  ] .
+
+example:task-deleted
+  rdfs:label "Moving a to-do to the trash";
+  rdfs:comment """
+A :DeleteAction records that an entity was removed from its source. The
+archive keeps the record of the :Task and of its removal.
+""";
+  rdf:value [
+    a :DeleteAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "things-todo";
+    :sourceId "Pb3Lx9Tc6Mw2Jf8Ry5Dk1h";
+    :timestamp "2026-04-12T08:05:19.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source");
+      :source "things-todo";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Task;
+      doc:key ("@type" "source" "sourceId");
+      :source "things-todo";
+      :sourceId "Pb3Lx9Tc6Mw2Jf8Ry5Dk1h";
+      :name "Old packing list"
+    ]
+  ] .
+
+example:message-with-photo
+  rdfs:label "Receiving a message with a photo";
+  rdfs:comment """
+A :MessageAction records a message being sent; here Alex sent it to you. The
+:Message carries the text in :body, names you as its :recipient, and links the
+attached photo with :contains.
+
+Alex is known by a :handle in the messaging service's identity namespace. The
+handle is also an email address, so :sameAs links the same person as the
+email source knows them. The photo is an :ImageObject located by
+:contentPath, with its format in :mimeType.
+""";
+  rdf:value [
+    a :MessageAction;
+    doc:key ("source" "sourceId" "@type");
+    :source "imessage";
+    :sourceId "9B1C5E2A-7F43-4D8E-A6B0-3C2F9E14D7A5";
+    :timestamp "2026-05-09T18:22:07.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "icloud";
+      :handle "alex@example.com";
+      :name "Alex Chen";
+      :sameAs [
+        a :Agent;
+        doc:key ("@type" "source" "handle");
+        :source "email";
+        :handle "alex@example.com"
+      ]
+    ];
+    :object [
+      a :Message;
+      doc:key ("@type" "source" "sourceId");
+      :source "imessage";
+      :sourceId "9B1C5E2A-7F43-4D8E-A6B0-3C2F9E14D7A5";
+      :body "Found the trailhead!";
+      :recipient [
+        a :Person;
+        doc:key ("@type" "source" "handle");
+        :source "phone";
+        :handle "+15555550123";
+        :sameAs "@me"
+      ];
+      :contains [
+        a :ImageObject;
+        doc:key ("source" "sourceId");
+        :source "imessage";
+        :sourceId "E4A7C2D9-1B6F-4F3A-8C5E-7D2B9A0F6E13";
+        :contentPath "/Users/sam/Library/Messages/Attachments/4f/15/trailhead.jpg";
+        :mimeType "image/jpeg";
+        :description "trailhead.jpg"
+      ]
+    ]
+  ] .
+
+example:voice-message
+  rdfs:label "Sending a voice message";
+  rdfs:comment """
+You sent this one, so you are the :agent and the other participant is the
+:recipient. The recording is an :AudioObject.
+""";
+  rdf:value [
+    a :MessageAction;
+    doc:key ("source" "sourceId" "@type");
+    :source "imessage";
+    :sourceId "3F8D2B6C-5A19-4E7B-9C4D-1E6A8F2B0C97";
+    :timestamp "2026-05-09T18:25:41.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "handle");
+      :source "phone";
+      :handle "+15555550123";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Message;
+      doc:key ("@type" "source" "sourceId");
+      :source "imessage";
+      :sourceId "3F8D2B6C-5A19-4E7B-9C4D-1E6A8F2B0C97";
+      :body "";
+      :recipient [
+        a :Agent;
+        doc:key ("@type" "source" "handle");
+        :source "icloud";
+        :handle "alex@example.com";
+        :name "Alex Chen"
+      ];
+      :contains [
+        a :AudioObject;
+        doc:key ("source" "sourceId");
+        :source "imessage";
+        :sourceId "B2E9F4A1-6C3D-4B8E-A7F0-5D1C3E9B2A64";
+        :contentPath "/Users/sam/Library/Messages/Attachments/a2/02/Audio Message.caf";
+        :mimeType "audio/x-caf";
+        :description "Audio Message.caf"
+      ]
+    ]
+  ] .
+
+example:group-message-attachments
+  rdfs:label "Sharing a video and a PDF with a group";
+  rdfs:comment """
+A message to a group conversation has several :recipient values. It can
+contain more than one attachment: here a :VideoObject and a :DocumentObject.
+""";
+  rdf:value [
+    a :MessageAction;
+    doc:key ("source" "sourceId" "@type");
+    :source "imessage";
+    :sourceId "C7A3E1F5-2D8B-4C6A-9E0F-4B7D2A5C8E31";
+    :timestamp "2026-06-21T14:10:02.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "handle");
+      :source "phone";
+      :handle "+15555550123";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Message;
+      doc:key ("@type" "source" "sourceId");
+      :source "imessage";
+      :sourceId "C7A3E1F5-2D8B-4C6A-9E0F-4B7D2A5C8E31";
+      :body "Video from the summit, and the permit for Saturday.";
+      :recipient [
+        a :Agent;
+        doc:key ("@type" "source" "handle");
+        :source "icloud";
+        :handle "alex@example.com";
+        :name "Alex Chen"
+      ], [
+        a :Agent;
+        doc:key ("@type" "source" "handle");
+        :source "phone";
+        :handle "+15555550188";
+        :name "Jordan Lee"
+      ];
+      :contains [
+        a :VideoObject;
+        doc:key ("source" "sourceId");
+        :source "imessage";
+        :sourceId "D1F6B3A8-4E2C-4A9D-B5E7-8C0A2F4D6B19";
+        :contentPath "/Users/sam/Library/Messages/Attachments/7c/12/summit.mov";
+        :mimeType "video/quicktime";
+        :description "summit.mov"
+      ], [
+        a :DocumentObject;
+        doc:key ("source" "sourceId");
+        :source "imessage";
+        :sourceId "F8C2A5D7-9B1E-4F6C-A3D0-2E5B8C1F4A76";
+        :contentPath "/Users/sam/Library/Messages/Attachments/7c/13/permit.pdf";
+        :mimeType "application/pdf";
+        :description "permit.pdf"
+      ]
+    ]
+  ] .
+
+example:assistant-reply
+  rdfs:label "An assistant's reply in a coding session";
+  rdfs:comment """
+A reply from an AI assistant is a :MessageAction whose :agent is a
+:SoftwareAgent: the assistant itself. The model that produced the reply is a
+:SoftwareApplication, recorded as the action's :instrument. The agent acted;
+the instrument is what it used.
+
+The :Message is part of a :Thread for the session, and the thread is part of
+the :Project the session ran in. The project is keyed by its directory path,
+which is only unique on one machine, so the key includes the :Realm it sits in
+through :inRealm.
+""";
+  rdf:value [
+    a :MessageAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "claude-code";
+    :sourceId "0b7e4c2a-9f13-4d6b-8a5e-2c1f7d9b3e40";
+    :timestamp "2026-07-02T10:41:26.000Z"^^xsd:dateTime;
+    :agent [
+      a :SoftwareAgent;
+      doc:key ("@type" "source" "handle");
+      :source "anthropic";
+      :handle "claude";
+      :name "Claude"
+    ];
+    :instrument [
+      a :SoftwareApplication;
+      doc:key ("@type" "source" "handle");
+      :source "anthropic";
+      :handle "claude-sonnet-5";
+      :name "claude-sonnet-5"
+    ];
+    :object [
+      a :Message;
+      doc:key ("@type" "source" "sourceId");
+      :source "claude-code";
+      :sourceId "0b7e4c2a-9f13-4d6b-8a5e-2c1f7d9b3e40";
+      :body "The test fails when the clock crosses midnight UTC. Pinning the date fixes it.";
+      :author [
+        a :SoftwareAgent;
+        doc:key ("@type" "source" "handle");
+        :source "anthropic";
+        :handle "claude";
+        :name "Claude"
+      ];
+      :isPartOf [
+        a :Thread;
+        doc:key ("@type" "source" "sourceId");
+        :source "claude-code";
+        :sourceId "6d2a9e71-3c5b-4f08-b4e2-9a7c1d5f8e26";
+        :name "Fix the flaky date test";
+        :isPartOf [
+          a :Project;
+          doc:key ("@type" "source" "handle" "inRealm.handle");
+          :source "claude-code";
+          :handle "/Users/sam/code/garden-planner";
+          :name "/Users/sam/code/garden-planner";
+          :inRealm [
+            a :Realm;
+            doc:key ("@type" "source" "handle");
+            :source "hostname";
+            :handle "studio"
+          ]
+        ]
+      ]
+    ]
+  ] .
+
+example:assistant-prompt
+  rdfs:label "Your prompt in a coding session";
+  rdfs:comment """
+Your own messages are authored by you. Here you are the :Person behind the
+assistant account, keyed by the account's :sourceId. The account's email
+address links, through :sameAs, to the same person as the email source knows
+them, and "@me" marks the person as you.
+""";
+  rdf:value [
+    a :MessageAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "claude-code";
+    :sourceId "a3c81f6e-2b94-4e7d-9c05-7f1b8d2e6a53";
+    :timestamp "2026-07-02T10:40:58.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "claude";
+      :sourceId "4e9b2d17-8c3a-4f65-a1e0-6b7d9c2f5a38";
+      :handle "sam@example.com";
+      :name "Sam Rivera";
+      :sameAs [
+        a :Agent;
+        doc:key ("@type" "source" "handle");
+        :source "email";
+        :handle "sam@example.com";
+        :name "Sam Rivera"
+      ], "@me"
+    ];
+    :object [
+      a :Message;
+      doc:key ("@type" "source" "sourceId");
+      :source "claude-code";
+      :sourceId "a3c81f6e-2b94-4e7d-9c05-7f1b8d2e6a53";
+      :body "Why does the date test fail on CI but pass locally?";
+      :author [
+        a :Person;
+        doc:key ("@type" "source" "sourceId");
+        :source "claude";
+        :sourceId "4e9b2d17-8c3a-4f65-a1e0-6b7d9c2f5a38";
+        :sameAs "@me"
+      ];
+      :isPartOf [
+        a :Thread;
+        doc:key ("@type" "source" "sourceId");
+        :source "claude-code";
+        :sourceId "6d2a9e71-3c5b-4f08-b4e2-9a7c1d5f8e26";
+        :name "Fix the flaky date test"
+      ]
+    ]
+  ] .
+
+example:entity-with-url
+  rdfs:label "An entity with a source ID and a URL";
+  rdfs:comment """
+The smallest useful record: an :Entity with a :name, identified by the
+:sourceId its :source gave it. The :url is where the thing can be found; it is
+a :URL, so it must be an absolute address.
+""";
+  rdf:value [
+    a :Entity;
+    doc:key ("@type" "source" "sourceId");
+    :source "example-notes";
+    :sourceId "note-1042";
+    :name "Seed order for spring";
+    :url "https://notes.example.com/n/1042"
+  ] .
+
+: skos:example example:shell-command, example:message-with-photo, example:task-completed .
+
+:Base skos:example example:entity-with-url .
+:Entity skos:example example:entity-with-url .
+:Action skos:example example:shell-command, example:task-completed .
+:Text skos:example example:entity-with-url .
+:URL skos:example example:entity-with-url .
+:DateTime skos:example example:shell-command .
+:Agent skos:example example:task-completed, example:message-with-photo .
+:Person skos:example example:shell-command, example:assistant-prompt .
+:SoftwareAgent skos:example example:assistant-reply .
+:SoftwareApplication skos:example example:assistant-reply .
+:Realm skos:example example:shell-command, example:assistant-reply .
+:Command skos:example example:shell-command .
+:ExecuteAction skos:example example:shell-command .
+:Task skos:example example:task-completed, example:task-planned .
+:Collection skos:example example:task-completed .
+:Project skos:example example:task-completed, example:assistant-reply .
+:Tag skos:example example:task-completed .
+:PlanAction skos:example example:task-planned .
+:UpdateAction skos:example example:task-edited .
+:CompleteAction skos:example example:task-completed .
+:CancelAction skos:example example:task-cancelled .
+:DeleteAction skos:example example:task-deleted .
+:Message skos:example example:message-with-photo, example:assistant-reply .
+:MessageAction skos:example example:message-with-photo, example:assistant-prompt .
+:Thread skos:example example:assistant-reply .
+:MediaObject skos:example example:message-with-photo, example:group-message-attachments .
+:ImageObject skos:example example:message-with-photo .
+:AudioObject skos:example example:voice-message .
+:VideoObject skos:example example:group-message-attachments .
+:DocumentObject skos:example example:group-message-attachments .
+
+:source skos:example example:entity-with-url, example:task-completed .
+:sourceId skos:example example:entity-with-url, example:message-with-photo .
+:name skos:example example:entity-with-url .
+:url skos:example example:entity-with-url .
+:description skos:example example:task-edited .
+:handle skos:example example:shell-command, example:message-with-photo .
+:sameAs skos:example example:message-with-photo, example:assistant-prompt .
+:object skos:example example:shell-command .
+:agent skos:example example:shell-command, example:voice-message .
+:instrument skos:example example:assistant-reply .
+:timestamp skos:example example:shell-command .
+:isPartOf skos:example example:task-completed, example:assistant-reply .
+:about skos:example example:task-completed .
+:body skos:example example:shell-command, example:message-with-photo .
+:memberOf skos:example example:shell-command .
+:inRealm skos:example example:assistant-reply .
+:recipient skos:example example:message-with-photo, example:group-message-attachments .
+:contains skos:example example:message-with-photo, example:group-message-attachments .
+:contentPath skos:example example:message-with-photo .
+:mimeType skos:example example:message-with-photo .
+:author skos:example example:assistant-reply, example:assistant-prompt .

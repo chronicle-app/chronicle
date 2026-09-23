@@ -11,23 +11,22 @@
       "import": "./dist/index.js"
     },
     "./chronicle.ttl": "./chronicle.ttl",
-    "./schema.html": "./docs/schema.html",
     "./schema.ttl": "./chronicle.ttl"
   },
   "files": [
     "dist/*.js",
     "dist/*.d.ts",
-    "chronicle.ttl",
-    "docs/schema.html"
+    "chronicle.ttl"
   ],
   "scripts": {
-    "generate": "node scripts/generate-schemas.js && npm run generate:docs",
-    "generate:docs": "node scripts/generate-docs.js",
+    "generate": "node scripts/generate-schemas.js",
     "generate:check": "node scripts/check-generated.js",
+    "docs:build": "node site/build.js",
+    "docs:dev": "node site/dev.js",
     "build": "tsc -b tsconfig.lib.json",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "node --test src/*.test.js scripts/*.test.js",
-    "lint": "eslint src scripts --ext .ts,.js"
+    "test": "node --test src/*.test.js scripts/*.test.js site/*.test.js",
+    "lint": "eslint src scripts site --ext .ts,.js"
   },
   "engines": {
     "node": ">=22.13.0"
@@ -36,9 +35,10 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@chronicle.app/tsconfig": "0.1.0",
     "@chronicle.app/prettier-config": "0.1.0",
+    "@chronicle.app/tsconfig": "0.1.0",
     "@types/node": "^22.10.1",
+    "markdown-it": "^14.3.2",
     "n3": "^1.23.1",
     "prettier": "^3.6.2",
     "typescript": "^5.7.2"
