@@ -32,6 +32,19 @@ The site is generated and not committed. It is built from three sources:
 `npm test` validates every example against the generated Zod schemas and builds
 the site, failing on broken links. The site code is in [site/](site).
 
+The site is served at https://schema.chronicle.app from Cloudflare Workers
+static assets ([wrangler.jsonc](wrangler.jsonc)). The release workflow deploys
+it after each release. The deployed site is built from release tags, not the
+working tree:
+
+```bash
+npm run schema:docs:deploy-build   # write the deployable site to core/schema/build/deploy
+```
+
+The root serves the latest release. `releases/<version>/` holds the first
+release of each vocabulary version. Term IRIs such as `/Task` redirect to their
+pages. The build fails if a rebuilt snapshot differs from the published one.
+
 ## Vocabulary
 
 - `Base`: an identity-bearing node; carries `sourceId`.
@@ -112,8 +125,8 @@ The publication convention is
 documentation under the same release path. Published snapshots must never be
 overwritten or removed by later deployments. The unversioned `/chronicle.ttl`
 and term pages should serve the latest released version, rather than unreleased
-changes on `main`. Website hosting is not configured yet; see
-[Preparing a release](../../RELEASING.md) for the release procedure.
+changes on `main`. See [Preparing a release](../../RELEASING.md) for the
+release procedure.
 
 The vocabulary is intentionally small. Add terms only when a plugin needs them,
 keeping existing term identifiers and meanings stable; regenerate and add

@@ -90,19 +90,28 @@ For an approved schema release:
    ontology once the tag exists.
 3. Record the package version and vocabulary version together in the release notes.
    The Git tag identifies the software release; the snapshot path uses the vocabulary version.
-4. When schema website hosting is configured, publish the snapshot at
-   `https://schema.chronicle.app/releases/<version>/chronicle.ttl` and generate
-   matching documentation from that snapshot under the same release path.
-   Retain all existing release paths unchanged on every deployment. Update
-   `/chronicle.ttl` and unversioned term pages only to the latest released version.
+4. After publishing, the release workflow deploys https://schema.chronicle.app
+   through [schema-site.yml](.github/workflows/schema-site.yml). The deployment
+   serves the snapshot at
+   `https://schema.chronicle.app/releases/<version>/chronicle.ttl`, with matching
+   documentation built from the first release of that vocabulary version under
+   the same path. Every deployment rebuilds all release paths from their tags,
+   and fails if a snapshot differs from the published copy. `/chronicle.ttl` and
+   the unversioned term pages come from the latest release tag. To redeploy,
+   run the Schema site workflow by hand.
 
 The preparation workflow creates artifacts only; it does not create tags,
-publish npm packages, or deploy a website.
+publish npm packages, or deploy the website.
 
 The snapshot is the ontology alone, so an unchanged vocabulary produces
 identical snapshots across software releases. The documentation site also
 carries guides and examples, which change between vocabulary versions; build it
 with `npm run schema:docs:build`. Preparation refuses to
-overwrite differing local snapshots at an existing version. Before deploying,
-compare with the published snapshots too: a fresh checkout cannot detect changes
-to artifacts stored elsewhere. Never overwrite a published snapshot.
+overwrite differing local snapshots at an existing version. The deployment
+compares its snapshots with the published ones, since a fresh checkout cannot
+detect changes to artifacts stored elsewhere. Never overwrite a published
+snapshot.
+
+The deployment needs the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`
+repository secrets. For the first deployment, when nothing is published yet,
+run the Schema site workflow by hand with the published-snapshot check skipped.
