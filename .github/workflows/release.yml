@@ -50,9 +50,10 @@ jobs:
         with:
           script: npm run release:version
 
-  # Runs the release checks and packs the tarballs the publish job uploads.
+  # Runs the release checks and packs the tarballs the publish job uploads. Off until
+  # the repository variable TRUSTED_PUBLISHING is true; until then, publish locally.
   pack:
-    if: needs.select-mode.outputs.mode == 'publish'
+    if: needs.select-mode.outputs.mode == 'publish' && vars.TRUSTED_PUBLISHING == 'true'
     needs: select-mode
     runs-on: ubuntu-latest
     outputs:

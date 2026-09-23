@@ -43,25 +43,24 @@ notes record both the software version and vocabulary version.
 
 ## Publishing
 
-The **Release** workflow runs on every push to `main`:
+The **Release** workflow runs on every push to `main`. With pending changesets, it
+opens or updates a **Version Packages** pull request that runs
+`npm run release:version`. Merging that pull request approves the release. Pull
+requests opened with the workflow token do not trigger other workflows, so CI does
+not run on the Version Packages pull request itself.
 
-- With pending changesets, it opens or updates a **Version Packages** pull request
-  that runs `npm run release:version`. Merging that pull request approves the release.
-- With versions not yet on npm, it runs `npm run quality` and
-  `npm run packages:check`, packs the tarballs, and publishes them through npm
-  trusted publishing, with no stored npm token. It then creates the
-  `v<package-version>` tag and GitHub release with `scripts/tag-release.js`.
+Publish the merged versions from a local checkout: authenticate with npm and run
+`npm run release` from a clean `main`. It runs `npm run quality` and
+`npm run packages:check`, publishes every version not already on the registry, and
+creates the `v<package-version>` tag and GitHub release with
+`scripts/tag-release.js`. npm asks for two-factor authentication. Rerun it to
+continue after an interrupted publish.
 
-Only the publish job can publish to npm or write releases; the version and pack
-jobs cannot. Each package's trusted publisher on npmjs.com names this repository
-and `release.yml`. Pull requests opened with the workflow token do not trigger
-other workflows, so CI does not run on the Version Packages pull request itself.
-
-To publish from a local checkout instead, such as before trusted publishers exist,
-authenticate with npm and run `npm run release` from a clean `main`. It runs the
-same checks, publishes every version not already on the registry, and creates the
-release with `gh`. npm asks for two-factor authentication. Rerun it to continue
-after an interrupted publish.
+The workflow can also publish, through npm trusted publishing with no stored npm
+token. Its pack and publish jobs run only when the repository variable
+`TRUSTED_PUBLISHING` is `true`, which requires each package's trusted publisher on
+npmjs.com to name this repository and `release.yml`. Only the publish job can publish to npm or
+write releases.
 
 After publishing, verify the released versions by installing them in an isolated
 consumer, for example `npx @chronicle.app/cli@latest sources` in an empty directory.
