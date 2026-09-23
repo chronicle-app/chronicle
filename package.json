@@ -41,7 +41,7 @@
     "release": "npm run quality && npm run packages:check && changeset publish --no-git-tag && node scripts/tag-release.js"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.31.1",
+    "@changesets/cli": "^3.0.3",
     "@chronicle.app/eslint-config": "0.1.0",
     "@chronicle.app/prettier-config": "0.1.0",
     "@chronicle.app/tsconfig": "0.1.0",
