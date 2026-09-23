@@ -14,6 +14,7 @@ function fixture(t) {
     CHRONICLE_CONFIG_DIR: join(dir, 'config'),
     CHRONICLE_DATA_DIR: join(dir, 'data'),
     CHRONICLE_CACHE_DIR: join(dir, 'cache'),
+    CHRONICLE_SKIP_NEW_VERSION_CHECK: '1',
     NO_COLOR: '1',
   };
   const run = (...args) =>
