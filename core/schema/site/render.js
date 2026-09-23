@@ -508,7 +508,8 @@ export function renderSite(schema, guides) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${page.kind === 'home' ? 'Chronicle Schema' : `${escape(page.title)} · Chronicle Schema`}</title>
 <meta name="description" content="${escape(firstSentence(page.description ?? ''))}">
-<link rel="icon" href="{root}assets/icon.svg" type="image/svg+xml">
+<link rel="icon" href="{root}assets/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="{root}assets/apple-touch-icon.png">
 <link rel="stylesheet" href="{root}assets/site.css">
 <script>try{const t=localStorage.getItem('theme');if(t)document.documentElement.dataset.theme=t}catch{}</script>
 <script src="{root}assets/search-index.js" defer></script>
@@ -520,7 +521,7 @@ export function renderSite(schema, guides) {
   <button type="button" class="icon-button menu-button" aria-label="Menu" aria-expanded="false" aria-controls="sidebar" data-menu>
     <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 6h14M3 10h14M3 14h14"/></svg>
   </button>
-  <a class="brand" href="{root}index.html"><img src="{root}assets/icon.svg" alt="" width="26" height="26"><span>Chronicle</span><span class="brand-sub">Schema</span></a>
+  <a class="brand" href="{root}index.html"><span class="brand-mark" aria-hidden="true"></span><span>Chronicle</span><span class="brand-sub">Schema</span></a>
   <button type="button" class="search-trigger" data-open-search aria-haspopup="dialog" aria-controls="search-dialog">
     <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg>
     <span>Search</span><kbd data-shortcut>⌘K</kbd>

@@ -208,8 +208,13 @@ svg {
 .brand:hover {
   color: var(--text);
 }
-.brand img {
-  border-radius: 7px;
+.brand-mark {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  background: var(--accent);
+  -webkit-mask: url('logo.png') center / contain no-repeat;
+  mask: url('logo.png') center / contain no-repeat;
 }
 .brand-sub {
   color: var(--muted);
