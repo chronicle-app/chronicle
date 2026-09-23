@@ -3,12 +3,11 @@
 **Own your data, own your history.**
 
 Chronicle is an open-source, local-first [memex](https://hyfen.net/memex/) that archives
-and indexes your digital history, so that everything you have ever done online is yours
-to keep and to search.
+and indexes your digital history, so that your personal records are yours to keep and to search.
 
 Today, Chronicle is a command-line tool that extracts your data from apps and services
 into a common JSON-LD format. It reads files and databases on your machine and writes to
-stdout. Nothing is uploaded.
+stdout.
 
 ## Install
 
