@@ -17,6 +17,45 @@
 @prefix doc: <https://schema.chronicle.app/docs/> .
 @prefix example: <https://schema.chronicle.app/examples/> .
 
+example:message-from-alex
+  rdfs:label "A message from Alex";
+  rdfs:comment """
+Alex sent you a message on iMessage. The :MessageAction and the :Message are
+keyed by iMessage's own ID for the message, its :source and :sourceId.
+
+Alex is keyed twice. The first key is a :handle in the `icloud` source. The
+second, through :sameAs, is Alex's email address in the `email` namespace.
+That key doesn't belong to iMessage: any source that knows Alex's email
+address can use the same key.
+""";
+  rdf:value [
+    a :MessageAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "imessage";
+    :sourceId "9B1C5E2A-7F43-4D8E-A6B0-3C2F9E14D7A5";
+    :timestamp "2026-05-09T18:22:07.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "icloud";
+      :handle "alex@example.com";
+      :name "Alex Chen";
+      :sameAs [
+        a :Agent;
+        doc:key ("@type" "source" "handle");
+        :source "email";
+        :handle "alex@example.com"
+      ]
+    ];
+    :object [
+      a :Message;
+      doc:key ("@type" "source" "sourceId");
+      :source "imessage";
+      :sourceId "9B1C5E2A-7F43-4D8E-A6B0-3C2F9E14D7A5";
+      :body "Found the trailhead!"
+    ]
+  ] .
+
 example:shell-command
   rdfs:label "Running a shell command";
   rdfs:comment """
@@ -505,7 +544,7 @@ An :Entity with a :name, keyed by its :source and :sourceId. The :url is a
     :url "https://notes.example.com/n/1042"
   ] .
 
-: skos:example example:shell-command, example:message-with-photo, example:task-completed .
+: skos:example example:message-from-alex, example:shell-command, example:task-completed .
 
 :Base skos:example example:entity-with-url .
 :Entity skos:example example:entity-with-url .
@@ -543,8 +582,8 @@ An :Entity with a :name, keyed by its :source and :sourceId. The :url is a
 :name skos:example example:entity-with-url .
 :url skos:example example:entity-with-url .
 :description skos:example example:task-edited .
-:handle skos:example example:shell-command, example:message-with-photo .
-:sameAs skos:example example:message-with-photo, example:assistant-prompt .
+:handle skos:example example:message-from-alex, example:shell-command .
+:sameAs skos:example example:message-from-alex, example:assistant-prompt .
 :object skos:example example:shell-command .
 :agent skos:example example:shell-command, example:voice-message .
 :instrument skos:example example:assistant-reply .

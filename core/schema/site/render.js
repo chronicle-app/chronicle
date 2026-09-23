@@ -216,8 +216,8 @@ export function renderSite(schema, guides) {
         featured
           ? `<section class="feature">
         <div class="feature-text">
-          <h2>Example: ${escape(featured.title.toLowerCase())}</h2>
-          ${paragraphs(featured.body.split(/\n\s*\n/)[0])}
+          <h2>${escape(featured.title)}</h2>
+          ${paragraphs(featured.body)}
           <p><a href="{root}${paths.example(featured.id)}">Open this example →</a></p>
         </div>
         ${payload(featured)}
