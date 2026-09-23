@@ -471,6 +471,17 @@ export function renderSite(schema, guides) {
     });
   }
 
+  // Not found. Served in place of any missing path, so its links start at the
+  // site root instead of being relative to the page.
+  add({
+    path: '404.html',
+    kind: 'not-found',
+    root: '/',
+    title: 'Page not found',
+    description: 'There is no page at this address.',
+    html: `<header class="page-header"><h1>Page not found</h1><p class="lead">There is no page at this address. Try searching, or start from the <a href="{root}index.html">overview</a>, the <a href="{root}classes/index.html">classes</a>, or the <a href="{root}properties/index.html">properties</a>.</p></header>`,
+  });
+
   // ------------------------------------------------------------- layout
 
   const sidebar = current => {
@@ -561,7 +572,7 @@ export function renderSite(schema, guides) {
 </body>
 </html>
 `;
-    page.document = document.replaceAll('{root}', root(page.path));
+    page.document = document.replaceAll('{root}', page.root ?? root(page.path));
   }
 
   return pages;

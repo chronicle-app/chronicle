@@ -22,6 +22,7 @@
     "generate": "node scripts/generate-schemas.js",
     "generate:check": "node scripts/check-generated.js",
     "docs:build": "node site/build.js",
+    "docs:build:deploy": "node site/deploy.js",
     "docs:dev": "node site/dev.js",
     "build": "tsc -b tsconfig.lib.json",
     "typecheck": "tsc -p tsconfig.json",

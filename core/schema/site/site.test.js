@@ -128,7 +128,9 @@ test('the built site has a page for every term and no broken links', async () =>
       for (const [, reference] of html.matchAll(/\b(?:href|src)="([^"]+)"/g)) {
         if (/^(https?:|mailto:)/.test(reference)) continue;
         const [path, fragment] = reference.split('#');
-        const target = path ? resolve(dirname(join(output, page.path)), path) : null;
+        // Root-relative links, as on the 404 page, resolve from the site root.
+        const base = path.startsWith('/') ? output : dirname(join(output, page.path));
+        const target = path ? resolve(base, path.replace(/^\//, '')) : null;
         assert.ok(!target || existsSync(target), `${page.path} links to missing ${reference}`);
         if (fragment && !path) assert.ok(ids.has(fragment), `${page.path}: missing #${fragment}`);
       }

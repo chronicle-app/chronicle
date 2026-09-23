@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadGuides } from './guides.js';
@@ -27,13 +27,23 @@ export async function buildSite(output = DEFAULT_OUTPUT) {
   for (const asset of await readdir(ASSETS)) {
     await copyFile(new URL(asset, ASSETS), join(output, 'assets', asset));
   }
-  const index = pages.map(page => ({
-    title: page.title,
-    kind: page.kind,
-    path: page.path,
-    description: plain(firstSentence(page.description ?? '')),
-    keywords: plain(`${page.description ?? ''} ${page.search ?? ''}`),
-  }));
+  // Browsers block CSS mask images loaded from file:// pages, so the logo mask
+  // is embedded in the stylesheet to keep the site working when opened locally.
+  const logo = (await readFile(new URL('logo.png', ASSETS))).toString('base64');
+  const css = await readFile(new URL('site.css', ASSETS), 'utf8');
+  await writeFile(
+    join(output, 'assets', 'site.css'),
+    css.replaceAll("url('logo.png')", `url('data:image/png;base64,${logo}')`)
+  );
+  const index = pages
+    .filter(page => page.kind !== 'not-found')
+    .map(page => ({
+      title: page.title,
+      kind: page.kind,
+      path: page.path,
+      description: plain(firstSentence(page.description ?? '')),
+      keywords: plain(`${page.description ?? ''} ${page.search ?? ''}`),
+    }));
   await writeFile(
     join(output, 'assets', 'search-index.js'),
     `window.SCHEMA_SEARCH = ${JSON.stringify(index).replaceAll('<', '\\u003c')};\n`
