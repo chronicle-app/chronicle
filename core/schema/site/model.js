@@ -8,6 +8,7 @@ const RDF = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#';
 const RDFS = 'http://www.w3.org/2000/01/rdf-schema#';
 const OWL = 'http://www.w3.org/2002/07/owl#';
 const SKOS = 'http://www.w3.org/2004/02/skos/core#';
+const DOC = 'https://schema.chronicle.app/docs/';
 
 export const ONTOLOGY_FILE = new URL('../chronicle.ttl', import.meta.url);
 export const EXAMPLES_FILE = new URL('../examples.ttl', import.meta.url);
@@ -44,15 +45,20 @@ export async function loadSchema({ ontology, examples } = {}) {
   const exampleRecords = new Map();
   async function readExample(node) {
     if (!exampleRecords.has(node.value)) {
-      const values = objects(node, RDF + 'value');
-      if (values.length !== 1) throw new Error(`Example ${node.value} needs one rdf:value`);
+      // Records keep the order they are written in.
+      const values = (statements.get(node.id) ?? [])
+        .filter(statement => statement.predicate.value === RDF + 'value')
+        .map(statement => statement.object);
+      if (values.length === 0) throw new Error(`Example ${node.value} needs an rdf:value`);
       const id = node.value.split('/').at(-1);
       exampleRecords.set(node.value, {
         id,
         uri: node.value,
         title: first(node, RDFS + 'label') ?? id,
+        section: first(node, DOC + 'section') ?? 'Examples',
+        position: [...statements.keys()].indexOf(node.id),
         body: (first(node, RDFS + 'comment') ?? '').trim(),
-        ...(await serializeExample(store, values[0], statements)),
+        ...(await serializeExample(store, values, statements)),
       });
     }
     return exampleRecords.get(node.value);
@@ -118,7 +124,8 @@ export async function loadSchema({ ontology, examples } = {}) {
   }
 
   const overview = await examplesOf(NAMESPACE);
-  const examplesList = [...exampleRecords.values()].sort((a, b) => a.title.localeCompare(b.title));
+  // Examples and their sections keep the order they are written in.
+  const examplesList = [...exampleRecords.values()].sort((a, b) => a.position - b.position);
   for (const example of examplesList) {
     example.usedBy = store
       .getSubjects(SKOS + 'example', example.uri, null)

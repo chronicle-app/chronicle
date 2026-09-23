@@ -2,9 +2,10 @@ import { escape, firstSentence, paths, slugify, TERM } from './html.js';
 
 const REPOSITORY = 'https://github.com/chronicle-app/chronicle';
 const cardinality = property =>
-  property.max === 1
+  (property.max === 1
     ? '<span class="tag">one</span>'
-    : '<span class="tag tag-many" title="Takes a list of values">many</span>';
+    : '<span class="tag tag-many" title="Takes a list of values">many</span>') +
+  (property.min > 0 ? ' <span class="tag tag-required">required</span>' : '');
 const plural = name => (name.endsWith('y') ? name.slice(0, -1) + 'ies' : name + 's');
 const root = path => '../'.repeat(path.split('/').length - 1);
 
@@ -409,7 +410,7 @@ export function renderSite(schema, guides) {
     description:
       'Every property in the Chronicle vocabulary, grouped by the class that declares it.',
     toc: propertyGroups.map(cls => ({ id: `on-${slugify(cls.name)}`, title: cls.name })),
-    html: `<header class="page-header"><p class="eyebrow">Reference</p><h1>Properties</h1><p class="lead">A property is a field of a record: a plain value or a link to another record. Every property is optional. A property marked <span class="tag">one</span> takes a single value; <span class="tag tag-many">many</span> takes a list.</p></header>
+    html: `<header class="page-header"><p class="eyebrow">Reference</p><h1>Properties</h1><p class="lead">A property is a field of a record: a plain value or a link to another record. Cardinality in the ontology sets how many values a property takes: <span class="tag">one</span> means at most one value, <span class="tag tag-many">many</span> means a list, and <span class="tag tag-required">required</span> means a record of that class must have it (<code>owl:minCardinality 1</code>).</p></header>
       ${propertyGroups
         .map(
           cls =>
@@ -439,7 +440,8 @@ export function renderSite(schema, guides) {
         <dl class="facts">
           <div><dt>Used on</dt><dd>${property.domain.map(name => classLink(name)).join(', ')}<span class="muted"> and their subclasses</span></dd></div>
           <div><dt>Expected type</dt><dd>${expected(property)}</dd></div>
-          <div><dt>Values</dt><dd>${property.max === 1 ? 'One value' : 'A list of values'}${property.min > 0 ? ' · required' : ' · optional'}</dd></div>
+          <div><dt>Values</dt><dd>${property.max === 1 ? 'At most one value' : 'A list of values'}</dd></div>
+          <div><dt>Required</dt><dd>${property.min > 0 ? 'Yes' : 'No'}</dd></div>
         </dl>
         ${examplesSection(property.examples)}
         <p class="uri">URI <code>${escape(property.uri)}</code></p>`,

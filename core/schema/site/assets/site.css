@@ -533,7 +533,7 @@ p {
   color: var(--border-strong);
 }
 
-.prose {
+.prose > :not(.diagram) {
   max-width: 70ch;
 }
 .prose h2 {
@@ -597,6 +597,10 @@ a.term.property {
 .tag-many {
   background: var(--blue-soft);
   color: var(--blue);
+}
+.tag-required {
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 .or {
   color: var(--muted);
@@ -1331,4 +1335,31 @@ dialog::backdrop {
     transition: none !important;
     animation: none !important;
   }
+}
+
+/* --------------------------------------------------------------- diagrams */
+
+.diagram {
+  margin: 28px 0 32px;
+  padding: 20px 20px 16px;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.diagram svg {
+  display: block;
+  width: 100%;
+  min-width: 640px;
+  height: auto;
+  stroke: none;
+}
+.diagram svg a {
+  text-decoration: none;
+}
+.diagram figcaption {
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
 }

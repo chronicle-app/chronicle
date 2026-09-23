@@ -1,0 +1,147 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-80 0 940 480" role="img" aria-labelledby="timeline-title">
+  <title id="timeline-title">Four actions stacked in time order, each linked to the entities it involves. Together the links form a graph of those entities.</title>
+  <style>
+    .axis { stroke: var(--border-strong, #d6cbcf); stroke-width: 1.5; fill: none; }
+    .tick { fill: var(--accent, #c8323e); }
+    .axis-label { fill: var(--muted, #677382); font-size: 11px; }
+    .date { fill: var(--text, #102030); font-size: 13px; font-weight: 650; }
+    .clock { fill: var(--muted, #677382); font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px; }
+    .year { fill: var(--muted, #677382); font-size: 11px; font-weight: 650; letter-spacing: 0.06em; }
+    .action rect { fill: var(--accent-soft, #fbe9ea); stroke: var(--accent, #c8323e); stroke-width: 1.2; }
+    .action .name { fill: var(--accent, #c8323e); font-weight: 650; font-size: 13px; }
+    .action .meta { fill: var(--text-2, #3d4a58); font-size: 11px; }
+    .entity rect { fill: var(--surface, #ffffff); stroke: var(--border-strong, #d6cbcf); stroke-width: 1.2; }
+    .entity.you rect { stroke: var(--accent, #c8323e); stroke-width: 1.8; }
+    .entity .name { fill: var(--text, #102030); font-weight: 600; font-size: 13px; }
+    .entity .type { fill: var(--muted, #677382); font-size: 11px; }
+    .edge { stroke: var(--muted, #677382); stroke-width: 1.1; fill: none; marker-end: url(#arrow); }
+    .edge.between { stroke-dasharray: 4 3; }
+    .label { fill: var(--code-key, #35637b); font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px; paint-order: stroke; stroke: var(--bg, #f8f5f6); stroke-width: 4px; stroke-linejoin: round; }
+    a:hover rect { stroke-width: 2.2; }
+    text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; }
+  </style>
+  <defs>
+    <marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 8 4 0 8z" fill="var(--muted, #677382)"/>
+    </marker>
+  </defs>
+
+  <!-- Time axis, running down, with each action's date to its left -->
+  <text class="year" x="-22" y="14" text-anchor="end">2026</text>
+  <path class="axis" d="M34 8V436"/>
+  <path class="axis" d="M29 430l5 6 5-6"/>
+  <text class="axis-label" x="34" y="456" text-anchor="middle">time</text>
+  <circle class="tick" cx="34" cy="52" r="4"/>
+  <circle class="tick" cx="34" cy="162" r="4"/>
+  <circle class="tick" cx="34" cy="272" r="4"/>
+  <circle class="tick" cx="34" cy="382" r="4"/>
+  <path class="axis" d="M38 52H60M38 162H60M38 272H60M38 382H60"/>
+  <text class="date" x="22" y="50" text-anchor="end">Mar 14</text>
+  <text class="clock" x="22" y="64" text-anchor="end">09:26</text>
+  <text class="date" x="22" y="160" text-anchor="end">Apr 2</text>
+  <text class="clock" x="22" y="174" text-anchor="end">17:45</text>
+  <text class="date" x="22" y="270" text-anchor="end">May 9</text>
+  <text class="clock" x="22" y="284" text-anchor="end">18:22</text>
+  <text class="date" x="22" y="380" text-anchor="end">Jul 2</text>
+  <text class="clock" x="22" y="394" text-anchor="end">10:41</text>
+
+  <!-- Edges from actions to entities -->
+  <path class="edge" d="M220 52H298"/>
+  <text class="label" x="232" y="45">object</text>
+  <path class="edge" d="M220 66C300 112 470 117 558 117"/>
+  <text class="label" x="236" y="94">agent</text>
+
+  <path class="edge" d="M220 162H298"/>
+  <text class="label" x="232" y="155">object</text>
+  <path class="edge" d="M220 148C300 120 470 127 558 127"/>
+  <text class="label" x="512" y="143">agent</text>
+
+  <path class="edge" d="M220 272H298"/>
+  <text class="label" x="232" y="265">object</text>
+  <path class="edge" d="M220 286C310 330 470 337 558 337"/>
+  <text class="label" x="240" y="316">agent</text>
+
+  <path class="edge" d="M220 382H298"/>
+  <text class="label" x="232" y="375">agent</text>
+  <path class="edge" d="M220 396C310 447 470 447 558 447"/>
+  <text class="label" x="240" y="432">instrument</text>
+
+  <!-- Edges between entities -->
+  <path class="edge between" d="M680 122H738"/>
+  <text class="label" x="710" y="113" text-anchor="middle">memberOf</text>
+  <path class="edge between" d="M450 170C505 180 515 217 558 217"/>
+  <text class="label" x="470" y="208">isPartOf</text>
+  <path class="edge between" d="M450 264C520 250 560 190 590 145"/>
+  <text class="label" x="506" y="246">recipient</text>
+
+  <!-- Actions -->
+  <a href="class:ExecuteAction"><g class="action">
+    <rect x="60" y="30" width="160" height="44" rx="10"/>
+    <text class="name" x="140" y="48" text-anchor="middle">ExecuteAction</text>
+    <text class="meta" x="140" y="64" text-anchor="middle">shell</text>
+  </g></a>
+  <a href="class:CompleteAction"><g class="action">
+    <rect x="60" y="140" width="160" height="44" rx="10"/>
+    <text class="name" x="140" y="158" text-anchor="middle">CompleteAction</text>
+    <text class="meta" x="140" y="174" text-anchor="middle">things-todo</text>
+  </g></a>
+  <a href="class:MessageAction"><g class="action">
+    <rect x="60" y="250" width="160" height="44" rx="10"/>
+    <text class="name" x="140" y="268" text-anchor="middle">MessageAction</text>
+    <text class="meta" x="140" y="284" text-anchor="middle">imessage</text>
+  </g></a>
+  <a href="class:MessageAction"><g class="action">
+    <rect x="60" y="360" width="160" height="44" rx="10"/>
+    <text class="name" x="140" y="378" text-anchor="middle">MessageAction</text>
+    <text class="meta" x="140" y="394" text-anchor="middle">claude-code</text>
+  </g></a>
+
+  <!-- Entities an action points to directly -->
+  <a href="class:Command"><g class="entity">
+    <rect x="300" y="32" width="150" height="40" rx="8"/>
+    <text class="name" x="375" y="49" text-anchor="middle">git log</text>
+    <text class="type" x="375" y="64" text-anchor="middle">Command</text>
+  </g></a>
+  <a href="class:Task"><g class="entity">
+    <rect x="300" y="142" width="150" height="40" rx="8"/>
+    <text class="name" x="375" y="159" text-anchor="middle">Renew passport</text>
+    <text class="type" x="375" y="174" text-anchor="middle">Task</text>
+  </g></a>
+  <a href="class:Message"><g class="entity">
+    <rect x="300" y="252" width="150" height="40" rx="8"/>
+    <text class="name" x="375" y="269" text-anchor="middle">Found the trailhead!</text>
+    <text class="type" x="375" y="284" text-anchor="middle">Message</text>
+  </g></a>
+  <a href="class:SoftwareAgent"><g class="entity">
+    <rect x="300" y="362" width="150" height="40" rx="8"/>
+    <text class="name" x="375" y="379" text-anchor="middle">Claude</text>
+    <text class="type" x="375" y="394" text-anchor="middle">SoftwareAgent</text>
+  </g></a>
+
+  <!-- Entities shared or reached through other entities -->
+  <a href="class:Person"><g class="entity you">
+    <rect x="560" y="102" width="120" height="40" rx="8"/>
+    <text class="name" x="620" y="119" text-anchor="middle">You</text>
+    <text class="type" x="620" y="134" text-anchor="middle">Person · @me</text>
+  </g></a>
+  <a href="class:Realm"><g class="entity">
+    <rect x="740" y="102" width="100" height="40" rx="8"/>
+    <text class="name" x="790" y="119" text-anchor="middle">studio</text>
+    <text class="type" x="790" y="134" text-anchor="middle">Realm</text>
+  </g></a>
+  <a href="class:Project"><g class="entity">
+    <rect x="560" y="197" width="140" height="40" rx="8"/>
+    <text class="name" x="630" y="214" text-anchor="middle">Trip to Lisbon</text>
+    <text class="type" x="630" y="229" text-anchor="middle">Project</text>
+  </g></a>
+  <a href="class:Agent"><g class="entity">
+    <rect x="560" y="317" width="100" height="40" rx="8"/>
+    <text class="name" x="610" y="334" text-anchor="middle">Alex</text>
+    <text class="type" x="610" y="349" text-anchor="middle">Agent</text>
+  </g></a>
+  <a href="class:SoftwareApplication"><g class="entity">
+    <rect x="560" y="427" width="160" height="40" rx="8"/>
+    <text class="name" x="640" y="444" text-anchor="middle">claude-sonnet-5</text>
+    <text class="type" x="640" y="459" text-anchor="middle">SoftwareApplication</text>
+  </g></a>
+</svg>

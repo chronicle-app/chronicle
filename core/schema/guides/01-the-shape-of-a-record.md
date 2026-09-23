@@ -13,6 +13,12 @@ Most entities are recorded as part of an action. A task is recorded when you cre
 
 Both descend from :Base, which declares :source and :sourceId.
 
+## Actions over time
+
+Each action happens at a time and links to the entities it involves. Actions from different sources often involve the same entities, so across many actions the entities and their links form a graph.
+
+![Four actions on a timeline, linked to the entities they involve](diagrams/timeline.svg 'Four actions from four sources. Solid lines are fields of the action, such as :agent and :object; dashed lines link one entity to another. The shell history and the to-do app each have their own record of you, and both are marked with :sameAs "@me", so they are the same node.')
+
 ## An example record
 
 Open [running a shell command](example:shell-command). It is an :ExecuteAction with two nested records:

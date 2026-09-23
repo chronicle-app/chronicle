@@ -17,7 +17,7 @@ const vocabulary = `
 :Thing a rdfs:Class; rdfs:subClassOf :Base; rdfs:comment "Uses :label and <b>bold</b>." .
 :Text a rdfs:Class .
 :label a rdf:Property; :domainIncludes :Thing; :rangeIncludes :Text; owl:maxCardinality 1 .
-:tags a rdf:Property; :domainIncludes :Thing; :rangeIncludes :Text .
+:tags a rdf:Property; :domainIncludes :Thing; :rangeIncludes :Text; owl:minCardinality 1 .
 `;
 const prefixes = `
 @prefix : <https://schema.chronicle.app/> .
@@ -145,4 +145,13 @@ test('descriptions are escaped and :term references become links', async () => {
   const page = renderSite(schema, guides).find(entry => entry.path === 'classes/Thing.html');
   assert.match(page.document, /Uses <a class="term property" href="..\/properties\/label.html">/);
   assert.match(page.document, /&lt;b&gt;bold&lt;\/b&gt;/);
+  // Required comes from owl:minCardinality, not a default.
+  assert.match(
+    page.document,
+    /tags<\/a> <span class="tag tag-many"[^>]*>many<\/span> <span class="tag tag-required">required/
+  );
+  assert.doesNotMatch(
+    page.document,
+    /label<\/a> <span class="tag">one<\/span> <span class="tag tag-required">/
+  );
 });

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import MarkdownIt from 'markdown-it';
 import { escape, paths, slugify, TERM } from './html.js';
@@ -11,12 +12,30 @@ export const GUIDES_DIRECTORY = new URL('../guides/', import.meta.url);
  * Guides are ordinary Markdown files, read in filename order. Besides links
  * between guides, a guide can link into the reference with `example:<id>`,
  * `class:<Name>`, or `property:<name>`, and `:Term` in text links to that
- * term. Every link is checked when the site is built.
+ * term. An image of a local .svg file is inlined as a figure, so it can use
+ * the site's colours and link to the reference the same way. Every link is
+ * checked when the site is built.
  */
 export async function loadGuides(schema, directory = GUIDES_DIRECTORY) {
   const files = (await readdir(directory)).filter(file => file.endsWith('.md')).sort();
   const exampleIds = new Set(schema.examples.map(example => example.id));
   const indexes = new Set(['classes/index.html', 'properties/index.html', 'examples/index.html']);
+
+  // `:Term` references in text become links to the reference.
+  function linkTerms(content) {
+    let html = '';
+    let cursor = 0;
+    for (const match of content.matchAll(TERM)) {
+      const name = match[0].slice(1);
+      const isClass = schema.classes.has(name);
+      if (!isClass && !schema.properties.has(name)) continue;
+      const target = isClass ? paths.class(name) : paths.property(name);
+      html += escape(content.slice(cursor, match.index));
+      html += `<a class="term${isClass ? '' : ' property'}" href="../${target}">${escape(name)}</a>`;
+      cursor = match.index + match[0].length;
+    }
+    return html + escape(content.slice(cursor));
+  }
 
   function destination(href, file) {
     const [, scheme, name] = href.match(/^(example|class|property):(.+)$/) ?? [];
@@ -46,6 +65,19 @@ export async function loadGuides(schema, directory = GUIDES_DIRECTORY) {
         }
         return defaultRender(tokens, i, options, env, self);
       };
+      rules.image = (tokens, i) => {
+        const token = tokens[i];
+        const source = token.attrGet('src');
+        if (/^https?:/.test(source) || !source.endsWith('.svg')) {
+          throw new Error(`Guide ${file}: only local SVG diagrams are supported (${source})`);
+        }
+        const svg = readFileSync(new URL(source, directory), 'utf8').replaceAll(
+          /href="([^"]+)"/g,
+          (_, href) => `href="../${destination(href, file)}"`
+        );
+        const caption = token.attrGet('title');
+        return `<figure class="diagram">${svg}${caption ? `<figcaption>${linkTerms(caption)}</figcaption>` : ''}</figure>`;
+      };
       rules.heading_open = (tokens, i, options, env, self) => {
         const token = tokens[i];
         const title = tokens[i + 1].content;
@@ -68,21 +100,13 @@ export async function loadGuides(schema, directory = GUIDES_DIRECTORY) {
           );
         // Inside a link, `:Term` is just the term's name.
         if (inLink) return escape(content.replaceAll(TERM, match => match.slice(1)));
-        let html = '';
-        let cursor = 0;
-        for (const match of content.matchAll(TERM)) {
-          const name = match[0].slice(1);
-          const isClass = schema.classes.has(name);
-          if (!isClass && !schema.properties.has(name)) continue;
-          const target = isClass ? paths.class(name) : paths.property(name);
-          html += escape(content.slice(cursor, match.index));
-          html += `<a class="term${isClass ? '' : ' property'}" href="../${target}">${escape(name)}</a>`;
-          cursor = match.index + match[0].length;
-        }
-        return html + escape(content.slice(cursor));
+        return linkTerms(content);
       };
 
-      const html = markdown.render(body);
+      // A diagram stands alone, so it should not stay inside a paragraph.
+      const html = markdown
+        .render(body)
+        .replaceAll(/<p>(<figure class="diagram">[\s\S]*?<\/figure>)<\/p>/g, '$1');
       const lead = body.split(/\n\s*\n/)[0].replaceAll(/\s+/g, ' ');
       return {
         slug: slugOf(file),

@@ -12,18 +12,21 @@ function literal(term) {
 
 /**
  * Renders one documentation example three ways: Chronicle JSON (what a plugin
- * emits), JSON-LD, and Turtle. The sample is its root node plus every blank
- * node reachable from it; named nodes are references and are not expanded.
- * `statements` maps each subject to its statements in authored order.
+ * emits), JSON-LD, and Turtle. An example has one or more records; each is a
+ * root node plus every blank node reachable from it. Named nodes are
+ * references and are not expanded. `statements` maps each subject to its
+ * statements in authored order.
  */
-export async function serializeExample(store, root, statements) {
-  if (!['BlankNode', 'NamedNode'].includes(root.termType)) {
-    throw new Error('An example value must be an RDF node');
+export async function serializeExample(store, roots, statements) {
+  for (const root of roots) {
+    if (!['BlankNode', 'NamedNode'].includes(root.termType)) {
+      throw new Error('An example value must be an RDF node');
+    }
   }
   const nodes = new Map();
-  const references = new Map([[root.id, 1]]);
+  const references = new Map(roots.map(root => [root.id, 1]));
   const labels = new Map();
-  (function collect(node) {
+  function collect(node) {
     if (nodes.has(node.id)) return;
     if (node.termType === 'BlankNode') labels.set(node.id, `n${labels.size}`);
     const triples = statements?.get(node.id) ?? store.getQuads(node, null, null, null);
@@ -33,8 +36,11 @@ export async function serializeExample(store, root, statements) {
       references.set(object.id, (references.get(object.id) ?? 0) + 1);
       collect(object);
     }
-  })(root);
-  if (nodes.get(root.id).length === 0) throw new Error(`Example ${root.value} has no statements`);
+  }
+  for (const root of roots) {
+    collect(root);
+    if (nodes.get(root.id).length === 0) throw new Error(`Example ${root.value} has no statements`);
+  }
   for (const [id, count] of references) {
     if (count > 1) throw new Error(`Example node ${id} is nested twice; examples must be trees`);
   }
@@ -120,12 +126,20 @@ export async function serializeExample(store, root, statements) {
   const hasKeys = [...nodes.values()].some(triples =>
     triples.some(q => q.predicate.value === DOC + 'key')
   );
-  const jsonld = {
-    '@context': { '@vocab': CHRONICLE, ...(hasKeys ? { doc: DOC } : {}) },
-    ...render(root),
+  const records = roots.map(root => render(root));
+  const context = { '@vocab': CHRONICLE, ...(hasKeys ? { doc: DOC } : {}) };
+  const jsonld =
+    records.length === 1
+      ? { '@context': context, ...records[0] }
+      : { '@context': context, '@graph': records };
+  const chronicle = records.map(record => toChronicle(record));
+  const turtle = toTurtle(roots, { nodes, compact, keyFields, hasKeys });
+  return {
+    jsonld,
+    turtle,
+    chronicle: chronicle.length === 1 ? chronicle[0] : chronicle,
+    records: chronicle,
   };
-  const turtle = toTurtle(root, { nodes, compact, keyFields, hasKeys });
-  return { jsonld, turtle, chronicle: toChronicle(jsonld) };
 }
 
 /**
@@ -159,7 +173,7 @@ function toChronicle(value) {
  * Pretty Turtle that mirrors how examples are authored: nested blank nodes as
  * [ … ] blocks and key lists as ( … ), rather than generated node labels.
  */
-function toTurtle(root, { nodes, compact, keyFields, hasKeys }) {
+function toTurtle(roots, { nodes, compact, keyFields, hasKeys }) {
   let typed = false;
   const term = node => {
     if (node.termType === 'Literal') {
@@ -198,10 +212,13 @@ function toTurtle(root, { nodes, compact, keyFields, hasKeys }) {
     });
     return lines.join(';\n');
   }
-  const body =
-    root.termType === 'BlankNode'
-      ? `[\n${block(root, 0)}\n] .`
-      : `${term(root)}\n${block(root, 0)} .`;
+  const body = roots
+    .map(root =>
+      root.termType === 'BlankNode'
+        ? `[\n${block(root, 0)}\n] .`
+        : `${term(root)}\n${block(root, 0)} .`
+    )
+    .join('\n\n');
   const prefixes = [
     `@prefix : <${CHRONICLE}> .`,
     ...(hasKeys ? [`@prefix doc: <${DOC}> .`] : []),
