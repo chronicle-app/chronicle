@@ -1,43 +1,43 @@
 # Connecting records
 
-Records become useful when they connect: who did something, what it involved, and where it belongs. This guide covers the properties that connect records, with an example for each.
+This guide covers the properties that link records to each other, with an example for each.
 
-## Who acted, and with what
+## Agent and instrument
 
-An action's :agent is the doer, and its :instrument is what they used. The two are kept apart because they answer different questions.
+An action's :agent is who did it, and its :instrument is what they used.
 
-In [an assistant's reply](example:assistant-reply), the :agent is Claude, a :SoftwareAgent, and the :instrument is the model that generated the reply, a :SoftwareApplication. The assistant acted; the model is what it used.
+In [an assistant's reply](example:assistant-reply), the :agent is Claude, a :SoftwareAgent, and the :instrument is the model that generated the reply, a :SoftwareApplication.
 
 ## Messages and attachments
 
-A :MessageAction records a message being sent. Its :object is the :Message, which carries:
+A :MessageAction records a message being sent. Its :object is the :Message, which has:
 
-- :body, the text.
-- :recipient, each agent it was sent to. A group message has several.
-- :author, the agent who wrote the content.
-- :contains, each attachment.
+- :body, the text
+- :recipient, each agent it was sent to
+- :author, the agent who wrote it
+- :contains, each attachment
 
-Attachments are media records: :ImageObject, :AudioObject, :VideoObject, or :DocumentObject. Each locates its content with :contentPath or :url and names its format in :mimeType. See [receiving a message with a photo](example:message-with-photo), [sending a voice message](example:voice-message), and [sharing a video and a PDF with a group](example:group-message-attachments).
+An attachment is an :ImageObject, :AudioObject, :VideoObject, or :DocumentObject. Its content is located by :contentPath or :url, and its format is in :mimeType. See [receiving a message with a photo](example:message-with-photo), [sending a voice message](example:voice-message), and [sharing a video and a PDF with a group](example:group-message-attachments).
 
-## Where things belong
+## isPartOf and about
 
-:isPartOf links an entity to a whole that contains it. An entity can be part of several things at once:
+:isPartOf links an entity to something that contains it. An entity can have more than one:
 
-- In [completing a to-do](example:task-completed), the task is part of a :Project and of a :Collection, the area it is filed under.
-- In [an assistant's reply](example:assistant-reply), the message is part of a :Thread, the conversation, which is itself part of a :Project.
+- In [completing a to-do](example:task-completed), the task is part of a :Project and of a :Collection for its area.
+- In [an assistant's reply](example:assistant-reply), the message is part of a :Thread, and the thread is part of a :Project.
 
-:about links an entity to its subject matter, such as a :Tag on a task.
+:about links an entity to its subject, such as a :Tag on a task.
 
-## One task over time
+## Several actions on one entity
 
-A source often reports several actions on the same entity. Each action is its own record with its own time, and each carries the entity as its :object:
+A source can report several actions on the same entity. Each action is a separate record with its own timestamp and the entity as its :object. A to-do can have:
 
-1. [Creating a to-do](example:task-planned): a :PlanAction.
-2. [Editing a to-do](example:task-edited): an :UpdateAction.
-3. [Completing a to-do](example:task-completed): a :CompleteAction.
+1. A :PlanAction when it is created ([example](example:task-planned)).
+2. An :UpdateAction when it is edited ([example](example:task-edited)).
+3. A :CompleteAction when it is done ([example](example:task-completed)).
 
-A plan that is dropped instead ends with a [:CancelAction](example:task-cancelled), and an item removed from the source with a [:DeleteAction](example:task-deleted).
+A cancelled to-do has a :CancelAction ([example](example:task-cancelled)), and one moved to the trash has a :DeleteAction ([example](example:task-deleted)).
 
-Because every action identifies its task with the same key, they all refer to the same task.
+All of these actions use the same key for the task, so they refer to the same task.
 
-Browse [all examples](../examples/index.html), or start from any [class](../classes/index.html).
+See [all examples](../examples/index.html) or [all classes](../classes/index.html).

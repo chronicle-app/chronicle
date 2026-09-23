@@ -1,27 +1,27 @@
 # Keys and sources
 
-Every record says where it came from and what identifies it. This guide covers the fields that do that: :source, :sourceId, `@key`, :handle, :inRealm, and :sameAs.
+This guide covers the fields that say where a record came from and what identifies it: :source, :sourceId, `@key`, :handle, :inRealm, and :sameAs.
 
-## Every record has an identity
+## Identity
 
 A record carries `@type` and at least one of:
 
-- `@key`: a list of the fields that identify it, or
-- `@id`: an identity the record already has.
+- `@key`, a list of the fields that identify it
+- `@id`, an existing identity
 
-Validation checks that one of these is declared on every record, nested ones included. It does not check that the fields a key names are present. A record with neither is rejected:
+Validation checks that every record, including nested ones, declares one of these. It does not check that the fields named in a key are present. This record has neither and is rejected:
 
 ```json
 { "@type": "Entity", "name": "Missing identity" }
 ```
 
-## Sources and their IDs
+## Source and source ID
 
-:source names the system a record came from, such as `things-todo` or `imessage`. It is also the namespace for the record's identifiers.
+:source is the system a record came from, such as `things-todo` or `imessage`. Identifiers in the record are scoped to it.
 
-:sourceId is the identifier that system gave the record: a row ID, a message GUID, a UUID. It only has to be unique within its source, because it is always read together with the source. Two apps can both have a record `42` without being confused.
+:sourceId is the identifier the source gave the record, such as a row ID, message GUID, or UUID. It only needs to be unique within its source.
 
-When the source gives each record an ID, key on it. In [completing a to-do](example:task-completed), every record uses the same key:
+If the source has IDs, use them in the key. In [completing a to-do](example:task-completed), every record uses this key:
 
 ```json
 "@key": ["@type", "source", "sourceId"]
@@ -29,30 +29,30 @@ When the source gives each record an ID, key on it. In [completing a to-do](exam
 
 ## Choosing a key
 
-Prefer identifiers the source provides over anything you derive:
+Use identifiers from the source rather than values you derive. In order of preference:
 
-- **A source ID**, when there is one. It is the most reliable identity.
-- **A handle**, when the source knows something by a username, address, or label rather than an ID. :handle is contextual: `sam` means one account on one machine and another somewhere else.
-- **The facts of the event**, when there is nothing else. Shell history has no IDs, so [running a shell command](example:shell-command) keys the action by when it ran, what ran, and who ran it.
+- **A source ID**, if the source has one.
+- **A handle**, if the source identifies something by a username, address, or label. A :handle only means something in context: the username `sam` on one machine is a different account from `sam` on another.
+- **The details of the event**, if there is nothing else. Shell history has no IDs, so [running a shell command](example:shell-command) keys the action by when it ran, the command, and the account that ran it.
 
-Never invent an identifier to make a record pass validation. A generated ID changes every time the data is read, so the same record would get a new identity each time.
+Don't generate an identifier to pass validation. A generated ID is different each time the data is read, so the same record would get a new identity on every run.
 
-## Keys can reach into nested records
+## Keys with nested fields
 
-A key field can be a path into a nested record. In [an assistant's reply](example:assistant-reply), the project is a directory path, which is only unique on one machine. Its key includes the machine's handle through :inRealm:
+A key field can be a path into a nested record. In [an assistant's reply](example:assistant-reply), the project is identified by its directory path, which is only unique on one machine, so its key includes the machine's handle through :inRealm:
 
 ```json
 "@key": ["@type", "source", "handle", "inRealm.handle"]
 ```
 
-A :Realm is a bounded domain, such as a computer or a workspace. Use :inRealm for entities that live inside one, and :memberOf for agents that belong to one. The shell example keys its user account by username and by the handle of each realm it is a member of: `memberOf[*].handle`.
+A :Realm is a bounded domain, such as a computer or a workspace. Entities located in one use :inRealm, and agents that belong to one use :memberOf. The shell example keys the user account by its username and by `memberOf[*].handle`, the handle of each realm it belongs to.
 
-## The same thing, seen twice
+## sameAs
 
-Different sources often know the same person or thing. :sameAs says that two references are the same entity. It asserts identity, not similarity or association.
+:sameAs states that two references are the same entity.
 
-A :sameAs value can be another record. In [receiving a message with a photo](example:message-with-photo), the sender is known to the messaging service by an address, and :sameAs links the same person as the email source knows them.
+The value can be another record. In [receiving a message with a photo](example:message-with-photo), the sender is identified by a handle in the `icloud` source, and :sameAs links them to the agent with the same address in the `email` source.
 
-A :sameAs value can also be a textual identity reference. `"@me"` marks a record as you, the owner of the archive. Plugins attach it to your own accounts, so your identities in every source refer to the same person.
+The value can also be text. `"@me"` marks a record as the owner of the archive. Plugins add it to your own accounts in each source.
 
 Next: [Connecting records](03-connecting-records.md).

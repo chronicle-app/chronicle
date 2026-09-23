@@ -20,13 +20,13 @@
 example:shell-command
   rdfs:label "Running a shell command";
   rdfs:comment """
-An :ExecuteAction records one command from shell history. The :agent is the
-account that ran it: a :Person known by a username, scoped to the machine
-through :memberOf, and linked to you with :sameAs. The :Command carries the
-command text in :body.
+An :ExecuteAction for one command from shell history. The :agent is the
+account that ran it, a :Person with a username and the machine it belongs to
+(:memberOf), marked as you with :sameAs. The :Command has the command text in
+:body.
 
-Shell history has no record IDs, so the action is keyed by what identifies it:
-when it ran, what ran, and which account on which machine ran it.
+Shell history has no record IDs, so the action is keyed by its timestamp, the
+command, and the account and machine that ran it.
 """;
   rdf:value [
     a :ExecuteAction;
@@ -57,12 +57,11 @@ when it ran, what ran, and which account on which machine ran it.
 example:task-completed
   rdfs:label "Completing a to-do";
   rdfs:comment """
-A :CompleteAction marks a :Task as done. The task sits inside a :Project and
-an area of responsibility, both linked with :isPartOf, and is tagged with a
-:Tag through :about.
+A :CompleteAction for a finished :Task. The task is part of a :Project and
+an area (:isPartOf), and has a :Tag (:about).
 
-Every record is keyed by the to-do app's own identifiers. The app has a single
-user, so the :agent is keyed by source alone and linked to you with :sameAs.
+Records are keyed by the app's own IDs. The app has one user, so the :agent is
+keyed by source only and marked as you with :sameAs.
 """;
   rdf:value [
     a :CompleteAction;
@@ -111,8 +110,8 @@ user, so the :agent is keyed by source alone and linked to you with :sameAs.
 example:task-planned
   rdfs:label "Creating a to-do";
   rdfs:comment """
-A :PlanAction records the moment a :Task was created: the intention to do
-something. Its :timestamp is when the plan was made, not when the work is due.
+A :PlanAction for creating a :Task. Its :timestamp is when the task was
+created, not when it is due.
 """;
   rdf:value [
     a :PlanAction;
@@ -138,8 +137,8 @@ something. Its :timestamp is when the plan was made, not when the work is due.
 example:task-edited
   rdfs:label "Editing a to-do";
   rdfs:comment """
-An :UpdateAction records a change to an existing entity. The :object carries
-the entity as it is now; the action records that and when it changed.
+An :UpdateAction for editing a :Task. The :object has the task's current
+values.
 """;
   rdf:value [
     a :UpdateAction;
@@ -166,7 +165,7 @@ the entity as it is now; the action records that and when it changed.
 example:task-cancelled
   rdfs:label "Cancelling a to-do";
   rdfs:comment """
-A :CancelAction withdraws a plan. The :Task still exists; it was not done.
+A :CancelAction for a :Task that was cancelled instead of completed.
 """;
   rdf:value [
     a :CancelAction;
@@ -192,8 +191,7 @@ A :CancelAction withdraws a plan. The :Task still exists; it was not done.
 example:task-deleted
   rdfs:label "Moving a to-do to the trash";
   rdfs:comment """
-A :DeleteAction records that an entity was removed from its source. The
-archive keeps the record of the :Task and of its removal.
+A :DeleteAction for a :Task moved to the trash in its source.
 """;
   rdf:value [
     a :DeleteAction;
@@ -219,14 +217,12 @@ archive keeps the record of the :Task and of its removal.
 example:message-with-photo
   rdfs:label "Receiving a message with a photo";
   rdfs:comment """
-A :MessageAction records a message being sent; here Alex sent it to you. The
-:Message carries the text in :body, names you as its :recipient, and links the
-attached photo with :contains.
+A :MessageAction for a message Alex sent you. The :Message has the text in
+:body, you as its :recipient, and the photo in :contains.
 
-Alex is known by a :handle in the messaging service's identity namespace. The
-handle is also an email address, so :sameAs links the same person as the
-email source knows them. The photo is an :ImageObject located by
-:contentPath, with its format in :mimeType.
+Alex is identified by a :handle in the `icloud` source. The handle is an email
+address, so :sameAs links Alex to the agent with that address in the `email`
+source. The photo is an :ImageObject with a :contentPath and :mimeType.
 """;
   rdf:value [
     a :MessageAction;
@@ -275,7 +271,7 @@ email source knows them. The photo is an :ImageObject located by
 example:voice-message
   rdfs:label "Sending a voice message";
   rdfs:comment """
-You sent this one, so you are the :agent and the other participant is the
+A message you sent, so you are the :agent and the other person is the
 :recipient. The recording is an :AudioObject.
 """;
   rdf:value [
@@ -319,8 +315,8 @@ You sent this one, so you are the :agent and the other participant is the
 example:group-message-attachments
   rdfs:label "Sharing a video and a PDF with a group";
   rdfs:comment """
-A message to a group conversation has several :recipient values. It can
-contain more than one attachment: here a :VideoObject and a :DocumentObject.
+A message to a group has one :recipient per person. This one has two
+attachments, a :VideoObject and a :DocumentObject.
 """;
   rdf:value [
     a :MessageAction;
@@ -377,15 +373,14 @@ contain more than one attachment: here a :VideoObject and a :DocumentObject.
 example:assistant-reply
   rdfs:label "An assistant's reply in a coding session";
   rdfs:comment """
-A reply from an AI assistant is a :MessageAction whose :agent is a
-:SoftwareAgent: the assistant itself. The model that produced the reply is a
-:SoftwareApplication, recorded as the action's :instrument. The agent acted;
-the instrument is what it used.
+A :MessageAction for a reply from an AI assistant. The :agent is the
+assistant, a :SoftwareAgent. The model that generated the reply is the
+:instrument, a :SoftwareApplication.
 
 The :Message is part of a :Thread for the session, and the thread is part of
 the :Project the session ran in. The project is keyed by its directory path,
-which is only unique on one machine, so the key includes the :Realm it sits in
-through :inRealm.
+which is only unique on one machine, so the key includes the :Realm from
+:inRealm.
 """;
   rdf:value [
     a :MessageAction;
@@ -446,10 +441,10 @@ through :inRealm.
 example:assistant-prompt
   rdfs:label "Your prompt in a coding session";
   rdfs:comment """
-Your own messages are authored by you. Here you are the :Person behind the
-assistant account, keyed by the account's :sourceId. The account's email
-address links, through :sameAs, to the same person as the email source knows
-them, and "@me" marks the person as you.
+A message you sent in an AI coding session. You are the :Person for the
+assistant account, keyed by the account's :sourceId. :sameAs links you to the
+agent with the account's email address in the `email` source, and "@me" marks
+the person as you.
 """;
   rdf:value [
     a :MessageAction;
@@ -498,9 +493,8 @@ them, and "@me" marks the person as you.
 example:entity-with-url
   rdfs:label "An entity with a source ID and a URL";
   rdfs:comment """
-The smallest useful record: an :Entity with a :name, identified by the
-:sourceId its :source gave it. The :url is where the thing can be found; it is
-a :URL, so it must be an absolute address.
+An :Entity with a :name, keyed by its :source and :sourceId. The :url is a
+:URL, so it must be an absolute address.
 """;
   rdf:value [
     a :Entity;

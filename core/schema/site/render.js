@@ -68,10 +68,6 @@ export function renderSite(schema, guides) {
   const recordRoots = roots.filter(cls => cls.children.length);
   const datatypes = roots.filter(cls => cls.children.length === 0);
   const families = recordRoots.flatMap(cls => cls.children.map(name => classes.get(name)));
-  const familyTaglines = {
-    Action: 'Things that happen.',
-    Entity: 'The people and things actions involve.',
-  };
   const isA = (name, ancestor) =>
     name === ancestor || classes.get(name).ancestors.includes(ancestor);
   const descendants = name =>
@@ -203,12 +199,12 @@ export function renderSite(schema, guides) {
     kind: 'home',
     title: 'Chronicle Schema',
     description:
-      'A shared vocabulary for personal history: the classes and properties Chronicle uses for messages, commands, tasks, and more.',
+      'Reference for the Chronicle schema: classes, properties, guides, and example records.',
     html: `
       <section class="hero">
-        <p class="eyebrow">Chronicle Schema · v${escape(schema.version)}</p>
-        <h1>A shared vocabulary for personal&nbsp;history.</h1>
-        <p class="lead">Chronicle’s plugins read your messages, shell history, to-dos, and conversations from the apps that keep them, and describe them all in one vocabulary. This is its reference: ${classes.size} classes and ${properties.size} properties, with guides and examples.</p>
+        <p class="eyebrow">Version ${escape(schema.version)}</p>
+        <h1>Chronicle Schema</h1>
+        <p class="lead">The classes and properties Chronicle’s plugins use to describe messages, shell commands, to-dos, and AI conversations. It has ${classes.size} classes and ${properties.size} properties.</p>
         <div class="actions">
           <a class="button primary" href="{root}${paths.guide(guides[0].slug)}">Read the guides</a>
           <a class="button" href="{root}classes/index.html">Browse classes</a>
@@ -219,16 +215,16 @@ export function renderSite(schema, guides) {
         featured
           ? `<section class="feature">
         <div class="feature-text">
-          <h2>One record, three ways</h2>
+          <h2>Example: ${escape(featured.title.toLowerCase())}</h2>
           ${paragraphs(featured.body.split(/\n\s*\n/)[0])}
-          <p><a href="{root}${paths.example(featured.id)}">${escape(featured.title)} →</a></p>
+          <p><a href="{root}${paths.example(featured.id)}">Open this example →</a></p>
         </div>
         ${payload(featured)}
       </section>`
           : ''
       }
       <section>
-        <h2>Start here</h2>
+        <h2>Guides</h2>
         <div class="grid">
           ${guides
             .map(
@@ -245,7 +241,6 @@ export function renderSite(schema, guides) {
         .map(
           family => `<div>
           <h2>${plural(family.name)}</h2>
-          <p class="muted">${escape(familyTaglines[family.name] ?? firstSentence(family.comment))}</p>
           <ul class="term-list">${descendants(family.name)
             .sort()
             .map(
@@ -273,8 +268,8 @@ export function renderSite(schema, guides) {
     path: 'guides/index.html',
     kind: 'guides',
     title: 'Guides',
-    description: 'Learn how Chronicle records are shaped, identified, and connected.',
-    html: `<header class="page-header"><p class="eyebrow">Guides</p><h1>Guides</h1><p class="lead">Short walkthroughs of how records are shaped, identified, and connected. Each one links to examples you can open and copy.</p></header>
+    description: 'Guides to the Chronicle record format.',
+    html: `<header class="page-header"><p class="eyebrow">Guides</p><h1>Guides</h1><p class="lead">Read these in order. Each one links to example records.</p></header>
       <ol class="guide-list">${guides
         .map(
           guide =>
@@ -296,7 +291,7 @@ export function renderSite(schema, guides) {
         <article class="prose">${guide.html}</article>
         <nav class="pager" aria-label="Guides">
           ${previous ? `<a class="card" href="{root}${paths.guide(previous.slug)}"><span class="card-kicker">Previous</span><strong>${escape(previous.title)}</strong></a>` : '<span></span>'}
-          ${next ? `<a class="card next" href="{root}${paths.guide(next.slug)}"><span class="card-kicker">Next</span><strong>${escape(next.title)}</strong></a>` : `<a class="card next" href="{root}examples/index.html"><span class="card-kicker">Next</span><strong>Browse the examples</strong></a>`}
+          ${next ? `<a class="card next" href="{root}${paths.guide(next.slug)}"><span class="card-kicker">Next</span><strong>${escape(next.title)}</strong></a>` : `<a class="card next" href="{root}examples/index.html"><span class="card-kicker">Next</span><strong>Examples</strong></a>`}
         </nav>`,
     });
   }
@@ -456,8 +451,8 @@ export function renderSite(schema, guides) {
     path: 'examples/index.html',
     kind: 'examples',
     title: 'Examples',
-    description: 'Sample records in Chronicle JSON, JSON-LD, and Turtle.',
-    html: `<header class="page-header"><p class="eyebrow">Reference</p><h1>Examples</h1><p class="lead">${examples.length} sample records, shaped like the output of Chronicle’s plugins. Each one opens in Chronicle JSON, JSON-LD, and Turtle, ready to copy. The people and identifiers are made up.</p></header>
+    description: 'Example records in Chronicle JSON, JSON-LD, and Turtle.',
+    html: `<header class="page-header"><p class="eyebrow">Reference</p><h1>Examples</h1><p class="lead">${examples.length} example records based on the output of Chronicle’s plugins, in Chronicle JSON, JSON-LD, and Turtle. The people, accounts, and identifiers are made up.</p></header>
       <div class="grid">${examples.map(example => exampleCard(example)).join('')}</div>`,
   });
   for (const example of examples) {
