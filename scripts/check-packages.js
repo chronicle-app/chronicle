@@ -248,6 +248,7 @@ try {
       CHRONICLE_CONFIG_DIR: join(consumer, 'config'),
       CHRONICLE_DATA_DIR: join(consumer, 'data'),
       CHRONICLE_CACHE_DIR: join(consumer, 'cache'),
+      CHRONICLE_SKIP_NEW_VERSION_CHECK: '1',
       npm_config_audit: 'false',
       npm_config_fund: 'false',
     };
