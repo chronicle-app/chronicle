@@ -1,53 +1,95 @@
 # Chronicle
 
-Extract your digital history into a shared vocabulary:
+**Own your data, own your history.**
+
+Chronicle is an open-source, local-first [memex](https://hyfen.net/memex/) that archives
+and indexes your digital history, so that everything you have ever done online is yours
+to keep and to search.
+
+Today, Chronicle is a command-line tool that extracts your data from apps and services
+into a common JSON-LD format. It reads files and databases on your machine and writes to
+stdout. Nothing is uploaded.
+
+## Install
 
 ```sh
-chronicle extract <source>
+npm install -g @chronicle.app/cli
 ```
 
-Chronicle brings records from different services into a common JSON-LD representation.
-A **source** is the service, application, or export your records come from. A **plugin**
-contains the code that reads those records and transforms them. The **schema** defines
-the shared types and properties that make records from different sources understandable
-together.
+To run without installing, use `npx @chronicle.app/cli@latest <command>`.
 
-## Getting started
-
-With Node.js 22.13 or newer, run the [CLI](apps/cli/README.md) through npx:
+## Usage
 
 ```sh
-npx @chronicle.app/cli@latest sources
-npx @chronicle.app/cli@latest extract shell --limit 10
+chronicle sources                                          # list available sources
+chronicle extract shell --limit 10                         # 10 shell history records
+chronicle extract things-todo --type tasks                 # one record type
+chronicle extract claude-code --loader yaml --output sessions.yaml
 ```
 
-Or install it with `npm install -g @chronicle.app/cli` and run `chronicle`.
+- Output is JSON by default. Use `--loader csv`, `yaml`, or `table` to change it.
+- `--output <file>` writes to a file instead of stdout.
+- `--limit` defaults to 100. `--limit 0` reads everything.
 
-## Repository status
+Run `chronicle extract <source> --help` for a source's options. See the
+[CLI README](apps/cli/README.md) for more.
 
-This repository contains the [CLI](apps/cli/README.md), shared TypeScript, ESLint,
-Prettier, and logging packages, a [minimal schema](core/schema/README.md) with
-generated TypeScript/Zod validators, and a [standalone ETL framework](core/etl/README.md)
-for extraction and serialization. Source plugins are also available as programmatic
-extractors and transformers. Packages are published to npm under `@chronicle.app`;
-see [Preparing a release](RELEASING.md).
+## Sources
 
-## Source plugins
+These sources come bundled with the CLI:
 
 | Source                                           | Package                                      |
 | ------------------------------------------------ | -------------------------------------------- |
-| Things 3                                         | [things-todo](plugins/things-todo/README.md) |
 | Shell history (bash, zsh, fish)                  | [shell](plugins/shell/README.md)             |
 | iMessage/SMS, with iCloud and contact enrichment | [imessage](plugins/imessage/README.md)       |
 | Claude Code transcripts                          | [claude-code](plugins/claude-code/README.md) |
+| Things 3                                         | [things-todo](plugins/things-todo/README.md) |
 
-SQLite sources use the [read-only Node SQLite adapter](core/etl-sqlite/README.md).
-Each plugin exports an extractor and transformer for use with the ETL Runner.
-Tests use synthetic files and databases; they do not need access to personal data.
+Install other plugins with `chronicle plugins install <package>`.
+
+## Why
+
+Imagine if your complete personal history was accessible to you in a single, unified
+archive: one place to search everything you've messaged, read, watched, and listened to.
+
+In 1945, [the Memex](https://en.wikipedia.org/wiki/Memex) was supposed to be this
+device, but it was never built. Chronicle is the open-source adaptation of an
+experimental personal project that attempted to build a modern-day memex.
+[Read the full story](https://hyfen.net/memex/).
+
+- **Local-first.** Your data stays on your machine and never touches a third-party
+  service.
+- **Open-source.** You can inspect everything that touches your data.
+- **Connected.** Records from different sources share one schema, so they can be linked
+  and searched together.
+
+## Roadmap
+
+Available now:
+
+- **Extract.** Read records from a source and output them as JSON-LD.
+
+Planned:
+
+- **Archive.** Import extracted records into a local archive.
+- **Query.** Search across everything in the archive.
+- **Sync.** Keep the archive in sync across devices.
+
+## How it works
+
+- A **source** is where records come from: a service, an application, or an export.
+- A **plugin** reads records from a source and transforms them to the schema.
+- The **schema** ([core/schema](core/schema/README.md)) defines the shared types and
+  properties.
+
+Each plugin exports an extractor and a transformer. You can use them from code with the
+[ETL framework](core/etl/README.md). SQLite sources use the
+[read-only SQLite adapter](core/etl-sqlite/README.md). All packages are published to npm
+under `@chronicle.app`.
 
 ## Development
 
-Use Node.js 22.13.0 or newer and npm. With nvm:
+Requires Node.js 22.13.0 or newer.
 
 ```sh
 nvm install
@@ -55,25 +97,18 @@ npm ci
 npm run quality
 ```
 
-The workspace layout is:
+| Directory   | Contents                                  |
+| ----------- | ----------------------------------------- |
+| `core/`     | Schema, ETL framework, and shared tooling |
+| `packages/` | Reusable libraries                        |
+| `apps/`     | Applications, including the CLI           |
+| `plugins/`  | Source plugins                            |
+| `tools/`    | Development tools                         |
 
-| Directory   | Contents                                                    |
-| ----------- | ----------------------------------------------------------- |
-| `core/`     | Shared schema, extraction foundations, and tooling packages |
-| `packages/` | Reusable libraries                                          |
-| `apps/`     | Applications, including the CLI                             |
-| `plugins/`  | Source plugins                                              |
-| `tools/`    | Development tools                                           |
-
-TypeScript builds use the root solution's project references. Add new library projects
-to `tsconfig.json`; TypeScript orders referenced dependencies. Workspace lint, typecheck,
-and test scripts run through npm. Shared configuration lives in `core/tsconfig`,
-`core/eslint-config`, and `core/prettier-config`.
-
-Run `npm run packages:check` after `npm run quality` to validate packed packages in
-an isolated consumer. See [Preparing a release](RELEASING.md) for artifacts and
-publishing.
+Tests use synthetic fixtures, not personal data. After changing packages or
+dependencies, run `npm run packages:check` to test the packed packages in an isolated
+install. See [RELEASING.md](RELEASING.md) for publishing.
 
 ## License
 
-The tooling in this repository is covered by the [MIT license](LICENSE).
+[MIT](LICENSE)
