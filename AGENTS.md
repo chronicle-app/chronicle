@@ -14,3 +14,4 @@ Chronicle extracts personal history into a shared vocabulary.
 - Add a changeset (`npx changeset`) to pull requests that should ship in a release.
 - Run `npm run quality` for code changes. Run `npm run packages:check` after
   package or dependency changes to verify installed tarballs.
+- Do not co-author commits as coding agent

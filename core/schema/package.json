@@ -21,6 +21,7 @@
   "scripts": {
     "generate": "node scripts/generate-schemas.js",
     "generate:check": "node scripts/check-generated.js",
+    "version:check": "node scripts/check-version.js",
     "docs:build": "node site/build.js",
     "docs:build:deploy": "node site/deploy.js",
     "docs:dev": "node site/dev.js",
