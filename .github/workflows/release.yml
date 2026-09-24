@@ -79,6 +79,8 @@ jobs:
   publish:
     needs: pack
     runs-on: ubuntu-latest
+    outputs:
+      published: ${{ steps.publish.outputs.published }}
     permissions:
       contents: write
       id-token: write
@@ -101,3 +103,14 @@ jobs:
         run: node scripts/tag-release.js
         env:
           GH_TOKEN: ${{ github.token }}
+
+  # Deploys schema.chronicle.app once the release tag exists.
+  schema-site:
+    needs: publish
+    if: needs.publish.outputs.published == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/schema-site.yml
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

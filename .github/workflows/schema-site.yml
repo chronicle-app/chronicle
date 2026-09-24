@@ -1,0 +1,45 @@
+name: Schema site
+
+# Deploys schema.chronicle.app from the release tags. The release workflow calls
+# this after publishing; run it by hand to redeploy the latest release.
+on:
+  workflow_call:
+    secrets:
+      CLOUDFLARE_API_TOKEN:
+        required: true
+      CLOUDFLARE_ACCOUNT_ID:
+        required: true
+  workflow_dispatch:
+    inputs:
+      skip-published-check:
+        description: Skip comparing release snapshots with the live site (first deployment only)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: schema-site
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - run: npm ci
+      - run: npm run docs:build:deploy -w @chronicle.app/schema -- ${{ inputs.skip-published-check && '--skip-published-check' || '' }}
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: core/schema
+          wranglerVersion: '4'
+          command: deploy

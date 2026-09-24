@@ -119,20 +119,6 @@ process.stdout.write(readFileSync(ontology, 'utf8'));`,
     const snapshotDirectory = resolve('artifacts/schema/releases', version);
     mkdirSync(snapshotDirectory, { recursive: true });
     saveSnapshot(join(snapshotDirectory, 'chronicle.ttl'), ontology);
-    const html = run(
-      [
-        '--input-type=module',
-        '-e',
-        `import { readFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
-const require = createRequire(import.meta.url);
-process.stdout.write(readFileSync(require.resolve('@chronicle.app/schema/schema.html'), 'utf8'));`,
-      ],
-      consumer,
-      true
-    );
-    assert.equal(html, readFileSync('core/schema/docs/schema.html', 'utf8'));
-    saveSnapshot(join(snapshotDirectory, 'index.html'), html);
   }
   writeFileSync(
     join(consumer, '.eslintrc.cjs'),

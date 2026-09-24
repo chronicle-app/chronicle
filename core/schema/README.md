@@ -2,16 +2,48 @@
 
 A deliberately small extraction vocabulary with generated TypeScript interfaces
 and Zod validators. The canonical file is [chronicle.ttl](chronicle.ttl); edit it and run
-`npm run schema:generate` from the repository root. This generates both the
-TypeScript/Zod schemas and [the HTML reference](docs/schema.html).
-`npm run schema:check` verifies that both committed outputs match the ontology
-without rewriting them.
+`npm run schema:generate` from the repository root to regenerate the TypeScript/Zod
+schemas. `npm run schema:check` verifies that the committed output matches the
+ontology without rewriting it.
 
-Open `docs/schema.html` directly in a browser; its styles are embedded and it
-requires no server or network access. It includes hierarchy navigation, linked
-`:term` references, inherited properties, ranges, cardinality, and term URIs.
-Use `npm run generate:docs -w @chronicle.app/schema` to regenerate just the HTML.
-The package also exports the page as `@chronicle.app/schema/schema.html`.
+## Documentation site
+
+The schema has a documentation site: guides, a page for every class and
+property, and example records in Chronicle JSON, JSON-LD, and Turtle, with
+search on every page (<kbd>⌘K</kbd>, <kbd>Ctrl K</kbd>, or <kbd>/</kbd>).
+
+```bash
+npm run schema:docs          # serve at http://localhost:4321, rebuilding on change
+npm run schema:docs:build    # write the static site to core/schema/build/site
+```
+
+The site is generated and not committed. It is built from three sources:
+
+- [chronicle.ttl](chronicle.ttl): the classes and properties.
+- [examples.ttl](examples.ttl): example records. Each has an `rdfs:label` title,
+  an `rdfs:comment` explanation, and a sample record under `rdf:value`, written
+  as nested blank nodes. `doc:key` lists identity fields and becomes `@key` in
+  Chronicle JSON. Link an example from the terms it shows with `skos:example`.
+  Keep examples synthetic: made-up people, accounts, and identifiers.
+- [guides/](guides): Markdown guides, ordered by filename. Link to the reference
+  with `example:<id>`, `class:<Name>`, or `property:<name>`, and to other guides
+  by filename; `:Term` in text links to that term.
+
+`npm test` validates every example against the generated Zod schemas and builds
+the site, failing on broken links. The site code is in [site/](site).
+
+The site is served at https://schema.chronicle.app from Cloudflare Workers
+static assets ([wrangler.jsonc](wrangler.jsonc)). The release workflow deploys
+it after each release. The deployed site is built from release tags, not the
+working tree:
+
+```bash
+npm run schema:docs:deploy-build   # write the deployable site to core/schema/build/deploy
+```
+
+The root serves the latest release. `releases/<version>/` holds the first
+release of each vocabulary version. Term IRIs such as `/Task` redirect to their
+pages. The build fails if a rebuilt snapshot differs from the published one.
 
 ## Vocabulary
 
@@ -25,8 +57,9 @@ realms; iMessage adds messages and attachment media; Claude Code adds threads,
 software agents, and model instruments. Shared properties cover source identity,
 event time, agents, membership, authors, and recipients.
 
-`Text`, `URL`, and `DateTime` are literal datatypes. Properties remain optional;
-`chronicle.ttl` defines whether each is single-valued or a list. Records carry `@type` and at least one of `@key` (a nonempty list of
+`Text`, `URL`, and `DateTime` are literal datatypes. Cardinality in
+`chronicle.ttl` defines each property's constraints: `owl:minCardinality 1` makes
+it required, and `owl:maxCardinality 1` makes it single-valued; otherwise it is a list. Records carry `@type` and at least one of `@key` (a nonempty list of
 identity fields or computed key entries) or `@id` (an existing identity).
 Identity validation checks that declaration, not the existence or hash of the
 referenced fields. Source-specific extraction owns the values; never invent IDs
@@ -92,8 +125,8 @@ The publication convention is
 documentation under the same release path. Published snapshots must never be
 overwritten or removed by later deployments. The unversioned `/chronicle.ttl`
 and term pages should serve the latest released version, rather than unreleased
-changes on `main`. Website hosting is not configured yet; see
-[Preparing a release](../../RELEASING.md) for the release procedure.
+changes on `main`. See [Preparing a release](../../RELEASING.md) for the
+release procedure.
 
 The vocabulary is intentionally small. Add terms only when a plugin needs them,
 keeping existing term identifiers and meanings stable; regenerate and add
