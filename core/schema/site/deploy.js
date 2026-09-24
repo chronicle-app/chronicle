@@ -1,37 +1,22 @@
-// Assembles the site deployed to schema.chronicle.app. It is built from release
-// tags rather than the working tree: the root serves the latest release, and
-// releases/<version>/ keeps the first release of every vocabulary version.
-// Each deployment replaces the whole site, so every snapshot is rebuilt from
-// its tag and compared with what is already published.
+// Assembles the site deployed to schema.chronicle.app. The root is the working
+// tree, which in CI is main: main holds only vocabulary that is meant to be
+// published. releases/<version>/ keeps the first release of every vocabulary
+// version, rebuilt from its tag, since each deployment replaces the whole site.
+// Rebuilt snapshots are compared with what is already published.
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { git, listReleaseTags, ontologyAt, SCHEMA } from '../scripts/release-tags.js';
 import { schemaVersion } from '../scripts/schema-version.js';
+import { buildSite } from './build.js';
 
 export const DEPLOY_OUTPUT = fileURLToPath(new URL('../build/deploy/', import.meta.url));
 export const PUBLISHED = 'https://schema.chronicle.app';
 // Tags are extracted under build/ so their site code resolves this checkout's
 // node_modules.
 const CHECKOUTS = fileURLToPath(new URL('../build/tags/', import.meta.url));
-const REPOSITORY = fileURLToPath(new URL('../../../', import.meta.url));
-const SCHEMA = 'core/schema';
-const RELEASE_TAG = /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
-
-const git = (args, options = {}) => execFileSync('git', args, { cwd: REPOSITORY, ...options });
-
-const versionKey = tag => tag.slice(1).split('.').map(Number);
-
-/** Stable release tags, oldest first. */
-export function releaseTags(list) {
-  return list
-    .filter(tag => RELEASE_TAG.test(tag))
-    .sort((a, b) => {
-      const [x, y] = [versionKey(a), versionKey(b)];
-      return x[0] - y[0] || x[1] - y[1] || x[2] - y[2];
-    });
-}
 
 /**
  * Maps each vocabulary version to the first release that shipped it, from
@@ -72,14 +57,6 @@ export async function checkPublished(output, versions, base = PUBLISHED) {
   }
 }
 
-function ontologyAt(tag) {
-  try {
-    return git(['show', `${tag}:${SCHEMA}/chronicle.ttl`], { stdio: 'pipe' });
-  } catch {
-    return null;
-  }
-}
-
 /** Builds the site as of `tag` into `output`. Returns false for tags without one. */
 async function buildTag(tag, output) {
   const checkout = join(CHECKOUTS, tag);
@@ -100,15 +77,9 @@ const pageNames = async directory =>
     .map(file => file.slice(0, -'.html'.length));
 
 export async function buildDeployment({ output = DEPLOY_OUTPUT, checkLive = true } = {}) {
-  const tags = releaseTags(git(['tag', '--list', 'v*'], { encoding: 'utf8' }).split('\n'));
-  if (tags.length === 0) throw new Error('There are no release tags to deploy.');
-  const latest = tags.at(-1);
+  await buildSite(output);
 
-  await rm(output, { recursive: true, force: true });
-  if (!(await buildTag(latest, output)))
-    throw new Error(`The latest release, ${latest}, predates the documentation site.`);
-
-  const ontologies = tags.map(tag => [tag, ontologyAt(tag)]);
+  const ontologies = listReleaseTags().map(tag => [tag, ontologyAt(tag)]);
   const releases = firstReleases(ontologies);
   for (const [version, tag] of releases) {
     const directory = join(output, 'releases', version);
@@ -116,6 +87,7 @@ export async function buildDeployment({ output = DEPLOY_OUTPUT, checkLive = true
     if (!(await buildTag(tag, directory))) await mkdir(directory, { recursive: true });
     await writeFile(join(directory, 'chronicle.ttl'), new Map(ontologies).get(tag));
   }
+  await rm(CHECKOUTS, { recursive: true, force: true });
 
   const names = {
     classes: await pageNames(join(output, 'classes')),
@@ -123,15 +95,14 @@ export async function buildDeployment({ output = DEPLOY_OUTPUT, checkLive = true
   };
   await writeFile(join(output, '_redirects'), redirects(names) + '\n');
   await writeFile(join(output, '_headers'), HEADERS);
-  await rm(CHECKOUTS, { recursive: true, force: true });
 
   if (checkLive) await checkPublished(output, releases.keys());
-  return { output, latest, releases };
+  return { output, releases };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const { output, latest, releases } = await buildDeployment({
+  const { output, releases } = await buildDeployment({
     checkLive: !process.argv.includes('--skip-published-check'),
   });
-  console.log(`Built ${latest} into ${output} with releases ${[...releases.keys()].join(', ')}`);
+  console.log(`Built the site into ${output} with releases ${[...releases.keys()].join(', ')}`);
 }

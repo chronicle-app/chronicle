@@ -1,8 +1,14 @@
 name: Schema site
 
-# Deploys schema.chronicle.app from the release tags. The release workflow calls
-# this after publishing; run it by hand to redeploy the latest release.
+# Deploys schema.chronicle.app from main, with a snapshot of every released
+# vocabulary version. It runs on pushes to main that change the schema, and the
+# release workflow calls it after publishing so new snapshots appear right away.
 on:
+  push:
+    branches: [main]
+    paths:
+      - core/schema/**
+      - .github/workflows/schema-site.yml
   workflow_call:
     secrets:
       CLOUDFLARE_API_TOKEN:
@@ -12,7 +18,7 @@ on:
   workflow_dispatch:
     inputs:
       skip-published-check:
-        description: Skip comparing release snapshots with the live site (first deployment only)
+        description: Skip comparing release snapshots with the live site
         type: boolean
         default: false
 
@@ -21,6 +27,8 @@ permissions:
 
 jobs:
   deploy:
+    # Vocabulary work happens on branches; only main is published.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     concurrency:
       group: schema-site

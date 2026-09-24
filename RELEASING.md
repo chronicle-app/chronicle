@@ -91,14 +91,14 @@ For an approved schema release:
 3. Record the package version and vocabulary version together in the release notes.
    The Git tag identifies the software release; the snapshot path uses the vocabulary version.
 4. After publishing, the release workflow deploys https://schema.chronicle.app
-   through [schema-site.yml](.github/workflows/schema-site.yml). The deployment
-   serves the snapshot at
-   `https://schema.chronicle.app/releases/<version>/chronicle.ttl`, with matching
-   documentation built from the first release of that vocabulary version under
-   the same path. Every deployment rebuilds all release paths from their tags,
-   and fails if a snapshot differs from the published copy. `/chronicle.ttl` and
-   the unversioned term pages come from the latest release tag. To redeploy,
-   run the Schema site workflow by hand.
+   through [schema-site.yml](.github/workflows/schema-site.yml), which also runs
+   on every push to `main` that changes the schema. The deployment serves the
+   snapshot at `https://schema.chronicle.app/releases/<version>/chronicle.ttl`,
+   with matching documentation built from the first release of that vocabulary
+   version under the same path. Every deployment rebuilds all release paths from
+   their tags, and fails if a snapshot differs from the published copy.
+   `/chronicle.ttl` and the unversioned term pages come from `main`. To
+   redeploy, run the Schema site workflow by hand on `main`.
 
 The preparation workflow creates artifacts only; it does not create tags,
 publish npm packages, or deploy the website.
@@ -112,6 +112,11 @@ compares its snapshots with the published ones, since a fresh checkout cannot
 detect changes to artifacts stored elsewhere. Never overwrite a published
 snapshot.
 
+Because the site serves `main`, a vocabulary change is public as soon as it
+merges, before the npm package that carries it is published. Keep vocabulary
+work on branches, and raise `owl:versionInfo` with any change to
+`chronicle.ttl`; `npm run schema:check` fails otherwise.
+
 The deployment needs the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`
-repository secrets. For the first deployment, when nothing is published yet,
-run the Schema site workflow by hand with the published-snapshot check skipped.
+repository secrets. If the live site cannot be reached, run the Schema site
+workflow by hand with the published-snapshot check skipped.

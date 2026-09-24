@@ -33,17 +33,17 @@ The site is generated and not committed. It is built from three sources:
 the site, failing on broken links. The site code is in [site/](site).
 
 The site is served at https://schema.chronicle.app from Cloudflare Workers
-static assets ([wrangler.jsonc](wrangler.jsonc)). The release workflow deploys
-it after each release. The deployed site is built from release tags, not the
-working tree:
+static assets ([wrangler.jsonc](wrangler.jsonc)). It is deployed from `main`
+whenever the schema changes there, and again after each release:
 
 ```bash
 npm run schema:docs:deploy-build   # write the deployable site to core/schema/build/deploy
 ```
 
-The root serves the latest release. `releases/<version>/` holds the first
-release of each vocabulary version. Term IRIs such as `/Task` redirect to their
-pages. The build fails if a rebuilt snapshot differs from the published one.
+The root is `main`. `releases/<version>/` holds the first release of each
+vocabulary version, rebuilt from its tag. Term IRIs such as `/Task` redirect to
+their pages. The build fails if a rebuilt snapshot differs from the published
+one.
 
 ## Vocabulary
 
@@ -124,8 +124,10 @@ The publication convention is
 `https://schema.chronicle.app/releases/<version>/chronicle.ttl`, with matching
 documentation under the same release path. Published snapshots must never be
 overwritten or removed by later deployments. The unversioned `/chronicle.ttl`
-and term pages should serve the latest released version, rather than unreleased
-changes on `main`. See [Preparing a release](../../RELEASING.md) for the
+and term pages serve `main`, so `main` holds only vocabulary that is ready to
+publish: work on new terms in a branch until it is ready. Any change to
+`chronicle.ttl` after a release must raise `owl:versionInfo`;
+`npm run schema:check` enforces this against the latest release tag. See [Preparing a release](../../RELEASING.md) for the
 release procedure.
 
 The vocabulary is intentionally small. Add terms only when a plugin needs them,
