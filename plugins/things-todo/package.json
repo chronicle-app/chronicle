@@ -1,6 +1,6 @@
 {
   "name": "@chronicle.app/things-todo",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
@@ -19,9 +19,9 @@
   "type": "module",
   "description": "Chronicle things-todo extraction plugin",
   "devDependencies": {
-    "@chronicle.app/etl": "0.1.0",
-    "@chronicle.app/schema": "0.1.0",
-    "@chronicle.app/tsconfig": "0.1.0",
+    "@chronicle.app/etl": "0.2.0",
+    "@chronicle.app/schema": "0.2.0",
+    "@chronicle.app/tsconfig": "0.2.0",
     "@types/node": "^22.10.1",
     "typescript": "^5.7.2"
   },
@@ -36,7 +36,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "dependencies": {
-    "@chronicle.app/etl-sqlite": "0.1.0",
+    "@chronicle.app/etl-sqlite": "0.2.0",
     "zod": "^3.24.1"
   },
   "peerDependencies": {
