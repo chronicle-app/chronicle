@@ -8,42 +8,10 @@ ontology without rewriting it.
 
 ## Documentation site
 
-The schema has a documentation site: guides, a page for every class and
-property, and example records in Chronicle JSON, JSON-LD, and Turtle, with
-search on every page (<kbd>⌘K</kbd>, <kbd>Ctrl K</kbd>, or <kbd>/</kbd>).
-
-```bash
-npm run schema:docs          # serve at http://localhost:4321, rebuilding on change
-npm run schema:docs:build    # write the static site to core/schema/build/site
-```
-
-The site is generated and not committed. It is built from three sources:
-
-- [chronicle.ttl](chronicle.ttl): the classes and properties.
-- [examples.ttl](examples.ttl): example records. Each has an `rdfs:label` title,
-  an `rdfs:comment` explanation, and a sample record under `rdf:value`, written
-  as nested blank nodes. `doc:key` lists identity fields and becomes `@key` in
-  Chronicle JSON. Link an example from the terms it shows with `skos:example`.
-  Keep examples synthetic: made-up people, accounts, and identifiers.
-- [guides/](guides): Markdown guides, ordered by filename. Link to the reference
-  with `example:<id>`, `class:<Name>`, or `property:<name>`, and to other guides
-  by filename; `:Term` in text links to that term.
-
-`npm test` validates every example against the generated Zod schemas and builds
-the site, failing on broken links. The site code is in [site/](site).
-
-The site is served at https://schema.chronicle.app from Cloudflare Workers
-static assets ([wrangler.jsonc](wrangler.jsonc)). It is deployed from `main`
-whenever the schema changes there, and again after each release:
-
-```bash
-npm run schema:docs:deploy-build   # write the deployable site to core/schema/build/deploy
-```
-
-The root is `main`. `releases/<version>/` holds the first release of each
-vocabulary version, rebuilt from its tag. Term IRIs such as `/Task` redirect to
-their pages. The build fails if a rebuilt snapshot differs from the published
-one.
+The schema is documented at https://schema.chronicle.app, built from
+`chronicle.ttl` and the example records in [examples.ttl](examples.ttl). The
+site lives in [apps/schema-site](../../apps/schema-site), which also describes
+the examples format.
 
 ## Vocabulary
 

@@ -1,0 +1,15 @@
+---
+interface Props {
+  property: { min: number; max: number | null };
+}
+const { property } = Astro.props;
+---
+
+{
+  property.max === 1 ? (
+    <span class="tag">one</span>
+  ) : (
+    <span class="tag tag-many" title="Takes a list of values">many</span>
+  )
+}
+{property.min > 0 && <span class="tag tag-required">required</span>}

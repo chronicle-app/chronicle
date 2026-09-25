@@ -1,0 +1,13 @@
+---
+import { firstSentence, href, plain } from '../lib/site.js';
+import Card from './Card.astro';
+
+interface Props {
+  example: { id: string; title: string; body: string; chronicle: { '@type': string } };
+}
+const { example } = Astro.props;
+---
+
+<Card class="example-card" href={href.example(example.id)} kicker={example.chronicle['@type']} title={example.title}>
+  {plain(firstSentence(example.body))}
+</Card>

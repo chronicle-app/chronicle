@@ -1,0 +1,41 @@
+---
+import ClassTree from '../../components/ClassTree.astro';
+import Prose from '../../components/Prose.astro';
+import TermLink from '../../components/TermLink.astro';
+import TermList from '../../components/TermList.astro';
+import Layout from '../../layouts/Layout.astro';
+import { datatypes, families, plural, recordRoots, SECTIONS, slugify } from '../../lib/site.js';
+
+const toc = [
+  ...families.map(family => ({ id: slugify(plural(family.name)), title: plural(family.name) })),
+  ...(datatypes.length > 0 ? [{ id: 'datatypes', title: 'Datatypes' }] : []),
+];
+const article = (name: string) => (/^[AEIOU]/.test(name) ? 'an' : 'a');
+---
+
+<Layout {...SECTIONS.classes} kind="classes" toc={toc}>
+  <header class="page-header">
+    <p class="eyebrow">Reference</p>
+    <h1>Classes</h1>
+    <p class="lead">
+      A class is a kind of record. Every record is{' '}
+      {families.map((family, index) => <>{index > 0 && ' or '}{article(family.name)} <TermLink name={family.name} /></>)},
+      descended from {recordRoots.map((cls, index) => <>{index > 0 && ' and '}<TermLink name={cls.name} /></>)}. A class
+      inherits every property of the classes above it.
+    </p>
+  </header>
+  {
+    families.map(family => (
+      <section id={slugify(plural(family.name))}>
+        <h2>{plural(family.name)}</h2>
+        <p><Prose text={family.comment} /></p>
+        <ul class="tree"><ClassTree name={family.name} describe /></ul>
+      </section>
+    ))
+  }
+  <section id="datatypes">
+    <h2>Datatypes</h2>
+    <p>Plain values carried directly by properties. They have no identity of their own.</p>
+    <TermList names={datatypes.map(cls => cls.name)} />
+  </section>
+</Layout>

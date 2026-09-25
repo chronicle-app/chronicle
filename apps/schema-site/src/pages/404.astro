@@ -1,0 +1,15 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { url } from '../lib/site.js';
+---
+
+<Layout path="404.html" kind="not-found" title="Page not found" description="There is no page at this address.">
+  <header class="page-header">
+    <h1>Page not found</h1>
+    <p class="lead">
+      There is no page at this address. Try searching, or start from the
+      <a href={url('index.html')}>overview</a>, the <a href={url('classes/index.html')}>classes</a>, or the
+      <a href={url('properties/index.html')}>properties</a>.
+    </p>
+  </header>
+</Layout>

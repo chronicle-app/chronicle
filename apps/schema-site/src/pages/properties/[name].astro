@@ -1,0 +1,37 @@
+---
+import Cardinality from '../../components/Cardinality.astro';
+import ExamplesSection from '../../components/ExamplesSection.astro';
+import ExpectedType from '../../components/ExpectedType.astro';
+import Prose from '../../components/Prose.astro';
+import TermLink from '../../components/TermLink.astro';
+import Layout from '../../layouts/Layout.astro';
+import { paths, properties } from '../../lib/site.js';
+
+export function getStaticPaths() {
+  return [...properties.values()].map(property => ({ params: { name: property.name }, props: { property } }));
+}
+const { property } = Astro.props;
+const toc = property.examples.length > 0 ? [{ id: 'examples', title: 'Examples' }] : [];
+---
+
+<Layout path={paths.property(property.name)} kind="property" title={property.name} description={property.comment} toc={toc}>
+  <header class="page-header">
+    <p class="eyebrow">Property</p>
+    <h1 class="mono">{property.name}</h1>
+    {property.comment && <p class="lead"><Prose text={property.comment} /></p>}
+  </header>
+  <dl class="facts">
+    <div>
+      <dt>Used on</dt>
+      <dd>
+        {property.domain.map((name, index) => <>{index > 0 && ', '}<TermLink name={name} /></>)}
+        <span class="muted"> and their subclasses</span>
+      </dd>
+    </div>
+    <div><dt>Expected type</dt><dd><ExpectedType range={property.range} /></dd></div>
+    <div><dt>Values</dt><dd>{property.max === 1 ? 'At most one value' : 'A list of values'}</dd></div>
+    <div><dt>Required</dt><dd>{property.min > 0 ? 'Yes' : 'No'}</dd></div>
+  </dl>
+  <ExamplesSection examples={property.examples} />
+  <p class="uri">URI <code>{property.uri}</code></p>
+</Layout>

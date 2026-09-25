@@ -1,0 +1,17 @@
+---
+import ExampleCard from '../../components/ExampleCard.astro';
+import Layout from '../../layouts/Layout.astro';
+import { examples, SECTIONS } from '../../lib/site.js';
+---
+
+<Layout {...SECTIONS.examples} kind="examples">
+  <header class="page-header">
+    <p class="eyebrow">Reference</p>
+    <h1>Examples</h1>
+    <p class="lead">
+      {examples.length} example records based on the output of Chronicle’s plugins, in Chronicle JSON, JSON-LD, and
+      Turtle. The people, accounts, and identifiers are made up.
+    </p>
+  </header>
+  <div class="grid">{examples.map(example => <ExampleCard example={example} />)}</div>
+</Layout>
