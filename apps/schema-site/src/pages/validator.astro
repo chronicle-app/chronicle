@@ -1,0 +1,289 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { FAILING_PRESETS } from '../lib/validator-presets.js';
+import { examples, guides, href, schema, SECTIONS, url } from '../lib/site.js';
+
+// The home page's featured examples come first; the rest start hidden.
+const featured = new Set(schema.overview.map(example => example.id));
+const valid = [...examples].sort((a, b) => Number(featured.has(b.id)) - Number(featured.has(a.id)));
+const shown = Math.max(featured.size, 3);
+const groups = [
+  { label: 'Valid', items: valid.map(example => ({ id: example.id, title: example.title, value: example.chronicle })) },
+  { label: 'Invalid', items: FAILING_PRESETS },
+];
+const [first] = valid;
+const keys = guides.find(guide => guide.slug === 'keys-and-sources');
+// Inline JSON must not close the script element it sits in.
+const data = JSON.stringify(Object.fromEntries(groups.flatMap(group => group.items.map(item => [item.id, item.value])))).replaceAll('<', '\\u003c');
+---
+
+<Layout {...SECTIONS.validator} kind="validator">
+  <header class="page-header">
+    <p class="eyebrow">Tools</p>
+    <h1>Validator</h1>
+    <p class="lead">
+      Paste one record or a list of records to check them against version {schema.version} of the vocabulary. It accepts
+      Chronicle JSON, the format plugins emit, and the JSON-LD shown on <a href={url('examples/index.html')}>example</a>
+      pages. Validation runs in your browser, and nothing is sent anywhere.
+    </p>
+  </header>
+  <div class="validator">
+    <div class="validator-examples" aria-label="Examples" role="group">
+      {
+        groups.map(group => (
+          <div class="validator-group">
+            <span class="validator-group-label">{group.label}</span>
+            <div class="validator-chips">
+              {group.items.map((item, index) => (
+                <button type="button" class="validator-chip" data-preset={item.id} aria-pressed={item.id === first?.id ? 'true' : 'false'} hidden={group.label === 'Valid' && index >= shown}>
+                  {item.title}
+                </button>
+              ))}
+              {group.label === 'Valid' && group.items.length > shown && (
+                <button type="button" class="validator-more" data-more>
+                  {group.items.length - shown} more
+                </button>
+              )}
+            </div>
+          </div>
+        ))
+      }
+    </div>
+    <div class="validator-editor">
+      <div class="validator-backdrop" aria-hidden="true"></div>
+      <textarea id="validator-input" spellcheck="false" autocomplete="off" aria-label="Records to validate" aria-describedby="validator-result">{first ? JSON.stringify(first.chronicle, null, 2) : ''}</textarea>
+      <button type="button" class="validator-clear" data-clear>Clear</button>
+      <div class="validator-empty" data-empty hidden>
+        <span class="validator-empty-mark" aria-hidden="true">{'{ }'}</span>
+        <p class="validator-empty-title">Paste a record to check it</p>
+        <p>Chronicle JSON or JSON-LD, one record or a list. Or start from an example above.</p>
+        <div class="validator-empty-actions">
+          <button type="button" class="button" data-paste hidden>Paste from clipboard</button>
+          {first && <button type="button" class="button ghost" data-sample>Load an example</button>}
+        </div>
+      </div>
+    </div>
+    <div id="validator-result" class="validator-result" role="status" aria-live="polite" aria-busy="false"></div>
+  </div>
+  <section class="prose">
+    <h2>What it checks</h2>
+    <ul>
+      <li>Every record, including nested ones, has a known <code>@type</code> and an <code>@key</code> or <code>@id</code>.</li>
+      <li>Each field holds the kind of value its property expects: a nested record, text, an absolute URL, or a date and time.</li>
+      <li>Single-valued properties have one value, and list properties have a list.</li>
+    </ul>
+    <p>
+      Fields a class does not declare are reported as warnings, because they are dropped when the record is read. The validator
+      does not check that the fields named in <code>@key</code> are present{keys && '; see '}{keys && <a href={href.guide(keys.slug)}>{keys.title}</a>}.
+    </p>
+  </section>
+  <script is:inline type="application/json" id="validator-presets" set:html={data} />
+</Layout>
+
+<script>
+  import { BaseAndChildrenSchema } from '../../../../core/schema/src/schema.ts';
+  import { locateIssues, parseFailure } from '../lib/locate.js';
+  import { validateRecords } from '../lib/validate.js';
+
+  const presets = JSON.parse(document.querySelector('#validator-presets').textContent);
+  const validator = document.querySelector('.validator');
+  const input = document.querySelector('#validator-input');
+  const output = document.querySelector('#validator-result');
+  const backdrop = document.querySelector('.validator-backdrop');
+  const chips = [...document.querySelectorAll('[data-preset]')];
+  // Checking takes no time, so the result waits briefly after the last change
+  // and shows a checking state meanwhile, rather than flickering while you type.
+  const SETTLE = 350;
+
+  const element = (tag, className, text) => {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  };
+  const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
+  const outcome = result =>
+    result.status === 'valid' && result.warnings.length ? 'warning' : result.status;
+
+  function summary(result) {
+    if (result.status === 'unreadable') return result.message;
+    const format = result.format === 'jsonld' ? 'JSON-LD' : 'Chronicle JSON';
+    if (result.status === 'invalid') return `${plural(result.errors.length, 'error')} in ${format}`;
+    const what = result.count === 1 ? `a valid ${result.types[0]}` : `${result.count} valid records`;
+    return `${format}: ${what}${result.warnings.length ? `, with ${plural(result.warnings.length, 'warning')}` : ''}`;
+  }
+
+  // The marks sit in a copy of the text behind the transparent editor, which
+  // wraps and scrolls the same way.
+  function mark(text, marks) {
+    const nodes = [];
+    let cursor = 0;
+    const ordered = marks.filter(item => item.range).sort((a, b) => a.range.offset - b.range.offset);
+    for (const { range, kind, index } of ordered) {
+      if (range.offset < cursor) continue;
+      nodes.push(document.createTextNode(text.slice(cursor, range.offset)));
+      const node = element('mark', kind, text.slice(range.offset, range.offset + range.length));
+      node.dataset.issue = String(index);
+      nodes.push(node);
+      cursor = range.offset + range.length;
+    }
+    // A trailing line break needs something after it to take up its line.
+    nodes.push(document.createTextNode(text.slice(cursor) + ' '));
+    backdrop.replaceChildren(...nodes);
+    sync();
+  }
+
+  function sync() {
+    backdrop.style.width = `${input.clientWidth}px`;
+    backdrop.style.height = `${input.clientHeight}px`;
+    backdrop.scrollTop = input.scrollTop;
+    backdrop.scrollLeft = input.scrollLeft;
+  }
+
+  const marked = index => backdrop.querySelector(`[data-issue="${index}"]`);
+
+  function jump(index, range) {
+    input.focus({ preventScroll: true });
+    input.setSelectionRange(range.offset, range.offset + range.length);
+    const node = marked(index);
+    if (node) input.scrollTop = Math.max(0, node.offsetTop - input.clientHeight / 3);
+    sync();
+    input.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    node?.classList.remove('flash');
+    requestAnimationFrame(() => node?.classList.add('flash'));
+  }
+
+  function issues(list, kind) {
+    const items = element('ul', `validator-issues ${kind}`);
+    for (const { issue, range, index } of list) {
+      const item = element('li');
+      item.style.setProperty('--i', String(index));
+      const row = element(range ? 'button' : 'div', 'validator-issue');
+      if (range) {
+        row.type = 'button';
+        row.title = 'Show in the record';
+        row.addEventListener('click', () => jump(index, range));
+        row.addEventListener('pointerenter', () => marked(index)?.classList.add('active'));
+        row.addEventListener('pointerleave', () => marked(index)?.classList.remove('active'));
+      }
+      row.append(element('code', null, issue.path || 'record'), element('span', null, issue.message));
+      item.append(row);
+      items.append(item);
+    }
+    return items;
+  }
+
+  function show(status, children) {
+    output.dataset.status = validator.dataset.status = status;
+    output.setAttribute('aria-busy', String(status === 'checking'));
+    output.replaceChildren(...children);
+  }
+
+  // jsonc-parser names errors like ColonExpected.
+  const words = code => code.replaceAll(/(?<=[a-z])(?=[A-Z])/g, ' ').replace(/^(\w)(.*)$/, (_, a, b) => a + b.toLowerCase());
+
+  function render() {
+    const text = input.value;
+    if (!text.trim()) {
+      mark('', []);
+      show('empty', [element('p', 'validator-summary', 'Paste a record to validate it.')]);
+      return;
+    }
+    const result = validateRecords(text, BaseAndChildrenSchema);
+    const failure = result.status === 'unreadable' ? parseFailure(text) : null;
+    if (failure) {
+      const entry = { issue: { path: `line ${failure.line}, column ${failure.column}`, message: `${words(failure.code)}.` }, range: failure, index: 0, kind: 'error' };
+      mark(text, [entry]);
+      show('unreadable', [element('p', 'validator-summary', 'Not valid JSON'), issues([entry], 'errors')]);
+      return;
+    }
+    const errors = result.errors ?? [];
+    const warnings = result.warnings ?? [];
+    const ranges = locateIssues(text, [...errors, ...warnings]);
+    const entries = [...errors, ...warnings].map((issue, index) => ({
+      issue,
+      range: ranges[index],
+      index,
+      kind: index < errors.length ? 'error' : 'warning',
+    }));
+    mark(text, entries);
+    show(outcome(result), [
+      element('p', 'validator-summary', summary(result)),
+      ...(errors.length ? [issues(entries.slice(0, errors.length), 'errors')] : []),
+      ...(warnings.length ? [issues(entries.slice(errors.length), 'warnings')] : []),
+    ]);
+  }
+
+  let timer;
+  function check() {
+    clearTimeout(timer);
+    if (output.dataset.status !== 'checking') {
+      show('checking', [element('p', 'validator-summary', 'Checking…')]);
+    }
+    timer = setTimeout(render, SETTLE);
+  }
+
+  function select(id) {
+    for (const chip of chips) chip.setAttribute('aria-pressed', String(chip.dataset.preset === id));
+  }
+
+  const clear = document.querySelector('[data-clear]');
+  const empty = document.querySelector('[data-empty]');
+  // With nothing to check, the editor explains itself instead of the result bar.
+  function updateEmpty() {
+    const blank = input.value.trim() === '';
+    clear.hidden = input.value === '';
+    empty.hidden = !blank;
+    output.hidden = blank;
+  }
+
+  input.addEventListener('scroll', sync);
+  new ResizeObserver(sync).observe(input);
+  input.addEventListener('input', () => {
+    // Marks would point at the wrong text until the next check.
+    backdrop.replaceChildren();
+    select(null);
+    updateEmpty();
+    check();
+  });
+  clear.addEventListener('click', () => {
+    clearTimeout(timer);
+    input.value = '';
+    select(null);
+    updateEmpty();
+    render();
+    input.focus();
+  });
+  for (const chip of chips) {
+    // Each chip shows how its example turns out.
+    chip.dataset.outcome = outcome(validateRecords(JSON.stringify(presets[chip.dataset.preset]), BaseAndChildrenSchema));
+    chip.addEventListener('click', () => {
+      select(chip.dataset.preset);
+      input.value = JSON.stringify(presets[chip.dataset.preset], null, 2);
+      input.scrollTop = 0;
+      updateEmpty();
+      check();
+    });
+  }
+  document.querySelector('[data-more]')?.addEventListener('click', event => {
+    for (const chip of chips) chip.hidden = false;
+    event.currentTarget.remove();
+  });
+  const paste = document.querySelector('[data-paste]');
+  if (navigator.clipboard?.readText) {
+    paste.hidden = false;
+    paste.addEventListener('click', async () => {
+      try {
+        input.value = await navigator.clipboard.readText();
+      } catch {
+        // Reading the clipboard can be refused; pasting by hand still works.
+      }
+      input.focus();
+      input.dispatchEvent(new Event('input'));
+    });
+  }
+  document.querySelector('[data-sample]')?.addEventListener('click', () => chips[0].click());
+
+  updateEmpty();
+  render();
+</script>

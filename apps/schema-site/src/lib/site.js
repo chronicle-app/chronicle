@@ -19,6 +19,16 @@ const BASE = import.meta.env.BASE_URL.replace(/\/?$/, '/');
 /** A path from the site root, such as `classes/index.html`, as a link. */
 export const url = path => BASE + path;
 
+export const REPOSITORY = 'https://github.com/chronicle-app/chronicle';
+
+/** A link to the schema change issue form, with the term filled in when given. */
+export function suggestChange(term) {
+  const query = new URLSearchParams({ template: 'schema-change.yml' });
+  query.set('title', term ? `Schema: ${term}` : 'Schema: ');
+  if (term) query.set('term', term);
+  return `${REPOSITORY}/issues/new?${query}`;
+}
+
 export const href = {
   class: name => url(paths.class(name)),
   property: name => url(paths.property(name)),
@@ -54,6 +64,12 @@ export const SECTIONS = {
     path: 'examples/index.html',
     title: 'Examples',
     description: 'Example records in Chronicle JSON, JSON-LD, and Turtle.',
+  },
+  validator: {
+    path: 'validator.html',
+    title: 'Validator',
+    description:
+      'Check records in Chronicle JSON or JSON-LD against the Chronicle vocabulary, in your browser.',
   },
 };
 

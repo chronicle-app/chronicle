@@ -147,7 +147,7 @@ export async function serializeExample(store, roots, statements) {
  * plain scalars for text, numbers, booleans, and dates. Dates are written as
  * ISO strings here; in TypeScript they are Date objects.
  */
-function toChronicle(value) {
+export function toChronicle(value) {
   if (Array.isArray(value)) return value.map(item => toChronicle(item));
   if (!value || typeof value !== 'object') return value;
   if ('@value' in value) {

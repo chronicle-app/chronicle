@@ -5,7 +5,7 @@ import PropertyTable from '../../components/PropertyTable.astro';
 import Prose from '../../components/Prose.astro';
 import TermLink from '../../components/TermLink.astro';
 import Layout from '../../layouts/Layout.astro';
-import { classes, firstSentence, href, isA, lineage, paths, plain, properties } from '../../lib/site.js';
+import { classes, firstSentence, href, isA, lineage, paths, plain, properties, suggestChange } from '../../lib/site.js';
 
 export function getStaticPaths() {
   return [...classes.values()].map(cls => ({ params: { name: cls.name }, props: { cls } }));
@@ -88,5 +88,5 @@ const toc = [
     )
   }
   <ExamplesSection examples={cls.examples} />
-  <p class="uri">URI <code>{cls.uri}</code></p>
+  <p class="uri">URI <code>{cls.uri}</code> · <a href={suggestChange(cls.name)}>Suggest a change</a></p>
 </Layout>

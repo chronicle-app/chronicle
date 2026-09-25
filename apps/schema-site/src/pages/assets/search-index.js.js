@@ -67,6 +67,7 @@ export function GET() {
         search: example.usedBy.join(' '),
       })
     ),
+    section('validator'),
   ];
   return new Response(
     `window.SCHEMA_SEARCH = ${JSON.stringify(index).replaceAll('<', '\\u003c')};\n`,
