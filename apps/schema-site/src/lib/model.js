@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { Parser, Store } from 'n3';
-import { schemaVersion } from '../scripts/schema-version.js';
+import { schemaVersion } from '../../../../core/schema/scripts/schema-version.js';
 import { serializeExample } from './example-payload.js';
 
 export const NAMESPACE = 'https://schema.chronicle.app/';
@@ -10,19 +11,22 @@ const OWL = 'http://www.w3.org/2002/07/owl#';
 const SKOS = 'http://www.w3.org/2004/02/skos/core#';
 const DOC = 'https://schema.chronicle.app/docs/';
 
-export const ONTOLOGY_FILE = new URL('../chronicle.ttl', import.meta.url);
-export const EXAMPLES_FILE = new URL('../examples.ttl', import.meta.url);
-
 const localName = uri => (uri.startsWith(NAMESPACE) ? uri.slice(NAMESPACE.length) : uri);
 const byName = (a, b) => a.name.localeCompare(b.name, 'en');
+
+/** Reads chronicle.ttl and examples.ttl from a schema package directory. */
+export async function readSchema(directory) {
+  return loadSchema({
+    ontology: await readFile(join(directory, 'chronicle.ttl'), 'utf8'),
+    examples: await readFile(join(directory, 'examples.ttl'), 'utf8'),
+  });
+}
 
 /**
  * Reads the vocabulary and its documentation examples into one graph. Each file
  * is parsed on its own, so prefixes and blank-node labels stay local to it.
  */
-export async function loadSchema({ ontology, examples } = {}) {
-  ontology ??= await readFile(ONTOLOGY_FILE, 'utf8');
-  examples ??= await readFile(EXAMPLES_FILE, 'utf8');
+export async function loadSchema({ ontology, examples }) {
   const store = new Store();
   // Keep statements in authored order so examples render as they are written.
   const statements = new Map();

@@ -1,5 +1,5 @@
 // Serves the schema documentation site at schema.chronicle.app from Cloudflare
-// Workers static assets. Build it first with `npm run docs:build:deploy`.
+// Workers static assets. Build it first with `npm run build:deploy`.
 {
   "name": "chronicle-schema",
   "compatibility_date": "2026-09-01",

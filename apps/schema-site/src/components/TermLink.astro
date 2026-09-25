@@ -1,0 +1,20 @@
+---
+import { classes, href, properties } from '../lib/site.js';
+
+interface Props {
+  name: string;
+}
+const { name } = Astro.props;
+const isClass = classes.has(name);
+const isProperty = !isClass && properties.has(name);
+---
+
+{
+  isClass ? (
+    <a class="term" href={href.class(name)}>{name}</a>
+  ) : isProperty ? (
+    <a class="term property" href={href.property(name)}>{name}</a>
+  ) : (
+    name
+  )
+}

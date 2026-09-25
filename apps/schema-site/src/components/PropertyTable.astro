@@ -1,0 +1,55 @@
+---
+// Properties grouped by the class that declares them.
+import { firstSentence, properties } from '../lib/site.js';
+import Cardinality from './Cardinality.astro';
+import ExpectedType from './ExpectedType.astro';
+import Prose from './Prose.astro';
+import TermLink from './TermLink.astro';
+
+interface Props {
+  /** Properties by the class that declares them. */
+  groups: { name: string; properties: string[] }[];
+  /** On a class page, the class shown: groups are then labeled by where they come from. */
+  owner?: string;
+  /** Show only the first sentence of each description. */
+  brief?: boolean;
+}
+const { groups, owner, brief = false } = Astro.props;
+---
+
+<div class="table-wrap">
+  <table class="properties">
+    <thead>
+      <tr><th scope="col">Property</th><th scope="col">Expected type</th><th scope="col">Description</th></tr>
+    </thead>
+    {
+      groups.map(group => (
+        <tbody>
+          {owner && (
+            <tr class="group">
+              <th colspan="3" scope="colgroup">
+                {group.name === owner ? `Properties of ${owner}` : <>From <TermLink name={group.name} /></>}
+              </th>
+            </tr>
+          )}
+          {group.properties.map(name => {
+            const property = properties.get(name);
+            return (
+              <tr>
+                <th scope="row">
+                  <TermLink name={name} /> <Cardinality property={property} />
+                </th>
+                <td>
+                  <ExpectedType range={property.range} />
+                </td>
+                <td>
+                  <Prose text={brief ? firstSentence(property.comment) : property.comment} />
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      ))
+    }
+  </table>
+</div>

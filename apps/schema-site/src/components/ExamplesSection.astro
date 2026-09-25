@@ -1,0 +1,30 @@
+---
+import { firstSentence, href } from '../lib/site.js';
+import Paragraphs from './Paragraphs.astro';
+import Payload from './Payload.astro';
+
+interface Props {
+  examples: { id: string; title: string; body: string }[];
+  heading?: string;
+}
+const { examples, heading = 'Examples' } = Astro.props;
+---
+
+{
+  examples.length > 0 && (
+    <section id="examples">
+      <h2>{heading}</h2>
+      {examples.map(example => (
+        <article class="example">
+          <header>
+            <h3>
+              <a href={href.example(example.id)}>{example.title}</a>
+            </h3>
+          </header>
+          <Paragraphs text={firstSentence(example.body)} />
+          <Payload example={example} />
+        </article>
+      ))}
+    </section>
+  )
+}

@@ -1,0 +1,30 @@
+---
+// Inline text: `code` spans and :Term references that become links. Inside
+// another link, such as a card, pass `links={false}`: links cannot nest, and
+// browsers end the outer link at the first inner one.
+import { tokenize } from '../lib/site.js';
+import TermLink from './TermLink.astro';
+
+interface Props {
+  text?: string;
+  links?: boolean;
+}
+const { text, links = true } = Astro.props;
+const tokens = tokenize(text);
+---
+
+{
+  tokens.map(token =>
+    token.type === 'code' ? (
+      <code>{token.text}</code>
+    ) : token.type === 'term' ? (
+      links ? (
+        <TermLink name={token.name} />
+      ) : (
+        token.name
+      )
+    ) : (
+      token.text
+    )
+  )
+}

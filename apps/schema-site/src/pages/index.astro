@@ -1,0 +1,71 @@
+---
+import Card from '../components/Card.astro';
+import ExampleCard from '../components/ExampleCard.astro';
+import Paragraphs from '../components/Paragraphs.astro';
+import Payload from '../components/Payload.astro';
+import Prose from '../components/Prose.astro';
+import TermList from '../components/TermList.astro';
+import Layout from '../layouts/Layout.astro';
+import { classes, descendants, examples, families, firstSentence, guides, href, plural, properties, schema, SECTIONS, url } from '../lib/site.js';
+
+const [featured, ...more] = schema.overview;
+---
+
+<Layout {...SECTIONS.home} kind="home">
+  <section class="hero">
+    <p class="eyebrow">Version {schema.version}</p>
+    <h1>Chronicle Schema</h1>
+    <p class="lead">
+      The classes and properties Chronicle’s plugins use to describe messages, shell commands, to-dos, and AI
+      conversations. It has {classes.size} classes and {properties.size} properties.
+    </p>
+    <div class="actions">
+      <a class="button primary" href={href.guide(guides[0].slug)}>Read the guides</a>
+      <a class="button" href={url('classes/index.html')}>Browse classes</a>
+      <button type="button" class="button ghost" data-open-search>Search <kbd data-shortcut>⌘K</kbd></button>
+    </div>
+  </section>
+  {
+    featured && (
+      <section class="feature">
+        <div class="feature-text">
+          <h2>{featured.title}</h2>
+          <Paragraphs text={featured.body} />
+          <p><a href={href.example(featured.id)}>Open this example →</a></p>
+        </div>
+        <Payload example={featured} />
+      </section>
+    )
+  }
+  <section>
+    <h2>Guides</h2>
+    <div class="grid">
+      {
+        guides.map(guide => (
+          <Card href={href.guide(guide.slug)} kicker={`Guide ${guide.number}`} title={guide.title}><Prose text={firstSentence(guide.lead)} links={false} /></Card>
+        ))
+      }
+    </div>
+  </section>
+  <section class="split">
+    {
+      families.map(family => (
+        <div>
+          <h2>{plural(family.name)}</h2>
+          <TermList names={descendants(family.name).sort()} />
+        </div>
+      ))
+    }
+  </section>
+  {
+    more.length > 0 && (
+      <section>
+        <h2>More examples</h2>
+        <div class="grid">
+          {more.map(example => <ExampleCard example={example} />)}
+          <a class="card card-more" href={url('examples/index.html')}><strong>All {examples.length} examples →</strong></a>
+        </div>
+      </section>
+    )
+  }
+</Layout>

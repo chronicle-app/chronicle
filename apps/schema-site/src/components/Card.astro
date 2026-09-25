@@ -1,0 +1,15 @@
+---
+interface Props {
+  href: string;
+  kicker?: string;
+  title: string;
+  class?: string;
+}
+const { href, kicker, title, class: className } = Astro.props;
+---
+
+<a class:list={['card', className]} href={href}>
+  {kicker && <span class="card-kicker">{kicker}</span>}
+  <strong>{title}</strong>
+  {Astro.slots.has('default') && <span class="card-text"><slot /></span>}
+</a>

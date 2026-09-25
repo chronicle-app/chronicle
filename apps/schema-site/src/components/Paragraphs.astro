@@ -1,0 +1,16 @@
+---
+import { paragraphs } from '../lib/site.js';
+import Prose from './Prose.astro';
+
+interface Props {
+  text: string;
+}
+---
+
+{
+  paragraphs(Astro.props.text).map(paragraph => (
+    <p>
+      <Prose text={paragraph} />
+    </p>
+  ))
+}

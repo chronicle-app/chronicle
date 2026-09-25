@@ -1,0 +1,35 @@
+---
+import PropertyTable from '../../components/PropertyTable.astro';
+import TermLink from '../../components/TermLink.astro';
+import Layout from '../../layouts/Layout.astro';
+import { classes, lineage, SECTIONS, slugify } from '../../lib/site.js';
+
+const groups = [...classes.values()]
+  .filter(cls => cls.properties.length)
+  .sort(
+    (a, b) =>
+      a.ancestors.length - b.ancestors.length || lineage(a.name).join('/').localeCompare(lineage(b.name).join('/'))
+  );
+const toc = groups.map(cls => ({ id: `on-${slugify(cls.name)}`, title: cls.name }));
+---
+
+<Layout {...SECTIONS.properties} kind="properties" toc={toc}>
+  <header class="page-header">
+    <p class="eyebrow">Reference</p>
+    <h1>Properties</h1>
+    <p class="lead">
+      A property is a field of a record: a plain value or a link to another record. Cardinality in the ontology sets how
+      many values a property takes: <span class="tag">one</span> means at most one value,
+      <span class="tag tag-many">many</span> means a list, and <span class="tag tag-required">required</span> means a
+      record of that class must have it (<code>owl:minCardinality 1</code>).
+    </p>
+  </header>
+  {
+    groups.map(cls => (
+      <section id={`on-${slugify(cls.name)}`}>
+        <h2>On <TermLink name={cls.name} /></h2>
+        <PropertyTable groups={[{ name: cls.name, properties: cls.properties }]} brief />
+      </section>
+    ))
+  }
+</Layout>

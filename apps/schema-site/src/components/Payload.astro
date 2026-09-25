@@ -1,0 +1,52 @@
+---
+// One example record in Chronicle JSON, JSON-LD, and Turtle, as tabs.
+import { jsonHtml, turtleHtml } from '../lib/highlight.js';
+
+interface Props {
+  example: { id: string; chronicle: unknown; jsonld: unknown; turtle: string };
+}
+const { example } = Astro.props;
+// Examples can appear more than once on a page, so ids take a page-wide count.
+const count = (Astro.locals.payloads = (Astro.locals.payloads ?? 0) + 1);
+const id = `payload-${count - 1}`;
+const formats = [
+  { format: 'chronicle', label: 'Chronicle JSON', html: jsonHtml(example.chronicle) },
+  { format: 'jsonld', label: 'JSON-LD', html: jsonHtml(example.jsonld) },
+  { format: 'turtle', label: 'Turtle', html: turtleHtml(example.turtle) },
+];
+---
+
+<div class="payload" data-payload>
+  <div class="payload-bar">
+    <div class="tabs" role="tablist" aria-label="Format">
+      {
+        formats.map(({ format, label }, index) => (
+          <button
+            type="button"
+            role="tab"
+            id={`${id}-${format}-tab`}
+            aria-controls={`${id}-${format}`}
+            aria-selected={index === 0 ? 'true' : 'false'}
+            tabindex={index === 0 ? 0 : -1}
+            data-format={format}
+          >
+            {label}
+          </button>
+        ))
+      }
+    </div>
+    <button type="button" class="copy" data-copy><span>Copy</span></button>
+  </div>
+  {
+    formats.map(({ format, html }, index) => (
+      <pre
+        role="tabpanel"
+        id={`${id}-${format}`}
+        aria-labelledby={`${id}-${format}-tab`}
+        data-panel={format}
+        tabindex="0"
+        hidden={index > 0}
+      ><code set:html={html} /></pre>
+    ))
+  }
+</div>
