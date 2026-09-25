@@ -5,7 +5,7 @@ import ExpectedType from '../../components/ExpectedType.astro';
 import Prose from '../../components/Prose.astro';
 import TermLink from '../../components/TermLink.astro';
 import Layout from '../../layouts/Layout.astro';
-import { paths, properties } from '../../lib/site.js';
+import { paths, properties, suggestChange } from '../../lib/site.js';
 
 export function getStaticPaths() {
   return [...properties.values()].map(property => ({ params: { name: property.name }, props: { property } }));
@@ -33,5 +33,5 @@ const toc = property.examples.length > 0 ? [{ id: 'examples', title: 'Examples' 
     <div><dt>Required</dt><dd>{property.min > 0 ? 'Yes' : 'No'}</dd></div>
   </dl>
   <ExamplesSection examples={property.examples} />
-  <p class="uri">URI <code>{property.uri}</code></p>
+  <p class="uri">URI <code>{property.uri}</code> · <a href={suggestChange(property.name)}>Suggest a change</a></p>
 </Layout>

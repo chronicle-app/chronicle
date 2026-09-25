@@ -1,6 +1,17 @@
 ---
 // The page shell: top bar, sidebar, table of contents, footer, and search dialog.
-import { classes, examples, firstSentence, guides, paths, properties, schema, url } from '../lib/site.js';
+import {
+  classes,
+  examples,
+  firstSentence,
+  guides,
+  paths,
+  properties,
+  REPOSITORY,
+  schema,
+  suggestChange,
+  url,
+} from '../lib/site.js';
 
 interface Props {
   /** The page's path from the site root, e.g. classes/Message.html. */
@@ -13,7 +24,6 @@ interface Props {
 const { path: current, title, kind, description = '', toc = [] } = Astro.props;
 const nav = (path: string) => ({ href: url(path), 'aria-current': path === current ? 'page' : undefined });
 const open = (prefix: string) => current.startsWith(prefix);
-const REPOSITORY = 'https://github.com/chronicle-app/chronicle';
 ---
 
 <!doctype html>
@@ -95,6 +105,7 @@ const REPOSITORY = 'https://github.com/chronicle-app/chronicle';
           <span>Chronicle vocabulary v{schema.version}</span>
           <span>Namespace <code>https://schema.chronicle.app/</code></span>
           <a href={url('chronicle.ttl')} download>Download the ontology</a>
+          <a href={suggestChange()}>Suggest a new term</a>
           <a href="https://chronicle.app/">Chronicle</a>
           <span class="footer-copyright">© {new Date().getFullYear()} <a href="https://hyfen.net/">Andrew Louis</a></span>
         </footer>

@@ -296,6 +296,11 @@ test('a release snapshot links within its own path', async () => {
     checkLinks(output, base);
     const page = readFileSync(join(output, 'classes', 'Thing.html'), 'utf8');
     assert.match(page, /data-root="\/releases\/0\.2\.0\/"/);
+    // Term pages link to the schema change form with the term filled in.
+    assert.match(
+      page,
+      /href="[^"]*\/issues\/new\?template=schema-change\.yml[^"]*&amp;term=Thing"/
+    );
     // Descriptions are escaped, and :term references become links.
     assert.match(
       page,
@@ -314,4 +319,13 @@ test('a release snapshot links within its own path', async () => {
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('the schema change form has the fields the site fills in', () => {
+  const form = readFileSync(
+    new URL('../../../.github/ISSUE_TEMPLATE/schema-change.yml', import.meta.url),
+    'utf8'
+  );
+  assert.match(form, /^\s+id: term$/m);
+  assert.match(form, /^title: 'Schema: '$/m);
 });

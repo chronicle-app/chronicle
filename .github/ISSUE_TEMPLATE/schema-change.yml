@@ -1,0 +1,38 @@
+name: Schema change
+description: Suggest a new term or a change to one in the Chronicle schema.
+title: 'Schema: '
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        The schema stays small: terms are added when a source needs them. See
+        [schema.chronicle.app](https://schema.chronicle.app/) for the current
+        classes and properties.
+  - type: input
+    id: term
+    attributes:
+      label: Term
+      description: The class or property, or the name you would give a new one.
+      placeholder: Message
+  - type: textarea
+    id: change
+    attributes:
+      label: What should change
+      description: A new term, a different definition or range, or anything else.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: The source or plugin that needs it, and what it would record.
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Example
+      description: >-
+        A record in Chronicle JSON that uses the term. This issue is public, so
+        use made-up people, accounts, and identifiers, not your own data.
+      render: json
