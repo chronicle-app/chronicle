@@ -108,6 +108,24 @@ test('CSV static command accepts piped input and file input', t => {
   assert.equal(JSON.parse(success(piped)).value, '42');
 });
 
+test('transformation flags pick fields, sample records and truncate base64', t => {
+  const { dir, input, run } = fixture(t);
+  const args = ['extract', 'shell', '--input', input, '--raw', '--limit', '0', '--loader', 'csv'];
+  assert.equal(
+    success(run(...args, '--fields', 'command')),
+    'command\nprintf fixture\necho synthetic\n'
+  );
+  assert.equal(success(run(...args, '--sample', '0')), '');
+  assert.equal(success(run(...args, '--sample', '1')).split('\n').length, 4);
+  assert.notEqual(run(...args, '--sample', '2').status, 0);
+
+  const csv = join(dir, 'encoded.csv');
+  writeFileSync(csv, `name,encoded\nsynthetic,${'A'.repeat(200)}\n`);
+  const record = JSON.parse(success(run('extract', 'csv', '--input', csv, '--truncate-base64')));
+  assert.equal(record.name, 'synthetic');
+  assert.equal(record.encoded.length, 103);
+});
+
 test('global config and explicit flag precedence reach the dynamic dispatcher', t => {
   const { input, run } = fixture(t);
   success(run('config', 'set', 'limit', '1'));
@@ -116,10 +134,13 @@ test('global config and explicit flag precedence reach the dynamic dispatcher', 
   assert.equal((success(run(...args, '--limit', '0')).match(/"command"/g) || []).length, 2);
 });
 
-test('auth stores synthetic credentials and noninteractive missing token fails promptly', t => {
+test('auth stores and removes synthetic credentials; missing token fails promptly', t => {
   const { dir, run } = fixture(t);
   success(run('auth', 'set', 'fixture', '--token', 'synthetic-token'));
   assert.match(readFileSync(join(dir, 'config/credentials.json'), 'utf8'), /synthetic-token/);
+  assert.match(success(run('auth', 'status', 'fixture')), /Valid/);
+  success(run('auth', 'remove', 'fixture'));
+  assert.match(success(run('auth', 'status', 'fixture')), /No credentials stored/);
   const result = run('auth', 'set', 'missing');
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /--token/);
@@ -147,15 +168,16 @@ test('installed plugin discovery uses oclif data directory, including unscoped p
   );
 });
 
-test('unsupported loader and missing input file fail without success output', t => {
+test('unsupported loader and missing input file fail without success output, even when quiet', t => {
   const { run } = fixture(t);
   for (const args of [
     ['--loader', 'store'],
     ['--input', '/nonexistent-synthetic-history'],
   ]) {
-    const result = run('extract', 'shell', ...args);
+    const result = run('extract', 'shell', ...args, '--quiet');
     assert.notEqual(result.status, 0);
     assert.equal(result.stdout, '');
+    assert.notEqual(result.stderr, '');
     assert.doesNotMatch(result.stderr, /re-run to resume/);
   }
 });

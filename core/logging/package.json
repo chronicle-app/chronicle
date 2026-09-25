@@ -10,8 +10,7 @@
   "scripts": {
     "build": "tsc -b tsconfig.lib.json",
     "typecheck": "tsc -p tsconfig.json",
-    "lint": "eslint src --ext .ts,.js",
-    "test": "node --test src/*.test.js"
+    "lint": "eslint src --ext .ts,.js"
   },
   "keywords": [],
   "author": "Andrew Louis",

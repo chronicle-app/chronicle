@@ -16,6 +16,10 @@ function extractorResolving(name) {
   };
 }
 
+function failing() {
+  throw new Error('denied');
+}
+
 function fixture(t) {
   const dir = mkdtempSync(join(tmpdir(), 'things-fixture-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
@@ -106,7 +110,7 @@ test('independent edits emit an update, missing optional enrichment is valid', a
   );
   assert.equal(actions[1].data.timestamp.getTime(), 500_000);
 });
-test('owner name comes from the local account unless agentName overrides it', async t => {
+test('owner name comes from the macOS account unless agentName overrides it', async t => {
   const input = fixture(t);
   const [resolved] = await records(input, { limit: 1 }, extractorResolving('Pat Example'));
   assert.equal(resolved.context.agent.name, 'Pat Example');
@@ -129,8 +133,8 @@ test('owner name comes from the local account unless agentName overrides it', as
   const [anonymous] = await new ThingsTodoTransformer().performTransform(unnamed);
   assert.equal(anonymous.data.agent.name, undefined);
   assert.deepEqual(anonymous.data.agent['@key'], ['@type', 'source']);
-});
-test('local account name reads the macOS full name and is absent elsewhere', () => {
+
+  // The name comes from `id -F` on macOS, and is left out when it can't be read.
   const calls = [];
   const run = (command, args) => {
     calls.push([command, args]);
@@ -138,23 +142,11 @@ test('local account name reads the macOS full name and is absent elsewhere', () 
   };
   assert.equal(localAccountName({ platform: 'darwin', run }), 'Pat Example');
   assert.deepEqual(calls, [['/usr/bin/id', ['-F']]]);
-  assert.equal(localAccountName({ platform: 'darwin', run: () => '  \n' }), undefined);
-  assert.equal(
-    localAccountName({
-      platform: 'darwin',
-      run() {
-        throw new Error('denied');
-      },
-    }),
-    undefined
-  );
-  assert.equal(
-    localAccountName({
-      platform: 'linux',
-      run() {
-        throw new Error('must not run');
-      },
-    }),
-    undefined
-  );
+  for (const options of [
+    { platform: 'darwin', run: () => '  \n' },
+    { platform: 'darwin', run: failing },
+    { platform: 'linux', run: failing },
+  ]) {
+    assert.equal(localAccountName(options), undefined);
+  }
 });

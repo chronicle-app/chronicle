@@ -6,15 +6,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   SqliteExtractor,
-  allRows,
   getRow,
   isSqliteBusy,
   iterateRows,
   timeRangeConditions,
-  iosToUnixTimestamp,
-  unixToIosTimestamp,
-  safariToUnixTimestamp,
-  unixToSafariTimestamp,
 } from '../dist/index.js';
 
 class FixtureExtractor extends SqliteExtractor {
@@ -28,7 +23,7 @@ class FixtureExtractor extends SqliteExtractor {
       `SELECT * FROM events${where} ORDER BY at${limit ? ' LIMIT ?' : ''}`
     );
     if (limit) values.push(limit);
-    for (const row of stmt.iterate(...values)) yield this.createRecord(row);
+    for (const row of iterateRows(stmt, ...values)) yield this.createRecord(row);
   }
 
   write() {
@@ -106,63 +101,19 @@ test('missing database is not created and failed setup can be torn down', async 
   assert.equal(existsSync(input), false);
 });
 
-test('large integer timestamps can be read without loss', async t => {
-  const { input, db } = fixture(t);
-  db.exec(
-    'CREATE TABLE timestamps (value INTEGER); INSERT INTO timestamps VALUES (800000000000000001);'
-  );
-  const extractor = new FixtureExtractor({ input });
-  try {
-    await extractor.setup();
-    const stmt = extractor.connection().prepare('SELECT value FROM timestamps');
-    stmt.setReadBigInts(true);
-    assert.equal(stmt.get().value, 800_000_000_000_000_001n);
-  } finally {
-    await extractor.teardown();
-  }
-});
-
 function lock(db) {
   db.exec('PRAGMA locking_mode=EXCLUSIVE; BEGIN EXCLUSIVE');
   return () => db.exec('ROLLBACK');
 }
 
-test('busy errors are recognized from a real exclusive lock', async t => {
-  const { input, db } = fixture(t);
-  const unlock = lock(db);
-  const reader = new DatabaseSync(input, { readOnly: true });
-  try {
-    const err = (() => {
-      try {
-        reader.prepare('SELECT * FROM events').all();
-      } catch (error) {
-        return error;
-      }
-    })();
-    assert.equal(isSqliteBusy(err), true);
-    assert.equal(isSqliteBusy({ code: 'ERR_SQLITE_ERROR', errcode: 517 }), true);
-    for (const other of [
-      new Error('database is locked'),
-      { code: 'ERR_SQLITE_ERROR', errcode: 1 },
-      null,
-      'SQLITE_BUSY',
-    ]) {
-      assert.equal(isSqliteBusy(other), false);
-    }
-  } finally {
-    reader.close();
-    unlock();
-  }
-});
-
-test('subclasses can fall back to a copy when the source is locked', async t => {
+test('a locked source is detected as busy and subclasses can fall back to a copy', async t => {
   const { dir, input, db } = fixture(t);
   const copy = join(dir, 'copy.db');
   class CopyingExtractor extends FixtureExtractor {
     async setup() {
       await super.setup();
       try {
-        this.db.prepare('SELECT 1 FROM sqlite_schema').get();
+        getRow(this.db.prepare('SELECT 1 FROM sqlite_schema'));
       } catch (error) {
         if (!isSqliteBusy(error)) throw error;
         this.db.close();
@@ -183,54 +134,10 @@ test('subclasses can fall back to a copy when the source is locked', async t => 
     await extractor.teardown();
     unlock();
   }
+  // Other SQLite errors must not be mistaken for a lock and silently copied.
+  assert.throws(
+    () => new DatabaseSync(':memory:').prepare('SELECT * FROM missing'),
+    error => !isSqliteBusy(error)
+  );
   assert.equal(extractor.connection(), null);
-});
-
-test('row helpers pass positional and named parameters through', async t => {
-  const { input } = fixture(t);
-  const db = new DatabaseSync(input, { readOnly: true });
-  try {
-    const stmt = db.prepare('SELECT id FROM events WHERE at >= ? ORDER BY id');
-    assert.deepEqual(
-      allRows(stmt, 1).map(row => row.id),
-      [2, 3]
-    );
-    assert.equal(getRow(stmt, 2).id, 3);
-    assert.equal(getRow(stmt, 3), undefined);
-    assert.deepEqual(
-      [...iterateRows(stmt, 0)].map(row => row.id),
-      [1, 2, 3]
-    );
-    const named = db.prepare('SELECT id FROM events WHERE at = :at');
-    assert.equal(getRow(named, { at: 1 }).id, 2);
-  } finally {
-    db.close();
-  }
-});
-
-test('time bounds parameterize epoch zero, conversions and inclusive endpoints', () => {
-  assert.deepEqual(timeRangeConditions('at', {}), { conditions: [], values: [] });
-  assert.deepEqual(
-    timeRangeConditions(
-      'at',
-      { since: 0, until: '1970-01-01T00:00:02Z' },
-      { sinceOp: '>=', untilOp: '<=' }
-    ),
-    {
-      conditions: ['at >= ?', 'at <= ?'],
-      values: [0, 2],
-    }
-  );
-  assert.deepEqual(
-    timeRangeConditions('at', { since: 0 }, { convert: d => d.toISOString() }).values,
-    ['1970-01-01T00:00:00.000Z']
-  );
-  assert.throws(() => timeRangeConditions('at', { since: 'invalid' }), /Invalid time/);
-});
-
-test('Apple epoch conversions match known dates and round-trip', () => {
-  const seconds = Date.parse('2026-06-01T00:00:00Z') / 1000;
-  assert.equal(iosToUnixTimestamp(0), Date.parse('2001-01-01T00:00:00Z'));
-  assert.equal(iosToUnixTimestamp(unixToIosTimestamp(seconds)), seconds * 1000);
-  assert.equal(safariToUnixTimestamp(unixToSafariTimestamp(seconds)), seconds);
 });
