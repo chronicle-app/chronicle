@@ -59,6 +59,7 @@ try {
   for (const directory of packageDirectories) {
     const cwd = resolve(directory);
     const pkg = JSON.parse(readFileSync(join(cwd, 'package.json'), 'utf8'));
+    if (pkg.private) continue;
     const [packed] = JSON.parse(
       run([npm, 'pack', '--json', '--pack-destination', destination], cwd, true)
     );

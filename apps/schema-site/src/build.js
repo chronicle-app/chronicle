@@ -7,7 +7,7 @@ import { loadSchema, ONTOLOGY_FILE } from './model.js';
 import { renderSite } from './render.js';
 
 export const DEFAULT_OUTPUT = fileURLToPath(new URL('../build/site/', import.meta.url));
-const ASSETS = new URL('assets/', import.meta.url);
+const ASSETS = new URL('../assets/', import.meta.url);
 const plain = text => text.replaceAll(TERM, match => match.slice(1)).replaceAll(/\s+/g, ' ');
 
 /** Builds the documentation site into `output`, replacing what was there. */

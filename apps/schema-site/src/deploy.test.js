@@ -4,7 +4,7 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { releaseTags } from '../scripts/release-tags.js';
+import { releaseTags } from '../../../core/schema/scripts/release-tags.js';
 import { checkPublished, firstReleases, redirects } from './deploy.js';
 
 const ontology = version => `@prefix owl: <http://www.w3.org/2002/07/owl#> .

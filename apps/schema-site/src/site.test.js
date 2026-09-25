@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
-import { BaseAndChildrenSchema } from '../dist/index.js';
+import { BaseAndChildrenSchema } from '../../../core/schema/dist/index.js';
 import { buildSite } from './build.js';
 import { loadSchema } from './model.js';
 

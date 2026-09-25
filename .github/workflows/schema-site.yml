@@ -9,6 +9,7 @@ on:
     branches: [main]
     paths:
       - core/schema/**
+      - apps/schema-site/**
       - .github/workflows/schema-site.yml
   workflow_dispatch:
     inputs:
@@ -38,11 +39,11 @@ jobs:
           node-version: 24
           package-manager-cache: false
       - run: npm ci
-      - run: npm run docs:build:deploy -w @chronicle.app/schema -- ${{ inputs.skip-published-check && '--skip-published-check' || '' }}
+      - run: npm run build:deploy -w @chronicle.app/schema-site -- ${{ inputs.skip-published-check && '--skip-published-check' || '' }}
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: core/schema
+          workingDirectory: apps/schema-site
           wranglerVersion: '4'
           command: deploy

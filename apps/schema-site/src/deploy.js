@@ -4,12 +4,16 @@
 // version, rebuilt from its tag, since each deployment replaces the whole site.
 // Rebuilt snapshots are compared with what is already published.
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { git, listReleaseTags, ontologyAt, SCHEMA } from '../scripts/release-tags.js';
-import { schemaVersion } from '../scripts/schema-version.js';
+import {
+  git,
+  listReleaseTags,
+  ontologyAt,
+  SCHEMA,
+} from '../../../core/schema/scripts/release-tags.js';
+import { schemaVersion } from '../../../core/schema/scripts/schema-version.js';
 import { buildSite } from './build.js';
 
 export const DEPLOY_OUTPUT = fileURLToPath(new URL('../build/deploy/', import.meta.url));
@@ -17,6 +21,8 @@ export const PUBLISHED = 'https://schema.chronicle.app';
 // Tags are extracted under build/ so their site code resolves this checkout's
 // node_modules.
 const CHECKOUTS = fileURLToPath(new URL('../build/tags/', import.meta.url));
+export const SITE = 'apps/schema-site';
+const BUILDER = `${SITE}/src/build.js`;
 
 /**
  * Maps each vocabulary version to the first release that shipped it, from
@@ -59,15 +65,19 @@ export async function checkPublished(output, versions, base = PUBLISHED) {
 
 /** Builds the site as of `tag` into `output`. Returns false for tags without one. */
 async function buildTag(tag, output) {
+  try {
+    git(['cat-file', '-e', `${tag}:${BUILDER}`], { stdio: 'pipe' });
+  } catch {
+    return false;
+  }
   const checkout = join(CHECKOUTS, tag);
   await rm(checkout, { recursive: true, force: true });
   await mkdir(checkout, { recursive: true });
+  // The site reads the vocabulary by path, so both keep their repository layout.
   execFileSync('tar', ['-x', '-C', checkout], {
-    input: git(['archive', tag, SCHEMA], { maxBuffer: 1024 ** 3 }),
+    input: git(['archive', tag, SCHEMA, SITE], { maxBuffer: 1024 ** 3 }),
   });
-  const builder = join(checkout, SCHEMA, 'site/build.js');
-  if (!existsSync(builder)) return false;
-  execFileSync(process.execPath, [builder, output], { stdio: 'inherit' });
+  execFileSync(process.execPath, [join(checkout, BUILDER), output], { stdio: 'inherit' });
   return true;
 }
 

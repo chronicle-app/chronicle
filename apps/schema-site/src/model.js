@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { Parser, Store } from 'n3';
-import { schemaVersion } from '../scripts/schema-version.js';
+import { schemaVersion } from '../../../core/schema/scripts/schema-version.js';
 import { serializeExample } from './example-payload.js';
 
 export const NAMESPACE = 'https://schema.chronicle.app/';
@@ -10,8 +10,11 @@ const OWL = 'http://www.w3.org/2002/07/owl#';
 const SKOS = 'http://www.w3.org/2004/02/skos/core#';
 const DOC = 'https://schema.chronicle.app/docs/';
 
-export const ONTOLOGY_FILE = new URL('../chronicle.ttl', import.meta.url);
-export const EXAMPLES_FILE = new URL('../examples.ttl', import.meta.url);
+// Read by path rather than through the installed package, so a release tag's
+// site is rebuilt from that tag's vocabulary.
+export const SCHEMA_DIRECTORY = new URL('../../../core/schema/', import.meta.url);
+export const ONTOLOGY_FILE = new URL('chronicle.ttl', SCHEMA_DIRECTORY);
+export const EXAMPLES_FILE = new URL('examples.ttl', SCHEMA_DIRECTORY);
 
 const localName = uri => (uri.startsWith(NAMESPACE) ? uri.slice(NAMESPACE.length) : uri);
 const byName = (a, b) => a.name.localeCompare(b.name, 'en');

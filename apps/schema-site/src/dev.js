@@ -7,6 +7,7 @@ import { createServer } from 'node:http';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DEFAULT_OUTPUT } from './build.js';
+import { EXAMPLES_FILE, ONTOLOGY_FILE } from './model.js';
 
 const port = Number(process.env.PORT ?? 4321);
 const types = {
@@ -38,9 +39,12 @@ function rebuild() {
 }
 
 await build();
-const schemaDirectory = new URL('../', import.meta.url);
-for (const path of ['chronicle.ttl', 'examples.ttl', 'guides/', 'site/']) {
-  watch(new URL(path, schemaDirectory), { recursive: true }, rebuild);
+for (const url of [
+  ONTOLOGY_FILE,
+  EXAMPLES_FILE,
+  ...['assets/', 'guides/', 'src/'].map(path => new URL(`../${path}`, import.meta.url)),
+]) {
+  watch(url, { recursive: true }, rebuild);
 }
 
 createServer(async (request, response) => {

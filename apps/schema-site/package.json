@@ -1,0 +1,28 @@
+{
+  "name": "@chronicle.app/schema-site",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The Chronicle schema documentation site, schema.chronicle.app",
+  "type": "module",
+  "scripts": {
+    "build": "node src/build.js",
+    "build:deploy": "node src/deploy.js",
+    "dev": "node src/dev.js",
+    "test": "node --test src/*.test.js",
+    "lint": "eslint src assets --ext .js"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "devDependencies": {
+    "markdown-it": "^14.3.2",
+    "n3": "^1.23.1"
+  },
+  "author": "Andrew Louis",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chronicle-app/chronicle.git",
+    "directory": "apps/schema-site"
+  }
+}
