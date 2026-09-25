@@ -1,11 +1,15 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
-import { mkdtempSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { copyFileSync, mkdtempSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   SqliteExtractor,
+  allRows,
+  getRow,
+  isSqliteBusy,
+  iterateRows,
   timeRangeConditions,
   iosToUnixTimestamp,
   unixToIosTimestamp,
@@ -115,6 +119,92 @@ test('large integer timestamps can be read without loss', async t => {
     assert.equal(stmt.get().value, 800_000_000_000_000_001n);
   } finally {
     await extractor.teardown();
+  }
+});
+
+function lock(db) {
+  db.exec('PRAGMA locking_mode=EXCLUSIVE; BEGIN EXCLUSIVE');
+  return () => db.exec('ROLLBACK');
+}
+
+test('busy errors are recognized from a real exclusive lock', async t => {
+  const { input, db } = fixture(t);
+  const unlock = lock(db);
+  const reader = new DatabaseSync(input, { readOnly: true });
+  try {
+    const err = (() => {
+      try {
+        reader.prepare('SELECT * FROM events').all();
+      } catch (error) {
+        return error;
+      }
+    })();
+    assert.equal(isSqliteBusy(err), true);
+    assert.equal(isSqliteBusy({ code: 'ERR_SQLITE_ERROR', errcode: 517 }), true);
+    for (const other of [
+      new Error('database is locked'),
+      { code: 'ERR_SQLITE_ERROR', errcode: 1 },
+      null,
+      'SQLITE_BUSY',
+    ]) {
+      assert.equal(isSqliteBusy(other), false);
+    }
+  } finally {
+    reader.close();
+    unlock();
+  }
+});
+
+test('subclasses can fall back to a copy when the source is locked', async t => {
+  const { dir, input, db } = fixture(t);
+  const copy = join(dir, 'copy.db');
+  class CopyingExtractor extends FixtureExtractor {
+    async setup() {
+      await super.setup();
+      try {
+        this.db.prepare('SELECT 1 FROM sqlite_schema').get();
+      } catch (error) {
+        if (!isSqliteBusy(error)) throw error;
+        this.db.close();
+        this.db = null;
+        copyFileSync(input, copy);
+        this.db = this.openDatabase(copy);
+      }
+    }
+  }
+  const unlock = lock(db);
+  const extractor = new CopyingExtractor({ input });
+  try {
+    await extractor.setup();
+    assert.equal(existsSync(copy), true);
+    assert.deepEqual(await collect(extractor), [1, 2, 3]);
+    assert.throws(() => extractor.write(), /readonly|read-only/i);
+  } finally {
+    await extractor.teardown();
+    unlock();
+  }
+  assert.equal(extractor.connection(), null);
+});
+
+test('row helpers pass positional and named parameters through', async t => {
+  const { input } = fixture(t);
+  const db = new DatabaseSync(input, { readOnly: true });
+  try {
+    const stmt = db.prepare('SELECT id FROM events WHERE at >= ? ORDER BY id');
+    assert.deepEqual(
+      allRows(stmt, 1).map(row => row.id),
+      [2, 3]
+    );
+    assert.equal(getRow(stmt, 2).id, 3);
+    assert.equal(getRow(stmt, 3), undefined);
+    assert.deepEqual(
+      [...iterateRows(stmt, 0)].map(row => row.id),
+      [1, 2, 3]
+    );
+    const named = db.prepare('SELECT id FROM events WHERE at = :at');
+    assert.equal(getRow(named, { at: 1 }).id, 2);
+  } finally {
+    db.close();
   }
 });
 
