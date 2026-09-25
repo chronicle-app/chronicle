@@ -21,7 +21,8 @@ export function readManifest(tarball) {
 }
 
 export function isPublished(name, version) {
-  const result = run('npm', ['view', `${name}@${version}`, 'version']);
+  // Ask the registry rather than npm's cache, which can miss a new version.
+  const result = run('npm', ['view', `${name}@${version}`, 'version', '--prefer-online']);
   return result.status === 0 && result.stdout.trim() === version;
 }
 
