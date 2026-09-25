@@ -453,6 +453,9 @@ main:focus {
 .footer a {
   color: var(--muted);
 }
+.footer-copyright {
+  margin-left: auto;
+}
 
 /* ------------------------------------------------------------- typography */
 
