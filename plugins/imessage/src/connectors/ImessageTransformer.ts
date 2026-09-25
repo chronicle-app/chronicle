@@ -141,7 +141,7 @@ export default class ImessageTransformer extends ChronicleTransformer {
 
     const identity =
       agentSource === 'icloud'
-        ? ((await buildICloudPersonSchema(record.context.myIcloudAccount)) as Person)
+        ? await buildICloudPersonSchema(record.context.myIcloudAccount)
         : this.buildMyPhoneIdentity(record);
     // Tag the account owner as self. The iCloud branch (buildICloudPersonSchema)
     // already self-tags, so add `@me` only when it isn't already present.

@@ -81,7 +81,7 @@ export default class ClaudeCodeTransformer extends ChronicleTransformer {
    * account gets the per-source singleton; `@me` still merges both.
    */
   private self(account: Account | undefined): Person {
-    if (!account) return selfAgent({ source: SOURCE }) as Person;
+    if (!account) return selfAgent({ source: SOURCE });
     const sameAs: Agent[] = account.email
       ? [
           {
@@ -99,7 +99,7 @@ export default class ClaudeCodeTransformer extends ChronicleTransformer {
       handle: account.email,
       name: account.name,
       sameAs,
-    }) as Person;
+    });
   }
 
   /**

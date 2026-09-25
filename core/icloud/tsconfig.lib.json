@@ -9,6 +9,9 @@
   "references": [
     {
       "path": "../etl/tsconfig.lib.json"
+    },
+    {
+      "path": "../schema/tsconfig.lib.json"
     }
   ]
 }
