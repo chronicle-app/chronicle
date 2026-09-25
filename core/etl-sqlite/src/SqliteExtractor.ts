@@ -17,7 +17,16 @@ export abstract class SqliteExtractor<
     if (this.db) throw new Error('Database already initialized');
     await super.setup();
     const { input } = this.config as { input: string };
-    this.db = new DatabaseSync(input, { readOnly: true });
+    this.db = this.openDatabase(input);
+  }
+
+  /**
+   * Open a database read-only without changing its journal mode. `setup()`
+   * opens `input` with this; subclasses can call it to read another file, such
+   * as a copy of a locked database, after closing and clearing `this.db`.
+   */
+  protected openDatabase(path: string): DatabaseSync {
+    return new DatabaseSync(path, { readOnly: true });
   }
 
   override async teardown(): Promise<void> {
