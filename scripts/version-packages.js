@@ -14,7 +14,22 @@ const packages = root.workspaces.flatMap(pattern => {
     .map(path => ({ path, pkg: read(path) }));
 });
 const names = new Set(packages.map(({ pkg }) => pkg.name));
-const sections = ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies'];
+// Internal peer dependencies are ranges (`>=0.1.0 <1.0.0`) so a host that
+// provides its own @chronicle.app/etl or schema satisfies them; every other
+// internal dependency is pinned to the shared version.
+const sections = ['dependencies', 'devDependencies', 'optionalDependencies'];
+const peerSection = 'peerDependencies';
+const parseVersion = version => version.split('-')[0].split('.').map(Number);
+const compareVersions = (a, b) => {
+  const [x, y] = [parseVersion(a), parseVersion(b)];
+  for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] - y[i];
+  return 0;
+};
+const peerRangeIncludes = (range, version) => {
+  const match = /^>=(\S+) <(\S+)$/.exec(range);
+  assert.ok(match, 'Expected an internal peer range like ">=0.1.0 <1.0.0", got ' + range);
+  return compareVersions(version, match[1]) >= 0 && compareVersions(version, match[2]) < 0;
+};
 let argument = process.argv[2];
 assert.ok(argument, 'Use --sync, --check, or an explicit <version>');
 if (argument === '--sync') {
@@ -44,6 +59,19 @@ if (argument === '--check') {
         }
       }
     }
+    for (const [name, range] of Object.entries(pkg[peerSection] ?? {})) {
+      if (names.has(name)) {
+        assert.ok(
+          peerRangeIncludes(range, root.version),
+          path + ': internal peer dependency ' + name + ' ' + range + ' excludes ' + root.version
+        );
+        assert.equal(
+          lock.packages[key]?.[peerSection]?.[name],
+          range,
+          path + ': stale lockfile peer dependency'
+        );
+      }
+    }
   }
   console.log('Package versions and internal dependencies are aligned.');
 } else {
@@ -52,6 +80,18 @@ if (argument === '--check') {
     /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*)?$/,
     'Expected an explicit release version'
   );
+  // Peer ranges are not rewritten; refuse a version outside them before
+  // touching any file.
+  for (const { path, pkg } of entries) {
+    for (const [name, range] of Object.entries(pkg[peerSection] ?? {})) {
+      if (names.has(name)) {
+        assert.ok(
+          peerRangeIncludes(range, argument),
+          path + ': internal peer dependency ' + name + ' ' + range + ' excludes ' + argument
+        );
+      }
+    }
+  }
   for (const { path, pkg } of entries) {
     pkg.version = argument;
     for (const section of sections) {

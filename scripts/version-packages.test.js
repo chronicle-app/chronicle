@@ -47,3 +47,47 @@ test('shared release updates dependencies and lockfile without changing vocabula
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test('shared release keeps internal peer ranges and refuses versions outside them', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'chronicle-version-'));
+  const script = fileURLToPath(new URL('version-packages.js', import.meta.url));
+  const write = (path, value) => writeFileSync(join(directory, path), JSON.stringify(value));
+  const read = path => JSON.parse(readFileSync(join(directory, path), 'utf8'));
+  const run = version =>
+    spawnSync(process.execPath, [script, version], {
+      cwd: directory,
+      encoding: 'utf8',
+      env: { ...process.env, npm_config_cache: join(directory, 'cache') },
+    });
+  try {
+    mkdirSync(join(directory, 'core/etl'), { recursive: true });
+    mkdirSync(join(directory, 'plugins/source'), { recursive: true });
+    write('package.json', {
+      name: 'release-fixture',
+      private: true,
+      version: '0.1.0',
+      workspaces: ['core/*', 'plugins/*'],
+    });
+    write('core/etl/package.json', { name: '@fixture/etl', version: '0.1.0' });
+    write('plugins/source/package.json', {
+      name: '@fixture/source',
+      version: '0.1.0',
+      devDependencies: { '@fixture/etl': '0.1.0' },
+      peerDependencies: { '@fixture/etl': '>=0.1.0 <1.0.0' },
+    });
+    const updated = run('0.2.0');
+    assert.equal(updated.status, 0, updated.stderr);
+    const plugin = read('plugins/source/package.json');
+    assert.equal(plugin.devDependencies['@fixture/etl'], '0.2.0');
+    assert.equal(plugin.peerDependencies['@fixture/etl'], '>=0.1.0 <1.0.0');
+    const checked = run('--check');
+    assert.equal(checked.status, 0, checked.stderr);
+
+    const outside = run('1.0.0');
+    assert.notEqual(outside.status, 0);
+    assert.equal(read('package.json').version, '0.2.0');
+    assert.equal(read('core/etl/package.json').version, '0.2.0');
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

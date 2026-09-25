@@ -19,6 +19,7 @@
   "type": "module",
   "description": "Read-only SQLite extraction using built-in node:sqlite",
   "devDependencies": {
+    "@chronicle.app/etl": "0.1.0",
     "@chronicle.app/tsconfig": "0.1.0",
     "@types/node": "^22.10.1",
     "typescript": "^5.7.2"
@@ -34,8 +35,10 @@
     "registry": "https://registry.npmjs.org/"
   },
   "dependencies": {
-    "@chronicle.app/etl": "0.1.0",
     "zod": "^3.24.1"
+  },
+  "peerDependencies": {
+    "@chronicle.app/etl": ">=0.1.0 <1.0.0"
   },
   "engines": {
     "node": ">=22.13.0"
