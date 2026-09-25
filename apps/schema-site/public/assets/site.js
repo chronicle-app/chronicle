@@ -46,6 +46,7 @@ const kindLabels = {
   classes: 'Page',
   properties: 'Page',
   examples: 'Page',
+  validator: 'Page',
 };
 const kindOrder = ['class', 'property', 'guide', 'example'];
 let matches = [];

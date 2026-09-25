@@ -64,6 +64,7 @@ const REPOSITORY = 'https://github.com/chronicle-app/chronicle';
           <a {...nav('classes/index.html')}>Classes</a>
           <a {...nav('properties/index.html')}>Properties</a>
           <a {...nav('examples/index.html')}>Examples</a>
+          <a {...nav('validator.html')}>Validator</a>
           <details open={open('classes/')}>
             <summary>All classes <span class="count">{classes.size}</span></summary>
             {[...classes.keys()].map(name => <a {...nav(paths.class(name))}>{name}</a>)}

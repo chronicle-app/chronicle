@@ -13,6 +13,9 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { test } from 'node:test';
 import { BaseAndChildrenSchema } from '../../../core/schema/dist/index.js';
 import { loadSchema, readSchema } from '../src/lib/model.js';
+import { locateIssues, parseFailure } from '../src/lib/locate.js';
+import { validateRecords } from '../src/lib/validate.js';
+import { FAILING_PRESETS } from '../src/lib/validator-presets.js';
 import { buildSite } from './build.js';
 import { DATA_DIRECTORIES } from './directories.js';
 
@@ -116,6 +119,101 @@ test('every documentation example is a valid Chronicle record', async () => {
     assert.deepEqual(result.data, record, `${example.id} uses fields its types do not declare`);
     assert.ok(example.usedBy.length > 0, `${example.id} is not linked from any term`);
   }
+});
+
+test('the validator accepts every example, in Chronicle JSON and JSON-LD', async () => {
+  const schema = await readSchema(DATA_DIRECTORIES.schema);
+  for (const example of schema.examples) {
+    for (const [format, value] of Object.entries({
+      chronicle: example.chronicle,
+      jsonld: example.jsonld,
+    })) {
+      const result = validateRecords(JSON.stringify(value), BaseAndChildrenSchema);
+      assert.equal(result.format, format, example.id);
+      assert.equal(
+        result.status,
+        'valid',
+        `${example.id} (${format}): ${JSON.stringify(result.errors)}`
+      );
+      assert.deepEqual(result.warnings, [], `${example.id} (${format})`);
+    }
+  }
+});
+
+const issuePaths = result => [...result.errors, ...result.warnings].map(issue => issue.path).sort();
+
+test('the validator reports errors and warnings with their paths', () => {
+  const outcomes = Object.fromEntries(
+    FAILING_PRESETS.map(preset => [
+      preset.id,
+      validateRecords(JSON.stringify(preset.value), BaseAndChildrenSchema),
+    ])
+  );
+  assert.deepEqual(issuePaths(outcomes['missing-identity']), ['']);
+  assert.deepEqual(issuePaths(outcomes['nested-missing-identity']), ['object']);
+  assert.deepEqual(issuePaths(outcomes['unknown-class']), ['@type']);
+  assert.deepEqual(issuePaths(outcomes['wrong-values']), ['agent', 'object.url', 'timestamp']);
+  assert.equal(outcomes['undeclared-field'].status, 'valid');
+  assert.deepEqual(issuePaths(outcomes['undeclared-field']), ['priority']);
+  for (const [id, result] of Object.entries(outcomes)) {
+    if (id !== 'undeclared-field') assert.equal(result.status, 'invalid', id);
+  }
+
+  const list = validateRecords(
+    '[{"@type":"Entity","@id":"a"},{"@type":"Entity"}]',
+    BaseAndChildrenSchema
+  );
+  assert.deepEqual(issuePaths(list), ['[1]']);
+  assert.equal(validateRecords('{"@type":', BaseAndChildrenSchema).status, 'unreadable');
+  assert.equal(
+    validateRecords(
+      '{"@context":{"@vocab":"https://schema.org/"},"@type":"Thing"}',
+      BaseAndChildrenSchema
+    ).status,
+    'unreadable'
+  );
+});
+
+// The text each issue in `text` marks.
+const marked = text => {
+  const result = validateRecords(text, BaseAndChildrenSchema);
+  const found = [...result.errors, ...result.warnings];
+  return locateIssues(text, found).map(range =>
+    text.slice(range.offset, range.offset + range.length)
+  );
+};
+
+test('the validator finds each issue in the pasted text', () => {
+  const presets = Object.fromEntries(
+    FAILING_PRESETS.map(preset => [preset.id, marked(JSON.stringify(preset.value, null, 2))])
+  );
+  // A missing identity marks the record's @type.
+  assert.deepEqual(presets['missing-identity'], ['"@type": "Entity"']);
+  assert.deepEqual(presets['nested-missing-identity'], ['"@type": "Message"']);
+  assert.deepEqual(presets['unknown-class'], ['"ReadAction"']);
+  assert.deepEqual(presets['wrong-values'], ['"Sam"', '"renew passport"', '"last Tuesday"']);
+  assert.deepEqual(presets['undeclared-field'], ['"priority": "high"']);
+
+  const jsonld = JSON.stringify({
+    '@context': {
+      '@vocab': 'https://schema.chronicle.app/',
+      doc: 'https://schema.chronicle.app/docs/',
+    },
+    '@graph': [
+      { '@type': 'Entity', 'doc:key': { '@list': ['sourceId'] }, sourceId: '1' },
+      { '@type': 'Entity', 'doc:key': { '@list': ['sourceId'] }, sourceId: '2', url: 'nope' },
+    ],
+  });
+  assert.deepEqual(marked(jsonld), ['"nope"']);
+
+  assert.deepEqual(parseFailure('{\n  "a": 1,\n  "b" 2\n}'), {
+    offset: 18,
+    length: 1,
+    code: 'ColonExpected',
+    line: 3,
+    column: 7,
+  });
+  assert.equal(parseFailure('{"a": 1}'), null);
 });
 
 const htmlFiles = directory =>

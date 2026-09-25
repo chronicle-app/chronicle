@@ -55,6 +55,12 @@ export const SECTIONS = {
     title: 'Examples',
     description: 'Example records in Chronicle JSON, JSON-LD, and Turtle.',
   },
+  validator: {
+    path: 'validator.html',
+    title: 'Validator',
+    description:
+      'Check records in Chronicle JSON or JSON-LD against the Chronicle vocabulary, in your browser.',
+  },
 };
 
 export const plural = name => (name.endsWith('y') ? name.slice(0, -1) + 'ies' : name + 's');

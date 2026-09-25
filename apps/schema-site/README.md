@@ -2,10 +2,10 @@
 
 The documentation site for the Chronicle schema, built with
 [Astro](https://astro.build) and served at
-https://schema.chronicle.app: guides, a page for every class and property, and
-example records in Chronicle JSON, JSON-LD, and Turtle, with search on every
-page (<kbd>⌘K</kbd>, <kbd>Ctrl K</kbd>, or <kbd>/</kbd>). This package is
-private and is not published to npm.
+https://schema.chronicle.app: guides, a page for every class and property,
+example records in Chronicle JSON, JSON-LD, and Turtle, a validator for pasted
+records, and search on every page (<kbd>⌘K</kbd>, <kbd>Ctrl K</kbd>, or
+<kbd>/</kbd>). This package is private and is not published to npm.
 
 ```bash
 npm run schema:docs          # serve at http://localhost:4321, rebuilding on change
@@ -41,6 +41,10 @@ links.
   `guides.js`) and derives what the pages share (`site.js`). Pages are bundled,
   so the data directories are passed in through Vite `define` rather than
   found relative to the modules; see [scripts/directories.js](scripts/directories.js).
+  `validate.js` checks records for the validator page, which bundles the
+  generated Zod schemas from `core/schema/src` by path, like the Turtle files.
+  `locate.js` finds each issue in the pasted text, and `validator-presets.js`
+  holds the failing examples.
 - [public/assets](public/assets): the stylesheet, the search and tab script,
   and images, copied as they are.
 - [scripts](scripts): the build, the deployment, and the tests.
