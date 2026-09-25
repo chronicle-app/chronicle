@@ -124,8 +124,8 @@ const htmlFiles = directory =>
     .map(file => join(directory, file));
 
 /**
- * Checks every page under `site`, served from `base`, for duplicate ids and
- * links to files or fragments that do not exist.
+ * Checks every page under `site`, served from `base`, for duplicate ids, nested
+ * links, and links to files or fragments that do not exist.
  */
 function checkLinks(site, base = '/') {
   const pages = htmlFiles(site);
@@ -133,6 +133,12 @@ function checkLinks(site, base = '/') {
   for (const file of pages) {
     const page = relative(site, file);
     const html = readFileSync(file, 'utf8');
+    // Links cannot nest: browsers end the outer link at the first inner one.
+    let depth = 0;
+    for (const [tag] of html.matchAll(/<\/?a\b/g)) {
+      depth += tag === '<a' ? 1 : -1;
+      assert.ok(depth <= 1, `${page} has a link inside a link`);
+    }
     const ids = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]));
     assert.equal(ids.size, [...html.matchAll(/\bid="/g)].length, `${page}: duplicate id`);
     for (const [, reference] of html.matchAll(/\b(?:href|src)="([^"]+)"/g)) {

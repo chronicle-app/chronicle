@@ -42,7 +42,7 @@ const [featured, ...more] = schema.overview;
     <div class="grid">
       {
         guides.map(guide => (
-          <Card href={href.guide(guide.slug)} kicker={`Guide ${guide.number}`} title={guide.title}><Prose text={firstSentence(guide.lead)} /></Card>
+          <Card href={href.guide(guide.slug)} kicker={`Guide ${guide.number}`} title={guide.title}><Prose text={firstSentence(guide.lead)} links={false} /></Card>
         ))
       }
     </div>

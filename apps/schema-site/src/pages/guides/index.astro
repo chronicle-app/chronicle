@@ -18,7 +18,7 @@ import { guides, href, SECTIONS } from '../../lib/site.js';
             <span class="guide-number">{guide.number}</span>
             <span>
               <strong>{guide.title}</strong>
-              <span class="card-text"><Prose text={guide.lead} /></span>
+              <span class="card-text"><Prose text={guide.lead} links={false} /></span>
             </span>
           </a>
         </li>
