@@ -1,0 +1,17 @@
+---
+import TermLink from './TermLink.astro';
+
+interface Props {
+  range: string[];
+}
+const { range } = Astro.props;
+---
+
+{
+  range.map((name, index) => (
+    <>
+      {index > 0 && <span class="or">or</span>}
+      <TermLink name={name} />
+    </>
+  ))
+}

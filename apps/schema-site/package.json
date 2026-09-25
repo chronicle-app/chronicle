@@ -5,16 +5,18 @@
   "description": "The Chronicle schema documentation site, schema.chronicle.app",
   "type": "module",
   "scripts": {
-    "build": "node src/build.js",
-    "build:deploy": "node src/deploy.js",
-    "dev": "node src/dev.js",
-    "test": "node --test src/*.test.js",
-    "lint": "eslint src assets --ext .js"
+    "build": "node scripts/build.js",
+    "build:deploy": "node scripts/deploy.js",
+    "dev": "ASTRO_TELEMETRY_DISABLED=1 astro dev",
+    "preview": "ASTRO_TELEMETRY_DISABLED=1 astro preview",
+    "test": "node --test scripts/*.test.js",
+    "lint": "eslint src scripts public/assets astro.config.mjs --ext .js,.mjs"
   },
   "engines": {
     "node": ">=22.13.0"
   },
   "devDependencies": {
+    "astro": "^7.3.5",
     "markdown-it": "^14.3.2",
     "n3": "^1.23.1"
   },

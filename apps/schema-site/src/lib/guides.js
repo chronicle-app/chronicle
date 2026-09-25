@@ -1,12 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import MarkdownIt from 'markdown-it';
 import { escape, paths, slugify, TERM } from './html.js';
 
 const slugOf = file => file.replace(/\.md$/, '').replace(/^\d+-/, '');
 const defaultRender = (tokens, i, options, env, self) => self.renderToken(tokens, i, options);
-
-export const GUIDES_DIRECTORY = new URL('../guides/', import.meta.url);
 
 /**
  * Guides are ordinary Markdown files, read in filename order. Besides links
@@ -16,7 +15,7 @@ export const GUIDES_DIRECTORY = new URL('../guides/', import.meta.url);
  * the site's colours and link to the reference the same way. Every link is
  * checked when the site is built.
  */
-export async function loadGuides(schema, directory = GUIDES_DIRECTORY) {
+export async function loadGuides(schema, directory) {
   const files = (await readdir(directory)).filter(file => file.endsWith('.md')).sort();
   const exampleIds = new Set(schema.examples.map(example => example.id));
   const indexes = new Set(['classes/index.html', 'properties/index.html', 'examples/index.html']);
@@ -49,7 +48,7 @@ export async function loadGuides(schema, directory = GUIDES_DIRECTORY) {
 
   return Promise.all(
     files.map(async (file, index) => {
-      const source = await readFile(new URL(file, directory), 'utf8');
+      const source = await readFile(join(directory, file), 'utf8');
       const heading = source.match(/^# (.+)\r?\n/);
       if (!heading) throw new Error(`Guide ${file} must start with a level-one heading`);
       const body = source.slice(heading[0].length).trim();
@@ -71,7 +70,7 @@ export async function loadGuides(schema, directory = GUIDES_DIRECTORY) {
         if (/^https?:/.test(source) || !source.endsWith('.svg')) {
           throw new Error(`Guide ${file}: only local SVG diagrams are supported (${source})`);
         }
-        const svg = readFileSync(new URL(source, directory), 'utf8').replaceAll(
+        const svg = readFileSync(join(directory, source), 'utf8').replaceAll(
           /href="([^"]+)"/g,
           (_, href) => `href="../${destination(href, file)}"`
         );

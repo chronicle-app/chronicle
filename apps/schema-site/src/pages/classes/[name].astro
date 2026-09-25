@@ -1,0 +1,92 @@
+---
+import Card from '../../components/Card.astro';
+import ExamplesSection from '../../components/ExamplesSection.astro';
+import PropertyTable from '../../components/PropertyTable.astro';
+import Prose from '../../components/Prose.astro';
+import TermLink from '../../components/TermLink.astro';
+import Layout from '../../layouts/Layout.astro';
+import { classes, firstSentence, href, isA, lineage, paths, plain, properties } from '../../lib/site.js';
+
+export function getStaticPaths() {
+  return [...classes.values()].map(cls => ({ params: { name: cls.name }, props: { cls } }));
+}
+const { cls } = Astro.props;
+
+const groups = [cls.name, ...cls.ancestors]
+  .map(name => ({ name, properties: classes.get(name).properties }))
+  .filter(group => group.properties.length);
+const usedAs = [...properties.values()]
+  .flatMap(property =>
+    property.range
+      .filter(range => isA(cls.name, range))
+      .map(range => ({ property, via: range === cls.name ? null : range }))
+  )
+  .sort((a, b) => Number(Boolean(a.via)) - Number(Boolean(b.via)));
+const toc = [
+  { id: 'properties', title: 'Properties' },
+  ...(usedAs.length > 0 ? [{ id: 'used-as', title: 'Used as a value' }] : []),
+  ...(cls.children.length > 0 ? [{ id: 'subclasses', title: 'Subclasses' }] : []),
+  ...(cls.examples.length > 0 ? [{ id: 'examples', title: 'Examples' }] : []),
+];
+---
+
+<Layout path={paths.class(cls.name)} kind="class" title={cls.name} description={cls.comment} toc={toc}>
+  <header class="page-header">
+    <nav class="lineage" aria-label="Class hierarchy">
+      {
+        lineage(cls.name).map((name, index) => (
+          <>
+            {index > 0 && <span class="sep" aria-hidden="true">›</span>}
+            {name === cls.name ? <span aria-current="page">{name}</span> : <TermLink name={name} />}
+          </>
+        ))
+      }
+    </nav>
+    <h1>{cls.name}</h1>
+    {cls.comment && <p class="lead"><Prose text={cls.comment} /></p>}
+  </header>
+  <section id="properties">
+    <h2>Properties</h2>
+    {
+      groups.length > 0 ? (
+        <PropertyTable groups={groups} owner={cls.name} />
+      ) : (
+        <p class="muted">This class has no properties. It is carried directly as a value.</p>
+      )
+    }
+  </section>
+  {
+    usedAs.length > 0 && (
+      <section id="used-as">
+        <h2>Used as a value</h2>
+        <p>A {cls.name} can be the value of these properties.</p>
+        <ul class="term-list">
+          {usedAs.map(({ property, via }) => (
+            <li>
+              <TermLink name={property.name} />
+              <span>on {property.domain.map((name, index) => <>{index > 0 && ', '}<TermLink name={name} /></>)}
+                {via && <> · accepts any <TermLink name={via} /></>}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )
+  }
+  {
+    cls.children.length > 0 && (
+      <section id="subclasses">
+        <h2>Subclasses</h2>
+        <div class="grid">
+          {cls.children.map(child => (
+            <Card href={href.class(child)} title={child}>
+              {plain(firstSentence(classes.get(child).comment))}
+            </Card>
+          ))}
+        </div>
+      </section>
+    )
+  }
+  <ExamplesSection examples={cls.examples} />
+  <p class="uri">URI <code>{cls.uri}</code></p>
+</Layout>

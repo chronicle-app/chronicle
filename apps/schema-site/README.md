@@ -1,6 +1,7 @@
 # Chronicle schema site
 
-The documentation site for the Chronicle schema, served at
+The documentation site for the Chronicle schema, built with
+[Astro](https://astro.build) and served at
 https://schema.chronicle.app: guides, a page for every class and property, and
 example records in Chronicle JSON, JSON-LD, and Turtle, with search on every
 page (<kbd>⌘K</kbd>, <kbd>Ctrl K</kbd>, or <kbd>/</kbd>). This package is
@@ -29,6 +30,24 @@ the installed package, so a release tag's site is rebuilt from that tag's
 vocabulary. `npm test` validates every example against the generated Zod
 schemas (run `npm run build` first) and builds the site, failing on broken
 links.
+
+## Layout
+
+- [src/pages](src/pages): one Astro page per kind of page, generated from the
+  schema with `getStaticPaths`. [src/components](src/components) holds the
+  shared pieces (property tables, format tabs, term links) and
+  [src/layouts](src/layouts) the page shell.
+- [src/lib](src/lib): reads the Turtle files and guides (`model.js`,
+  `guides.js`) and derives what the pages share (`site.js`). Pages are bundled,
+  so the data directories are passed in through Vite `define` rather than
+  found relative to the modules; see [scripts/directories.js](scripts/directories.js).
+- [public/assets](public/assets): the stylesheet, the search and tab script,
+  and images, copied as they are.
+- [scripts](scripts): the build, the deployment, and the tests.
+
+Links go through `url()` in `site.js`, which prefixes the base path the site is
+built for, so a release snapshot links within its own path. Astro telemetry is
+turned off for the npm scripts.
 
 ## Deployment
 

@@ -1,11 +1,20 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { test } from 'node:test';
 import { BaseAndChildrenSchema } from '../../../core/schema/dist/index.js';
+import { loadSchema, readSchema } from '../src/lib/model.js';
 import { buildSite } from './build.js';
-import { loadSchema } from './model.js';
+import { DATA_DIRECTORIES } from './directories.js';
 
 const vocabulary = `
 @prefix : <https://schema.chronicle.app/> .
@@ -80,7 +89,7 @@ test('the class hierarchy and property references must be declared and acyclic',
 });
 
 test('every documentation example is a valid Chronicle record', async () => {
-  const schema = await loadSchema();
+  const schema = await readSchema(DATA_DIRECTORIES.schema);
   assert.ok(schema.examples.length > 0);
   // Chronicle JSON shows dates as ISO strings; plugins emit Date objects.
   const dates = new Set(
@@ -109,51 +118,96 @@ test('every documentation example is a valid Chronicle record', async () => {
   }
 });
 
+const htmlFiles = directory =>
+  readdirSync(directory, { recursive: true })
+    .filter(file => file.endsWith('.html'))
+    .map(file => join(directory, file));
+
+/**
+ * Checks every page under `site`, served from `base`, for duplicate ids and
+ * links to files or fragments that do not exist.
+ */
+function checkLinks(site, base = '/') {
+  const pages = htmlFiles(site);
+  assert.ok(pages.length > 0);
+  for (const file of pages) {
+    const page = relative(site, file);
+    const html = readFileSync(file, 'utf8');
+    const ids = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]));
+    assert.equal(ids.size, [...html.matchAll(/\bid="/g)].length, `${page}: duplicate id`);
+    for (const [, reference] of html.matchAll(/\b(?:href|src)="([^"]+)"/g)) {
+      if (/^(https?:|mailto:)/.test(reference)) continue;
+      const [path, fragment] = reference.split('#');
+      if (path.startsWith('/')) {
+        assert.ok(path.startsWith(base), `${page} links outside ${base}: ${reference}`);
+      }
+      const target = path
+        ? path.startsWith('/')
+          ? join(site, path.slice(base.length))
+          : resolve(dirname(file), path)
+        : null;
+      assert.ok(!target || existsSync(target), `${page} links to missing ${reference}`);
+      if (fragment && !path) assert.ok(ids.has(fragment), `${page}: missing #${fragment}`);
+    }
+  }
+}
+
 test('the built site has a page for every term and no broken links', async () => {
   const output = mkdtempSync(join(tmpdir(), 'chronicle-schema-site-'));
   try {
-    const { pages } = await buildSite(output);
-    const schema = await loadSchema();
-    for (const name of [...schema.classes.keys(), ...schema.properties.keys()]) {
-      assert.ok(
-        pages.some(page => page.title === name && page.kind !== 'guide'),
-        name
-      );
+    await buildSite({ output });
+    const schema = await readSchema(DATA_DIRECTORIES.schema);
+    for (const name of schema.classes.keys()) {
+      assert.ok(existsSync(join(output, 'classes', `${name}.html`)), name);
     }
-    for (const page of pages) {
-      const html = readFileSync(join(output, page.path), 'utf8');
-      assert.doesNotMatch(html, /\{root\}/, `${page.path} has an unresolved link`);
-      const ids = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]));
-      assert.equal(ids.size, [...html.matchAll(/\bid="/g)].length, `${page.path}: duplicate id`);
-      for (const [, reference] of html.matchAll(/\b(?:href|src)="([^"]+)"/g)) {
-        if (/^(https?:|mailto:)/.test(reference)) continue;
-        const [path, fragment] = reference.split('#');
-        // Root-relative links, as on the 404 page, resolve from the site root.
-        const base = path.startsWith('/') ? output : dirname(join(output, page.path));
-        const target = path ? resolve(base, path.replace(/^\//, '')) : null;
-        assert.ok(!target || existsSync(target), `${page.path} links to missing ${reference}`);
-        if (fragment && !path) assert.ok(ids.has(fragment), `${page.path}: missing #${fragment}`);
-      }
+    for (const name of schema.properties.keys()) {
+      assert.ok(existsSync(join(output, 'properties', `${name}.html`)), name);
     }
+    assert.ok(existsSync(join(output, 'chronicle.ttl')));
+    assert.ok(existsSync(join(output, 'assets', 'search-index.js')));
+    checkLinks(output);
   } finally {
     rmSync(output, { recursive: true, force: true });
   }
 });
 
-test('descriptions are escaped and :term references become links', async () => {
-  const { renderSite } = await import('./render.js');
-  const schema = await loadSchema({ ontology: vocabulary, examples: sample('[ a :Thing ]') });
-  const guides = [{ slug: 'g', number: 1, title: 'G', lead: 'G', html: '', headings: [] }];
-  const page = renderSite(schema, guides).find(entry => entry.path === 'classes/Thing.html');
-  assert.match(page.document, /Uses <a class="term property" href="..\/properties\/label.html">/);
-  assert.match(page.document, /&lt;b&gt;bold&lt;\/b&gt;/);
-  // Required comes from owl:minCardinality, not a default.
-  assert.match(
-    page.document,
-    /tags<\/a> <span class="tag tag-many"[^>]*>many<\/span> <span class="tag tag-required">required/
-  );
-  assert.doesNotMatch(
-    page.document,
-    /label<\/a> <span class="tag">one<\/span> <span class="tag tag-required">/
-  );
+test('a release snapshot links within its own path', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'chronicle-schema-site-'));
+  // A small vocabulary and guide stand in for the real ones.
+  const schemaDirectory = join(root, 'schema');
+  const guidesDirectory = join(root, 'guides');
+  mkdirSync(schemaDirectory);
+  mkdirSync(guidesDirectory);
+  writeFileSync(join(schemaDirectory, 'chronicle.ttl'), vocabulary);
+  writeFileSync(join(schemaDirectory, 'examples.ttl'), sample('[ a :Thing; :tags "x" ]'));
+  writeFileSync(join(guidesDirectory, '01-first.md'), '# First\n\nAbout :Thing and class:Thing.\n');
+  const base = '/releases/0.2.0/';
+  const output = join(root, 'site');
+  try {
+    await buildSite({
+      output,
+      base,
+      directories: { schema: schemaDirectory, guides: guidesDirectory },
+    });
+    checkLinks(output, base);
+    const page = readFileSync(join(output, 'classes', 'Thing.html'), 'utf8');
+    assert.match(page, /data-root="\/releases\/0\.2\.0\/"/);
+    // Descriptions are escaped, and :term references become links.
+    assert.match(
+      page,
+      /Uses <a class="term property" href="\/releases\/0\.2\.0\/properties\/label\.html">/
+    );
+    assert.match(page, /&lt;b&gt;bold&lt;\/b&gt;/);
+    // Required comes from owl:minCardinality, not a default.
+    assert.match(
+      page,
+      /tags<\/a>\s+<span class="tag tag-many"[^>]*>many<\/span>\s*<span class="tag tag-required">required/
+    );
+    assert.doesNotMatch(
+      page,
+      /label<\/a>\s+<span class="tag">one<\/span>\s*<span class="tag tag-required">/
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

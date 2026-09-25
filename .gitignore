@@ -10,6 +10,7 @@ coverage/
 .DS_Store
 artifacts/
 .wrangler/
+.astro/
 
 # Local agent context
 CLAUDE.local.md

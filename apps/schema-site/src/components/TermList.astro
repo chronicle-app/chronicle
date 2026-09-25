@@ -1,0 +1,21 @@
+---
+// A list of terms, each with a first-sentence note.
+import { classes, firstSentence } from '../lib/site.js';
+import Prose from './Prose.astro';
+import TermLink from './TermLink.astro';
+
+interface Props {
+  names: string[];
+}
+---
+
+<ul class="term-list">
+  {
+    Astro.props.names.map(name => (
+      <li>
+        <TermLink name={name} />
+        <span><Prose text={firstSentence(classes.get(name).comment)} /></span>
+      </li>
+    ))
+  }
+</ul>

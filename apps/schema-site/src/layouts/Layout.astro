@@ -1,0 +1,111 @@
+---
+// The page shell: top bar, sidebar, table of contents, footer, and search dialog.
+import { classes, examples, firstSentence, guides, paths, properties, schema, url } from '../lib/site.js';
+
+interface Props {
+  /** The page's path from the site root, e.g. classes/Message.html. */
+  path: string;
+  title: string;
+  kind: string;
+  description?: string;
+  toc?: { id: string; title: string }[];
+}
+const { path: current, title, kind, description = '', toc = [] } = Astro.props;
+const nav = (path: string) => ({ href: url(path), 'aria-current': path === current ? 'page' : undefined });
+const open = (prefix: string) => current.startsWith(prefix);
+const REPOSITORY = 'https://github.com/chronicle-app/chronicle';
+---
+
+<!doctype html>
+<html lang="en" data-root={url('')}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{kind === 'home' ? 'Chronicle Schema' : `${title} · Chronicle Schema`}</title>
+    <meta name="description" content={firstSentence(description)} />
+    <link rel="icon" href={url('assets/favicon.png')} type="image/png" />
+    <link rel="apple-touch-icon" href={url('assets/apple-touch-icon.png')} />
+    <link rel="stylesheet" href={url('assets/site.css')} />
+    <script is:inline>
+      try {
+        const t = localStorage.getItem('theme');
+        if (t) document.documentElement.dataset.theme = t;
+      } catch {}
+    </script>
+    <script is:inline src={url('assets/search-index.js')} defer></script>
+    <script is:inline src={url('assets/site.js')} defer></script>
+  </head>
+  <body class={`page-${kind}`}>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="topbar">
+      <button type="button" class="icon-button menu-button" aria-label="Menu" aria-expanded="false" aria-controls="sidebar" data-menu>
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 6h14M3 10h14M3 14h14"></path></svg>
+      </button>
+      <a class="brand" href={url('index.html')}><span class="brand-mark" aria-hidden="true"></span><span>Chronicle</span><span class="brand-sub">Schema</span></a>
+      <button type="button" class="search-trigger" data-open-search aria-haspopup="dialog" aria-controls="search-dialog">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg>
+        <span>Search</span><kbd data-shortcut>⌘K</kbd>
+      </button>
+      <nav class="top-links" aria-label="Resources">
+        <a href={url('chronicle.ttl')} download>chronicle.ttl</a>
+        <a href={REPOSITORY}>GitHub</a>
+        <button type="button" class="icon-button" data-theme-toggle aria-label="Toggle dark mode">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M16.5 12.5A7 7 0 0 1 7.5 3.5a7 7 0 1 0 9 9Z"></path></svg>
+        </button>
+      </nav>
+    </header>
+    <div class="shell">
+      <aside class="sidebar" id="sidebar">
+        <nav class="sidebar-nav" aria-label="Site">
+          <a {...nav('index.html')}>Overview</a>
+          <p class="nav-heading">Guides</p>
+          {guides.map(guide => <a {...nav(paths.guide(guide.slug))}>{guide.title}</a>)}
+          <p class="nav-heading">Reference</p>
+          <a {...nav('classes/index.html')}>Classes</a>
+          <a {...nav('properties/index.html')}>Properties</a>
+          <a {...nav('examples/index.html')}>Examples</a>
+          <details open={open('classes/')}>
+            <summary>All classes <span class="count">{classes.size}</span></summary>
+            {[...classes.keys()].map(name => <a {...nav(paths.class(name))}>{name}</a>)}
+          </details>
+          <details open={open('properties/')}>
+            <summary>All properties <span class="count">{properties.size}</span></summary>
+            {[...properties.keys()].map(name => <a {...nav(paths.property(name))}><code>{name}</code></a>)}
+          </details>
+          <details open={open('examples/')}>
+            <summary>All examples <span class="count">{examples.length}</span></summary>
+            {examples.map(example => <a {...nav(paths.example(example.id))}>{example.title}</a>)}
+          </details>
+        </nav>
+      </aside>
+      <main id="main" tabindex="-1">
+        <div class:list={['content', { 'has-toc': toc.length > 0 }]}>
+          <div class="article"><slot /></div>
+          {
+            toc.length > 0 && (
+              <aside class="toc" aria-label="On this page">
+                <p>On this page</p>
+                {toc.map(entry => <a href={`#${entry.id}`}>{entry.title}</a>)}
+              </aside>
+            )
+          }
+        </div>
+        <footer class="footer">
+          <span>Chronicle vocabulary v{schema.version}</span>
+          <span>Namespace <code>https://schema.chronicle.app/</code></span>
+          <a href={url('chronicle.ttl')} download>Download the ontology</a>
+        </footer>
+      </main>
+    </div>
+    <dialog id="search-dialog" aria-label="Search">
+      <div class="search-field">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"></circle><path d="m13 13 4 4"></path></svg>
+        <input id="search" type="search" placeholder="Search guides, classes, properties, examples" autocomplete="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="search-results" aria-describedby="search-status" />
+        <kbd>Esc</kbd>
+      </div>
+      <ul id="search-results" role="listbox" aria-label="Results"></ul>
+      <p id="search-status" class="search-status" role="status" aria-live="polite"></p>
+      <div class="search-help"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>↵</kbd> to open</span><span><kbd>/</kbd> or <kbd data-shortcut>⌘K</kbd> to search</span></div>
+    </dialog>
+  </body>
+</html>

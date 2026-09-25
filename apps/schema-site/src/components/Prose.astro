@@ -1,0 +1,22 @@
+---
+// Inline text: `code` spans and :Term references that become links.
+import { tokenize } from '../lib/site.js';
+import TermLink from './TermLink.astro';
+
+interface Props {
+  text?: string;
+}
+const tokens = tokenize(Astro.props.text);
+---
+
+{
+  tokens.map(token =>
+    token.type === 'code' ? (
+      <code>{token.text}</code>
+    ) : token.type === 'term' ? (
+      <TermLink name={token.name} />
+    ) : (
+      token.text
+    )
+  )
+}

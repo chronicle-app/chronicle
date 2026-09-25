@@ -1,0 +1,28 @@
+---
+import Prose from '../../components/Prose.astro';
+import Layout from '../../layouts/Layout.astro';
+import { guides, href, SECTIONS } from '../../lib/site.js';
+---
+
+<Layout {...SECTIONS.guides} kind="guides">
+  <header class="page-header">
+    <p class="eyebrow">Guides</p>
+    <h1>Guides</h1>
+    <p class="lead">Read these in order. Each one links to example records.</p>
+  </header>
+  <ol class="guide-list">
+    {
+      guides.map(guide => (
+        <li>
+          <a href={href.guide(guide.slug)}>
+            <span class="guide-number">{guide.number}</span>
+            <span>
+              <strong>{guide.title}</strong>
+              <span class="card-text"><Prose text={guide.lead} /></span>
+            </span>
+          </a>
+        </li>
+      ))
+    }
+  </ol>
+</Layout>

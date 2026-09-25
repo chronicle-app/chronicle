@@ -22,7 +22,7 @@ export const PUBLISHED = 'https://schema.chronicle.app';
 // node_modules.
 const CHECKOUTS = fileURLToPath(new URL('../build/tags/', import.meta.url));
 export const SITE = 'apps/schema-site';
-const BUILDER = `${SITE}/src/build.js`;
+const BUILDER = `${SITE}/scripts/build.js`;
 
 /**
  * Maps each vocabulary version to the first release that shipped it, from
@@ -63,8 +63,11 @@ export async function checkPublished(output, versions, base = PUBLISHED) {
   }
 }
 
-/** Builds the site as of `tag` into `output`. Returns false for tags without one. */
-async function buildTag(tag, output) {
+/**
+ * Builds the site as of `tag` into `output`, served from `base`. Returns false
+ * for tags without one.
+ */
+async function buildTag(tag, output, base) {
   try {
     git(['cat-file', '-e', `${tag}:${BUILDER}`], { stdio: 'pipe' });
   } catch {
@@ -77,7 +80,7 @@ async function buildTag(tag, output) {
   execFileSync('tar', ['-x', '-C', checkout], {
     input: git(['archive', tag, SCHEMA, SITE], { maxBuffer: 1024 ** 3 }),
   });
-  execFileSync(process.execPath, [join(checkout, BUILDER), output], { stdio: 'inherit' });
+  execFileSync(process.execPath, [join(checkout, BUILDER), output, base], { stdio: 'inherit' });
   return true;
 }
 
@@ -87,14 +90,15 @@ const pageNames = async directory =>
     .map(file => file.slice(0, -'.html'.length));
 
 export async function buildDeployment({ output = DEPLOY_OUTPUT, checkLive = true } = {}) {
-  await buildSite(output);
+  await buildSite({ output });
 
   const ontologies = listReleaseTags().map(tag => [tag, ontologyAt(tag)]);
   const releases = firstReleases(ontologies);
   for (const [version, tag] of releases) {
     const directory = join(output, 'releases', version);
     // Releases before the documentation site keep only the ontology.
-    if (!(await buildTag(tag, directory))) await mkdir(directory, { recursive: true });
+    if (!(await buildTag(tag, directory, `/releases/${version}/`)))
+      await mkdir(directory, { recursive: true });
     await writeFile(join(directory, 'chronicle.ttl'), new Map(ontologies).get(tag));
   }
   await rm(CHECKOUTS, { recursive: true, force: true });

@@ -1,0 +1,31 @@
+---
+// A class and its subclasses, recursively.
+import { classes, firstSentence } from '../lib/site.js';
+import Prose from './Prose.astro';
+import TermLink from './TermLink.astro';
+
+interface Props {
+  name: string;
+  describe?: boolean;
+}
+const { name, describe = false } = Astro.props;
+const cls = classes.get(name);
+---
+
+<li>
+  <TermLink name={name} />
+  {
+    describe && cls.comment && (
+      <span class="tree-note"><Prose text={firstSentence(cls.comment)} /></span>
+    )
+  }
+  {
+    cls.children.length > 0 && (
+      <ul>
+        {cls.children.map(child => (
+          <Astro.self name={child} describe={describe} />
+        ))}
+      </ul>
+    )
+  }
+</li>
