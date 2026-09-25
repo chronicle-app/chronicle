@@ -41,7 +41,8 @@
     "release:version": "changeset version && node scripts/version-packages.js --sync",
     "versions:check": "node scripts/version-packages.js --check",
     "prepare": "husky",
-    "release": "npm run quality && npm run packages:check && changeset publish --no-git-tag && node scripts/tag-release.js"
+    "release": "npm run quality && npm run packages:check && changeset publish --no-git-tag && node scripts/tag-release.js",
+    "release:approve": "node scripts/approve-release.js"
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.3",

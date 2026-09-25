@@ -9,7 +9,9 @@ export function vocabularyVersion(ontology) {
   return match[1];
 }
 
-function main() {
+// With --draft, creates a draft release without a tag; publishing the draft
+// creates the tag on the same commit.
+function main(draft) {
   const { version } = JSON.parse(readFileSync('package.json', 'utf8'));
   const tag = 'v' + version;
   const gh = (args, options = {}) => spawnSync('gh', args, { encoding: 'utf8', ...options });
@@ -31,10 +33,11 @@ function main() {
       '--notes',
       `Software ${version} · vocabulary ${vocabulary}`,
       '--generate-notes',
+      ...(draft ? ['--draft'] : []),
     ],
     { stdio: 'inherit' }
   );
   assert.equal(created.status, 0, 'Could not create release ' + tag);
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) main();
+if (process.argv[1] === fileURLToPath(import.meta.url)) main(process.argv.includes('--draft'));

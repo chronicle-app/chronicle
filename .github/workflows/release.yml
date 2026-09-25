@@ -14,7 +14,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       mode: ${{ steps.select-mode.outputs.mode }}
-      publish-plan-artifact-id: ${{ steps.select-mode.outputs.publish-plan-artifact-id }}
     permissions:
       contents: read
     steps:
@@ -50,13 +49,37 @@ jobs:
         with:
           script: npm run release:version
 
-  # Runs the release checks and packs the tarballs the publish job uploads.
-  pack:
+  # A draft release marks a version that is staged and awaiting approval.
+  staged:
     if: needs.select-mode.outputs.mode == 'publish'
     needs: select-mode
     runs-on: ubuntu-latest
     outputs:
-      pack-dir-artifact-id: ${{ steps.pack.outputs.pack-dir-artifact-id }}
+      exists: ${{ steps.release.outputs.exists }}
+    permissions:
+      # Draft releases are only visible with write access.
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          sparse-checkout: package.json
+          sparse-checkout-cone-mode: false
+      - id: release
+        run: |
+          if gh release view "v$(node -p "require('./package.json').version")" > /dev/null 2>&1; then
+            echo exists=true >> "$GITHUB_OUTPUT"
+          else
+            echo exists=false >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  # Runs the release checks and packs the tarballs the stage job uploads.
+  pack:
+    if: needs.staged.outputs.exists == 'false'
+    needs: staged
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
@@ -70,17 +93,17 @@ jobs:
       - run: npm ci
       - run: npm run quality
       - run: npm run packages:check
-      - id: pack
-        uses: changesets/action/pack@v2
+      - uses: actions/upload-artifact@v7
         with:
-          publish-plan-artifact-id: ${{ needs.select-mode.outputs.publish-plan-artifact-id }}
+          name: npm-tarballs
+          path: artifacts/npm/*.tgz
+          if-no-files-found: error
 
-  # Publishes through npm trusted publishing, then creates the v<version> release.
-  publish:
+  # Stages the tarballs through npm trusted publishing, then creates the draft
+  # v<version> release. Nothing is public until `npm run release:approve`.
+  stage:
     needs: pack
     runs-on: ubuntu-latest
-    outputs:
-      published: ${{ steps.publish.outputs.published }}
     permissions:
       contents: write
       id-token: write
@@ -92,25 +115,13 @@ jobs:
         with:
           node-version: 24
           package-manager-cache: false
-      - run: npm ci
-      - id: publish
-        uses: changesets/action/publish@v2
+      # Staged publishing needs a newer npm than Node.js bundles.
+      - run: npm install --global npm@12
+      - uses: actions/download-artifact@v8
         with:
-          pack-dir-artifact-id: ${{ needs.pack.outputs.pack-dir-artifact-id }}
-          create-github-releases: false
-          push-git-tags: false
-      - if: steps.publish.outputs.published == 'true'
-        run: node scripts/tag-release.js
+          name: npm-tarballs
+          path: artifacts/npm
+      - run: node scripts/stage-release.js artifacts/npm
+      - run: node scripts/tag-release.js --draft
         env:
           GH_TOKEN: ${{ github.token }}
-
-  # Deploys schema.chronicle.app once the release tag exists.
-  schema-site:
-    needs: publish
-    if: needs.publish.outputs.published == 'true'
-    permissions:
-      contents: read
-    uses: ./.github/workflows/schema-site.yml
-    secrets:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

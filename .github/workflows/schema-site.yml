@@ -1,20 +1,15 @@
 name: Schema site
 
 # Deploys schema.chronicle.app from main, with a snapshot of every released
-# vocabulary version. It runs on pushes to main that change the schema, and the
-# release workflow calls it after publishing so new snapshots appear right away.
+# vocabulary version. It runs on pushes to main that change the schema, and
+# `npm run release:approve` starts it after a release so new snapshots appear
+# right away.
 on:
   push:
     branches: [main]
     paths:
       - core/schema/**
       - .github/workflows/schema-site.yml
-  workflow_call:
-    secrets:
-      CLOUDFLARE_API_TOKEN:
-        required: true
-      CLOUDFLARE_ACCOUNT_ID:
-        required: true
   workflow_dispatch:
     inputs:
       skip-published-check:

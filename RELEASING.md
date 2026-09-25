@@ -46,16 +46,26 @@ notes record both the software version and vocabulary version.
 The **Release** workflow runs on every push to `main`:
 
 - With pending changesets, it opens or updates a **Version Packages** pull request
-  that runs `npm run release:version`. Merging that pull request approves the release.
+  that runs `npm run release:version`.
 - With versions not yet on npm, it runs `npm run quality` and
-  `npm run packages:check`, packs the tarballs, and publishes them through npm
-  trusted publishing, with no stored npm token. It then creates the
-  `v<package-version>` tag and GitHub release with `scripts/tag-release.js`.
+  `npm run packages:check`, then stages the tarballs on npm through trusted
+  publishing, with no stored npm token. Staged versions are not installable. It then
+  creates a draft `v<package-version>` GitHub release with `scripts/tag-release.js`.
+  While that draft exists, later pushes do not stage the version again.
 
-Only the publish job can publish to npm or write releases; the version and pack
-jobs cannot. Each package's trusted publisher on npmjs.com names this repository
-and `release.yml`. Pull requests opened with the workflow token do not trigger
-other workflows, so CI does not run on the Version Packages pull request itself.
+Staging makes nothing public. To release, run `npm run release:approve` from
+`main` once the workflow finishes. It approves each staged package with
+`npm stage approve`, which asks for two-factor authentication for every package,
+and checks that every version is on npm. Then it publishes the draft release,
+which creates the `v<package-version>` tag, and starts the Schema site workflow. Rerun it
+to continue after an interruption. The script runs npm 12 through `npx`, since
+older npm has no `stage` command.
+
+Only the stage job can stage packages or write releases; the version and pack jobs
+cannot. Each package's trusted publisher on npmjs.com names this repository and
+`release.yml`, and allows `npm stage publish` only. Pull requests opened with the
+workflow token do not trigger other workflows, so CI does not run on the Version
+Packages pull request itself.
 
 To publish from a local checkout instead, such as before trusted publishers exist,
 authenticate with npm and run `npm run release` from a clean `main`. It runs the
@@ -84,13 +94,13 @@ For an approved schema release:
 1. Prepare and validate the package using the checks above. Release preparation
    also saves the packed ontology at
    `artifacts/schema/releases/<version>/chronicle.ttl`.
-2. Publishing creates the `v<package-version>` tag and GitHub release on the
-   release commit. Never move or reuse a release tag. For example,
+2. Approving the release publishes the `v<package-version>` GitHub release and
+   creates its tag on the release commit. Never move or reuse a release tag. For example,
    `git show v0.1.0:core/schema/chronicle.ttl` retrieves that release's
    ontology once the tag exists.
 3. Record the package version and vocabulary version together in the release notes.
    The Git tag identifies the software release; the snapshot path uses the vocabulary version.
-4. After publishing, the release workflow deploys https://schema.chronicle.app
+4. After approving, `npm run release:approve` deploys https://schema.chronicle.app
    through [schema-site.yml](.github/workflows/schema-site.yml), which also runs
    on every push to `main` that changes the schema. The deployment serves the
    snapshot at `https://schema.chronicle.app/releases/<version>/chronicle.ttl`,
