@@ -709,6 +709,28 @@ a.term.property {
   max-height: 440px;
 }
 
+.principles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 40px;
+}
+.principle {
+  padding-top: 14px;
+  border-top: 2px solid var(--accent-soft);
+}
+.principle h3 {
+  margin: 0 0 8px;
+}
+.principle p {
+  margin-bottom: 8px;
+  color: var(--text-2);
+  font-size: 0.94rem;
+}
+.principle > a {
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
 .split {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1288,6 +1310,7 @@ dialog::backdrop {
     padding: 20px 16px 32px;
   }
   .split,
+  .principles,
   .pager {
     grid-template-columns: minmax(0, 1fr);
   }

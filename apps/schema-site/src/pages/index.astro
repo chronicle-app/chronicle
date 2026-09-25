@@ -9,20 +9,64 @@ import Layout from '../layouts/Layout.astro';
 import { classes, descendants, examples, families, firstSentence, guides, href, plural, properties, schema, SECTIONS, url } from '../lib/site.js';
 
 const [featured, ...more] = schema.overview;
+// A link to a section of a guide, if the guide and section exist.
+const section = (slug: string, id: string) =>
+  guides.find(guide => guide.slug === slug)?.headings.some(heading => heading.id === id)
+    ? `${href.guide(slug)}#${id}`
+    : undefined;
+
+// The design choices behind the vocabulary, each linked to the guide that explains it.
+const principles = [
+  {
+    title: 'Record what happened',
+    text: 'Every record is an :Action or an :Entity. Entities are recorded through the actions that involve them: a task when you complete it, a person when they message you.',
+    link: section('the-shape-of-a-record', 'actions-and-entities'),
+  },
+  {
+    title: 'Identify records the way the source does',
+    text: 'A key is built from the source’s own IDs, handles, or event details, so the same record gets the same identity every time it is read. Never from a generated ID.',
+    link: section('keys-and-sources', 'choosing-a-key'),
+  },
+  {
+    title: 'Connect records only on evidence',
+    text: 'Records from different sources join through a shared key or an explicit :sameAs, never by guessing. A missing link can be added later; a wrong one would merge two histories.',
+    link: section('keys-and-sources', 'sameas'),
+  },
+  {
+    title: 'Borrow from schema.org',
+    text: 'Where schema.org has a term, Chronicle uses its name: :Person, :Action, :agent, :object, :sameAs. Chronicle adds what personal history needs: where each record came from and what identifies it.',
+    link: url('classes/index.html'),
+  },
+];
 ---
 
 <Layout {...SECTIONS.home} kind="home">
   <section class="hero">
-    <p class="eyebrow">Version {schema.version}</p>
-    <h1>Chronicle Schema</h1>
+    <p class="eyebrow">Version {schema.version} · {classes.size} classes · {properties.size} properties</p>
+    <h1>A shared language for your digital history</h1>
     <p class="lead">
-      The classes and properties Chronicle’s plugins use to describe messages, shell commands, to-dos, and AI
-      conversations. It has {classes.size} classes and {properties.size} properties.
+      <a href="https://chronicle.app/">Chronicle</a> brings your history from many apps, such as messages, shell commands,
+      to-dos, and AI conversations, into one archive on your own computer. This vocabulary is how every source describes
+      what happened, so records about the same person or thing connect.
     </p>
     <div class="actions">
       <a class="button primary" href={href.guide(guides[0].slug)}>Read the guides</a>
       <a class="button" href={url('classes/index.html')}>Browse classes</a>
       <button type="button" class="button ghost" data-open-search>Search <kbd data-shortcut>⌘K</kbd></button>
+    </div>
+  </section>
+  <section>
+    <h2>How it’s designed</h2>
+    <div class="principles">
+      {
+        principles.map(principle => (
+          <div class="principle">
+            <h3>{principle.title}</h3>
+            <p><Prose text={principle.text} /></p>
+            {principle.link && <a href={principle.link}>Read more →</a>}
+          </div>
+        ))
+      }
     </div>
   </section>
   {
