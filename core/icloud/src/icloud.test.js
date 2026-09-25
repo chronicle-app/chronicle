@@ -4,6 +4,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { PersonSchema } from '@chronicle.app/schema';
 import { getICloudAccount, buildICloudPersonSchema, ContactCache } from '../dist/index.js';
 
 test('account parsing chooses logged-in account and passes paths as arguments', async () => {
@@ -67,9 +68,23 @@ test('unavailable accounts and unsupported platforms have a stable self fallback
     }),
     null
   );
-  const person = await buildICloudPersonSchema(null);
-  assert.deepEqual(person['@key'], ['@type', 'source']);
-  assert.deepEqual(person.sameAs, ['@me']);
+});
+test('without a readable account the self is the @me fallback Person', async () => {
+  const fallback = {
+    '@type': 'Person',
+    source: 'icloud',
+    '@key': ['@type', 'source'],
+    sameAs: ['@me'],
+  };
+  assert.deepEqual(await buildICloudPersonSchema(null), fallback);
+  const looked = await buildICloudPersonSchema(undefined, {
+    platform: 'darwin',
+    run() {
+      throw new Error('denied');
+    },
+  });
+  assert.deepEqual(looked, fallback);
+  assert.deepEqual(PersonSchema.parse(looked), fallback);
 });
 test('read-only contact cache combines databases and resolves email, phone and ambiguous names', t => {
   const dir = mkdtempSync(join(tmpdir(), 'contacts-fixture-'));

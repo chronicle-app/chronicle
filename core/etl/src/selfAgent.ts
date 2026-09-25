@@ -10,10 +10,20 @@
  * per-source singleton `["@type", "source"]` — still merged into the real
  * person through `@me`.
  */
+import type { AgentAndChildren, Entity, KeyField } from '@chronicle.app/schema';
 
-export interface SelfAgentOptions {
+/** The schema node types a self can be: `Agent` or one of its subtypes. */
+export type SelfAgentType = AgentAndChildren['@type'];
+
+/** The schema node `selfAgent` returns for a given type, e.g. `Person` for `'Person'`. */
+export type SelfAgent<T extends SelfAgentType = 'Person'> = Extract<
+  AgentAndChildren,
+  { '@type': T }
+>;
+
+export interface SelfAgentOptions<T extends SelfAgentType = SelfAgentType> {
   /** Node type; the self is a Person unless the source says otherwise. */
-  type?: string;
+  type?: T;
   source: string;
   sourceId?: string;
   handle?: string;
@@ -24,12 +34,15 @@ export interface SelfAgentOptions {
    * sourceId is given, `["@type", "source", "handle"]` when only a handle is,
    * `["@type", "source"]` when the source provides no identifier.
    */
-  key?: string[];
+  key?: KeyField[];
   /** Existing cross-source identity edges; "@me" is appended after them. */
-  sameAs?: unknown[];
+  sameAs?: NonNullable<Entity['sameAs']>;
 }
 
-export function selfAgent(options: SelfAgentOptions): Record<string, any> {
+/** Build the source's self node, typed as the schema node for `type` (`Person` by default). */
+export function selfAgent<T extends SelfAgentType = 'Person'>(
+  options: SelfAgentOptions<T>
+): SelfAgent<T> {
   const { type = 'Person', source, sourceId, handle, name, sameAs = [] } = options;
 
   const key =
@@ -48,5 +61,5 @@ export function selfAgent(options: SelfAgentOptions): Record<string, any> {
     ...(name !== undefined && { name }),
     '@key': key,
     sameAs: [...sameAs, '@me'],
-  };
+  } as SelfAgent<T>;
 }

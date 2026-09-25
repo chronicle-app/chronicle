@@ -20,6 +20,7 @@
   "description": "Local iCloud account and AddressBook lookup",
   "devDependencies": {
     "@chronicle.app/etl": "0.2.0",
+    "@chronicle.app/schema": "0.2.0",
     "@chronicle.app/tsconfig": "0.2.0",
     "@types/node": "^22.10.1",
     "typescript": "^5.7.2"
@@ -36,7 +37,8 @@
   },
   "dependencies": {},
   "peerDependencies": {
-    "@chronicle.app/etl": ">=0.1.0 <1.0.0"
+    "@chronicle.app/etl": ">=0.1.0 <1.0.0",
+    "@chronicle.app/schema": ">=0.1.0 <1.0.0"
   },
   "engines": {
     "node": ">=22.13.0"

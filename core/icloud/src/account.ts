@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { selfAgent } from '@chronicle.app/etl';
+import type { Person } from '@chronicle.app/schema';
 
 export interface ICloudAccount {
   accountID: string;
@@ -83,10 +84,22 @@ export function getCurrentICloudUser(options: AccountLookupOptions = {}): string
   return (accounts.find(account => account.isLoggedIn) ?? accounts[0])?.accountID ?? null;
 }
 
+/**
+ * Build the iCloud account owner as a self `Person` tagged `sameAs: ['@me']`.
+ * Pass an account, or omit it to look one up with `getICloudAccount(options)`.
+ *
+ * Never returns null. With an account, the Person is keyed by the account's
+ * DSID (or email) and carries the email as `handle`. With `null`, or when no
+ * account can be read (not macOS, no iCloud sign-in, or the preferences are
+ * unreadable), it is the per-source singleton
+ * `{ '@type': 'Person', source: 'icloud', '@key': ['@type', 'source'], sameAs: ['@me'] }`,
+ * which still merges into the user through `@me`.
+ */
 export async function buildICloudPersonSchema(
-  account?: ICloudAccount | null
-): Promise<ReturnType<typeof selfAgent>> {
-  const resolved = account === undefined ? await getICloudAccount() : account;
+  account?: ICloudAccount | null,
+  options: AccountLookupOptions = {}
+): Promise<Person> {
+  const resolved = account === undefined ? await getICloudAccount(options) : account;
   return selfAgent({
     source: 'icloud',
     ...(resolved && {
