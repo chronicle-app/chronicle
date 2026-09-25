@@ -5,6 +5,16 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ThingsTodoExtractor, ThingsTodoTransformer } from '../dist/index.js';
+import { localAccountName } from '../dist/connectors/ownerName.js';
+
+/** Stub the OS lookup so tests never read the host account. */
+function extractorResolving(name) {
+  return class extends ThingsTodoExtractor {
+    resolveAgentName() {
+      return name;
+    }
+  };
+}
 
 function fixture(t) {
   const dir = mkdtempSync(join(tmpdir(), 'things-fixture-'));
@@ -30,8 +40,8 @@ function fixture(t) {
   db.close();
   return input;
 }
-async function records(input, config = {}) {
-  const extractor = new ThingsTodoExtractor({ input, ...config });
+async function records(input, config = {}, Extractor = extractorResolving()) {
+  const extractor = new Extractor({ input, ...config });
   try {
     await extractor.setup();
     return await Array.fromAsync(extractor.extract());
@@ -95,4 +105,56 @@ test('independent edits emit an update, missing optional enrichment is valid', a
     ['PlanAction', 'UpdateAction']
   );
   assert.equal(actions[1].data.timestamp.getTime(), 500_000);
+});
+test('owner name comes from the local account unless agentName overrides it', async t => {
+  const input = fixture(t);
+  const [resolved] = await records(input, { limit: 1 }, extractorResolving('Pat Example'));
+  assert.equal(resolved.context.agent.name, 'Pat Example');
+  const [configured] = await records(
+    input,
+    { limit: 1, agentName: 'Sam Example' },
+    extractorResolving('Pat Example')
+  );
+  assert.equal(configured.context.agent.name, 'Sam Example');
+
+  const [action] = await new ThingsTodoTransformer().performTransform(resolved);
+  assert.deepEqual(action.data.agent, {
+    '@type': 'Agent',
+    '@key': ['@type', 'source'],
+    source: 'things-todo',
+    name: 'Pat Example',
+    sameAs: ['@me'],
+  });
+  const [unnamed] = await records(input, { limit: 1 });
+  const [anonymous] = await new ThingsTodoTransformer().performTransform(unnamed);
+  assert.equal(anonymous.data.agent.name, undefined);
+  assert.deepEqual(anonymous.data.agent['@key'], ['@type', 'source']);
+});
+test('local account name reads the macOS full name and is absent elsewhere', () => {
+  const calls = [];
+  const run = (command, args) => {
+    calls.push([command, args]);
+    return 'Pat Example\n';
+  };
+  assert.equal(localAccountName({ platform: 'darwin', run }), 'Pat Example');
+  assert.deepEqual(calls, [['/usr/bin/id', ['-F']]]);
+  assert.equal(localAccountName({ platform: 'darwin', run: () => '  \n' }), undefined);
+  assert.equal(
+    localAccountName({
+      platform: 'darwin',
+      run() {
+        throw new Error('denied');
+      },
+    }),
+    undefined
+  );
+  assert.equal(
+    localAccountName({
+      platform: 'linux',
+      run() {
+        throw new Error('must not run');
+      },
+    }),
+    undefined
+  );
 });

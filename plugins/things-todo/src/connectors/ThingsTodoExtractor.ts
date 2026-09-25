@@ -3,6 +3,7 @@ import { SqliteExtractor, timeRangeConditions } from '@chronicle.app/etl-sqlite'
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
+import { localAccountName } from './ownerName.js';
 import ThingsTodoTransformer from './ThingsTodoTransformer.js';
 
 /**
@@ -67,10 +68,18 @@ export class ThingsTodoExtractor extends SqliteExtractor<typeof ThingsTodoExtrac
       .string()
       .describe('The db file to read from')
       .default(() => resolveThingsDbPath()),
-    agentName: z.string().optional().describe('Name of the task owner, when known'),
+    agentName: z
+      .string()
+      .optional()
+      .describe("Name of the task owner. Defaults to the OS account's full name"),
   }) as any;
 
   static override defaultTransformer = ThingsTodoTransformer;
+
+  /** The owner's name from the local machine, used when `agentName` isn't set. */
+  protected resolveAgentName(): string | undefined {
+    return localAccountName();
+  }
 
   private getStatusLabel(status: number): string {
     switch (status) {
@@ -107,6 +116,7 @@ export class ThingsTodoExtractor extends SqliteExtractor<typeof ThingsTodoExtrac
       values.push(limit);
     }
     const rows = this.db.prepare(sql).all(...values) as unknown as TMTaskRow[];
+    const agentName = this.config.agentName ?? this.resolveAgentName();
 
     // Get enriched areas and projects with nested data
     const areaIds = [...new Set(rows.map(row => row.area))].filter(Boolean) as string[];
@@ -160,9 +170,6 @@ export class ThingsTodoExtractor extends SqliteExtractor<typeof ThingsTodoExtrac
         };
       });
 
-      // Get user's real name for Person object deduplication
-      const realName = this.config.agentName;
-
       // Determine the project relationship
       let projectRelation = null;
       let headingRelation = null;
@@ -194,9 +201,7 @@ export class ThingsTodoExtractor extends SqliteExtractor<typeof ThingsTodoExtrac
         heading: headingRelation,
         area: row.area ? enrichedAreas.get(row.area) || null : null,
         tags: enrichedTags,
-        agent: {
-          name: realName, // Just the real name for Person [@type, title, source] deduplication
-        },
+        agent: { name: agentName },
       });
     }
   }
