@@ -1,7 +1,7 @@
 {
   "name": "@chronicle.app/cli",
   "description": "Chronicle CLI",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "Andrew Louis",
   "bin": {
     "chronicle": "./bin/run.js"
@@ -10,13 +10,13 @@
     "url": "https://github.com/chronicle-app/chronicle/issues/new?labels=cli&title=[cli]%20"
   },
   "dependencies": {
-    "@chronicle.app/auth": "0.1.0",
-    "@chronicle.app/claude-code": "0.1.0",
-    "@chronicle.app/etl": "0.1.0",
-    "@chronicle.app/imessage": "0.1.0",
-    "@chronicle.app/schema": "0.1.0",
-    "@chronicle.app/shell": "0.1.0",
-    "@chronicle.app/things-todo": "0.1.0",
+    "@chronicle.app/auth": "0.2.0",
+    "@chronicle.app/claude-code": "0.2.0",
+    "@chronicle.app/etl": "0.2.0",
+    "@chronicle.app/imessage": "0.2.0",
+    "@chronicle.app/schema": "0.2.0",
+    "@chronicle.app/shell": "0.2.0",
+    "@chronicle.app/things-todo": "0.2.0",
     "@inkjs/ui": "^2.0.0",
     "@oclif/core": "^4.2",
     "@oclif/plugin-autocomplete": "^3.2.11",
@@ -32,7 +32,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@chronicle.app/tsconfig": "0.1.0",
+    "@chronicle.app/tsconfig": "0.2.0",
     "@types/node": "^22.10.1",
     "@types/react": "^18.3.17",
     "oclif": "^4",
