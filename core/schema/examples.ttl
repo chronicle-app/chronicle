@@ -409,6 +409,67 @@ attachments, a :VideoObject and a :DocumentObject.
     ]
   ] .
 
+example:group-reply
+  rdfs:label "A reply in a group chat";
+  rdfs:comment """
+Sam replied to an earlier message in a WhatsApp group. The group is a
+:Channel the :Message is :isPartOf, keyed by the group's WhatsApp ID, and its
+:member edges list the people in it. :inReplyTo points at the quoted message by
+its WhatsApp message ID, so it lands on the same :Message node when that message
+is extracted too.
+
+Each person is keyed by their WhatsApp ID and linked through :sameAs to their
+phone number in the `phone` namespace, which other sources can share.
+""";
+  rdf:value [
+    a :MessageAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "whatsapp";
+    :sourceId "3EB0C9A1F27D4B6E8A15";
+    :timestamp "2026-05-09T18:40:12.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "handle");
+      :source "whatsapp";
+      :handle "15555550101@s.whatsapp.net";
+      :name "Sam";
+      :sameAs [
+        a :Person;
+        doc:key ("@type" "source" "handle");
+        :source "phone";
+        :handle "+15555550101";
+        :name "Sam"
+      ]
+    ];
+    :object [
+      a :Message;
+      doc:key ("@type" "source" "sourceId");
+      :source "whatsapp";
+      :sourceId "3EB0C9A1F27D4B6E8A15";
+      :body "Meet at the north lot";
+      :inReplyTo [
+        a :Message;
+        doc:key ("@type" "source" "sourceId");
+        :source "whatsapp";
+        :sourceId "3EB0462C7F395EC0B664"
+      ];
+      :isPartOf [
+        a :Channel;
+        doc:key ("@type" "source" "handle");
+        :source "whatsapp";
+        :handle "120363000000000001@g.us";
+        :name "Hike Club";
+        :member [
+          a :Person;
+          doc:key ("@type" "source" "handle");
+          :source "whatsapp";
+          :handle "15555550101@s.whatsapp.net";
+          :name "Sam"
+        ]
+      ]
+    ]
+  ] .
+
 example:assistant-reply
   rdfs:label "An assistant's reply in a coding session";
   rdfs:comment """
@@ -689,6 +750,8 @@ An :Entity with a :name, keyed by its :source and :sourceId. The :url is a
 :Message skos:example example:message-with-photo, example:assistant-reply .
 :MessageAction skos:example example:message-with-photo, example:assistant-prompt .
 :Thread skos:example example:assistant-reply .
+:CreativeWork skos:example example:group-reply .
+:Channel skos:example example:group-reply .
 :MediaObject skos:example example:message-with-photo, example:group-message-attachments .
 :ImageObject skos:example example:message-with-photo .
 :AudioObject skos:example example:voice-message .
@@ -727,3 +790,5 @@ An :Entity with a :name, keyed by its :source and :sourceId. The :url is a
 :travelMode skos:example example:trip .
 :distance skos:example example:trip .
 :path skos:example example:trip .
+:member skos:example example:group-reply .
+:inReplyTo skos:example example:group-reply .

@@ -23,7 +23,8 @@ Plugins extend these roots only where their outputs require it: Things adds task
 lifecycle actions and collections/tags; shell adds commands, people, and machine
 realms; iMessage adds messages and attachment media; Claude Code adds threads,
 software agents, and model instruments; Safari adds page views; Arc Timeline adds
-visits, trips, places, and journeys. Shared properties cover source identity,
+visits, trips, places, and journeys; WhatsApp adds group channels, members, and
+quoted replies. Shared properties cover source identity,
 event time, agents, membership, authors, and recipients.
 
 `Text`, `URL`, `DateTime`, and `Number` are literal datatypes. Cardinality in

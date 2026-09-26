@@ -283,3 +283,18 @@
   owl:maxCardinality 1;
   :domainIncludes :Journey;
   :rangeIncludes :Text .
+
+:CreativeWork a rdfs:Class;
+  rdfs:comment "A work made by an agent — a text, a recording, a post, a message, a document. Carries its attribution (:author, :publisher), its release (:datePublished), what it is about (:about), and its composition (:isPartOf, :contains).";
+  rdfs:subClassOf :Entity .
+:Channel a rdfs:Class;
+  rdfs:comment "A named, multi-participant messaging container that messages are posted to — a workspace channel, a group chat, a chat room. Messages link to it with :isPartOf; a one-to-one conversation has no Channel.";
+  rdfs:subClassOf :CreativeWork .
+:member a rdf:Property;
+  rdfs:comment "A member of the group — a musical group, an organization, or a messaging channel/group chat.";
+  :domainIncludes :Channel;
+  :rangeIncludes :Person, :Agent .
+:inReplyTo a rdf:Property;
+  rdfs:comment "The message this message is a quoted reply to.";
+  :domainIncludes :Message;
+  :rangeIncludes :Message .

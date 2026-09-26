@@ -112,6 +112,7 @@ export type EntityAndChildren =
   | AgentAndChildren
   | CollectionAndChildren
   | CommandAndChildren
+  | CreativeWorkAndChildren
   | JourneyAndChildren
   | MediaObjectAndChildren
   | MessageAndChildren
@@ -223,6 +224,46 @@ export const CancelActionSchema: z.ZodType<CancelAction> = z
   .object({
     '@type': z.literal('CancelAction'),
     ...CancelActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// CreativeWork, child of https://schema.chronicle.app/Entity
+export interface CreativeWork extends Omit<Entity, '@type'> {
+  '@type': 'CreativeWork';
+}
+
+export type CreativeWorkAndChildren = CreativeWork | ChannelAndChildren;
+
+const CreativeWorkProperties = {
+  ...EntityProperties,
+};
+
+export const CreativeWorkSchema: z.ZodType<CreativeWork> = z
+  .object({
+    '@type': z.literal('CreativeWork'),
+    ...CreativeWorkProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Channel, child of https://schema.chronicle.app/CreativeWork
+export interface Channel extends Omit<CreativeWork, '@type'> {
+  '@type': 'Channel';
+  member?: (AgentAndChildren | PersonAndChildren)[];
+}
+
+export type ChannelAndChildren = Channel;
+
+const ChannelProperties = {
+  ...CreativeWorkProperties,
+  member: z
+    .lazy(() => z.array(z.union([AgentAndChildrenSchema, PersonAndChildrenSchema])))
+    .optional(),
+};
+
+export const ChannelSchema: z.ZodType<Channel> = z
+  .object({
+    '@type': z.literal('Channel'),
+    ...ChannelProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -435,6 +476,7 @@ export interface Message extends Omit<Entity, '@type'> {
   '@type': 'Message';
   author?: AgentAndChildren[];
   contains?: MediaObjectAndChildren[];
+  inReplyTo?: MessageAndChildren[];
   recipient?: AgentAndChildren[];
 }
 
@@ -444,6 +486,7 @@ const MessageProperties = {
   ...EntityProperties,
   author: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
   contains: z.lazy(() => z.array(MediaObjectAndChildrenSchema)).optional(),
+  inReplyTo: z.lazy(() => z.array(MessageAndChildrenSchema)).optional(),
   recipient: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
 };
 
@@ -866,6 +909,21 @@ export const CollectionAndChildrenSchema: z.ZodType<CollectionAndChildren> = z
     }),
   ])
   .superRefine(requireNodeIdentity);
+export const ChannelAndChildrenSchema = ChannelSchema;
+
+export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> = z
+  .discriminatedUnion('@type', [
+    z.object({
+      '@type': z.literal('CreativeWork'),
+      ...CreativeWorkProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Channel'),
+      ...ChannelProperties,
+    }),
+  ])
+  .superRefine(requireNodeIdentity);
 export const CancelActionAndChildrenSchema = CancelActionSchema;
 
 export const AudioObjectAndChildrenSchema = AudioObjectSchema;
@@ -981,6 +1039,16 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     z.object({
       '@type': z.literal('Project'),
       ...ProjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('CreativeWork'),
+      ...CreativeWorkProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Channel'),
+      ...ChannelProperties,
     }),
 
     z.object({
@@ -1157,6 +1225,16 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('Project'),
       ...ProjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('CreativeWork'),
+      ...CreativeWorkProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Channel'),
+      ...ChannelProperties,
     }),
 
     z.object({

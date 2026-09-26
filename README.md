@@ -45,6 +45,7 @@ These sources come bundled with the CLI:
 | Arc Timeline visits and trips                    | [arc-timeline](plugins/arc-timeline/README.md) |
 | Claude Code transcripts                          | [claude-code](plugins/claude-code/README.md)   |
 | Things 3                                         | [things-todo](plugins/things-todo/README.md)   |
+| WhatsApp messages                                | [whatsapp](plugins/whatsapp/README.md)         |
 
 Install other plugins with `chronicle plugins install <package>`.
 
