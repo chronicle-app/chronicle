@@ -9,6 +9,7 @@
 export {
   getICloudAccount,
   getICloudAccountsFromDefaults,
+  getICloudAccountsFromAccountsDb,
   getICloudAccountsFromPlist,
   getCurrentICloudUser,
   buildICloudPersonSchema,

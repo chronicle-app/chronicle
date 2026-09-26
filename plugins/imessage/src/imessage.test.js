@@ -86,13 +86,15 @@ test('outgoing/SMS identities, no-account fallback and contact opt-out', async t
       throw new Error('contacts disabled');
     },
   });
+  // With no account or contact to identify me, I'm left out rather than keyed
+  // as a bare Person every owner would share.
   const [outgoing] = await transformer.performTransform(rows[0]);
-  assert.deepEqual(outgoing.data.agent.sameAs, ['@me']);
+  assert.equal(outgoing.data.agent, undefined);
   assert.equal(outgoing.data.object.body, 'Blob text');
   assert.equal(outgoing.data.object.recipient[0].handle, 'Friend@Example.com');
   const [incoming] = await transformer.performTransform(rows[1]);
   assert.equal(incoming.data.agent.name, undefined);
-  assert.deepEqual(incoming.data.object.recipient[0].sameAs, ['@me']);
+  assert.equal(incoming.data.object.recipient, undefined);
 });
 test('exclusive time windows and newest-first limits', async t => {
   const { input } = fixture(t);

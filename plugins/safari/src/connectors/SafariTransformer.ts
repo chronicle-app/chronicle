@@ -25,7 +25,8 @@ export default class SafariTransformer extends ChronicleTransformer {
       timestamp: new Date(record.data.unix_timestamp * 1000),
       '@key': ['@type', 'source', 'timestamp'],
       source: 'safari',
-      agent: user,
+      // Without an iCloud account the viewer can't be identified, so omit them.
+      ...(user && { agent: user }),
       object: webpage,
     };
 
