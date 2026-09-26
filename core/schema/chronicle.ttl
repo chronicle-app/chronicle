@@ -204,3 +204,82 @@
 :ViewAction a rdfs:Class;
   rdfs:comment "The agent looked at the :object — a web page visited, a photo opened, a document viewed. A point encounter rather than a consumption in progress.";
   rdfs:subClassOf :ConsumeAction .
+
+:Number a rdfs:Class;
+  rdfs:comment "A numeric value, integral or decimal." .
+:startTime a rdf:Property;
+  rdfs:comment "The start time of an action, or the start bound of an interval value. A :DateTime is an anchored instant; a :Date is a civil whole-day bound (e.g. an all-day event).";
+  owl:maxCardinality 1;
+  :domainIncludes :Action;
+  :rangeIncludes :DateTime .
+:endTime a rdf:Property;
+  rdfs:comment "The end time of an action, or the end bound of an interval value. A :DateTime is an anchored instant; a :Date is a civil whole-day bound (e.g. an all-day event).";
+  owl:maxCardinality 1;
+  :domainIncludes :Action;
+  :rangeIncludes :DateTime .
+:result a rdf:Property;
+  rdfs:comment "What the action produced — the artifact or session that came into being through it.";
+  owl:maxCardinality 1;
+  :domainIncludes :Action;
+  :rangeIncludes :Entity .
+
+:StructuredValue a rdfs:Class;
+  rdfs:comment "A value made of several fields — a position, an interval — that describes something without being an identified entity of its own." .
+:Location a rdfs:Class;
+  rdfs:comment "A geographic position and address — coordinates (:latitude, :longitude, :elevation) and address parts (:address, :locality, :region, :country, :postalCode). A structured value with no identity of its own; the identified place it describes is a :Place.";
+  rdfs:subClassOf :StructuredValue .
+:Place a rdfs:Class;
+  rdfs:comment "A location in the world with an identity of its own — a venue, a city, a region, a country. Its geographic position and address are its :location value.";
+  rdfs:subClassOf :Entity .
+:Venue a rdfs:Class;
+  rdfs:comment "A specific place one goes to — a café, a shop, a park, a home, an office. The :object of a :VisitAction or :CheckInAction, and the :location where something happened.";
+  rdfs:subClassOf :Place .
+:location a rdf:Property;
+  rdfs:comment "The location associated with the action or entity.";
+  owl:maxCardinality 1;
+  :domainIncludes :Action, :Entity;
+  :rangeIncludes :Place, :Location .
+:latitude a rdf:Property;
+  rdfs:comment "The latitude of the location.";
+  owl:maxCardinality 1;
+  :domainIncludes :Location;
+  :rangeIncludes :Number .
+:longitude a rdf:Property;
+  rdfs:comment "The longitude of the location.";
+  owl:maxCardinality 1;
+  :domainIncludes :Location;
+  :rangeIncludes :Number .
+:address a rdf:Property;
+  rdfs:comment "The address of the location.";
+  owl:maxCardinality 1;
+  :domainIncludes :Location;
+  :rangeIncludes :Text .
+:category a rdf:Property;
+  rdfs:comment "Categories or tags that classify the entity or action.";
+  :domainIncludes :Entity;
+  :rangeIncludes :Text .
+
+:VisitAction a rdfs:Class;
+  rdfs:comment "The agent was present at the :object place over :startTime to :endTime — a stay somewhere, as distinct from the :TravelAction between stays.";
+  rdfs:subClassOf :Action .
+:TravelAction a rdfs:Class;
+  rdfs:comment "The agent travelled from :object to :target — a physical journey between places, over :startTime to :endTime. Its :result is the :Journey recording the route, mode, and distance.";
+  rdfs:subClassOf :Action .
+:Journey a rdfs:Class;
+  rdfs:comment "A recorded segment of travel — the :result of a :TravelAction, carrying the :travelMode, the :distance, and the route as :path. Dateless itself; the action carries the span.";
+  rdfs:subClassOf :Entity .
+:travelMode a rdf:Property;
+  rdfs:comment "The mode of travel of a journey (e.g. walking, cycling, driving).";
+  owl:maxCardinality 1;
+  :domainIncludes :Journey;
+  :rangeIncludes :Text .
+:distance a rdf:Property;
+  rdfs:comment "The distance covered by a journey, in meters.";
+  owl:maxCardinality 1;
+  :domainIncludes :Journey;
+  :rangeIncludes :Number .
+:path a rdf:Property;
+  rdfs:comment "The recorded route of a journey.";
+  owl:maxCardinality 1;
+  :domainIncludes :Journey;
+  :rangeIncludes :Text .

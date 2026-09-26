@@ -10,6 +10,7 @@
     "url": "https://github.com/chronicle-app/chronicle/issues/new?labels=cli&title=[cli]%20"
   },
   "dependencies": {
+    "@chronicle.app/arc-timeline": "0.2.0",
     "@chronicle.app/auth": "0.2.0",
     "@chronicle.app/claude-code": "0.2.0",
     "@chronicle.app/etl": "0.2.0",

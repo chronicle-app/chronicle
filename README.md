@@ -37,13 +37,14 @@ Run `chronicle extract <source> --help` for a source's options. See the
 
 These sources come bundled with the CLI:
 
-| Source                                           | Package                                      |
-| ------------------------------------------------ | -------------------------------------------- |
-| Shell history (bash, zsh, fish)                  | [shell](plugins/shell/README.md)             |
-| iMessage/SMS, with iCloud and contact enrichment | [imessage](plugins/imessage/README.md)       |
-| Safari browsing history                          | [safari](plugins/safari/README.md)           |
-| Claude Code transcripts                          | [claude-code](plugins/claude-code/README.md) |
-| Things 3                                         | [things-todo](plugins/things-todo/README.md) |
+| Source                                           | Package                                        |
+| ------------------------------------------------ | ---------------------------------------------- |
+| Shell history (bash, zsh, fish)                  | [shell](plugins/shell/README.md)               |
+| iMessage/SMS, with iCloud and contact enrichment | [imessage](plugins/imessage/README.md)         |
+| Safari browsing history                          | [safari](plugins/safari/README.md)             |
+| Arc Timeline visits and trips                    | [arc-timeline](plugins/arc-timeline/README.md) |
+| Claude Code transcripts                          | [claude-code](plugins/claude-code/README.md)   |
+| Things 3                                         | [things-todo](plugins/things-todo/README.md)   |
 
 Install other plugins with `chronicle plugins install <package>`.
 

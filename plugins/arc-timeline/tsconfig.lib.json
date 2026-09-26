@@ -1,0 +1,20 @@
+{
+  "extends": "@chronicle.app/tsconfig/lib.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo"
+  },
+  "include": ["src/**/*.ts"],
+  "references": [
+    {
+      "path": "../../core/etl/tsconfig.lib.json"
+    },
+    {
+      "path": "../../core/schema/tsconfig.lib.json"
+    },
+    {
+      "path": "../../core/icloud/tsconfig.lib.json"
+    }
+  ]
+}

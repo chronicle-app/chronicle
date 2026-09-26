@@ -26,6 +26,9 @@
       "path": "plugins/safari/tsconfig.lib.json"
     },
     {
+      "path": "plugins/arc-timeline/tsconfig.lib.json"
+    },
+    {
       "path": "core/icloud/tsconfig.lib.json"
     },
     {

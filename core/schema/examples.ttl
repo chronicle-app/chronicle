@@ -558,6 +558,86 @@ history.
     ]
   ] .
 
+example:place-visit
+  rdfs:label "Visiting a place";
+  rdfs:comment """
+A :VisitAction for one stay in an Arc Timeline backup, spanning :startTime to
+:endTime. The :object is a :Venue from Arc's place dictionary, keyed by Arc's
+place id. Its coordinates and address are a :Location value, which has no
+identity of its own. :sameAs links the venue to the Foursquare id Arc matched it
+to, so the same venue from Foursquare merges with it.
+""";
+  rdf:value [
+    a :VisitAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "arc";
+    :sourceId "3F2A9C4E-1B7D-4E5A-9C21-0A6B8D4E7F10";
+    :startTime "2026-05-09T09:12:00.000Z"^^xsd:dateTime;
+    :endTime "2026-05-09T10:40:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "icloud";
+      :sourceId "1234567890";
+      :handle "you@example.com";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Venue;
+      doc:key ("@type" "source" "sourceId");
+      :source "arc";
+      :sourceId "8C1D5E2F-6A4B-4F3C-B7E9-2D0A1C9F8E36";
+      :name "Corner Café";
+      :category "cafe";
+      :location [
+        a :Location;
+        :latitude 43.65;
+        :longitude -79.38;
+        :address "1 Example St, Toronto, CA"
+      ];
+      :sameAs [
+        a :Venue;
+        doc:key ("@type" "source" "sourceId");
+        :source "foursquare";
+        :sourceId "64a7c921b80e4d32a619f085";
+        :name "Corner Café"
+      ]
+    ]
+  ] .
+
+example:trip
+  rdfs:label "A recorded trip";
+  rdfs:comment """
+A :TravelAction for one trip in an Arc Timeline backup. The action records who
+travelled and when; its :result is the :Journey with the :travelMode, the
+:distance in meters, and the GPS trail as :path, a GeoJSON LineString.
+""";
+  rdf:value [
+    a :TravelAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "arc";
+    :sourceId "B4E7A1C2-9D3F-4A6B-8E5C-1F2D3A4B5C6D";
+    :startTime "2026-05-09T10:40:00.000Z"^^xsd:dateTime;
+    :endTime "2026-05-09T10:58:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "icloud";
+      :sourceId "1234567890";
+      :handle "you@example.com";
+      :sameAs "@me"
+    ];
+    :result [
+      a :Journey;
+      doc:key ("@type" "source" "sourceId");
+      :source "arc";
+      :sourceId "B4E7A1C2-9D3F-4A6B-8E5C-1F2D3A4B5C6D";
+      :travelMode "walking";
+      :distance 1200;
+      :path "{\"type\":\"Feature\",\"geometry\":{\"type\":\"LineString\",\"coordinates\":[[-79.38,43.65],[-79.39,43.66]]},\"properties\":{\"coordTimes\":[\"2026-05-09T10:40:00Z\",\"2026-05-09T10:58:00Z\"]}}"
+    ]
+  ] .
+
 example:entity-with-url
   rdfs:label "An entity with a source ID and a URL";
   rdfs:comment """
@@ -599,6 +679,13 @@ An :Entity with a :name, keyed by its :source and :sourceId. The :url is a
 :DeleteAction skos:example example:task-deleted .
 :ConsumeAction skos:example example:page-visit .
 :ViewAction skos:example example:page-visit .
+:VisitAction skos:example example:place-visit .
+:TravelAction skos:example example:trip .
+:Journey skos:example example:trip .
+:Place skos:example example:place-visit .
+:Venue skos:example example:place-visit .
+:StructuredValue skos:example example:place-visit .
+:Location skos:example example:place-visit .
 :Message skos:example example:message-with-photo, example:assistant-reply .
 :MessageAction skos:example example:message-with-photo, example:assistant-prompt .
 :Thread skos:example example:assistant-reply .
@@ -629,3 +716,14 @@ An :Entity with a :name, keyed by its :source and :sourceId. The :url is a
 :contentPath skos:example example:message-with-photo .
 :mimeType skos:example example:message-with-photo .
 :author skos:example example:assistant-reply, example:assistant-prompt .
+:startTime skos:example example:place-visit, example:trip .
+:endTime skos:example example:place-visit, example:trip .
+:result skos:example example:trip .
+:location skos:example example:place-visit .
+:latitude skos:example example:place-visit .
+:longitude skos:example example:place-visit .
+:address skos:example example:place-visit .
+:category skos:example example:place-visit .
+:travelMode skos:example example:trip .
+:distance skos:example example:trip .
+:path skos:example example:trip .
