@@ -59,12 +59,12 @@ export type ActionAndChildren =
   | Action
   | CancelActionAndChildren
   | CompleteActionAndChildren
+  | ConsumeActionAndChildren
   | DeleteActionAndChildren
   | ExecuteActionAndChildren
   | MessageActionAndChildren
   | PlanActionAndChildren
-  | UpdateActionAndChildren
-  | ViewActionAndChildren;
+  | UpdateActionAndChildren;
 
 const ActionProperties = {
   ...BaseProperties,
@@ -261,6 +261,24 @@ export const CompleteActionSchema: z.ZodType<CompleteAction> = z
   .object({
     '@type': z.literal('CompleteAction'),
     ...CompleteActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// ConsumeAction, child of https://schema.chronicle.app/Action
+export interface ConsumeAction extends Omit<Action, '@type'> {
+  '@type': 'ConsumeAction';
+}
+
+export type ConsumeActionAndChildren = ConsumeAction | ViewActionAndChildren;
+
+const ConsumeActionProperties = {
+  ...ActionProperties,
+};
+
+export const ConsumeActionSchema: z.ZodType<ConsumeAction> = z
+  .object({
+    '@type': z.literal('ConsumeAction'),
+    ...ConsumeActionProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -576,15 +594,15 @@ export const VideoObjectSchema: z.ZodType<VideoObject> = z
   })
   .superRefine(requireNodeIdentity);
 
-// ViewAction, child of https://schema.chronicle.app/Action
-export interface ViewAction extends Omit<Action, '@type'> {
+// ViewAction, child of https://schema.chronicle.app/ConsumeAction
+export interface ViewAction extends Omit<ConsumeAction, '@type'> {
   '@type': 'ViewAction';
 }
 
 export type ViewActionAndChildren = ViewAction;
 
 const ViewActionProperties = {
-  ...ActionProperties,
+  ...ConsumeActionProperties,
 };
 
 export const ViewActionSchema: z.ZodType<ViewAction> = z
@@ -630,6 +648,19 @@ export const DocumentObjectAndChildrenSchema = DocumentObjectSchema;
 
 export const DeleteActionAndChildrenSchema = DeleteActionSchema;
 
+export const ConsumeActionAndChildrenSchema: z.ZodType<ConsumeActionAndChildren> = z
+  .discriminatedUnion('@type', [
+    z.object({
+      '@type': z.literal('ConsumeAction'),
+      ...ConsumeActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ViewAction'),
+      ...ViewActionProperties,
+    }),
+  ])
+  .superRefine(requireNodeIdentity);
 export const CompleteActionAndChildrenSchema = CompleteActionSchema;
 
 export const CommandAndChildrenSchema = CommandSchema;
@@ -803,11 +834,6 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('ViewAction'),
-      ...ViewActionProperties,
-    }),
-
-    z.object({
       '@type': z.literal('UpdateAction'),
       ...UpdateActionProperties,
     }),
@@ -830,6 +856,16 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     z.object({
       '@type': z.literal('DeleteAction'),
       ...DeleteActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ConsumeAction'),
+      ...ConsumeActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ViewAction'),
+      ...ViewActionProperties,
     }),
 
     z.object({
@@ -946,11 +982,6 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('ViewAction'),
-      ...ViewActionProperties,
-    }),
-
-    z.object({
       '@type': z.literal('UpdateAction'),
       ...UpdateActionProperties,
     }),
@@ -973,6 +1004,16 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('DeleteAction'),
       ...DeleteActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ConsumeAction'),
+      ...ConsumeActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ViewAction'),
+      ...ViewActionProperties,
     }),
 
     z.object({

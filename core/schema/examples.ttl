@@ -597,6 +597,7 @@ An :Entity with a :name, keyed by its :source and :sourceId. The :url is a
 :CompleteAction skos:example example:task-completed .
 :CancelAction skos:example example:task-cancelled .
 :DeleteAction skos:example example:task-deleted .
+:ConsumeAction skos:example example:page-visit .
 :ViewAction skos:example example:page-visit .
 :Message skos:example example:message-with-photo, example:assistant-reply .
 :MessageAction skos:example example:message-with-photo, example:assistant-prompt .
