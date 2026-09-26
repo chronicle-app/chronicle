@@ -1,5 +1,19 @@
 # @chronicle.app/etl
 
+## 0.3.0
+
+### Minor Changes
+
+- 350ec02: Declare `keyOf`, `newestFirst` and `frontierThreshold` on `Extractor` so plugins can state their source identity and ordering ahead of an incremental-import cursor. Nothing reads them yet; extraction is unchanged.
+- 0f72f02: `selfAgent()` now returns the schema node for its `type`: a `Person` by default, an `Agent` for `type: 'Agent'`. `type` is limited to `Agent` and its subtypes, and `sameAs` takes schema entities or strings. `buildICloudPersonSchema()` returns `Promise<Person>`, never null, and takes lookup options. With no readable iCloud account it returns the `@me` fallback Person keyed by `['@type', 'source']`. `@chronicle.app/icloud` now has `@chronicle.app/schema` as a peer dependency.
+
+### Patch Changes
+
+- Updated dependencies [d8d36ef]
+- Updated dependencies [350ec02]
+  - @chronicle.app/schema@0.3.0
+  - @chronicle.app/logging@0.3.0
+
 ## 0.2.0
 
 ### Patch Changes

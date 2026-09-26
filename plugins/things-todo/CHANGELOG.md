@@ -1,5 +1,13 @@
 # @chronicle.app/things-todo
 
+## 0.3.0
+
+### Patch Changes
+
+- 3f21b60: Name the task owner after the OS account's full name (`id -F` on macOS) when `agentName` isn't configured. The CLI never set `agentName`, so the owner Agent had no name. `agentName` still overrides the resolved name, and the owner's key is unchanged.
+- Updated dependencies [ea24fda]
+  - @chronicle.app/etl-sqlite@0.3.0
+
 ## 0.2.0
 
 ### Patch Changes

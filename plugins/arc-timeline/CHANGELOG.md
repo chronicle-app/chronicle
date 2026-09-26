@@ -1,14 +1,13 @@
-# @chronicle.app/schema
+# @chronicle.app/arc-timeline
 
 ## 0.3.0
 
 ### Minor Changes
 
 - d8d36ef: Add the Arc Timeline plugin, bundled with the CLI. It reads Arc Timeline's daily iCloud backup and emits a `VisitAction` for each stay and a `TravelAction` with a `Journey` for each trip. The vocabulary adds `VisitAction`, `TravelAction`, `Journey`, `Place`, `Venue`, the `Location` structured value, and `Number`, with `startTime`, `endTime`, `result`, `location`, `latitude`, `longitude`, `address`, `category`, `travelMode`, `distance`, and `path`.
-- 350ec02: Add the Safari plugin, bundled with the CLI. It reads browsing history from Safari's `History.db` and emits a `ViewAction` for each page visit. The vocabulary adds `ViewAction`.
 
-## 0.2.0
+### Patch Changes
 
-### Minor Changes
-
-- 63bbde7: Replace the single-page HTML reference with a documentation site built from the ontology, with guides, example records, and search. The package no longer ships `docs/schema.html` or exports `@chronicle.app/schema/schema.html`.
+- Updated dependencies [fd58a46]
+- Updated dependencies [0f72f02]
+  - @chronicle.app/icloud@0.3.0

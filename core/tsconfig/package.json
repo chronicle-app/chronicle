@@ -1,6 +1,6 @@
 {
   "name": "@chronicle.app/tsconfig",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Shared TypeScript configurations for Chronicle packages",
   "files": [
     "base.json",
