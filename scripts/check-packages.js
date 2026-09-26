@@ -278,8 +278,12 @@ try {
     );
     assert.equal(JSON.parse(cli(['extract', 'fixture', '--raw'])).name, 'installed fixture');
     cli(['plugins', 'uninstall', 'chronicle-fixture-plugin']);
-    assert.ok(
-      !JSON.parse(cli(['sources', '--format', 'json'])).some(source => source.source === 'fixture')
+    // Outside the workspace, the sources are the CLI's bundled plugin dependencies.
+    assert.deepEqual(
+      JSON.parse(cli(['sources', '--format', 'json']))
+        .map(source => source.source)
+        .sort(),
+      ['claude-code', 'imessage', 'safari', 'shell', 'things-todo']
     );
     const graph = JSON.parse(run([npm, 'ls', '--omit=dev', '--all', '--json'], consumer, true));
     const allowed = new Set(Object.keys(dependencies));

@@ -73,6 +73,42 @@ export async function isWorkspaceRoot(dir: string): Promise<boolean> {
   }
 }
 
+/**
+ * The plugins bundled with the CLI: its own dependencies that declare
+ * `chronicle.plugin`. Resolved from the CLI's position, so they are found
+ * from any cwd.
+ */
+async function bundledPlugins(): Promise<Array<{ name: string; path: string }>> {
+  const cliPackage = JSON.parse(
+    await fs.readFile(new URL('../../package.json', import.meta.url), 'utf8')
+  );
+  const plugins: Array<{ name: string; path: string }> = [];
+  for (const name of Object.keys(cliPackage.dependencies ?? {})) {
+    let dir: string;
+    try {
+      dir = path.dirname(fileURLToPath(import.meta.resolve(name)));
+    } catch {
+      continue;
+    }
+    // Walk up from the entry point to the package's own package.json.
+    for (;;) {
+      try {
+        const pkg = JSON.parse(await fs.readFile(path.join(dir, 'package.json'), 'utf8'));
+        if (pkg.name === name) {
+          if (pkg.chronicle?.plugin === true) plugins.push({ name, path: dir });
+          break;
+        }
+      } catch {
+        // No package.json here; keep walking up.
+      }
+      const parent = path.dirname(dir);
+      if (parent === dir) break;
+      dir = parent;
+    }
+  }
+  return plugins;
+}
+
 export class PluginScanner {
   /**
    * Find all Chronicle plugins in local plugins directory and node_modules
@@ -129,12 +165,10 @@ export class PluginScanner {
         path.join(config.dataDir, 'node_modules'),
         path.join(cwd, 'node_modules'),
       ];
-      for (const name of ['shell', 'things-todo', 'imessage', 'safari', 'claude-code']) {
-        const packageName = `@chronicle.app/${name}`;
-        if (!foundPluginNames.has(packageName)) {
-          const entry = fileURLToPath(import.meta.resolve(packageName));
-          plugins.push({ name: packageName, path: path.dirname(path.dirname(entry)) });
-          foundPluginNames.add(packageName);
+      for (const plugin of await bundledPlugins()) {
+        if (!foundPluginNames.has(plugin.name)) {
+          plugins.push(plugin);
+          foundPluginNames.add(plugin.name);
         }
       }
       for (const plugin of config.plugins.values()) {
