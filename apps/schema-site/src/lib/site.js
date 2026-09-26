@@ -77,10 +77,12 @@ export const plural = name => (name.endsWith('y') ? name.slice(0, -1) + 'ies' : 
 /** Drops the leading colon from `:Term` references, for plain-text contexts. */
 export const plain = text => text.replaceAll(TERM, match => match.slice(1));
 
-// Record classes descend from a root with subclasses (Base); its children are
-// the families (Action, Entity). Standalone roots are datatypes.
+// Record classes descend from Base; its children are the families (Action,
+// Entity). Other roots with subclasses (StructuredValue) group value types that
+// have no identity of their own. Standalone roots are datatypes.
 const roots = [...classes.values()].filter(cls => cls.parents.length === 0);
-export const recordRoots = roots.filter(cls => cls.children.length);
+export const recordRoots = roots.filter(cls => cls.name === 'Base');
+export const valueRoots = roots.filter(cls => cls.name !== 'Base' && cls.children.length > 0);
 export const datatypes = roots.filter(cls => cls.children.length === 0);
 export const families = recordRoots.flatMap(cls => cls.children.map(name => classes.get(name)));
 

@@ -22,10 +22,11 @@ the examples format.
 Plugins extend these roots only where their outputs require it: Things adds task
 lifecycle actions and collections/tags; shell adds commands, people, and machine
 realms; iMessage adds messages and attachment media; Claude Code adds threads,
-software agents, and model instruments; Safari adds page views. Shared properties cover source identity,
+software agents, and model instruments; Safari adds page views; Arc Timeline adds
+visits, trips, places, and journeys. Shared properties cover source identity,
 event time, agents, membership, authors, and recipients.
 
-`Text`, `URL`, and `DateTime` are literal datatypes. Cardinality in
+`Text`, `URL`, `DateTime`, and `Number` are literal datatypes. Cardinality in
 `chronicle.ttl` defines each property's constraints: `owl:minCardinality 1` makes
 it required, and `owl:maxCardinality 1` makes it single-valued; otherwise it is a list. Records carry `@type` and at least one of `@key` (a nonempty list of
 identity fields or computed key entries) or `@id` (an existing identity).

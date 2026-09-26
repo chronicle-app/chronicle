@@ -50,8 +50,12 @@ export const BaseSchema: z.ZodType<Base> = z
 export interface Action extends Omit<Base, '@type'> {
   '@type': 'Action';
   agent?: AgentAndChildren;
+  endTime?: Date;
   instrument?: EntityAndChildren;
+  location?: LocationAndChildren | PlaceAndChildren;
   object?: EntityAndChildren;
+  result?: EntityAndChildren;
+  startTime?: Date;
   timestamp?: Date;
 }
 
@@ -64,13 +68,19 @@ export type ActionAndChildren =
   | ExecuteActionAndChildren
   | MessageActionAndChildren
   | PlanActionAndChildren
-  | UpdateActionAndChildren;
+  | TravelActionAndChildren
+  | UpdateActionAndChildren
+  | VisitActionAndChildren;
 
 const ActionProperties = {
   ...BaseProperties,
   agent: z.lazy(() => AgentAndChildrenSchema).optional(),
+  endTime: z.lazy(() => z.coerce.date()).optional(),
   instrument: z.lazy(() => EntityAndChildrenSchema).optional(),
+  location: z.lazy(() => z.union([LocationAndChildrenSchema, PlaceAndChildrenSchema])).optional(),
   object: z.lazy(() => EntityAndChildrenSchema).optional(),
+  result: z.lazy(() => EntityAndChildrenSchema).optional(),
+  startTime: z.lazy(() => z.coerce.date()).optional(),
   timestamp: z.lazy(() => z.coerce.date()).optional(),
 };
 
@@ -86,10 +96,12 @@ export interface Entity extends Omit<Base, '@type'> {
   '@type': 'Entity';
   about?: EntityAndChildren[];
   body?: string;
+  category?: string[];
   description?: string;
   handle?: string;
   inRealm?: RealmAndChildren;
   isPartOf?: EntityAndChildren[];
+  location?: LocationAndChildren | PlaceAndChildren;
   name?: string;
   sameAs?: (EntityAndChildren | string)[];
   url?: string;
@@ -100,8 +112,10 @@ export type EntityAndChildren =
   | AgentAndChildren
   | CollectionAndChildren
   | CommandAndChildren
+  | JourneyAndChildren
   | MediaObjectAndChildren
   | MessageAndChildren
+  | PlaceAndChildren
   | RealmAndChildren
   | SoftwareApplicationAndChildren
   | TagAndChildren
@@ -111,10 +125,12 @@ const EntityProperties = {
   ...BaseProperties,
   about: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
   body: z.lazy(() => z.string()).optional(),
+  category: z.lazy(() => z.array(z.string())).optional(),
   description: z.lazy(() => z.string()).optional(),
   handle: z.lazy(() => z.string()).optional(),
   inRealm: z.lazy(() => RealmAndChildrenSchema).optional(),
   isPartOf: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
+  location: z.lazy(() => z.union([LocationAndChildrenSchema, PlaceAndChildrenSchema])).optional(),
   name: z.lazy(() => z.string()).optional(),
   sameAs: z.lazy(() => z.array(z.union([EntityAndChildrenSchema, z.string()]))).optional(),
   url: z.lazy(() => z.string().url()).optional(),
@@ -354,6 +370,66 @@ export const ImageObjectSchema: z.ZodType<ImageObject> = z
   })
   .superRefine(requireNodeIdentity);
 
+// Journey, child of https://schema.chronicle.app/Entity
+export interface Journey extends Omit<Entity, '@type'> {
+  '@type': 'Journey';
+  distance?: number;
+  path?: string;
+  travelMode?: string;
+}
+
+export type JourneyAndChildren = Journey;
+
+const JourneyProperties = {
+  ...EntityProperties,
+  distance: z.lazy(() => z.number()).optional(),
+  path: z.lazy(() => z.string()).optional(),
+  travelMode: z.lazy(() => z.string()).optional(),
+};
+
+export const JourneySchema: z.ZodType<Journey> = z
+  .object({
+    '@type': z.literal('Journey'),
+    ...JourneyProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// StructuredValue, child of
+export interface StructuredValue {
+  '@type': 'StructuredValue';
+}
+
+export type StructuredValueAndChildren = StructuredValue | LocationAndChildren;
+
+const StructuredValueProperties = {};
+
+export const StructuredValueSchema: z.ZodType<StructuredValue> = z.object({
+  '@type': z.literal('StructuredValue'),
+  ...StructuredValueProperties,
+});
+
+// Location, child of https://schema.chronicle.app/StructuredValue
+export interface Location extends Omit<StructuredValue, '@type'> {
+  '@type': 'Location';
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+export type LocationAndChildren = Location;
+
+const LocationProperties = {
+  ...StructuredValueProperties,
+  address: z.lazy(() => z.string()).optional(),
+  latitude: z.lazy(() => z.number()).optional(),
+  longitude: z.lazy(() => z.number()).optional(),
+};
+
+export const LocationSchema: z.ZodType<Location> = z.object({
+  '@type': z.literal('Location'),
+  ...LocationProperties,
+});
+
 // Message, child of https://schema.chronicle.app/Entity
 export interface Message extends Omit<Entity, '@type'> {
   '@type': 'Message';
@@ -411,6 +487,24 @@ export const PersonSchema: z.ZodType<Person> = z
   .object({
     '@type': z.literal('Person'),
     ...PersonProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Place, child of https://schema.chronicle.app/Entity
+export interface Place extends Omit<Entity, '@type'> {
+  '@type': 'Place';
+}
+
+export type PlaceAndChildren = Place | VenueAndChildren;
+
+const PlaceProperties = {
+  ...EntityProperties,
+};
+
+export const PlaceSchema: z.ZodType<Place> = z
+  .object({
+    '@type': z.literal('Place'),
+    ...PlaceProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -558,6 +652,24 @@ export const ThreadSchema: z.ZodType<Thread> = z
   })
   .superRefine(requireNodeIdentity);
 
+// TravelAction, child of https://schema.chronicle.app/Action
+export interface TravelAction extends Omit<Action, '@type'> {
+  '@type': 'TravelAction';
+}
+
+export type TravelActionAndChildren = TravelAction;
+
+const TravelActionProperties = {
+  ...ActionProperties,
+};
+
+export const TravelActionSchema: z.ZodType<TravelAction> = z
+  .object({
+    '@type': z.literal('TravelAction'),
+    ...TravelActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // UpdateAction, child of https://schema.chronicle.app/Action
 export interface UpdateAction extends Omit<Action, '@type'> {
   '@type': 'UpdateAction';
@@ -573,6 +685,24 @@ export const UpdateActionSchema: z.ZodType<UpdateAction> = z
   .object({
     '@type': z.literal('UpdateAction'),
     ...UpdateActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Venue, child of https://schema.chronicle.app/Place
+export interface Venue extends Omit<Place, '@type'> {
+  '@type': 'Venue';
+}
+
+export type VenueAndChildren = Venue;
+
+const VenueProperties = {
+  ...PlaceProperties,
+};
+
+export const VenueSchema: z.ZodType<Venue> = z
+  .object({
+    '@type': z.literal('Venue'),
+    ...VenueProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -612,11 +742,35 @@ export const ViewActionSchema: z.ZodType<ViewAction> = z
   })
   .superRefine(requireNodeIdentity);
 
+// VisitAction, child of https://schema.chronicle.app/Action
+export interface VisitAction extends Omit<Action, '@type'> {
+  '@type': 'VisitAction';
+}
+
+export type VisitActionAndChildren = VisitAction;
+
+const VisitActionProperties = {
+  ...ActionProperties,
+};
+
+export const VisitActionSchema: z.ZodType<VisitAction> = z
+  .object({
+    '@type': z.literal('VisitAction'),
+    ...VisitActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+export const VisitActionAndChildrenSchema = VisitActionSchema;
+
 export const ViewActionAndChildrenSchema = ViewActionSchema;
 
 export const VideoObjectAndChildrenSchema = VideoObjectSchema;
 
+export const VenueAndChildrenSchema = VenueSchema;
+
 export const UpdateActionAndChildrenSchema = UpdateActionSchema;
+
+export const TravelActionAndChildrenSchema = TravelActionSchema;
 
 export const ThreadAndChildrenSchema = ThreadSchema;
 
@@ -634,11 +788,40 @@ export const ProjectAndChildrenSchema = ProjectSchema;
 
 export const PlanActionAndChildrenSchema = PlanActionSchema;
 
+export const PlaceAndChildrenSchema: z.ZodType<PlaceAndChildren> = z
+  .discriminatedUnion('@type', [
+    z.object({
+      '@type': z.literal('Place'),
+      ...PlaceProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Venue'),
+      ...VenueProperties,
+    }),
+  ])
+  .superRefine(requireNodeIdentity);
 export const PersonAndChildrenSchema = PersonSchema;
 
 export const MessageActionAndChildrenSchema = MessageActionSchema;
 
 export const MessageAndChildrenSchema = MessageSchema;
+
+export const LocationAndChildrenSchema = LocationSchema;
+
+export const StructuredValueAndChildrenSchema: z.ZodType<StructuredValueAndChildren> =
+  z.discriminatedUnion('@type', [
+    z.object({
+      '@type': z.literal('StructuredValue'),
+      ...StructuredValueProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Location'),
+      ...LocationProperties,
+    }),
+  ]);
+export const JourneyAndChildrenSchema = JourneySchema;
 
 export const ImageObjectAndChildrenSchema = ImageObjectSchema;
 
@@ -761,8 +944,23 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('Place'),
+      ...PlaceProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Venue'),
+      ...VenueProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Message'),
       ...MessageProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Journey'),
+      ...JourneyProperties,
     }),
 
     z.object({
@@ -834,8 +1032,18 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('VisitAction'),
+      ...VisitActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('UpdateAction'),
       ...UpdateActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('TravelAction'),
+      ...TravelActionProperties,
     }),
 
     z.object({
@@ -912,8 +1120,23 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('Place'),
+      ...PlaceProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Venue'),
+      ...VenueProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Message'),
       ...MessageProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Journey'),
+      ...JourneyProperties,
     }),
 
     z.object({
@@ -982,8 +1205,18 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('VisitAction'),
+      ...VisitActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('UpdateAction'),
       ...UpdateActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('TravelAction'),
+      ...TravelActionProperties,
     }),
 
     z.object({

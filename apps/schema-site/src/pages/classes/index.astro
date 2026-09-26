@@ -4,10 +4,11 @@ import Prose from '../../components/Prose.astro';
 import TermLink from '../../components/TermLink.astro';
 import TermList from '../../components/TermList.astro';
 import Layout from '../../layouts/Layout.astro';
-import { datatypes, families, plural, recordRoots, SECTIONS, slugify } from '../../lib/site.js';
+import { datatypes, families, plural, recordRoots, SECTIONS, slugify, valueRoots } from '../../lib/site.js';
 
 const toc = [
   ...families.map(family => ({ id: slugify(plural(family.name)), title: plural(family.name) })),
+  ...valueRoots.map(root => ({ id: slugify(plural(root.name)), title: plural(root.name) })),
   ...(datatypes.length > 0 ? [{ id: 'datatypes', title: 'Datatypes' }] : []),
 ];
 const article = (name: string) => (/^[AEIOU]/.test(name) ? 'an' : 'a');
@@ -30,6 +31,15 @@ const article = (name: string) => (/^[AEIOU]/.test(name) ? 'an' : 'a');
         <h2>{plural(family.name)}</h2>
         <p><Prose text={family.comment} /></p>
         <ul class="tree"><ClassTree name={family.name} describe /></ul>
+      </section>
+    ))
+  }
+  {
+    valueRoots.map(root => (
+      <section id={slugify(plural(root.name))}>
+        <h2>{plural(root.name)}</h2>
+        <p><Prose text={root.comment} /></p>
+        <ul class="tree"><ClassTree name={root.name} describe /></ul>
       </section>
     ))
   }
