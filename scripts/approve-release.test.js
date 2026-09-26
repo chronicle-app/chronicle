@@ -1,11 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import {
-  approvalOutcome,
-  approvePackage,
-  dependencyOrder,
-  selectStaged,
-} from './approve-release.js';
+import { approvePackage, dependencyOrder, selectStaged } from './approve-release.js';
 
 const item = (packageName, version, id) => ({ id, packageName, version });
 
@@ -65,28 +60,6 @@ test('orders packages after the workspace packages they depend on', () => {
   assert.ok(before('@chronicle.app/things-todo', '@chronicle.app/cli'));
 });
 
-test('classifies npm stage approve failures', () => {
-  const failed = stderr => approvalOutcome({ status: 1, stderr });
-  assert.equal(approvalOutcome({ status: 0, stderr: '' }), 'approved');
-  assert.equal(
-    failed(
-      "npm error code E409\nnpm error 409 Conflict - POST https://registry.npmjs.org/-/stage/***/approve - @chronicle.app/tsconfig@0.2.0 can't be approved yet because automated review hasn't finished. Try again in a few minutes."
-    ),
-    'in-review'
-  );
-  assert.equal(
-    failed(
-      'npm error code E404\nnpm error 404 Not Found - POST https://registry.npmjs.org/-/stage/***/approve - staged version "***" not found'
-    ),
-    'not-found'
-  );
-  assert.equal(
-    failed('npm error code EOTP\nnpm error This operation requires a one-time password.'),
-    'otp'
-  );
-  assert.equal(failed('npm error code E500'), 'failed');
-});
-
 // Replays npm's responses to `approve`, recording what the script did.
 function scripted(responses, { published = false } = {}) {
   const calls = [];
@@ -107,9 +80,17 @@ function scripted(responses, { published = false } = {}) {
     },
   };
 }
-const review = { status: 1, stderr: 'npm error code E409' };
-const expired = { status: 1, stderr: 'npm error code EOTP' };
-const gone = { status: 1, stderr: 'npm error code E404' };
+// Real npm stderr, so these tests also cover how failures are classified.
+const failed = stderr => ({ status: 1, stderr });
+const review = failed(
+  "npm error code E409\nnpm error 409 Conflict - POST https://registry.npmjs.org/-/stage/***/approve - @chronicle.app/tsconfig@0.2.0 can't be approved yet because automated review hasn't finished. Try again in a few minutes."
+);
+const expired = failed(
+  'npm error code EOTP\nnpm error This operation requires a one-time password.'
+);
+const gone = failed(
+  'npm error code E404\nnpm error 404 Not Found - POST https://registry.npmjs.org/-/stage/***/approve - staged version "***" not found'
+);
 const ok = { status: 0, stderr: '' };
 
 test('waits for npm review, then approves', async () => {
@@ -139,10 +120,14 @@ test('a staged version that is gone counts only if it is on npm', async () => {
   );
 });
 
-test('gives up after a bounded number of review waits', async () => {
+test('gives up after a bounded number of review waits, or on other errors', async () => {
   const { options } = scripted([review, review, review]);
   await assert.rejects(
     approvePackage('@chronicle.app/cli', { ...options, reviewRetries: 2 }),
     /in-review/
+  );
+  await assert.rejects(
+    approvePackage('@chronicle.app/cli', scripted([failed('npm error code E500')]).options),
+    /\(failed\)/
   );
 });

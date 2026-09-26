@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { PersonSchema } from '@chronicle.app/schema';
 import { getICloudAccount, buildICloudPersonSchema, ContactCache } from '../dist/index.js';
 
-test('account parsing chooses logged-in account and passes paths as arguments', async () => {
+test('account lookup picks the logged-in account, passes paths as arguments, and falls back', async () => {
   const calls = [];
   const account = await getICloudAccount({
     platform: 'darwin',
@@ -31,10 +31,10 @@ test('account parsing chooses logged-in account and passes paths as arguments', 
   const person = await buildICloudPersonSchema(account);
   assert.equal(person.sourceId, '123');
   assert.deepEqual(person.sameAs, ['@me']);
-});
-test('defaults fallback pipes data through argument-based plutil invocation', async () => {
+
+  // Without the plist, `defaults` output is piped to plutil rather than interpolated.
   let step = 0;
-  const account = await getICloudAccount({
+  const fallback = await getICloudAccount({
     platform: 'darwin',
     run(command, args, input) {
       step++;
@@ -47,9 +47,8 @@ test('defaults fallback pipes data through argument-based plutil invocation', as
       return JSON.stringify([{ AccountID: 'fallback@example.com', LoggedIn: '1' }]);
     },
   });
-  assert.equal(account.email, 'fallback@example.com');
-});
-test('unavailable accounts and unsupported platforms have a stable self fallback', async () => {
+  assert.equal(fallback.email, 'fallback@example.com');
+
   assert.equal(
     await getICloudAccount({
       platform: 'linux',
@@ -68,24 +67,25 @@ test('unavailable accounts and unsupported platforms have a stable self fallback
     }),
     null
   );
-});
-test('without a readable account the self is the @me fallback Person', async () => {
-  const fallback = {
+
+  // Without a readable account, the self is still a valid Person linked to @me.
+  const self = {
     '@type': 'Person',
     source: 'icloud',
     '@key': ['@type', 'source'],
     sameAs: ['@me'],
   };
-  assert.deepEqual(await buildICloudPersonSchema(null), fallback);
+  assert.deepEqual(await buildICloudPersonSchema(null), self);
   const looked = await buildICloudPersonSchema(undefined, {
     platform: 'darwin',
     run() {
       throw new Error('denied');
     },
   });
-  assert.deepEqual(looked, fallback);
-  assert.deepEqual(PersonSchema.parse(looked), fallback);
+  assert.deepEqual(looked, self);
+  assert.deepEqual(PersonSchema.parse(looked), self);
 });
+
 test('read-only contact cache combines databases and resolves email, phone and ambiguous names', t => {
   const dir = mkdtempSync(join(tmpdir(), 'contacts-fixture-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
@@ -111,7 +111,6 @@ test('read-only contact cache combines databases and resolves email, phone and a
     paths.map(file => readFileSync(file)),
     before
   );
-});
-test('empty contact fixture has no host fallback', () => {
+  // An empty cache must not fall back to the host's own contacts.
   assert.equal(new ContactCache([]).lookupByHandle('nobody@example.com'), null);
 });

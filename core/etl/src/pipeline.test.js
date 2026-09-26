@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import {
   ChronicleTransformer,
   DispatchingTransformer,
+  DownloadAttachmentsTransformer,
   Extractor,
   FlattenTransformer,
   JsonLoader,
@@ -119,18 +120,6 @@ test('preserves streaming and buffered extraction, post-filter limits, and itera
   }
 });
 
-test('extractor zero limit is unlimited and positive limit is respected', async () => {
-  for (const [limit, expected] of [
-    [0, 3],
-    [2, 2],
-  ]) {
-    const extractor = new FixtureExtractor([{}, {}, {}], { limit });
-    const runner = new Runner({ quiet: true }).addExtractor(extractor);
-    assert.equal((await collect(runner)).length, expected);
-  }
-  assert.throws(() => new FixtureExtractor([], { limit: -1 }));
-});
-
 test('chained transformers preserve fan-out, filtering, and raw presentation output', async () => {
   class Split extends Transformer {
     async transform({ data }) {
@@ -155,24 +144,23 @@ test('chained transformers preserve fan-out, filtering, and raw presentation out
   assert.equal(loader.records[0].schema, 'raw');
 });
 
-test('ChronicleTransformer rejects missing identity without synthesizing keys', async () => {
-  class Invalid extends ChronicleTransformer {
+test('invalid Chronicle output is reported and never loaded', async () => {
+  class MissingIdentity extends ChronicleTransformer {
     async transform() {
       return [{ '@type': 'Action', '@synthetic': true }];
     }
   }
   const loader = new MemoryLoader();
-  const logs = await collect(
+  const [log] = await collect(
     new Runner({ quiet: true })
       .addExtractor(new FixtureExtractor([{}]))
-      .addTransformer(new Invalid())
+      .addTransformer(new MissingIdentity())
       .addLoader(loader)
   );
-  assert.match(logs[0].error, /identity/);
+  assert.match(log.error, /identity/);
   assert.equal(loader.records.length, 0);
-});
 
-test('runner validates plain chronicle and URL schema markers before loading', async () => {
+  // Every schema marker a transformer can declare triggers validation.
   for (const schema of [
     'chronicle',
     'chronicle:v1',
@@ -254,7 +242,7 @@ test('reports transform and load-result errors; extraction and thrown loader err
   }
 });
 
-test('teardown attempts every resource in order even when a loader fails and is idempotent', async () => {
+test('teardown attempts every resource in order, even after a failed teardown or setup', async () => {
   const order = [];
   class Source extends FixtureExtractor {
     async teardown() {
@@ -286,11 +274,9 @@ test('teardown attempts every resource in order even when a loader fails and is 
   await assert.rejects(runner.teardown(), AggregateError);
   await runner.teardown();
   assert.deepEqual(order, ['first', 'second', 'transformer', 'extractor']);
-});
 
-test('teardown cleans partially initialized resources after setup failure', async () => {
-  const order = [];
-  class Source extends FixtureExtractor {
+  order.length = 0;
+  class PartialSource extends FixtureExtractor {
     async teardown() {
       order.push('extractor');
     }
@@ -309,11 +295,11 @@ test('teardown cleans partially initialized resources after setup failure', asyn
       order.push('unused');
     }
   }
-  const runner = new Runner({ quiet: true })
-    .addExtractor(new Source([]))
+  const partial = new Runner({ quiet: true })
+    .addExtractor(new PartialSource([]))
     .addLoader(new Broken())
     .addLoader(new Unused());
-  await assert.rejects(collect(runner), /setup failed/);
+  await assert.rejects(collect(partial), /setup failed/);
   assert.deepEqual(order, ['partial loader', 'extractor']);
 });
 
@@ -343,4 +329,23 @@ test('dispatch routes by record type and tears down instantiated children', asyn
   assert.deepEqual(loader.records[0].data, { routed: 'known' });
   assert.equal(loader.records[0].schema, 'custom');
   assert.equal(tornDown, 1);
+});
+
+test('attachment downloads embed the bytes and leave other fields alone', async () => {
+  const timestamp = new Date('2026-01-01T00:00:00Z');
+  const transformer = new DownloadAttachmentsTransformer({ quiet: true });
+  const [output] = await transformer.performTransform({
+    data: {
+      timestamp,
+      image: { '@type': 'ImageObject', url: 'data:text/plain;base64,Zml4dHVyZQ==' },
+    },
+    schema: 'raw',
+    transformations: [],
+    extraction: { source: 'fixture', delivery: 'export' },
+    context: {},
+    toString: 'fixture',
+  });
+  assert.equal(output.data.timestamp, timestamp);
+  assert.equal(output.data.image.contentData, 'data:text/plain;base64,Zml4dHVyZQ==');
+  await transformer.teardown();
 });
