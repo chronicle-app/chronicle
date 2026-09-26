@@ -196,3 +196,7 @@
   owl:maxCardinality 1;
   :domainIncludes :Entity;
   :rangeIncludes :Realm .
+
+:ViewAction a rdfs:Class;
+  rdfs:subClassOf :Action;
+  rdfs:comment "The act of viewing something, such as visiting a web page in a browser. The :object identifies what was viewed; the :timestamp records when." .

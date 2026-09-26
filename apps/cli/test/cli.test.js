@@ -39,6 +39,7 @@ test('bundled sources are discoverable from an unrelated cwd; JSON has no diagno
   assert.deepEqual(sources.map(x => x.source).sort(), [
     'claude-code',
     'imessage',
+    'safari',
     'shell',
     'things-todo',
   ]);

@@ -529,6 +529,35 @@ the person as you.
     ]
   ] .
 
+example:page-visit
+  rdfs:label "Visiting a web page";
+  rdfs:comment """
+A :ViewAction for one visit in Safari's browsing history, keyed by its
+:timestamp. The page is an :Entity keyed by its :url alone, so visits from any
+browser land on the same page. The :agent is the iCloud account that owns the
+history.
+""";
+  rdf:value [
+    a :ViewAction;
+    doc:key ("@type" "source" "timestamp");
+    :source "safari";
+    :timestamp "2026-05-09T16:04:51.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "icloud";
+      :sourceId "1234567890";
+      :handle "you@example.com";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Entity;
+      doc:key ("url");
+      :url "https://trails.example.com/lost-lake";
+      :name "Lost Lake Trail"
+    ]
+  ] .
+
 example:entity-with-url
   rdfs:label "An entity with a source ID and a URL";
   rdfs:comment """
@@ -568,6 +597,7 @@ An :Entity with a :name, keyed by its :source and :sourceId. The :url is a
 :CompleteAction skos:example example:task-completed .
 :CancelAction skos:example example:task-cancelled .
 :DeleteAction skos:example example:task-deleted .
+:ViewAction skos:example example:page-visit .
 :Message skos:example example:message-with-photo, example:assistant-reply .
 :MessageAction skos:example example:message-with-photo, example:assistant-prompt .
 :Thread skos:example example:assistant-reply .

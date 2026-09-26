@@ -63,7 +63,8 @@ export type ActionAndChildren =
   | ExecuteActionAndChildren
   | MessageActionAndChildren
   | PlanActionAndChildren
-  | UpdateActionAndChildren;
+  | UpdateActionAndChildren
+  | ViewActionAndChildren;
 
 const ActionProperties = {
   ...BaseProperties,
@@ -575,6 +576,26 @@ export const VideoObjectSchema: z.ZodType<VideoObject> = z
   })
   .superRefine(requireNodeIdentity);
 
+// ViewAction, child of https://schema.chronicle.app/Action
+export interface ViewAction extends Omit<Action, '@type'> {
+  '@type': 'ViewAction';
+}
+
+export type ViewActionAndChildren = ViewAction;
+
+const ViewActionProperties = {
+  ...ActionProperties,
+};
+
+export const ViewActionSchema: z.ZodType<ViewAction> = z
+  .object({
+    '@type': z.literal('ViewAction'),
+    ...ViewActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+export const ViewActionAndChildrenSchema = ViewActionSchema;
+
 export const VideoObjectAndChildrenSchema = VideoObjectSchema;
 
 export const UpdateActionAndChildrenSchema = UpdateActionSchema;
@@ -782,6 +803,11 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('ViewAction'),
+      ...ViewActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('UpdateAction'),
       ...UpdateActionProperties,
     }),
@@ -917,6 +943,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('Action'),
       ...ActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ViewAction'),
+      ...ViewActionProperties,
     }),
 
     z.object({

@@ -23,6 +23,9 @@
       "path": "plugins/imessage/tsconfig.lib.json"
     },
     {
+      "path": "plugins/safari/tsconfig.lib.json"
+    },
+    {
       "path": "core/icloud/tsconfig.lib.json"
     },
     {

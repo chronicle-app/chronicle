@@ -37,6 +37,16 @@ export abstract class Extractor<SelfClass extends typeof Extractor = typeof Extr
   static default?: boolean; // Whether this is the default extractor for the source
   /** How the source describes its records; no store annotations are injected. */
   static temporality: 'event' | 'snapshot' = 'event';
+  /**
+   * The ordering contract for a future frontier cursor: `extract()` yields
+   * records newest-first. Together with a declared {@link keyOf} this will opt
+   * the extractor into stop-paging (halt after N consecutive already-known
+   * keys). Leave false unless the stream genuinely is newest-first. Declared
+   * only; nothing reads it yet.
+   */
+  static newestFirst: boolean = false;
+  /** Optional per-extractor override of the stop-paging streak length. */
+  static frontierThreshold?: number;
 
   static schema = z.object({
     since: z.date().optional().describe('The date from which to start extracting records'),
@@ -53,6 +63,14 @@ export abstract class Extractor<SelfClass extends typeof Extractor = typeof Extr
   protected logger!: Logger;
   /** When this extraction run began — one crawl time for the whole run. */
   private readonly startedAt = new Date();
+
+  /**
+   * Extract-time identity: the source's own stable id for this raw record (a
+   * message guid, a visit id, an item key). Never synthetic. Declared only for
+   * now; a future seen-keys manifest and frontier cursor will read it.
+   */
+  keyOf?(record: Record): string | null | undefined;
+
   constructor(config: ExtractorConfigObjectInput<SelfClass>) {
     const cls = this.constructor as typeof Extractor;
 

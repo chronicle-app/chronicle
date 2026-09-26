@@ -129,7 +129,7 @@ export class PluginScanner {
         path.join(config.dataDir, 'node_modules'),
         path.join(cwd, 'node_modules'),
       ];
-      for (const name of ['shell', 'things-todo', 'imessage', 'claude-code']) {
+      for (const name of ['shell', 'things-todo', 'imessage', 'safari', 'claude-code']) {
         const packageName = `@chronicle.app/${name}`;
         if (!foundPluginNames.has(packageName)) {
           const entry = fileURLToPath(import.meta.resolve(packageName));
