@@ -1,13 +1,17 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
-import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PersonSchema } from '@chronicle.app/schema';
 import { getICloudAccount, buildICloudPersonSchema, ContactCache } from '../dist/index.js';
 
-test('account lookup picks the logged-in account, passes paths as arguments, and falls back', async () => {
+/** A keyed archive of one string, as `plutil -convert xml1` prints it. */
+const archived = value =>
+  `<plist><dict><key>$objects</key><array><string>$null</string><string>${value}</string></array></dict></plist>`;
+
+test('account lookup picks the logged-in account, passes paths as arguments, and falls back', async t => {
   const calls = [];
   const account = await getICloudAccount({
     platform: 'darwin',
@@ -49,6 +53,33 @@ test('account lookup picks the logged-in account, passes paths as arguments, and
   });
   assert.equal(fallback.email, 'fallback@example.com');
 
+  // Newer macOS leaves the preferences empty; the Apple Account is read from
+  // the Accounts database, whose properties are keyed archives.
+  const home = mkdtempSync(join(tmpdir(), 'accounts-fixture-'));
+  t.after(() => rmSync(home, { recursive: true, force: true }));
+  mkdirSync(join(home, 'Library/Accounts'), { recursive: true });
+  const accountsDb = new DatabaseSync(join(home, 'Library/Accounts/Accounts4.sqlite'));
+  accountsDb.exec(`CREATE TABLE ZACCOUNTTYPE (Z_PK INTEGER, ZIDENTIFIER TEXT);
+    CREATE TABLE ZACCOUNT (Z_PK INTEGER, ZACCOUNTTYPE INTEGER, ZUSERNAME TEXT, ZACTIVE INTEGER);
+    CREATE TABLE ZACCOUNTPROPERTY (ZOWNER INTEGER, ZKEY TEXT, ZVALUE BLOB);
+    INSERT INTO ZACCOUNTTYPE VALUES (1, 'com.apple.account.AppleAccount'), (2, 'com.apple.account.Google');
+    INSERT INTO ZACCOUNT VALUES (1, 2, 'other@example.com', 1), (2, 1, 'db@example.com', 1);
+    INSERT INTO ZACCOUNTPROPERTY VALUES (2, 'personID', CAST('456' AS BLOB)),
+      (2, 'ACPropertyFullName', CAST('Pat &amp; Sam' AS BLOB)), (1, 'personID', CAST('999' AS BLOB));`);
+  accountsDb.close();
+  const fromDb = await getICloudAccount({
+    platform: 'darwin',
+    homeDir: home,
+    run(command, args, input) {
+      if (args.includes('xml1')) return archived(Buffer.from(input).toString());
+      return command === '/usr/bin/plutil' ? '{}' : '';
+    },
+  });
+  assert.equal(fromDb.email, 'db@example.com');
+  assert.equal(fromDb.dsid, '456');
+  assert.equal(fromDb.displayName, 'Pat & Sam');
+  assert.equal((await buildICloudPersonSchema(fromDb)).sourceId, '456');
+
   assert.equal(
     await getICloudAccount({
       platform: 'linux',
@@ -61,6 +92,7 @@ test('account lookup picks the logged-in account, passes paths as arguments, and
   assert.equal(
     await getICloudAccount({
       platform: 'darwin',
+      homeDir: '/fixture/no-home',
       run() {
         throw new Error('denied');
       },
@@ -68,22 +100,19 @@ test('account lookup picks the logged-in account, passes paths as arguments, and
     null
   );
 
-  // Without a readable account, the self is still a valid Person linked to @me.
-  const self = {
-    '@type': 'Person',
-    source: 'icloud',
-    '@key': ['@type', 'source'],
-    sameAs: ['@me'],
-  };
-  assert.deepEqual(await buildICloudPersonSchema(null), self);
-  const looked = await buildICloudPersonSchema(undefined, {
-    platform: 'darwin',
-    run() {
-      throw new Error('denied');
-    },
-  });
-  assert.deepEqual(looked, self);
-  assert.deepEqual(PersonSchema.parse(looked), self);
+  // Without a readable account there is no identifier to key the owner on.
+  assert.equal(await buildICloudPersonSchema(null), null);
+  assert.equal(
+    await buildICloudPersonSchema(undefined, {
+      platform: 'darwin',
+      homeDir: '/fixture/no-home',
+      run() {
+        throw new Error('denied');
+      },
+    }),
+    null
+  );
+  assert.deepEqual(PersonSchema.parse(person), person);
 });
 
 test('read-only contact cache combines databases and resolves email, phone and ambiguous names', t => {

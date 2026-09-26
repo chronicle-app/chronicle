@@ -46,7 +46,7 @@ export default class ImessageTransformer extends ChronicleTransformer {
       sourceId: record.context.guid, // Use GUID instead of ROWID
       '@key': ['source', 'sourceId', '@type'],
       object: this.buildMessage(record, recipients),
-      agent,
+      ...(agent && { agent }),
     };
 
     return [obj];
@@ -135,7 +135,8 @@ export default class ImessageTransformer extends ChronicleTransformer {
     }));
   }
 
-  private async buildMyIdentity(record: Record): Promise<Person> {
+  /** The account owner, or null when no identifier for them is available. */
+  private async buildMyIdentity(record: Record): Promise<Person | null> {
     const { service } = record.context;
     const agentSource = this.getAgentSource(service);
 
@@ -143,13 +144,14 @@ export default class ImessageTransformer extends ChronicleTransformer {
       agentSource === 'icloud'
         ? await buildICloudPersonSchema(record.context.myIcloudAccount)
         : this.buildMyPhoneIdentity(record);
+    if (!identity) return null;
     // Tag the account owner as self. The iCloud branch (buildICloudPersonSchema)
     // already self-tags, so add `@me` only when it isn't already present.
-    const sameAs = identity?.sameAs ?? [];
+    const sameAs = identity.sameAs ?? [];
     return { ...identity, sameAs: sameAs.includes('@me') ? sameAs : [...sameAs, '@me'] };
   }
 
-  private buildMyPhoneIdentity(record?: Record): Person {
+  private buildMyPhoneIdentity(record?: Record): Person | null {
     // Try to find my phone number by matching my iCloud email in AddressBook
     if (record?.context?.myIcloudAccount?.email && record?.context?.includeContactNames) {
       const myContact = (this.config.lookupContact ?? lookupContact)(
@@ -181,29 +183,25 @@ export default class ImessageTransformer extends ChronicleTransformer {
       };
     }
 
-    // Last resort - no unique info available
-    return {
-      '@type': 'Person',
-      source: 'phone',
-      '@key': ['@type', 'source'],
-    };
+    // No identifier for me: a bare phone Person would merge every such owner.
+    return null;
   }
 
   private determineAgentAndRecipients(
     record: Record,
     participants: AgentAndChildren[],
-    myIdentity: Person
-  ): { agent: AgentAndChildren; recipients: AgentAndChildren[] } {
+    myIdentity: Person | null
+  ): { agent: AgentAndChildren | undefined; recipients: AgentAndChildren[] } {
     const isFromMe = record.context.isFromMe === 1;
 
     if (isFromMe) {
       // I sent the message - I'm the agent, everyone else are recipients
-      const recipients = myIdentity.handle
+      const recipients = myIdentity?.handle
         ? participants.filter(p => p.handle !== myIdentity.handle)
         : participants; // If I have no handle (SMS fallback), all participants are recipients
 
       return {
-        agent: myIdentity,
+        agent: myIdentity ?? undefined,
         recipients,
       };
     }
@@ -217,13 +215,16 @@ export default class ImessageTransformer extends ChronicleTransformer {
       const agentSource = this.getAgentSource(record.context.service);
       return {
         agent: this.buildParticipantAgent(record, agentSource, handleIdText),
-        recipients: [myIdentity],
+        recipients: myIdentity ? [myIdentity] : [],
       };
     }
 
     return {
       agent,
-      recipients: [...participants.filter(p => p.handle !== agent.handle), myIdentity],
+      recipients: [
+        ...participants.filter(p => p.handle !== agent.handle),
+        ...(myIdentity ? [myIdentity] : []),
+      ],
     };
   }
 
