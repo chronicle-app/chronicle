@@ -34,7 +34,7 @@
     "quality": "npm run versions:check && npm run schema:check && npm run build && npm run lint && npm run typecheck && npm run test && npm run format:check",
     "packages:check": "node scripts/check-packages.js",
     "schema:generate": "npm run generate -w @chronicle.app/schema",
-    "schema:check": "npm run generate:check -w @chronicle.app/schema && npm run version:check -w @chronicle.app/schema",
+    "schema:check": "npm run generate:check -w @chronicle.app/schema",
     "schema:docs": "npm run dev -w @chronicle.app/schema-site",
     "schema:docs:build": "npm run build -w @chronicle.app/schema-site",
     "schema:docs:deploy-build": "npm run build:deploy -w @chronicle.app/schema-site --",

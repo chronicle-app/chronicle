@@ -41,6 +41,7 @@ These sources come bundled with the CLI:
 | ------------------------------------------------ | -------------------------------------------- |
 | Shell history (bash, zsh, fish)                  | [shell](plugins/shell/README.md)             |
 | iMessage/SMS, with iCloud and contact enrichment | [imessage](plugins/imessage/README.md)       |
+| Safari browsing history                          | [safari](plugins/safari/README.md)           |
 | Claude Code transcripts                          | [claude-code](plugins/claude-code/README.md) |
 | Things 3                                         | [things-todo](plugins/things-todo/README.md) |
 

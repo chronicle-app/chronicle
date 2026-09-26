@@ -22,7 +22,7 @@ the examples format.
 Plugins extend these roots only where their outputs require it: Things adds task
 lifecycle actions and collections/tags; shell adds commands, people, and machine
 realms; iMessage adds messages and attachment media; Claude Code adds threads,
-software agents, and model instruments. Shared properties cover source identity,
+software agents, and model instruments; Safari adds page views. Shared properties cover source identity,
 event time, agents, membership, authors, and recipients.
 
 `Text`, `URL`, and `DateTime` are literal datatypes. Cardinality in

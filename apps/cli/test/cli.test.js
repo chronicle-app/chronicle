@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import {
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  readdirSync,
+  writeFileSync,
+  readFileSync,
+  rmSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { test } from 'node:test';
@@ -36,12 +44,25 @@ function success(result) {
 test('bundled sources are discoverable from an unrelated cwd; JSON has no diagnostics', t => {
   const { run } = fixture(t);
   const sources = JSON.parse(success(run('sources', '--format', 'json')));
-  assert.deepEqual(sources.map(x => x.source).sort(), [
-    'claude-code',
-    'imessage',
-    'shell',
-    'things-todo',
-  ]);
+  // Every workspace plugin the CLI depends on is a source, whether the CLI
+  // runs from the workspace or from installed packages (CHRONICLE_TEST_BIN).
+  const { dependencies } = JSON.parse(
+    readFileSync(resolve(import.meta.dirname, '../package.json'), 'utf8')
+  );
+  const pluginsDir = resolve(import.meta.dirname, '../../../plugins');
+  const bundled = readdirSync(pluginsDir)
+    .map(dir => join(pluginsDir, dir, 'package.json'))
+    .filter(existsSync)
+    .map(file => JSON.parse(readFileSync(file, 'utf8')))
+    .filter(pkg => pkg.chronicle?.plugin === true && pkg.name in dependencies)
+    .map(pkg => pkg.name);
+  assert.ok(bundled.length > 0);
+  for (const name of bundled) {
+    assert.ok(
+      sources.some(x => x.packageName === name),
+      `${name} is not listed`
+    );
+  }
   const help = success(run('extract', 'shell', '--help'));
   assert.match(help, /history/);
   assert.doesNotMatch(success(run('--help')), /archive|sync|serve/);

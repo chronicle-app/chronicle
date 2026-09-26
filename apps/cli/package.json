@@ -14,6 +14,7 @@
     "@chronicle.app/claude-code": "0.2.0",
     "@chronicle.app/etl": "0.2.0",
     "@chronicle.app/imessage": "0.2.0",
+    "@chronicle.app/safari": "0.2.0",
     "@chronicle.app/schema": "0.2.0",
     "@chronicle.app/shell": "0.2.0",
     "@chronicle.app/things-todo": "0.2.0",

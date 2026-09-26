@@ -196,3 +196,11 @@
   owl:maxCardinality 1;
   :domainIncludes :Entity;
   :rangeIncludes :Realm .
+
+:ConsumeAction a rdfs:Class;
+  rdfs:comment "The agent took in the :object — read, watched, listened to, ate, or drank it; the subclasses name the mode. A bare ConsumeAction records consumption in progress without a known start.";
+  rdfs:subClassOf :Action .
+
+:ViewAction a rdfs:Class;
+  rdfs:comment "The agent looked at the :object — a web page visited, a photo opened, a document viewed. A point encounter rather than a consumption in progress.";
+  rdfs:subClassOf :ConsumeAction .
