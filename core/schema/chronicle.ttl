@@ -354,10 +354,4 @@
 :CallSession a rdfs:Class;
   rdfs:comment "A phone or FaceTime call as a described segment of time — the :result of a :CallAction. Carries the :recipient (the receiver) and, for group calls, :isPartOf a :Channel whose :member is the roster. A missed call is a zero-length span; a connected call a non-zero one.";
   rdfs:subClassOf :Session .
-:notes a rdf:Property;
-  rdfs:comment "Additional notes or observations.";
-  owl:maxCardinality 1;
-  :domainIncludes :Entity,
-    :Session;
-  :rangeIncludes :Text .
 :recipient :domainIncludes :CallSession .
