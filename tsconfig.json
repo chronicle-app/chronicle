@@ -86,6 +86,9 @@
       "path": "plugins/zotero/tsconfig.lib.json"
     },
     {
+      "path": "plugins/obsidian/tsconfig.lib.json"
+    },
+    {
       "path": "core/icloud/tsconfig.lib.json"
     },
     {

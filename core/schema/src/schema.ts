@@ -156,6 +156,7 @@ export interface Entity extends Omit<Base, '@type'> {
   notes?: string;
   references?: EntityAndChildren[];
   sameAs?: (EntityAndChildren | string)[];
+  tags?: string[];
   url?: string;
 }
 
@@ -191,6 +192,7 @@ const EntityProperties = {
   notes: z.lazy(() => z.string()).optional(),
   references: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
   sameAs: z.lazy(() => z.array(z.union([EntityAndChildrenSchema, z.string()]))).optional(),
+  tags: z.lazy(() => z.array(z.string())).optional(),
   url: z.lazy(() => z.string().url()).optional(),
 };
 

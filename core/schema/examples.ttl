@@ -2859,6 +2859,63 @@ single :PodcastEpisode.
     ]
   ] .
 
+example:note-edited
+  rdfs:label "Editing a note";
+  rdfs:comment """
+An :UpdateAction for a Markdown note in an Obsidian vault, at the file's
+modification time. The :DocumentObject is keyed by its path in the vault, its
+:handle, within a :Realm for the vault. It keeps the note's :body, its
+:tags, and the :references its links resolve to: another note in the vault,
+and a web page keyed by its :url.
+""";
+  rdf:value [
+    a :UpdateAction;
+    doc:key ("@type" "source" "object.handle" "object.inRealm.handle" "timestamp");
+    :source "obsidian";
+    :timestamp "2026-04-12T08:15:02.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source");
+      :source "obsidian";
+      :sameAs "@me"
+    ];
+    :object [
+      a :DocumentObject;
+      doc:key ("source" "handle" "inRealm.handle");
+      :source "obsidian";
+      :handle "Garden/Seeds.md";
+      :name "Seeds";
+      :mimeType "text/markdown";
+      :body "Order tomato seeds before [[Planting schedule]]. See [the catalog](https://seeds.example.com/).\n";
+      :tags "garden", "todo/spring";
+      :inRealm [
+        a :Realm;
+        doc:key ("@type" "source" "handle");
+        :source "obsidian";
+        :handle "Notebook"
+      ];
+      :references [
+        a :DocumentObject;
+        doc:key ("source" "handle" "inRealm.handle");
+        :source "obsidian";
+        :handle "Garden/Planting schedule.md";
+        :name "Planting schedule";
+        :mimeType "text/markdown";
+        :inRealm [
+          a :Realm;
+          doc:key ("@type" "source" "handle");
+          :source "obsidian";
+          :handle "Notebook"
+        ]
+      ], [
+        a :Entity;
+        doc:key ("url");
+        :source "url";
+        :url "https://seeds.example.com/"
+      ]
+    ]
+  ] .
+
 : skos:example example:message-from-alex, example:shell-command, example:task-completed .
 
 :Base skos:example example:entity-with-url .
@@ -3430,3 +3487,9 @@ a sentence of prose, so the action has no :object.
 :selector skos:example example:zotero-highlight, example:zotero-epub-highlight .
 :selectorValue skos:example example:zotero-highlight, example:zotero-epub-highlight .
 :selectorLabel skos:example example:zotero-highlight .
+
+# obsidian
+:tags skos:example example:note-edited .
+:references skos:example example:note-edited .
+:DocumentObject skos:example example:note-edited .
+:UpdateAction skos:example example:note-edited .
