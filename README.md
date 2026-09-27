@@ -62,6 +62,7 @@ These sources come bundled with the CLI:
 | Foursquare/Swarm check-ins                                            | [foursquare](plugins/foursquare/README.md)     |
 | Bluesky follows, followers, and likes                                 | [bluesky](plugins/bluesky/README.md)           |
 | Goodreads shelves and reading history                                 | [goodreads](plugins/goodreads/README.md)       |
+| Marvin reading sessions and highlights                                | [marvin](plugins/marvin/README.md)             |
 
 Install other plugins with `chronicle plugins install <package>`.
 

@@ -230,7 +230,7 @@ export interface CreateAction extends Omit<Action, '@type'> {
 }
 
 export type CreateActionAndChildren =
-  CreateAction | AnnotateActionAndChildren | PublishActionAndChildren;
+  CreateAction | AnnotateActionAndChildren | PublishActionAndChildren | QuoteActionAndChildren;
 
 const CreateActionProperties = {
   ...ActionProperties,
@@ -304,6 +304,7 @@ export type CreativeWorkAndChildren =
   | PodcastEpisodeAndChildren
   | PostAndChildren
   | QueryAndChildren
+  | QuotationAndChildren
   | ResponseAndChildren;
 
 const CreativeWorkProperties = {
@@ -700,6 +701,7 @@ export type ConsumeActionAndChildren =
   | DrankActionAndChildren
   | EatActionAndChildren
   | ListenActionAndChildren
+  | ReadActionAndChildren
   | ViewActionAndChildren
   | WatchActionAndChildren;
 
@@ -1538,6 +1540,60 @@ export const QuerySchema: z.ZodType<Query> = z
   })
   .superRefine(requireNodeIdentity);
 
+// Quotation, child of https://schema.chronicle.app/CreativeWork
+export interface Quotation extends Omit<CreativeWork, '@type'> {
+  '@type': 'Quotation';
+}
+
+export type QuotationAndChildren = Quotation;
+
+const QuotationProperties = {
+  ...CreativeWorkProperties,
+};
+
+export const QuotationSchema: z.ZodType<Quotation> = z
+  .object({
+    '@type': z.literal('Quotation'),
+    ...QuotationProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// QuoteAction, child of https://schema.chronicle.app/CreateAction
+export interface QuoteAction extends Omit<CreateAction, '@type'> {
+  '@type': 'QuoteAction';
+}
+
+export type QuoteActionAndChildren = QuoteAction;
+
+const QuoteActionProperties = {
+  ...CreateActionProperties,
+};
+
+export const QuoteActionSchema: z.ZodType<QuoteAction> = z
+  .object({
+    '@type': z.literal('QuoteAction'),
+    ...QuoteActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// ReadAction, child of https://schema.chronicle.app/ConsumeAction
+export interface ReadAction extends Omit<ConsumeAction, '@type'> {
+  '@type': 'ReadAction';
+}
+
+export type ReadActionAndChildren = ReadAction;
+
+const ReadActionProperties = {
+  ...ConsumeActionProperties,
+};
+
+export const ReadActionSchema: z.ZodType<ReadAction> = z
+  .object({
+    '@type': z.literal('ReadAction'),
+    ...ReadActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // Realm, child of https://schema.chronicle.app/Entity
 export interface Realm extends Omit<Entity, '@type'> {
   '@type': 'Realm';
@@ -1848,6 +1904,12 @@ export const RelationshipAndChildrenSchema = RelationshipSchema;
 
 export const RealmAndChildrenSchema = RealmSchema;
 
+export const ReadActionAndChildrenSchema = ReadActionSchema;
+
+export const QuoteActionAndChildrenSchema = QuoteActionSchema;
+
+export const QuotationAndChildrenSchema = QuotationSchema;
+
 export const QueryAndChildrenSchema = QuerySchema;
 
 export const PublishActionAndChildrenSchema = PublishActionSchema;
@@ -2051,6 +2113,11 @@ export const ConsumeActionAndChildrenSchema: z.ZodType<ConsumeActionAndChildren>
     z.object({
       '@type': z.literal('ViewAction'),
       ...ViewActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ReadAction'),
+      ...ReadActionProperties,
     }),
 
     z.object({
@@ -2260,6 +2327,11 @@ export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> =
     }),
 
     z.object({
+      '@type': z.literal('Quotation'),
+      ...QuotationProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Query'),
       ...QueryProperties,
     }),
@@ -2380,6 +2452,11 @@ export const CreateActionAndChildrenSchema: z.ZodType<CreateActionAndChildren> =
     z.object({
       '@type': z.literal('CreateAction'),
       ...CreateActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('QuoteAction'),
+      ...QuoteActionProperties,
     }),
 
     z.object({
@@ -2546,6 +2623,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     z.object({
       '@type': z.literal('CreativeWork'),
       ...CreativeWorkProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Quotation'),
+      ...QuotationProperties,
     }),
 
     z.object({
@@ -2757,6 +2839,11 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('ReadAction'),
+      ...ReadActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('ListenAction'),
       ...ListenActionProperties,
     }),
@@ -2839,6 +2926,11 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     z.object({
       '@type': z.literal('CreateAction'),
       ...CreateActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('QuoteAction'),
+      ...QuoteActionProperties,
     }),
 
     z.object({
@@ -2987,6 +3079,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('CreativeWork'),
       ...CreativeWorkProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Quotation'),
+      ...QuotationProperties,
     }),
 
     z.object({
@@ -3180,6 +3277,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('ReadAction'),
+      ...ReadActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('ListenAction'),
       ...ListenActionProperties,
     }),
@@ -3262,6 +3364,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('CreateAction'),
       ...CreateActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('QuoteAction'),
+      ...QuoteActionProperties,
     }),
 
     z.object({

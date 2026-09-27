@@ -641,3 +641,14 @@
   rdfs:subPropertyOf :attribution;
   :domainIncludes :CreativeWork;
   :rangeIncludes :Agent .
+
+# marvin
+:ReadAction a rdfs:Class;
+  rdfs:comment "The agent read the :object — a book, an article, a document. Opens or extends the agent's :consuming run over it.";
+  rdfs:subClassOf :ConsumeAction .
+:QuoteAction a rdfs:Class;
+  rdfs:comment "The agent selected a passage of the :object — a highlight in a book or document, an excerpt from a page. Its :result is the :Quotation carrying the text and its position via :selector.";
+  rdfs:subClassOf :CreateAction .
+:Quotation a rdfs:Class;
+  rdfs:comment "A passage selected from a work — a highlight, an excerpt. Carries the text as :body, its position in the work via :selector, and, for a visual annotation, its :annotationStyle and :color. The :result of a :QuoteAction.";
+  rdfs:subClassOf :CreativeWork .

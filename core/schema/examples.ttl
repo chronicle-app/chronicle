@@ -2353,6 +2353,121 @@ configured here, so they are keyed by name.
     ]
   ] .
 
+example:marvin-reading-session
+  rdfs:label "A reading session";
+  rdfs:comment """
+A :ReadAction for one session with a book in an e-reader. The :startTime and
+:endTime bound the session. The :object is the :Book, keyed by its :name and
+its author's name because the export has no book IDs. The export doesn't
+name the reader either, so the :agent is keyed by source only and marked as
+you with :sameAs.
+""";
+  rdf:value [
+    a :ReadAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "marvin";
+    :sourceId "1711234567";
+    :startTime "2026-03-01T21:05:00.000Z"^^xsd:dateTime;
+    :endTime "2026-03-01T21:20:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source");
+      :source "marvin";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Book;
+      doc:key ("@type" "source" "name" "author.name");
+      :source "marvin";
+      :sourceId "The Lantern Keeper";
+      :name "The Lantern Keeper";
+      :author [
+        a :Person;
+        doc:key ("@type" "source" "name");
+        :source "marvin";
+        :sourceId "Jane Doe";
+        :name "Jane Doe"
+      ]
+    ]
+  ] .
+
+example:marvin-highlight
+  rdfs:label "Highlighting a passage in a book";
+  rdfs:comment """
+A :QuoteAction for a highlight made in an e-reader. Its :result is the
+:Quotation, which carries the highlighted text as :body and is part of the
+:Book it was taken from (:isPartOf).
+""";
+  rdf:value [
+    a :QuoteAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "marvin";
+    :sourceId "4821";
+    :timestamp "2026-03-02T08:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source");
+      :source "marvin";
+      :sameAs "@me"
+    ];
+    :result [
+      a :Quotation;
+      doc:key ("@type" "source" "sourceId");
+      :source "marvin";
+      :sourceId "4821";
+      :body "The light was steady, and so was she.";
+      :isPartOf [
+        a :Book;
+        doc:key ("@type" "source" "name" "author.name");
+        :source "marvin";
+        :sourceId "The Lantern Keeper";
+        :name "The Lantern Keeper";
+        :author [
+          a :Person;
+          doc:key ("@type" "source" "name");
+          :source "marvin";
+          :sourceId "Jane Doe";
+          :name "Jane Doe"
+        ]
+      ]
+    ]
+  ] .
+
+example:marvin-note
+  rdfs:label "A note on a highlight";
+  rdfs:comment """
+An :AnnotateAction for a note written on a highlight. Its :result is the
+:Comment, and :about names the :Quotation it annotates. A note with no
+highlight is about the :Book instead.
+""";
+  rdf:value [
+    a :AnnotateAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "marvin";
+    :sourceId "4821";
+    :timestamp "2026-03-02T08:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source");
+      :source "marvin";
+      :sameAs "@me"
+    ];
+    :result [
+      a :Comment;
+      doc:key ("@type" "source" "sourceId");
+      :source "marvin";
+      :sourceId "4821";
+      :description "Echoes the opening chapter.";
+      :about [
+        a :Quotation;
+        doc:key ("@type" "source" "sourceId");
+        :source "marvin";
+        :sourceId "4821";
+        :body "The light was steady, and so was she."
+      ]
+    ]
+  ] .
+
 : skos:example example:message-from-alex, example:shell-command, example:task-completed .
 
 :Base skos:example example:entity-with-url .
@@ -2895,3 +3010,10 @@ a sentence of prose, so the action has no :object.
 :BookmarkAction skos:example example:book-shelved .
 :pageCount skos:example example:book-finished .
 :publisher skos:example example:book-finished .
+
+:ReadAction skos:example example:marvin-reading-session .
+:Book skos:example example:marvin-reading-session, example:marvin-highlight .
+:QuoteAction skos:example example:marvin-highlight .
+:Quotation skos:example example:marvin-highlight, example:marvin-note .
+:AnnotateAction skos:example example:marvin-note .
+:Comment skos:example example:marvin-note .

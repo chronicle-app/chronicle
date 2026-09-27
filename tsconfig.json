@@ -80,6 +80,9 @@
       "path": "plugins/goodreads/tsconfig.lib.json"
     },
     {
+      "path": "plugins/marvin/tsconfig.lib.json"
+    },
+    {
       "path": "core/icloud/tsconfig.lib.json"
     },
     {
