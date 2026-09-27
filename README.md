@@ -54,6 +54,7 @@ These sources come bundled with the CLI:
 | Instagram data export                               | [instagram](plugins/instagram/README.md)       |
 | LinkedIn data export                                | [linkedin](plugins/linkedin/README.md)         |
 | Spotify listens, saved tracks and albums, playlists | [spotify](plugins/spotify/README.md)           |
+| Last.fm listens, loved tracks, and friends          | [lastfm](plugins/lastfm/README.md)             |
 
 Install other plugins with `chronicle plugins install <package>`.
 

@@ -56,6 +56,9 @@
       "path": "plugins/spotify/tsconfig.lib.json"
     },
     {
+      "path": "plugins/lastfm/tsconfig.lib.json"
+    },
+    {
       "path": "core/icloud/tsconfig.lib.json"
     },
     {

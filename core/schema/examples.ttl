@@ -1390,6 +1390,175 @@ playlist, and when the track was added.
     ]
   ] .
 
+example:scrobble
+  rdfs:label "A scrobbled track";
+  rdfs:comment """
+A :ListenAction for one play in a Last.fm listening history, keyed by its
+:timestamp. The :MusicRecording, its :MusicAlbum (through :inAlbum), and the
+:MusicGroup that is their :artist are keyed by their MusicBrainz IDs as
+:sourceId. :artist accepts multiple values, so it is an array even with one
+artist. Cover art and the artist's picture are each an :emblem, an
+:ImageObject keyed by its :url. The listener is an :Agent keyed by their
+Last.fm username as :handle.
+""";
+  rdf:value [
+    a :ListenAction;
+    doc:key ("@type" "source" "timestamp");
+    :source "lastfm";
+    :timestamp "2026-05-09T18:22:07.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "lastfm";
+      :handle "sam_listens";
+      :url "https://www.last.fm/user/sam_listens";
+      :name "Sam Rivers";
+      :sameAs "@me"
+    ];
+    :object [
+      a :MusicRecording;
+      doc:key ("@type" "source" "sourceId");
+      :source "lastfm";
+      :sourceId "3f2b7c1e-8a4d-4e6f-9b0a-1c2d3e4f5a6b";
+      :url "https://www.last.fm/music/The+Example+Band/_/Morning+Light";
+      :name "Morning Light";
+      :emblem [
+        a :ImageObject;
+        doc:key ("url");
+        :url "https://images.example.com/covers/morning-light.png"
+      ];
+      :artist [
+        a :MusicGroup;
+        doc:key ("@type" "source" "sourceId");
+        :source "lastfm";
+        :sourceId "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
+        :name "The Example Band";
+        :url "https://www.last.fm/music/The+Example+Band";
+        :emblem [
+          a :ImageObject;
+          doc:key ("url");
+          :url "https://images.example.com/artists/the-example-band.png"
+        ]
+      ];
+      :inAlbum [
+        a :MusicAlbum;
+        doc:key ("@type" "source" "sourceId");
+        :source "lastfm";
+        :sourceId "0d1e2f3a-4b5c-4d6e-8f7a-9b0c1d2e3f4a";
+        :name "Early Hours";
+        :artist [
+          a :MusicGroup;
+          doc:key ("@type" "source" "sourceId");
+          :source "lastfm";
+          :sourceId "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
+          :name "The Example Band";
+          :url "https://www.last.fm/music/The+Example+Band"
+        ]
+      ]
+    ]
+  ] .
+
+example:loved-track
+  rdfs:label "A loved track";
+  rdfs:comment """
+A :LikeAction for a track the listener loved on Last.fm, keyed by the
+:timestamp when they loved it. This recording has no MusicBrainz ID, so it and
+its :artist are keyed by their Last.fm :url.
+""";
+  rdf:value [
+    a :LikeAction;
+    doc:key ("@type" "source" "timestamp");
+    :source "lastfm";
+    :timestamp "2026-04-18T21:05:33.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "lastfm";
+      :handle "sam_listens";
+      :url "https://www.last.fm/user/sam_listens";
+      :sameAs "@me"
+    ];
+    :object [
+      a :MusicRecording;
+      doc:key ("url");
+      :url "https://www.last.fm/music/Other+Example/_/Harbour+Lights";
+      :name "Harbour Lights";
+      :artist [
+        a :MusicGroup;
+        doc:key ("url");
+        :source "lastfm";
+        :name "Other Example";
+        :url "https://www.last.fm/music/Other+Example"
+      ]
+    ]
+  ] .
+
+example:followed-friend
+  rdfs:label "Following a friend";
+  rdfs:comment """
+A :FollowAction for a user the listener follows on Last.fm. Last.fm gives no
+date for the follow, so the action has no :timestamp; it is keyed by the
+followed user's username as :sourceId, and each read of the friends list
+reports it again. The friend is an :Agent keyed by :handle, with their real
+:name and avatar as :emblem.
+""";
+  rdf:value [
+    a :FollowAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "lastfm";
+    :sourceId "alex_plays";
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "lastfm";
+      :handle "sam_listens";
+      :url "https://www.last.fm/user/sam_listens";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "lastfm";
+      :handle "alex_plays";
+      :url "https://www.last.fm/user/alex_plays";
+      :name "Alex Chen";
+      :emblem [
+        a :ImageObject;
+        doc:key ("url");
+        :url "https://images.example.com/avatars/alex_plays.png"
+      ]
+    ]
+  ] .
+
+example:account-created
+  rdfs:label "An account being registered";
+  rdfs:comment """
+A :CreateAction for the day a Last.fm account was registered. The account's
+:Agent is both the :agent and the :result: the account came into being. The
+action is keyed by the username as :sourceId, and the agent is a bare :handle
+reference, so the friend's current name and avatar are not dated to the
+registration.
+""";
+  rdf:value [
+    a :CreateAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "lastfm";
+    :sourceId "alex_plays";
+    :timestamp "2012-03-14T16:20:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "lastfm";
+      :handle "alex_plays"
+    ];
+    :result [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "lastfm";
+      :handle "alex_plays"
+    ]
+  ] .
+
 : skos:example example:message-from-alex, example:shell-command, example:task-completed .
 
 :Base skos:example example:entity-with-url .
@@ -1876,3 +2045,14 @@ a sentence of prose, so the action has no :object.
 :width skos:example example:track-listen .
 :height skos:example example:track-listen .
 :target skos:example example:playlist-add .
+
+:ListenAction skos:example example:scrobble .
+:MusicRecording skos:example example:scrobble, example:loved-track .
+:MusicAlbum skos:example example:scrobble .
+:MusicGroup skos:example example:scrobble .
+:artist skos:example example:scrobble .
+:inAlbum skos:example example:scrobble .
+:emblem skos:example example:scrobble, example:followed-friend .
+:LikeAction skos:example example:loved-track .
+:FollowAction skos:example example:followed-friend .
+:CreateAction skos:example example:account-created .
