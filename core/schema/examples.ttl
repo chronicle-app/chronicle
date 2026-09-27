@@ -2468,6 +2468,397 @@ highlight is about the :Book instead.
     ]
   ] .
 
+example:zotero-work-saved
+  rdfs:label "Saving a book to a reference library";
+  rdfs:comment """
+A :BookmarkAction for a book saved to Zotero. The :Book is keyed by Zotero's
+item key within the library, a :Realm, since item keys are unique only per
+library. It carries its :datePublished (a bare year here), :pageCount,
+:publisher, an :author, and an editor as :creator. Its ISBN is a :sameAs edge
+in the `isbn` namespace, so any source that knows the ISBN names the same
+book.
+""";
+  rdf:value [
+    a :BookmarkAction;
+    doc:key ("@type" "source" "sourceId" "object.inRealm.handle");
+    :source "zotero";
+    :sourceId "BOOKAAAA";
+    :timestamp "2024-11-05T10:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "zotero";
+      :sourceId "LuK3xAmp";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Book;
+      doc:key ("source" "sourceId" "inRealm.handle");
+      :source "zotero";
+      :sourceId "BOOKAAAA";
+      :inRealm [
+        a :Realm;
+        doc:key ("@type" "source" "handle");
+        :source "zotero";
+        :handle "7654321"
+      ];
+      :name "Collected Trails";
+      :datePublished "2019";
+      :pageCount 320;
+      :publisher [
+        a :Organization;
+        doc:key ("@type" "source" "name");
+        :source "zotero";
+        :name "Example Press"
+      ];
+      :author [
+        a :Person;
+        doc:key ("@type" "source" "name");
+        :source "zotero";
+        :name "Pat Example"
+      ];
+      :creator [
+        a :Person;
+        doc:key ("@type" "source" "name");
+        :source "zotero";
+        :name "Alex Example"
+      ];
+      :sameAs [
+        a :Book;
+        doc:key ("source" "sourceId");
+        :source "isbn";
+        :sourceId "9780306406157";
+        :name "Collected Trails"
+      ]
+    ]
+  ] .
+
+example:zotero-highlight
+  rdfs:label "Highlighting a passage in a PDF";
+  rdfs:comment """
+A :QuoteAction for a highlight made in Zotero's PDF reader. Its :result is the
+:Quotation: the highlighted text as :body, its :color and :annotationStyle,
+and its position as a :PageSelector, with the page number as :selectorValue
+and the printed page label as :selectorLabel. The quotation is part of the
+PDF it was made in, which is the same entity as the :Article it belongs to
+(:sameAs).
+""";
+  rdf:value [
+    a :QuoteAction;
+    doc:key ("@type" "source" "sourceId" "result.inRealm.handle");
+    :source "zotero";
+    :sourceId "ANNOPDF1";
+    :timestamp "2025-01-11T09:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "zotero";
+      :sourceId "LuK3xAmp";
+      :sameAs "@me"
+    ];
+    :result [
+      a :Quotation;
+      doc:key ("@type" "source" "sourceId" "inRealm.handle");
+      :source "zotero";
+      :sourceId "ANNOPDF1";
+      :inRealm [
+        a :Realm;
+        doc:key ("@type" "source" "handle");
+        :source "zotero";
+        :handle "7654321"
+      ];
+      :body "Erosion doubles on wet days.";
+      :color "#ffd400";
+      :annotationStyle "highlight";
+      :isPartOf [
+        a :DocumentObject;
+        doc:key ("source" "sourceId" "inRealm.handle");
+        :source "zotero";
+        :sourceId "ATTPDF01";
+        :inRealm [
+          a :Realm;
+          doc:key ("@type" "source" "handle");
+          :source "zotero";
+          :handle "7654321"
+        ];
+        :sameAs [
+          a :Article;
+          doc:key ("source" "sourceId" "inRealm.handle");
+          :source "zotero";
+          :sourceId "WORKAAAA";
+          :inRealm [
+            a :Realm;
+            doc:key ("@type" "source" "handle");
+            :source "zotero";
+            :handle "7654321"
+          ];
+          :name "Trail Erosion in Alpine Meadows"
+        ]
+      ];
+      :selector [
+        a :PageSelector;
+        doc:key ("@type" "selectorValue");
+        :selectorValue "12";
+        :selectorLabel "12"
+      ]
+    ]
+  ] .
+
+example:zotero-highlight-comment
+  rdfs:label "Commenting on a highlight";
+  rdfs:comment """
+An :AnnotateAction for the comment written on a highlight. Its :result is the
+:Comment, whose text is its :description and which is :about the
+:Quotation it was written on.
+""";
+  rdf:value [
+    a :AnnotateAction;
+    doc:key ("@type" "source" "sourceId" "result.inRealm.handle");
+    :source "zotero";
+    :sourceId "ANNOPDF1";
+    :timestamp "2025-01-11T09:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "zotero";
+      :sourceId "LuK3xAmp";
+      :sameAs "@me"
+    ];
+    :result [
+      a :Comment;
+      doc:key ("@type" "source" "sourceId" "inRealm.handle");
+      :source "zotero";
+      :sourceId "ANNOPDF1";
+      :inRealm [
+        a :Realm;
+        doc:key ("@type" "source" "handle");
+        :source "zotero";
+        :handle "7654321"
+      ];
+      :description "Check the 2023 data.";
+      :about [
+        a :Quotation;
+        doc:key ("@type" "source" "sourceId" "inRealm.handle");
+        :source "zotero";
+        :sourceId "ANNOPDF1";
+        :inRealm [
+          a :Realm;
+          doc:key ("@type" "source" "handle");
+          :source "zotero";
+          :handle "7654321"
+        ];
+        :body "Erosion doubles on wet days.";
+        :color "#ffd400";
+        :annotationStyle "highlight";
+        :isPartOf [
+          a :DocumentObject;
+          doc:key ("source" "sourceId" "inRealm.handle");
+          :source "zotero";
+          :sourceId "ATTPDF01";
+          :inRealm [
+            a :Realm;
+            doc:key ("@type" "source" "handle");
+            :source "zotero";
+            :handle "7654321"
+          ];
+          :sameAs [
+            a :Article;
+            doc:key ("source" "sourceId" "inRealm.handle");
+            :source "zotero";
+            :sourceId "WORKAAAA";
+            :inRealm [
+              a :Realm;
+              doc:key ("@type" "source" "handle");
+              :source "zotero";
+              :handle "7654321"
+            ];
+            :name "Trail Erosion in Alpine Meadows"
+          ]
+        ];
+        :selector [
+          a :PageSelector;
+          doc:key ("@type" "selectorValue");
+          :selectorValue "12";
+          :selectorLabel "12"
+        ]
+      ]
+    ]
+  ] .
+
+example:zotero-epub-highlight
+  rdfs:label "Underlining a passage in an EPUB";
+  rdfs:comment """
+A :QuoteAction for an underline in an EPUB. The :Quotation's position is an
+:EpubCfiSelector, whose :selectorValue is the EPUB Canonical Fragment
+Identifier.
+""";
+  rdf:value [
+    a :QuoteAction;
+    doc:key ("@type" "source" "sourceId" "result.inRealm.handle");
+    :source "zotero";
+    :sourceId "ANNOEPUB";
+    :timestamp "2025-01-22T07:30:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "zotero";
+      :sourceId "LuK3xAmp";
+      :sameAs "@me"
+    ];
+    :result [
+      a :Quotation;
+      doc:key ("@type" "source" "sourceId" "inRealm.handle");
+      :source "zotero";
+      :sourceId "ANNOEPUB";
+      :inRealm [
+        a :Realm;
+        doc:key ("@type" "source" "handle");
+        :source "zotero";
+        :handle "7654321"
+      ];
+      :body "Carry more water than you think.";
+      :annotationStyle "underline";
+      :isPartOf [
+        a :DocumentObject;
+        doc:key ("source" "sourceId" "inRealm.handle");
+        :source "zotero";
+        :sourceId "ORPHAN01";
+        :inRealm [
+          a :Realm;
+          doc:key ("@type" "source" "handle");
+          :source "zotero";
+          :handle "7654321"
+        ];
+        :name "field-guide.epub"
+      ];
+      :selector [
+        a :EpubCfiSelector;
+        doc:key ("@type" "selectorValue");
+        :selectorValue "epubcfi(/6/4!/4/2/1:0)"
+      ]
+    ]
+  ] .
+
+example:zotero-snapshot-saved
+  rdfs:label "Saving a snapshot of a web page";
+  rdfs:comment """
+A :BookmarkAction for a web page snapshot saved to Zotero on its own. The
+snapshot is a :DocumentObject with the page's :url, and :snapshotOf points it
+at the page, an :Entity keyed by its URL, so the snapshot joins the page any
+other source knows.
+""";
+  rdf:value [
+    a :BookmarkAction;
+    doc:key ("@type" "source" "sourceId" "object.inRealm.handle");
+    :source "zotero";
+    :sourceId "SNAPSHOT";
+    :timestamp "2025-02-03T15:20:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "zotero";
+      :sourceId "LuK3xAmp";
+      :sameAs "@me"
+    ];
+    :object [
+      a :DocumentObject;
+      doc:key ("source" "sourceId" "inRealm.handle");
+      :source "zotero";
+      :sourceId "SNAPSHOT";
+      :inRealm [
+        a :Realm;
+        doc:key ("@type" "source" "handle");
+        :source "zotero";
+        :handle "7654321"
+      ];
+      :name "Lost Lake Trail";
+      :mimeType "text/html";
+      :url "https://trails.example.com/lost-lake";
+      :snapshotOf [
+        a :Entity;
+        doc:key ("url");
+        :url "https://trails.example.com/lost-lake"
+      ]
+    ]
+  ] .
+
+example:zotero-blog-post-saved
+  rdfs:label "Saving a blog post to a reference library";
+  rdfs:comment """
+A :BookmarkAction for a blog post saved to Zotero. Zotero's blog and forum
+posts are a :Post, with its :author and :datePublished.
+""";
+  rdf:value [
+    a :BookmarkAction;
+    doc:key ("@type" "source" "sourceId" "object.inRealm.handle");
+    :source "zotero";
+    :sourceId "POSTAAAA";
+    :timestamp "2025-02-10T11:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "zotero";
+      :sourceId "LuK3xAmp";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Post;
+      doc:key ("source" "sourceId" "inRealm.handle");
+      :source "zotero";
+      :sourceId "POSTAAAA";
+      :inRealm [
+        a :Realm;
+        doc:key ("@type" "source" "handle");
+        :source "zotero";
+        :handle "7654321"
+      ];
+      :name "Ten Quiet Trails";
+      :url "https://blog.example.com/ten-quiet-trails";
+      :datePublished "2025-02-08";
+      :author [
+        a :Person;
+        doc:key ("@type" "source" "name");
+        :source "zotero";
+        :name "Sam Rivera"
+      ]
+    ]
+  ] .
+
+example:zotero-podcast-saved
+  rdfs:label "Saving a podcast episode to a reference library";
+  rdfs:comment """
+A :BookmarkAction for a podcast saved to Zotero. A Zotero podcast item is a
+single :PodcastEpisode.
+""";
+  rdf:value [
+    a :BookmarkAction;
+    doc:key ("@type" "source" "sourceId" "object.inRealm.handle");
+    :source "zotero";
+    :sourceId "PODCASTA";
+    :timestamp "2025-02-12T19:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "zotero";
+      :sourceId "LuK3xAmp";
+      :sameAs "@me"
+    ];
+    :object [
+      a :PodcastEpisode;
+      doc:key ("source" "sourceId" "inRealm.handle");
+      :source "zotero";
+      :sourceId "PODCASTA";
+      :inRealm [
+        a :Realm;
+        doc:key ("@type" "source" "handle");
+        :source "zotero";
+        :handle "7654321"
+      ];
+      :name "Trail Building 101";
+      :datePublished "2025-01"
+    ]
+  ] .
+
 : skos:example example:message-from-alex, example:shell-command, example:task-completed .
 
 :Base skos:example example:entity-with-url .
@@ -3017,3 +3408,25 @@ a sentence of prose, so the action has no :object.
 :Quotation skos:example example:marvin-highlight, example:marvin-note .
 :AnnotateAction skos:example example:marvin-note .
 :Comment skos:example example:marvin-note .
+
+:BookmarkAction skos:example example:zotero-work-saved, example:zotero-snapshot-saved .
+:Book skos:example example:zotero-work-saved .
+:Article skos:example example:zotero-highlight .
+:Post skos:example example:zotero-blog-post-saved .
+:PodcastEpisode skos:example example:zotero-podcast-saved .
+:QuoteAction skos:example example:zotero-highlight, example:zotero-epub-highlight .
+:Quotation skos:example example:zotero-highlight, example:zotero-epub-highlight .
+:PageSelector skos:example example:zotero-highlight .
+:EpubCfiSelector skos:example example:zotero-epub-highlight .
+:AnnotateAction skos:example example:zotero-highlight-comment .
+:Comment skos:example example:zotero-highlight-comment .
+:datePublished skos:example example:zotero-work-saved, example:zotero-blog-post-saved .
+:pageCount skos:example example:zotero-work-saved .
+:publisher skos:example example:zotero-work-saved .
+:creator skos:example example:zotero-work-saved .
+:snapshotOf skos:example example:zotero-snapshot-saved .
+:color skos:example example:zotero-highlight .
+:annotationStyle skos:example example:zotero-highlight, example:zotero-epub-highlight .
+:selector skos:example example:zotero-highlight, example:zotero-epub-highlight .
+:selectorValue skos:example example:zotero-highlight, example:zotero-epub-highlight .
+:selectorLabel skos:example example:zotero-highlight .

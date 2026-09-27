@@ -168,12 +168,10 @@ export type EntityAndChildren =
   | IntangibleAndChildren
   | JourneyAndChildren
   | MealAndChildren
-  | MessageAndChildren
   | PhysicalObjectAndChildren
   | PlaceAndChildren
   | RealmAndChildren
   | SessionAndChildren
-  | SoftwareApplicationAndChildren
   | TagAndChildren
   | TaskAndChildren;
 
@@ -261,25 +259,6 @@ export const AnnotateActionSchema: z.ZodType<AnnotateAction> = z
   })
   .superRefine(requireNodeIdentity);
 
-// AssessAction, child of https://schema.chronicle.app/Action
-export interface AssessAction extends Omit<Action, '@type'> {
-  '@type': 'AssessAction';
-}
-
-export type AssessActionAndChildren =
-  AssessAction | ReactActionAndChildren | RespondActionAndChildren;
-
-const AssessActionProperties = {
-  ...ActionProperties,
-};
-
-export const AssessActionSchema: z.ZodType<AssessAction> = z
-  .object({
-    '@type': z.literal('AssessAction'),
-    ...AssessActionProperties,
-  })
-  .superRefine(requireNodeIdentity);
-
 // CreativeWork, child of https://schema.chronicle.app/Entity
 export interface CreativeWork extends Omit<Entity, '@type'> {
   '@type': 'CreativeWork';
@@ -295,17 +274,20 @@ export interface CreativeWork extends Omit<Entity, '@type'> {
 
 export type CreativeWorkAndChildren =
   | CreativeWork
+  | ArticleAndChildren
   | BookAndChildren
   | ChannelAndChildren
   | CollectionAndChildren
   | MediaObjectAndChildren
+  | MessageAndChildren
   | MusicAlbumAndChildren
   | MusicRecordingAndChildren
   | PodcastEpisodeAndChildren
   | PostAndChildren
   | QueryAndChildren
   | QuotationAndChildren
-  | ResponseAndChildren;
+  | ResponseAndChildren
+  | SoftwareApplicationAndChildren;
 
 const CreativeWorkProperties = {
   ...EntityProperties,
@@ -326,11 +308,49 @@ export const CreativeWorkSchema: z.ZodType<CreativeWork> = z
   })
   .superRefine(requireNodeIdentity);
 
+// Article, child of https://schema.chronicle.app/CreativeWork
+export interface Article extends Omit<CreativeWork, '@type'> {
+  '@type': 'Article';
+}
+
+export type ArticleAndChildren = Article;
+
+const ArticleProperties = {
+  ...CreativeWorkProperties,
+};
+
+export const ArticleSchema: z.ZodType<Article> = z
+  .object({
+    '@type': z.literal('Article'),
+    ...ArticleProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// AssessAction, child of https://schema.chronicle.app/Action
+export interface AssessAction extends Omit<Action, '@type'> {
+  '@type': 'AssessAction';
+}
+
+export type AssessActionAndChildren =
+  AssessAction | ReactActionAndChildren | RespondActionAndChildren;
+
+const AssessActionProperties = {
+  ...ActionProperties,
+};
+
+export const AssessActionSchema: z.ZodType<AssessAction> = z
+  .object({
+    '@type': z.literal('AssessAction'),
+    ...AssessActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // MediaObject, child of https://schema.chronicle.app/CreativeWork
 export interface MediaObject extends Omit<CreativeWork, '@type'> {
   '@type': 'MediaObject';
   contentPath?: string;
   mimeType?: string;
+  snapshotOf?: EntityAndChildren[];
 }
 
 export type MediaObjectAndChildren =
@@ -344,6 +364,7 @@ const MediaObjectProperties = {
   ...CreativeWorkProperties,
   contentPath: z.lazy(() => z.string()).optional(),
   mimeType: z.lazy(() => z.string()).optional(),
+  snapshotOf: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
 };
 
 export const MediaObjectSchema: z.ZodType<MediaObject> = z
@@ -560,6 +581,62 @@ export const CancelActionSchema: z.ZodType<CancelAction> = z
   })
   .superRefine(requireNodeIdentity);
 
+// Intangible, child of https://schema.chronicle.app/Entity
+export interface Intangible extends Omit<Entity, '@type'> {
+  '@type': 'Intangible';
+}
+
+export type IntangibleAndChildren = Intangible | DefinedTermAndChildren | SelectorAndChildren;
+
+const IntangibleProperties = {
+  ...EntityProperties,
+};
+
+export const IntangibleSchema: z.ZodType<Intangible> = z
+  .object({
+    '@type': z.literal('Intangible'),
+    ...IntangibleProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// DefinedTerm, child of https://schema.chronicle.app/Intangible
+export interface DefinedTerm extends Omit<Intangible, '@type'> {
+  '@type': 'DefinedTerm';
+}
+
+export type DefinedTermAndChildren = DefinedTerm | CategoryAndChildren;
+
+const DefinedTermProperties = {
+  ...IntangibleProperties,
+};
+
+export const DefinedTermSchema: z.ZodType<DefinedTerm> = z
+  .object({
+    '@type': z.literal('DefinedTerm'),
+    ...DefinedTermProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Category, child of https://schema.chronicle.app/DefinedTerm
+export interface Category extends Omit<DefinedTerm, '@type'> {
+  '@type': 'Category';
+  color?: string;
+}
+
+export type CategoryAndChildren = Category;
+
+const CategoryProperties = {
+  ...DefinedTermProperties,
+  color: z.lazy(() => z.string()).optional(),
+};
+
+export const CategorySchema: z.ZodType<Category> = z
+  .object({
+    '@type': z.literal('Category'),
+    ...CategoryProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // Channel, child of https://schema.chronicle.app/CreativeWork
 export interface Channel extends Omit<CreativeWork, '@type'> {
   '@type': 'Channel';
@@ -713,42 +790,6 @@ export const ConsumeActionSchema: z.ZodType<ConsumeAction> = z
   .object({
     '@type': z.literal('ConsumeAction'),
     ...ConsumeActionProperties,
-  })
-  .superRefine(requireNodeIdentity);
-
-// Intangible, child of https://schema.chronicle.app/Entity
-export interface Intangible extends Omit<Entity, '@type'> {
-  '@type': 'Intangible';
-}
-
-export type IntangibleAndChildren = Intangible | DefinedTermAndChildren;
-
-const IntangibleProperties = {
-  ...EntityProperties,
-};
-
-export const IntangibleSchema: z.ZodType<Intangible> = z
-  .object({
-    '@type': z.literal('Intangible'),
-    ...IntangibleProperties,
-  })
-  .superRefine(requireNodeIdentity);
-
-// DefinedTerm, child of https://schema.chronicle.app/Intangible
-export interface DefinedTerm extends Omit<Intangible, '@type'> {
-  '@type': 'DefinedTerm';
-}
-
-export type DefinedTermAndChildren = DefinedTerm;
-
-const DefinedTermProperties = {
-  ...IntangibleProperties,
-};
-
-export const DefinedTermSchema: z.ZodType<DefinedTerm> = z
-  .object({
-    '@type': z.literal('DefinedTerm'),
-    ...DefinedTermProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -917,6 +958,46 @@ export const EnrollmentSchema: z.ZodType<Enrollment> = z
   .object({
     '@type': z.literal('Enrollment'),
     ...EnrollmentProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Selector, child of https://schema.chronicle.app/Intangible
+export interface Selector extends Omit<Intangible, '@type'> {
+  '@type': 'Selector';
+  selectorLabel?: string;
+  selectorValue?: string;
+}
+
+export type SelectorAndChildren = Selector | EpubCfiSelectorAndChildren | PageSelectorAndChildren;
+
+const SelectorProperties = {
+  ...IntangibleProperties,
+  selectorLabel: z.lazy(() => z.string()).optional(),
+  selectorValue: z.lazy(() => z.string()).optional(),
+};
+
+export const SelectorSchema: z.ZodType<Selector> = z
+  .object({
+    '@type': z.literal('Selector'),
+    ...SelectorProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// EpubCfiSelector, child of https://schema.chronicle.app/Selector
+export interface EpubCfiSelector extends Omit<Selector, '@type'> {
+  '@type': 'EpubCfiSelector';
+}
+
+export type EpubCfiSelectorAndChildren = EpubCfiSelector;
+
+const EpubCfiSelectorProperties = {
+  ...SelectorProperties,
+};
+
+export const EpubCfiSelectorSchema: z.ZodType<EpubCfiSelector> = z
+  .object({
+    '@type': z.literal('EpubCfiSelector'),
+    ...EpubCfiSelectorProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -1248,8 +1329,8 @@ export const MembershipSchema: z.ZodType<Membership> = z
   })
   .superRefine(requireNodeIdentity);
 
-// Message, child of https://schema.chronicle.app/Entity
-export interface Message extends Omit<Entity, '@type'> {
+// Message, child of https://schema.chronicle.app/CreativeWork
+export interface Message extends Omit<CreativeWork, '@type'> {
   '@type': 'Message';
   author?: AgentAndChildren[];
   contains?: MediaObjectAndChildren[];
@@ -1260,7 +1341,7 @@ export interface Message extends Omit<Entity, '@type'> {
 export type MessageAndChildren = Message;
 
 const MessageProperties = {
-  ...EntityProperties,
+  ...CreativeWorkProperties,
   author: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
   contains: z.lazy(() => z.array(MediaObjectAndChildrenSchema)).optional(),
   inReplyTo: z.lazy(() => z.array(MessageAndChildrenSchema)).optional(),
@@ -1391,6 +1472,24 @@ export const MusicRecordingSchema: z.ZodType<MusicRecording> = z
   .object({
     '@type': z.literal('MusicRecording'),
     ...MusicRecordingProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// PageSelector, child of https://schema.chronicle.app/Selector
+export interface PageSelector extends Omit<Selector, '@type'> {
+  '@type': 'PageSelector';
+}
+
+export type PageSelectorAndChildren = PageSelector;
+
+const PageSelectorProperties = {
+  ...SelectorProperties,
+};
+
+export const PageSelectorSchema: z.ZodType<PageSelector> = z
+  .object({
+    '@type': z.literal('PageSelector'),
+    ...PageSelectorProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -1543,12 +1642,18 @@ export const QuerySchema: z.ZodType<Query> = z
 // Quotation, child of https://schema.chronicle.app/CreativeWork
 export interface Quotation extends Omit<CreativeWork, '@type'> {
   '@type': 'Quotation';
+  annotationStyle?: string;
+  color?: string;
+  selector?: SelectorAndChildren[];
 }
 
 export type QuotationAndChildren = Quotation;
 
 const QuotationProperties = {
   ...CreativeWorkProperties,
+  annotationStyle: z.lazy(() => z.string()).optional(),
+  color: z.lazy(() => z.string()).optional(),
+  selector: z.lazy(() => z.array(SelectorAndChildrenSchema)).optional(),
 };
 
 export const QuotationSchema: z.ZodType<Quotation> = z
@@ -1668,15 +1773,15 @@ export const SoftwareAgentSchema: z.ZodType<SoftwareAgent> = z
   })
   .superRefine(requireNodeIdentity);
 
-// SoftwareApplication, child of https://schema.chronicle.app/Entity
-export interface SoftwareApplication extends Omit<Entity, '@type'> {
+// SoftwareApplication, child of https://schema.chronicle.app/CreativeWork
+export interface SoftwareApplication extends Omit<CreativeWork, '@type'> {
   '@type': 'SoftwareApplication';
 }
 
 export type SoftwareApplicationAndChildren = SoftwareApplication;
 
 const SoftwareApplicationProperties = {
-  ...EntityProperties,
+  ...CreativeWorkProperties,
 };
 
 export const SoftwareApplicationSchema: z.ZodType<SoftwareApplication> = z
@@ -1689,12 +1794,14 @@ export const SoftwareApplicationSchema: z.ZodType<SoftwareApplication> = z
 // Tag, child of https://schema.chronicle.app/Entity
 export interface Tag extends Omit<Entity, '@type'> {
   '@type': 'Tag';
+  color?: string;
 }
 
 export type TagAndChildren = Tag;
 
 const TagProperties = {
   ...EntityProperties,
+  color: z.lazy(() => z.string()).optional(),
 };
 
 export const TagSchema: z.ZodType<Tag> = z
@@ -1937,6 +2044,8 @@ export const PlaceAndChildrenSchema: z.ZodType<PlaceAndChildren> = z
   .superRefine(requireNodeIdentity);
 export const PersonAndChildrenSchema = PersonSchema;
 
+export const PageSelectorAndChildrenSchema = PageSelectorSchema;
+
 export const MusicRecordingAndChildrenSchema = MusicRecordingSchema;
 
 export const MusicGroupAndChildrenSchema = MusicGroupSchema;
@@ -2054,6 +2163,26 @@ export const ExecuteActionAndChildrenSchema = ExecuteActionSchema;
 
 export const EventAndChildrenSchema = EventSchema;
 
+export const EpubCfiSelectorAndChildrenSchema = EpubCfiSelectorSchema;
+
+export const SelectorAndChildrenSchema: z.ZodType<SelectorAndChildren> = z
+  .discriminatedUnion('@type', [
+    z.object({
+      '@type': z.literal('Selector'),
+      ...SelectorProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('PageSelector'),
+      ...PageSelectorProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('EpubCfiSelector'),
+      ...EpubCfiSelectorProperties,
+    }),
+  ])
+  .superRefine(requireNodeIdentity);
 export const EnrollmentAndChildrenSchema = EnrollmentSchema;
 
 export const EatActionAndChildrenSchema = EatActionSchema;
@@ -2083,21 +2212,6 @@ export const PhysicalObjectAndChildrenSchema: z.ZodType<PhysicalObjectAndChildre
   .superRefine(requireNodeIdentity);
 export const DeleteActionAndChildrenSchema = DeleteActionSchema;
 
-export const DefinedTermAndChildrenSchema = DefinedTermSchema;
-
-export const IntangibleAndChildrenSchema: z.ZodType<IntangibleAndChildren> = z
-  .discriminatedUnion('@type', [
-    z.object({
-      '@type': z.literal('Intangible'),
-      ...IntangibleProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('DefinedTerm'),
-      ...DefinedTermProperties,
-    }),
-  ])
-  .superRefine(requireNodeIdentity);
 export const ConsumeActionAndChildrenSchema: z.ZodType<ConsumeActionAndChildren> = z
   .discriminatedUnion('@type', [
     z.object({
@@ -2182,6 +2296,54 @@ export const CheckInActionAndChildrenSchema = CheckInActionSchema;
 
 export const ChannelAndChildrenSchema = ChannelSchema;
 
+export const CategoryAndChildrenSchema = CategorySchema;
+
+export const DefinedTermAndChildrenSchema: z.ZodType<DefinedTermAndChildren> = z
+  .discriminatedUnion('@type', [
+    z.object({
+      '@type': z.literal('DefinedTerm'),
+      ...DefinedTermProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Category'),
+      ...CategoryProperties,
+    }),
+  ])
+  .superRefine(requireNodeIdentity);
+export const IntangibleAndChildrenSchema: z.ZodType<IntangibleAndChildren> = z
+  .discriminatedUnion('@type', [
+    z.object({
+      '@type': z.literal('Intangible'),
+      ...IntangibleProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Selector'),
+      ...SelectorProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('PageSelector'),
+      ...PageSelectorProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('EpubCfiSelector'),
+      ...EpubCfiSelectorProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('DefinedTerm'),
+      ...DefinedTermProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Category'),
+      ...CategoryProperties,
+    }),
+  ])
+  .superRefine(requireNodeIdentity);
 export const CancelActionAndChildrenSchema = CancelActionSchema;
 
 export const CallSessionAndChildrenSchema = CallSessionSchema;
@@ -2319,11 +2481,41 @@ export const MediaObjectAndChildrenSchema: z.ZodType<MediaObjectAndChildren> = z
     }),
   ])
   .superRefine(requireNodeIdentity);
+export const AssessActionAndChildrenSchema: z.ZodType<AssessActionAndChildren> = z
+  .discriminatedUnion('@type', [
+    z.object({
+      '@type': z.literal('AssessAction'),
+      ...AssessActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('RespondAction'),
+      ...RespondActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ReactAction'),
+      ...ReactActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('LikeAction'),
+      ...LikeActionProperties,
+    }),
+  ])
+  .superRefine(requireNodeIdentity);
+export const ArticleAndChildrenSchema = ArticleSchema;
+
 export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> = z
   .discriminatedUnion('@type', [
     z.object({
       '@type': z.literal('CreativeWork'),
       ...CreativeWorkProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('SoftwareApplication'),
+      ...SoftwareApplicationProperties,
     }),
 
     z.object({
@@ -2354,6 +2546,11 @@ export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> =
     z.object({
       '@type': z.literal('MusicAlbum'),
       ...MusicAlbumProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Message'),
+      ...MessageProperties,
     }),
 
     z.object({
@@ -2420,28 +2617,10 @@ export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> =
       '@type': z.literal('AudioObject'),
       ...AudioObjectProperties,
     }),
-  ])
-  .superRefine(requireNodeIdentity);
-export const AssessActionAndChildrenSchema: z.ZodType<AssessActionAndChildren> = z
-  .discriminatedUnion('@type', [
-    z.object({
-      '@type': z.literal('AssessAction'),
-      ...AssessActionProperties,
-    }),
 
     z.object({
-      '@type': z.literal('RespondAction'),
-      ...RespondActionProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('ReactAction'),
-      ...ReactActionProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('LikeAction'),
-      ...LikeActionProperties,
+      '@type': z.literal('Article'),
+      ...ArticleProperties,
     }),
   ])
   .superRefine(requireNodeIdentity);
@@ -2521,11 +2700,6 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('SoftwareApplication'),
-      ...SoftwareApplicationProperties,
-    }),
-
-    z.object({
       '@type': z.literal('Realm'),
       ...RealmProperties,
     }),
@@ -2538,11 +2712,6 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     z.object({
       '@type': z.literal('Venue'),
       ...VenueProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Message'),
-      ...MessageProperties,
     }),
 
     z.object({
@@ -2571,8 +2740,28 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('Command'),
+      ...CommandProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Intangible'),
       ...IntangibleProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Selector'),
+      ...SelectorProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('PageSelector'),
+      ...PageSelectorProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('EpubCfiSelector'),
+      ...EpubCfiSelectorProperties,
     }),
 
     z.object({
@@ -2581,8 +2770,8 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('Command'),
-      ...CommandProperties,
+      '@type': z.literal('Category'),
+      ...CategoryProperties,
     }),
 
     z.object({
@@ -2626,6 +2815,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('SoftwareApplication'),
+      ...SoftwareApplicationProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Quotation'),
       ...QuotationProperties,
     }),
@@ -2653,6 +2847,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     z.object({
       '@type': z.literal('MusicAlbum'),
       ...MusicAlbumProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Message'),
+      ...MessageProperties,
     }),
 
     z.object({
@@ -2718,6 +2917,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     z.object({
       '@type': z.literal('AudioObject'),
       ...AudioObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Article'),
+      ...ArticleProperties,
     }),
 
     z.object({
@@ -2977,11 +3181,6 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('SoftwareApplication'),
-      ...SoftwareApplicationProperties,
-    }),
-
-    z.object({
       '@type': z.literal('Realm'),
       ...RealmProperties,
     }),
@@ -2994,11 +3193,6 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('Venue'),
       ...VenueProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Message'),
-      ...MessageProperties,
     }),
 
     z.object({
@@ -3027,8 +3221,28 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('Command'),
+      ...CommandProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Intangible'),
       ...IntangibleProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Selector'),
+      ...SelectorProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('PageSelector'),
+      ...PageSelectorProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('EpubCfiSelector'),
+      ...EpubCfiSelectorProperties,
     }),
 
     z.object({
@@ -3037,8 +3251,8 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('Command'),
-      ...CommandProperties,
+      '@type': z.literal('Category'),
+      ...CategoryProperties,
     }),
 
     z.object({
@@ -3082,6 +3296,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('SoftwareApplication'),
+      ...SoftwareApplicationProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Quotation'),
       ...QuotationProperties,
     }),
@@ -3109,6 +3328,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('MusicAlbum'),
       ...MusicAlbumProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Message'),
+      ...MessageProperties,
     }),
 
     z.object({
@@ -3174,6 +3398,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('AudioObject'),
       ...AudioObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Article'),
+      ...ArticleProperties,
     }),
 
     z.object({

@@ -63,6 +63,7 @@ These sources come bundled with the CLI:
 | Bluesky follows, followers, and likes                                 | [bluesky](plugins/bluesky/README.md)           |
 | Goodreads shelves and reading history                                 | [goodreads](plugins/goodreads/README.md)       |
 | Marvin reading sessions and highlights                                | [marvin](plugins/marvin/README.md)             |
+| Zotero works, highlights, notes, and reading                          | [zotero](plugins/zotero/README.md)             |
 
 Install other plugins with `chronicle plugins install <package>`.
 

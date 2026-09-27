@@ -139,7 +139,7 @@
   :rangeIncludes :Entity .
 
 :Message a rdfs:Class;
-  rdfs:subClassOf :Entity;
+  rdfs:subClassOf :CreativeWork;
   rdfs:comment "A communicated item, such as a text message or chat reply. Its :body carries text, :contains links attachments, and :recipient identifies the intended receivers." .
 :MessageAction a rdfs:Class;
   rdfs:subClassOf :Action;
@@ -182,7 +182,7 @@
   rdfs:subClassOf :Agent;
   rdfs:comment "Running software acting as a participant, such as an assistant, bot, or automation. It can be the :agent of an action or the :author of a message." .
 :SoftwareApplication a rdfs:Class;
-  rdfs:subClassOf :Entity;
+  rdfs:subClassOf :CreativeWork;
   rdfs:comment "A software application or model used to perform work. An action can identify it through :instrument, using the source-provided application or model identifier." .
 :Thread a rdfs:Class;
   rdfs:subClassOf :Collection;
@@ -652,3 +652,51 @@
 :Quotation a rdfs:Class;
   rdfs:comment "A passage selected from a work — a highlight, an excerpt. Carries the text as :body, its position in the work via :selector, and, for a visual annotation, its :annotationStyle and :color. The :result of a :QuoteAction.";
   rdfs:subClassOf :CreativeWork .
+
+# zotero
+:Category a rdfs:Class;
+  rdfs:comment "A classification drawn from a fixed set of kinds, as distinct from a free-form :Tag.";
+  rdfs:subClassOf :DefinedTerm .
+:Selector a rdfs:Class;
+  rdfs:comment "A position within a resource — where a passage sits in a book, a page, or a media file. Carries a machine value (:selectorValue), a readable label (:selectorLabel), and a normalized position (:selectorProgress); the subclasses name the addressing scheme.";
+  rdfs:subClassOf :Intangible .
+:PageSelector a rdfs:Class;
+  rdfs:comment "A position in a paginated document, addressed by page number.";
+  rdfs:subClassOf :Selector .
+:EpubCfiSelector a rdfs:Class;
+  rdfs:comment "A position in an EPUB, addressed by a Canonical Fragment Identifier.";
+  rdfs:subClassOf :Selector .
+:Article a rdfs:Class;
+  rdfs:comment "A written piece published on the web or in a periodical — a news story, a blog post, a feed item.";
+  rdfs:subClassOf :CreativeWork .
+:snapshotOf a rdf:Property;
+  rdfs:comment "The resource this media is a capture of: a screenshot or archive (the :result of a :ScreenshotAction or :ArchiveAction) points at the :Entity whose URL it captured at a moment. The referent is the addressed resource itself, the URL entity. Screenshot and archive are told apart by the media's type; being a snapshot is the role this edge confers.";
+  rdfs:subPropertyOf :relation;
+  :domainIncludes :MediaObject;
+  :rangeIncludes :Entity .
+:color a rdf:Property;
+  rdfs:comment "Color associated with the entity (hex or name).";
+  owl:maxCardinality 1;
+  :domainIncludes :Quotation,
+    :Tag,
+    :Category;
+  :rangeIncludes :Text .
+:annotationStyle a rdf:Property;
+  rdfs:comment "Type of visual annotation (highlight, underline, strikethrough, squiggly, box, margin).";
+  owl:maxCardinality 1;
+  :domainIncludes :Quotation;
+  :rangeIncludes :Text .
+:selector a rdf:Property;
+  rdfs:comment "Selectors identifying content position within a resource.";
+  :domainIncludes :Quotation;
+  :rangeIncludes :Selector .
+:selectorValue a rdf:Property;
+  rdfs:comment "The selector value string (EPUB CFI, media fragment, page number, etc.).";
+  owl:maxCardinality 1;
+  :domainIncludes :Selector;
+  :rangeIncludes :Text .
+:selectorLabel a rdf:Property;
+  rdfs:comment "Human-readable location label such as pt3ch1p40, p215, or 23:43.";
+  owl:maxCardinality 1;
+  :domainIncludes :Selector;
+  :rangeIncludes :Text .
