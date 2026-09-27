@@ -17,8 +17,10 @@
   rdfs:subClassOf :Base;
   rdfs:comment "An occurrence recorded by a source, such as reading an article, sending a message, or visiting a place. Its :object identifies the entity the action was carried out on." .
 :Text a rdfs:Class;
+  rdfs:subClassOf :DataType;
   rdfs:comment "A literal string, used for values such as names and source identifiers. Text is carried directly as a property value and has no node identity of its own." .
 :URL a rdfs:Class;
+  rdfs:subClassOf :Text;
   rdfs:comment "A Uniform Resource Locator expressed as an absolute URL string, such as https://example.com/article. Used for properties that locate a resource." .
 
 :sourceId a rdf:Property;
@@ -43,6 +45,7 @@
   :rangeIncludes :Entity .
 
 :DateTime a rdfs:Class;
+  rdfs:subClassOf :DataType;
   rdfs:comment "An instant anchored in time, including a date and time of day. Represented as a JavaScript Date in extracted records; use only when the source provides enough information to identify an instant." .
 :Agent a rdfs:Class;
   rdfs:subClassOf :Entity;
@@ -207,17 +210,24 @@
   rdfs:subClassOf :ConsumeAction .
 
 :Number a rdfs:Class;
-  rdfs:comment "A numeric value, integral or decimal." .
+  rdfs:comment "A numeric value, integral or decimal.";
+  rdfs:subClassOf :DataType .
 :startTime a rdf:Property;
   rdfs:comment "The start time of an action, or the start bound of an interval value. A :DateTime is an anchored instant; a :Date is a civil whole-day bound (e.g. an all-day event).";
   owl:maxCardinality 1;
-  :domainIncludes :Action;
-  :rangeIncludes :DateTime .
+  :domainIncludes :Action,
+    :Event,
+    :Interval;
+  :rangeIncludes :Date,
+    :DateTime .
 :endTime a rdf:Property;
   rdfs:comment "The end time of an action, or the end bound of an interval value. A :DateTime is an anchored instant; a :Date is a civil whole-day bound (e.g. an all-day event).";
   owl:maxCardinality 1;
-  :domainIncludes :Action;
-  :rangeIncludes :DateTime .
+  :domainIncludes :Action,
+    :Event,
+    :Interval;
+  :rangeIncludes :Date,
+    :DateTime .
 :result a rdf:Property;
   rdfs:comment "What the action produced — the artifact or session that came into being through it.";
   owl:maxCardinality 1;
@@ -238,7 +248,9 @@
 :location a rdf:Property;
   rdfs:comment "The location associated with the action or entity.";
   owl:maxCardinality 1;
-  :domainIncludes :Action, :Entity;
+  :domainIncludes :Action,
+    :Entity,
+    :Event;
   :rangeIncludes :Place, :Location .
 :latitude a rdf:Property;
   rdfs:comment "The latitude of the location.";
@@ -297,9 +309,31 @@
   owl:equivalentClass schemaorg:Organization .
 :member a rdf:Property;
   rdfs:comment "A member of the group — a musical group, an organization, or a messaging channel/group chat.";
+  rdfs:subPropertyOf :involvement;
   :domainIncludes :Organization, :Channel;
   :rangeIncludes :Person, :Agent .
 :inReplyTo a rdf:Property;
   rdfs:comment "The message this message is a quoted reply to.";
+  rdfs:subPropertyOf :relation;
   :domainIncludes :Message;
   :rangeIncludes :Message .
+
+:DataType a rdfs:Class;
+  rdfs:comment "A simple literal value: text, a number, a date, a date-time." .
+:Date a rdfs:Class;
+  rdfs:comment "A civil calendar date — a day in wall-clock time with no time of day and no zone, kept as an ISO date string rather than an instant. The whole-day counterpart of :DateTime: an all-day event, a date-only life event, a bare year.";
+  rdfs:subClassOf :DataType .
+:Event a rdfs:Class;
+  rdfs:comment "A named happening with a declared :scheduledTime — a calendar entry, a concert, a picnic. Carries its :location and :attendee values; the :object of an :AttendAction. Its actual extent derives from the activity that constitutes it.";
+  rdfs:subClassOf :Entity .
+:Interval a rdfs:Class;
+  rdfs:comment "A bounded stretch of time — a start and an end, each at its own precision. A structured value with no identity of its own, like :Location; it carries the declared extent of an event or session (its :scheduledTime), as distinct from an action's occurrence.";
+  rdfs:subClassOf :StructuredValue .
+:relation a rdf:Property;
+  rdfs:comment "Any edge from an entity to another entity.";
+  :abstract true;
+  :rangeIncludes :Entity .
+:involvement a rdf:Property;
+  rdfs:comment "An agent involved in an entity as addressee, attendee, or member.";
+  rdfs:subPropertyOf :relation;
+  :rangeIncludes :Agent .
