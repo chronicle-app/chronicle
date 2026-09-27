@@ -765,6 +765,251 @@ identity if the guess changes.
     ]
   ] .
 
+example:instagram-story
+  rdfs:label "Publishing a story";
+  rdfs:comment """
+You posted a photo story on Instagram. The :PublishAction's :object is a
+:Post, keyed by the media ID Instagram wrote into the file name. Its
+:sourceFormat says it was a story rather than a feed post or a reel, and its
+:visibility is `private` because only the archive link reaches it. The photo
+itself is an :ImageObject the post :contains, with the same ID.
+""";
+  rdf:value [
+    a :PublishAction;
+    doc:key ("@type" "source" "object.sourceId");
+    :source "instagram";
+    :timestamp "2024-09-02T18:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "instagram";
+      :handle "sam.rivera";
+      :name "Sam Rivera";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Post;
+      doc:key ("@type" "source" "sourceId");
+      :source "instagram";
+      :sourceId "4444444444";
+      :sourceFormat "story";
+      :visibility "private";
+      :url "https://www.instagram.com/stories/archive/4444444444/";
+      :body "Morning coffee";
+      :contains [
+        a :ImageObject;
+        doc:key ("@type" "source" "sourceId");
+        :source "instagram";
+        :sourceId "4444444444";
+        :contentPath "/Users/sam/Downloads/instagram-export/media/stories/202409/4444444444.jpg";
+        :mimeType "image/jpeg"
+      ]
+    ]
+  ] .
+
+example:instagram-like
+  rdfs:label "Liking a post";
+  rdfs:comment """
+You liked someone else's Instagram post. The :LikeAction is keyed by who liked
+what: your handle and the post's shortcode. The :Post carries the caption as
+its :body and the account that posted it as its :author.
+""";
+  rdf:value [
+    a :LikeAction;
+    doc:key ("@type" "source" "agent.handle" "object.sourceId");
+    :source "instagram";
+    :timestamp "2024-08-30T06:40:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "instagram";
+      :handle "sam.rivera";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Post;
+      doc:key ("@type" "source" "sourceId");
+      :source "instagram";
+      :sourceId "C0ExampleA1";
+      :url "https://www.instagram.com/p/C0ExampleA1/";
+      :body "Café vibes";
+      :author [
+        a :Agent;
+        doc:key ("@type" "source" "handle");
+        :source "instagram";
+        :handle "alexchen";
+        :url "https://www.instagram.com/alexchen"
+      ]
+    ]
+  ] .
+
+example:instagram-follow
+  rdfs:label "Following an account";
+  rdfs:comment """
+You started following an account on Instagram. The :FollowAction's :agent is
+the follower and its :object the account followed, each keyed by handle. When
+someone follows you, the two sides swap.
+""";
+  rdf:value [
+    a :FollowAction;
+    doc:key ("@type" "source" "agent.handle" "object.handle");
+    :source "instagram";
+    :timestamp "2020-09-13T12:26:40.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "instagram";
+      :handle "sam.rivera";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "instagram";
+      :handle "alexchen";
+      :url "https://www.instagram.com/alexchen"
+    ]
+  ] .
+
+example:instagram-save
+  rdfs:label "Saving a post to a collection";
+  rdfs:comment """
+You saved a post into your Travel collection. The :BookmarkAction's :object is
+the saved :Post and its :target the :Collection it went into, keyed by name.
+A save outside any collection has no :target.
+""";
+  rdf:value [
+    a :BookmarkAction;
+    doc:key ("@type" "source" "object.sourceId" "target.name");
+    :source "instagram";
+    :timestamp "2020-07-03T19:11:47.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "instagram";
+      :handle "sam.rivera";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Post;
+      doc:key ("@type" "source" "sourceId");
+      :source "instagram";
+      :sourceId "CExample-B2";
+      :url "https://www.instagram.com/p/CExample-B2/";
+      :author [
+        a :Agent;
+        doc:key ("@type" "source" "handle");
+        :source "instagram";
+        :handle "travel.demo";
+        :url "https://www.instagram.com/travel.demo"
+      ]
+    ];
+    :target [
+      a :Collection;
+      doc:key ("@type" "source" "name");
+      :source "instagram";
+      :name "Travel"
+    ]
+  ] .
+
+example:instagram-comment
+  rdfs:label "Writing a comment";
+  rdfs:comment """
+You commented on a post. The export names only the account whose post it was,
+not the post, so the :Comment :references that account. With no ID to key on,
+the comment is keyed by that account, its :body, and the time of the
+:CreateAction, so two identical comments at different times stay apart.
+""";
+  rdf:value [
+    a :CreateAction;
+    doc:key ("@type" "source" "object.references[*].handle" "object.body" "timestamp");
+    :source "instagram";
+    :timestamp "2024-05-06T12:53:20.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "instagram";
+      :handle "sam.rivera";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Comment;
+      doc:key ("@type" "source" "references[*].handle" "body" "action.timestamp");
+      :source "instagram";
+      :body "Congrats!";
+      :references [
+        a :Agent;
+        doc:key ("@type" "source" "handle");
+        :source "instagram";
+        :handle "alexchen";
+        :url "https://www.instagram.com/alexchen"
+      ]
+    ]
+  ] .
+
+example:instagram-search
+  rdfs:label "Searching for a phrase";
+  rdfs:comment """
+You searched Instagram for a phrase. The :FindAction's :object is a :Query
+keyed by its text. A search for a profile has the account as its :object
+instead.
+""";
+  rdf:value [
+    a :FindAction;
+    doc:key ("@type" "source" "object.handle" "object.body" "timestamp");
+    :source "instagram";
+    :timestamp "2025-08-07T04:29:08.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "instagram";
+      :handle "sam.rivera";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Query;
+      doc:key ("@type" "source" "body");
+      :source "instagram";
+      :name "vegan ramen";
+      :body "vegan ramen"
+    ]
+  ] .
+
+example:instagram-reaction
+  rdfs:label "Reacting to a message";
+  rdfs:comment """
+Alex reacted to your direct message with a heart. The :RespondAction's
+:object is the :Message and its :result a :Response whose :body is the emoji.
+The response has no ID of its own, so it is keyed by the emoji and the
+action's message and reactor.
+""";
+  rdf:value [
+    a :RespondAction;
+    doc:key ("@type" "source" "object.sourceId" "agent.handle" "agent.name" "result.body");
+    :source "instagram";
+    :timestamp "2023-11-14T22:15:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "instagram";
+      :handle "alexchen";
+      :url "https://www.instagram.com/alexchen"
+    ];
+    :object [
+      a :Message;
+      doc:key ("@type" "source" "sourceId");
+      :source "instagram";
+      :sourceId "alexchen_123/1700000000000";
+      :body "hello"
+    ];
+    :result [
+      a :Response;
+      doc:key ("@type" "source" "body" "action.object.sourceId" "action.agent.handle" "action.agent.name");
+      :source "instagram";
+      :body "❤️"
+    ]
+  ] .
+
 example:entity-with-url
   rdfs:label "An entity with a source ID and a URL";
   rdfs:comment """
@@ -1237,3 +1482,19 @@ a sentence of prose, so the action has no :object.
 :RespondAction skos:example example:reaction, example:comment .
 :Response skos:example example:reaction .
 :Comment skos:example example:comment .
+
+:Post skos:example example:instagram-story, example:instagram-like .
+:PublishAction skos:example example:instagram-story .
+:sourceFormat skos:example example:instagram-story .
+:visibility skos:example example:instagram-story .
+:LikeAction skos:example example:instagram-like .
+:FollowAction skos:example example:instagram-follow .
+:BookmarkAction skos:example example:instagram-save .
+:target skos:example example:instagram-save .
+:CreateAction skos:example example:instagram-comment .
+:Comment skos:example example:instagram-comment .
+:references skos:example example:instagram-comment .
+:FindAction skos:example example:instagram-search .
+:Query skos:example example:instagram-search .
+:RespondAction skos:example example:instagram-reaction .
+:Response skos:example example:instagram-reaction .

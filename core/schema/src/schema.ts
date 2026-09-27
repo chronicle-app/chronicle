@@ -60,6 +60,7 @@ export interface Action extends Omit<Base, '@type'> {
   object?: EntityAndChildren;
   result?: EntityAndChildren;
   startTime?: Date | string;
+  target?: EntityAndChildren;
   timestamp?: Date;
 }
 
@@ -75,6 +76,7 @@ export type ActionAndChildren =
   | FindActionAndChildren
   | InteractActionAndChildren
   | MessageActionAndChildren
+  | OrganizeActionAndChildren
   | PlanActionAndChildren
   | TravelActionAndChildren
   | UpdateActionAndChildren
@@ -89,6 +91,7 @@ const ActionProperties = {
   object: z.lazy(() => EntityAndChildrenSchema).optional(),
   result: z.lazy(() => EntityAndChildrenSchema).optional(),
   startTime: z.lazy(() => z.union([z.date(), z.string()])).optional(),
+  target: z.lazy(() => EntityAndChildrenSchema).optional(),
   timestamp: z.lazy(() => z.coerce.date()).optional(),
 };
 
@@ -105,6 +108,7 @@ export interface Entity extends Omit<Base, '@type'> {
   about?: EntityAndChildren[];
   body?: string;
   category?: string[];
+  contains?: MediaObjectAndChildren[];
   description?: string;
   handle?: string;
   inRealm?: RealmAndChildren;
@@ -140,6 +144,7 @@ const EntityProperties = {
   about: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
   body: z.lazy(() => z.string()).optional(),
   category: z.lazy(() => z.array(z.string())).optional(),
+  contains: z.lazy(() => z.array(MediaObjectAndChildrenSchema)).optional(),
   description: z.lazy(() => z.string()).optional(),
   handle: z.lazy(() => z.string()).optional(),
   inRealm: z.lazy(() => RealmAndChildrenSchema).optional(),
@@ -244,12 +249,49 @@ export const AudioObjectSchema: z.ZodType<AudioObject> = z
   })
   .superRefine(requireNodeIdentity);
 
+// OrganizeAction, child of https://schema.chronicle.app/Action
+export interface OrganizeAction extends Omit<Action, '@type'> {
+  '@type': 'OrganizeAction';
+}
+
+export type OrganizeActionAndChildren = OrganizeAction | BookmarkActionAndChildren;
+
+const OrganizeActionProperties = {
+  ...ActionProperties,
+};
+
+export const OrganizeActionSchema: z.ZodType<OrganizeAction> = z
+  .object({
+    '@type': z.literal('OrganizeAction'),
+    ...OrganizeActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// BookmarkAction, child of https://schema.chronicle.app/OrganizeAction
+export interface BookmarkAction extends Omit<OrganizeAction, '@type'> {
+  '@type': 'BookmarkAction';
+}
+
+export type BookmarkActionAndChildren = BookmarkAction;
+
+const BookmarkActionProperties = {
+  ...OrganizeActionProperties,
+};
+
+export const BookmarkActionSchema: z.ZodType<BookmarkAction> = z
+  .object({
+    '@type': z.literal('BookmarkAction'),
+    ...BookmarkActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // InteractAction, child of https://schema.chronicle.app/Action
 export interface InteractAction extends Omit<Action, '@type'> {
   '@type': 'InteractAction';
 }
 
-export type InteractActionAndChildren = InteractAction | CommunicateActionAndChildren;
+export type InteractActionAndChildren =
+  InteractAction | CommunicateActionAndChildren | FollowActionAndChildren;
 
 const InteractActionProperties = {
   ...ActionProperties,
@@ -363,6 +405,8 @@ export interface CreativeWork extends Omit<Entity, '@type'> {
   '@type': 'CreativeWork';
   author?: AgentAndChildren[];
   references?: EntityAndChildren[];
+  sourceFormat?: string;
+  visibility?: string;
 }
 
 export type CreativeWorkAndChildren =
@@ -372,6 +416,8 @@ const CreativeWorkProperties = {
   ...EntityProperties,
   author: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
   references: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
+  sourceFormat: z.lazy(() => z.string()).optional(),
+  visibility: z.lazy(() => z.string()).optional(),
 };
 
 export const CreativeWorkSchema: z.ZodType<CreativeWork> = z
@@ -659,6 +705,24 @@ export const FindActionSchema: z.ZodType<FindAction> = z
   .object({
     '@type': z.literal('FindAction'),
     ...FindActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// FollowAction, child of https://schema.chronicle.app/InteractAction
+export interface FollowAction extends Omit<InteractAction, '@type'> {
+  '@type': 'FollowAction';
+}
+
+export type FollowActionAndChildren = FollowAction;
+
+const FollowActionProperties = {
+  ...InteractActionProperties,
+};
+
+export const FollowActionSchema: z.ZodType<FollowAction> = z
+  .object({
+    '@type': z.literal('FollowAction'),
+    ...FollowActionProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -1340,6 +1404,8 @@ export const StructuredValueAndChildrenSchema: z.ZodType<StructuredValueAndChild
   ]);
 export const ImageObjectAndChildrenSchema = ImageObjectSchema;
 
+export const FollowActionAndChildrenSchema = FollowActionSchema;
+
 export const FindActionAndChildrenSchema = FindActionSchema;
 
 export const ExecuteActionAndChildrenSchema = ExecuteActionSchema;
@@ -1502,6 +1568,11 @@ export const InteractActionAndChildrenSchema: z.ZodType<InteractActionAndChildre
     }),
 
     z.object({
+      '@type': z.literal('FollowAction'),
+      ...FollowActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('CommunicateAction'),
       ...CommunicateActionProperties,
     }),
@@ -1509,6 +1580,21 @@ export const InteractActionAndChildrenSchema: z.ZodType<InteractActionAndChildre
     z.object({
       '@type': z.literal('CallAction'),
       ...CallActionProperties,
+    }),
+  ])
+  .superRefine(requireNodeIdentity);
+export const BookmarkActionAndChildrenSchema = BookmarkActionSchema;
+
+export const OrganizeActionAndChildrenSchema: z.ZodType<OrganizeActionAndChildren> = z
+  .discriminatedUnion('@type', [
+    z.object({
+      '@type': z.literal('OrganizeAction'),
+      ...OrganizeActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('BookmarkAction'),
+      ...BookmarkActionProperties,
     }),
   ])
   .superRefine(requireNodeIdentity);
@@ -1844,6 +1930,11 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('FollowAction'),
+      ...FollowActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('CommunicateAction'),
       ...CommunicateActionProperties,
     }),
@@ -1851,6 +1942,16 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     z.object({
       '@type': z.literal('CallAction'),
       ...CallActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('OrganizeAction'),
+      ...OrganizeActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('BookmarkAction'),
+      ...BookmarkActionProperties,
     }),
 
     z.object({
@@ -2132,6 +2233,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('FollowAction'),
+      ...FollowActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('CommunicateAction'),
       ...CommunicateActionProperties,
     }),
@@ -2139,6 +2245,16 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('CallAction'),
       ...CallActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('OrganizeAction'),
+      ...OrganizeActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('BookmarkAction'),
+      ...BookmarkActionProperties,
     }),
 
     z.object({

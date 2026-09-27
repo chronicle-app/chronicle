@@ -51,6 +51,7 @@ These sources come bundled with the CLI:
 | WhatsApp messages                                | [whatsapp](plugins/whatsapp/README.md)         |
 | Phone and FaceTime calls (Apple Call History)    | [call-history](plugins/call-history/README.md) |
 | FoodNoms meal logs                               | [foodnoms](plugins/foodnoms/README.md)         |
+| Instagram data export                            | [instagram](plugins/instagram/README.md)       |
 
 Install other plugins with `chronicle plugins install <package>`.
 

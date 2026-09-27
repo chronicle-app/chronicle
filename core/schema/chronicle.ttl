@@ -164,7 +164,7 @@
   :rangeIncludes :Agent .
 :contains a rdf:Property;
   rdfs:comment "A media artifact carried by a message, such as an attached image, voice recording, video, or document.";
-  :domainIncludes :Message;
+  :domainIncludes :Message, :Entity;
   :rangeIncludes :MediaObject .
 :contentPath a rdf:Property;
   rdfs:comment "An absolute filesystem path to the local file containing the media bytes. Describes where the extracted content is available on the source machine.";
@@ -418,3 +418,28 @@
   rdfs:comment "A prose response — the :Response leaf whose :body is authored text.";
   rdfs:subClassOf :Response .
 :author :domainIncludes :CreativeWork .
+# instagram
+:FollowAction a rdfs:Class;
+  rdfs:comment "The agent began following the :object — an account, a feed, a collection. Opens the agent's :follows run over it.";
+  rdfs:subClassOf :InteractAction .
+:OrganizeAction a rdfs:Class;
+  rdfs:comment "An agent arranges or plans things — saving, bookmarking, scheduling.";
+  rdfs:subClassOf :Action .
+:BookmarkAction a rdfs:Class;
+  rdfs:comment "The agent saved the :object for later — a bookmarked page, an article saved to a reading list, a work shelved as to-read.";
+  rdfs:subClassOf :OrganizeAction .
+:sourceFormat a rdf:Property;
+  rdfs:comment "The source's own presentation format for an item — which of the platform's native content shapes it is among items of the same type: a story, feed post, or reel; a video, short, or live stream; a full episode, trailer, or bonus. A descriptive, per-source, open-vocabulary label, present only where the source has such a sub-format.";
+  owl:maxCardinality 1;
+  :domainIncludes :CreativeWork;
+  :rangeIncludes :Text .
+:visibility a rdf:Property;
+  rdfs:comment "How widely the work is shared: `public`, `private`, or `unlisted`, always as these lowercase tokens. A coarse bucket shared across sources, onto which each source's own audience states map.";
+  owl:maxCardinality 1;
+  :domainIncludes :CreativeWork;
+  :rangeIncludes :Text .
+:target a rdf:Property;
+  rdfs:comment "What an action is directed toward, as opposed to what it is carried out on (:object). A collection operation targets the collection it adds to or removes from; a movement verb targets where it ended up, with :object naming where it began (:NavigateAction from one page to the next, :TravelAction from one place to the next).";
+  owl:maxCardinality 1;
+  :domainIncludes :Action;
+  :rangeIncludes :Entity .

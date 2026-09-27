@@ -47,6 +47,9 @@
       "path": "plugins/facebook/tsconfig.lib.json"
     },
     {
+      "path": "plugins/instagram/tsconfig.lib.json"
+    },
+    {
       "path": "core/icloud/tsconfig.lib.json"
     },
     {
