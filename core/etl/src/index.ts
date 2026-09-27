@@ -30,3 +30,16 @@ export * from './connectors/transformers/SamplingTransformer.js';
 export * from './connectors/csv/CsvExtractor.js';
 export * from './io-extractor-helper.js';
 export * from './utils/string.js';
+export { ApiProxy, ApiAuthError, ApiRateLimitError, type ApiProxyOptions } from './api/ApiProxy.js';
+export { delay, paginateByPage, paginateCursor, paginateOffset } from './api/pagination.js';
+
+// HTML utilities — for the sources that hand us markup where the content
+// should be (InMail, feed summaries, notes, email parts)
+export {
+  htmlToText,
+  htmlToMarkdown,
+  decodeEntities,
+  looksLikeHtml,
+  tokenizeHtml,
+  type HtmlToken,
+} from './utils/html.js';
