@@ -2137,6 +2137,115 @@ number.
     ]
   ] .
 
+example:bluesky-follow
+  rdfs:label "Following an account on Bluesky";
+  rdfs:comment """
+A :FollowAction for an account you started following on Bluesky. The action is
+keyed by the follow record's address in your repository, and its :timestamp is
+when the record was created.
+
+Both accounts are :Agent nodes keyed by their decentralized identifier (DID) as
+the :sourceId. You are marked with :sameAs.
+""";
+  rdf:value [
+    a :FollowAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "bluesky";
+    :sourceId "did:plc:k3v9x2m7q4w8r1t6y5z0abcd/app.bsky.graph.follow/3lbq7x2mfsk2a";
+    :timestamp "2026-03-14T16:05:42.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "bluesky";
+      :sourceId "did:plc:k3v9x2m7q4w8r1t6y5z0abcd";
+      :name "Sam Rivera";
+      :description "Hiking, bread, and maps.";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "bluesky";
+      :sourceId "did:plc:p8n2c5h7j1g4f6d3s9a0wxyz";
+      :name "Alex Chen"
+    ]
+  ] .
+
+example:bluesky-like
+  rdfs:label "Liking a post on Bluesky";
+  rdfs:comment """
+A :LikeAction for a post you liked on Bluesky. The :Post has its text in :body,
+its :author, and its photos in :contains. Each photo is an :ImageObject keyed
+by its :url, with a :width and :height when Bluesky reports them and the alt
+text as its :description.
+""";
+  rdf:value [
+    a :LikeAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "bluesky";
+    :sourceId "did:plc:k3v9x2m7q4w8r1t6y5z0abcd/app.bsky.feed.like/3lcr4m8tnvk2b";
+    :timestamp "2026-03-15T09:12:03.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "bluesky";
+      :sourceId "did:plc:k3v9x2m7q4w8r1t6y5z0abcd";
+      :name "Sam Rivera";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Post;
+      doc:key ("@type" "source" "sourceId");
+      :source "bluesky";
+      :sourceId "did:plc:p8n2c5h7j1g4f6d3s9a0wxyz/app.bsky.feed.post/3lcq9w2kd7s2c";
+      :body "First frost on the community garden this morning.";
+      :author [
+        a :Agent;
+        doc:key ("@type" "source" "sourceId");
+        :source "bluesky";
+        :sourceId "did:plc:p8n2c5h7j1g4f6d3s9a0wxyz";
+        :name "Alex Chen"
+      ];
+      :contains [
+        a :ImageObject;
+        doc:key ("url");
+        :url "https://cdn.example.com/img/frost.jpg";
+        :width 2000;
+        :height 1500;
+        :description "Frost on kale leaves"
+      ]
+    ]
+  ] .
+
+example:bluesky-post-published
+  rdfs:label "A post published on Bluesky";
+  rdfs:comment """
+A :PublishAction for a post by the account that wrote it. Its :timestamp is
+when the post was created. The :Post is the same node a :LikeAction points to,
+so liking a post also records who published it and when.
+""";
+  rdf:value [
+    a :PublishAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "bluesky";
+    :sourceId "did:plc:p8n2c5h7j1g4f6d3s9a0wxyz/app.bsky.feed.post/3lcq9w2kd7s2c";
+    :timestamp "2026-03-15T07:48:30.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "bluesky";
+      :sourceId "did:plc:p8n2c5h7j1g4f6d3s9a0wxyz";
+      :name "Alex Chen"
+    ];
+    :object [
+      a :Post;
+      doc:key ("@type" "source" "sourceId");
+      :source "bluesky";
+      :sourceId "did:plc:p8n2c5h7j1g4f6d3s9a0wxyz/app.bsky.feed.post/3lcq9w2kd7s2c";
+      :body "First frost on the community garden this morning."
+    ]
+  ] .
+
 : skos:example example:message-from-alex, example:shell-command, example:task-completed .
 
 :Base skos:example example:entity-with-url .
@@ -2666,3 +2775,11 @@ a sentence of prose, so the action has no :object.
 :height skos:example example:slack-message-with-image .
 :CheckInAction skos:example example:checkin .
 :emblem skos:example example:checkin .
+
+# bluesky
+:FollowAction skos:example example:bluesky-follow .
+:LikeAction skos:example example:bluesky-like .
+:PublishAction skos:example example:bluesky-post-published .
+:Post skos:example example:bluesky-like, example:bluesky-post-published .
+:width skos:example example:bluesky-like .
+:height skos:example example:bluesky-like .

@@ -74,6 +74,9 @@
       "path": "plugins/foursquare/tsconfig.lib.json"
     },
     {
+      "path": "plugins/bluesky/tsconfig.lib.json"
+    },
+    {
       "path": "core/icloud/tsconfig.lib.json"
     },
     {
