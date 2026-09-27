@@ -284,8 +284,10 @@ export const AssessActionSchema: z.ZodType<AssessAction> = z
 export interface CreativeWork extends Omit<Entity, '@type'> {
   '@type': 'CreativeWork';
   author?: AgentAndChildren[];
+  creator?: AgentAndChildren[];
   datePublished?: Date | string;
   genre?: string[];
+  publisher?: OrganizationAndChildren[];
   references?: EntityAndChildren[];
   sourceFormat?: string;
   visibility?: string;
@@ -293,6 +295,7 @@ export interface CreativeWork extends Omit<Entity, '@type'> {
 
 export type CreativeWorkAndChildren =
   | CreativeWork
+  | BookAndChildren
   | ChannelAndChildren
   | CollectionAndChildren
   | MediaObjectAndChildren
@@ -306,8 +309,10 @@ export type CreativeWorkAndChildren =
 const CreativeWorkProperties = {
   ...EntityProperties,
   author: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
+  creator: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
   datePublished: z.lazy(() => z.union([z.date(), z.string()])).optional(),
   genre: z.lazy(() => z.array(z.string())).optional(),
+  publisher: z.lazy(() => z.array(OrganizationAndChildrenSchema)).optional(),
   references: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
   sourceFormat: z.lazy(() => z.string()).optional(),
   visibility: z.lazy(() => z.string()).optional(),
@@ -368,6 +373,26 @@ export const AudioObjectSchema: z.ZodType<AudioObject> = z
   .object({
     '@type': z.literal('AudioObject'),
     ...AudioObjectProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Book, child of https://schema.chronicle.app/CreativeWork
+export interface Book extends Omit<CreativeWork, '@type'> {
+  '@type': 'Book';
+  pageCount?: number;
+}
+
+export type BookAndChildren = Book;
+
+const BookProperties = {
+  ...CreativeWorkProperties,
+  pageCount: z.lazy(() => z.number()).optional(),
+};
+
+export const BookSchema: z.ZodType<Book> = z
+  .object({
+    '@type': z.literal('Book'),
+    ...BookProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -820,12 +845,14 @@ export const DirectorySchema: z.ZodType<Directory> = z
 // DocumentObject, child of https://schema.chronicle.app/MediaObject
 export interface DocumentObject extends Omit<MediaObject, '@type'> {
   '@type': 'DocumentObject';
+  pageCount?: number;
 }
 
 export type DocumentObjectAndChildren = DocumentObject;
 
 const DocumentObjectProperties = {
   ...MediaObjectProperties,
+  pageCount: z.lazy(() => z.number()).optional(),
 };
 
 export const DocumentObjectSchema: z.ZodType<DocumentObject> = z
@@ -2193,6 +2220,8 @@ export const OrganizeActionAndChildrenSchema: z.ZodType<OrganizeActionAndChildre
     }),
   ])
   .superRefine(requireNodeIdentity);
+export const BookAndChildrenSchema = BookSchema;
+
 export const AudioObjectAndChildrenSchema = AudioObjectSchema;
 
 export const MediaObjectAndChildrenSchema: z.ZodType<MediaObjectAndChildren> = z
@@ -2288,6 +2317,11 @@ export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> =
     z.object({
       '@type': z.literal('Channel'),
       ...ChannelProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Book'),
+      ...BookProperties,
     }),
 
     z.object({
@@ -2572,6 +2606,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     z.object({
       '@type': z.literal('Channel'),
       ...ChannelProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Book'),
+      ...BookProperties,
     }),
 
     z.object({
@@ -3008,6 +3047,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('Channel'),
       ...ChannelProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Book'),
+      ...BookProperties,
     }),
 
     z.object({

@@ -61,6 +61,7 @@ These sources come bundled with the CLI:
 | Slack messages from a slackdump export                                | [slack](plugins/slack/README.md)               |
 | Foursquare/Swarm check-ins                                            | [foursquare](plugins/foursquare/README.md)     |
 | Bluesky follows, followers, and likes                                 | [bluesky](plugins/bluesky/README.md)           |
+| Goodreads shelves and reading history                                 | [goodreads](plugins/goodreads/README.md)       |
 
 Install other plugins with `chronicle plugins install <package>`.
 

@@ -2246,6 +2246,113 @@ so liking a post also records who published it and when.
     ]
   ] .
 
+example:book-finished
+  rdfs:label "Finishing a book";
+  rdfs:comment """
+A reader's Goodreads export lists a book on their `read` shelf. The row
+becomes two actions on the same :Book, keyed by Goodreads' book ID: a
+:BookmarkAction at the date the book was added to a shelf, and a
+:CompleteAction at the date it was finished. This example shows the finish.
+
+The book carries its :author, its :publisher (an :Organization keyed by
+name), its :pageCount, and the reader's review as its :description. The
+book's ISBN-13 is a :sameAs key in the `isbn` namespace, so the same
+edition read through any source that knows its ISBN collapses onto one
+book. Each custom shelf the book sits on is a :Collection it :isPartOf,
+keyed by the shelf's permalink.
+""";
+  rdf:value [
+    a :CompleteAction;
+    doc:key ("@type" "source" "object.sourceId" "timestamp");
+    :source "goodreads";
+    :timestamp "2025-03-14T00:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "goodreads";
+      :sourceId "1234567";
+      :name "Sam Rivera";
+      :url "https://www.goodreads.com/user/show/1234567";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Book;
+      doc:key ("@type" "source" "sourceId");
+      :source "goodreads";
+      :sourceId "40961427";
+      :name "The Lighthouse Keeper";
+      :url "https://www.goodreads.com/book/show/40961427";
+      :description "Quiet and patient. The last chapter stayed with me.";
+      :pageCount 312;
+      :author [
+        a :Person;
+        doc:key ("@type" "source" "name");
+        :source "goodreads";
+        :name "Maya Lindqvist"
+      ], [
+        a :Person;
+        doc:key ("@type" "source" "name");
+        :source "goodreads";
+        :name "Tomas Berg"
+      ];
+      :publisher [
+        a :Organization;
+        doc:key ("@type" "source" "name");
+        :source "goodreads";
+        :name "Harbor Press"
+      ];
+      :isPartOf [
+        a :Collection;
+        doc:key ("@type" "url");
+        :source "goodreads";
+        :name "favorites";
+        :url "https://www.goodreads.com/review/list/1234567?shelf=favorites"
+      ];
+      :sameAs [
+        a :Book;
+        doc:key ("source" "sourceId");
+        :source "isbn";
+        :sourceId "9780000000019";
+        :name "The Lighthouse Keeper"
+      ]
+    ]
+  ] .
+
+example:book-shelved
+  rdfs:label "Shelving a book to read";
+  rdfs:comment """
+A book on the reader's `to-read` shelf becomes a :BookmarkAction at the date
+it was added: the reader saved it for later. The reader has no Goodreads ID
+configured here, so they are keyed by name.
+""";
+  rdf:value [
+    a :BookmarkAction;
+    doc:key ("@type" "source" "object.sourceId" "timestamp");
+    :source "goodreads";
+    :timestamp "2025-06-02T00:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "name");
+      :source "goodreads";
+      :name "Sam Rivera";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Book;
+      doc:key ("@type" "source" "sourceId");
+      :source "goodreads";
+      :sourceId "51234";
+      :name "Field Notes on Tides";
+      :url "https://www.goodreads.com/book/show/51234";
+      :author [
+        a :Person;
+        doc:key ("@type" "source" "name");
+        :source "goodreads";
+        :name "Ines Okafor"
+      ]
+    ]
+  ] .
+
 : skos:example example:message-from-alex, example:shell-command, example:task-completed .
 
 :Base skos:example example:entity-with-url .
@@ -2783,3 +2890,8 @@ a sentence of prose, so the action has no :object.
 :Post skos:example example:bluesky-like, example:bluesky-post-published .
 :width skos:example example:bluesky-like .
 :height skos:example example:bluesky-like .
+
+:Book skos:example example:book-finished, example:book-shelved .
+:BookmarkAction skos:example example:book-shelved .
+:pageCount skos:example example:book-finished .
+:publisher skos:example example:book-finished .

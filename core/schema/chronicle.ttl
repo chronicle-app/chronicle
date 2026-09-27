@@ -619,3 +619,25 @@
 :CheckInAction a rdfs:Class;
   rdfs:comment "The agent announced their presence at the :object, a :Venue, at :timestamp.";
   rdfs:subClassOf :CommunicateAction .
+
+# goodreads
+:Book a rdfs:Class;
+  rdfs:comment "A book, as an edition: carries its :author and :pageCount.";
+  rdfs:subClassOf :CreativeWork .
+:pageCount a rdf:Property;
+  rdfs:comment "The number of pages in a document or book (an edition-level count).";
+  owl:maxCardinality 1;
+  :domainIncludes :DocumentObject,
+    :Book;
+  :rangeIncludes :Number .
+:publisher a rdf:Property;
+  rdfs:comment "The publisher of the creative work.";
+  rdfs:subPropertyOf :creator;
+  :domainIncludes :CreativeWork;
+  :rangeIncludes :Organization .
+:creator a rdf:Property;
+  :propagatesEncounter true;
+  rdfs:comment "An agent who brought the work into existence (authored, produced, or released it).";
+  rdfs:subPropertyOf :attribution;
+  :domainIncludes :CreativeWork;
+  :rangeIncludes :Agent .
