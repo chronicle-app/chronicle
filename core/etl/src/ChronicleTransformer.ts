@@ -19,14 +19,19 @@ export abstract class ChronicleTransformer extends Transformer {
     // `@assertedAt`, so ingest never has to fall back to a wall-clock stamp. Which
     // instant depends on the source's temporality — the sighting axis, decided by
     // AXIS, never per-field. An explicit `@assertedAt` already on the payload
-    // always wins in both branches.
+    // always wins in both branches, and an extractor that knows when the source
+    // observed the record (`extraction.recordAssertedAt`) beats both defaults.
     const top = result as BaseAndChildren & {
       '@assertedAt'?: string | Date;
       timestamp?: string | Date;
       startTime?: string | Date;
       endTime?: string | Date;
     };
-    if (record.extraction.temporality === 'snapshot') {
+    if (top['@assertedAt'] === undefined && record.extraction.recordAssertedAt) {
+      // The extractor knew when the source observed this record, which beats
+      // either default below.
+      top['@assertedAt'] = record.extraction.recordAssertedAt;
+    } else if (record.extraction.temporality === 'snapshot') {
       // Snapshot: a re-read of CURRENT state. Stamp `@assertedAt` with the crawl's
       // "as of" time so mutable attributes (a renamed task, an updated bio) place
       // at observation time rather than back-dating to a creation/modification

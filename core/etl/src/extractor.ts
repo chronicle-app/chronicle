@@ -174,7 +174,16 @@ export abstract class Extractor<SelfClass extends typeof Extractor = typeof Extr
     return this.startedAt;
   }
 
-  protected createRecord(data: any, context: any = {}): Record {
+  /**
+   * Wrap raw data in a record envelope. Pass `assertedAt` when the extractor
+   * knows when the source observed this record; see
+   * {@link Extraction.recordAssertedAt}.
+   */
+  protected createRecord(
+    data: any,
+    context: any = {},
+    { assertedAt }: { assertedAt?: Date } = {}
+  ): Record {
     const cls = this.constructor as typeof Extractor;
     return {
       data,
@@ -185,6 +194,7 @@ export abstract class Extractor<SelfClass extends typeof Extractor = typeof Extr
         delivery: cls.delivery,
         temporality: cls.temporality,
         assertedAt: this.asOfTime().toISOString(),
+        ...(assertedAt && { recordAssertedAt: assertedAt.toISOString() }),
       },
       transformations: [],
       schema: 'raw',
