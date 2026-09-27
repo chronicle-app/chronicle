@@ -61,7 +61,7 @@ export interface Action extends Omit<Base, '@type'> {
   result?: EntityAndChildren;
   startTime?: Date | string;
   target?: EntityAndChildren;
-  timestamp?: Date;
+  timestamp?: Date | string;
 }
 
 export type ActionAndChildren =
@@ -73,6 +73,7 @@ export type ActionAndChildren =
   | CreateActionAndChildren
   | DeleteActionAndChildren
   | ExecuteActionAndChildren
+  | ExperienceActionAndChildren
   | FindActionAndChildren
   | InteractActionAndChildren
   | MessageActionAndChildren
@@ -92,7 +93,7 @@ const ActionProperties = {
   result: z.lazy(() => EntityAndChildrenSchema).optional(),
   startTime: z.lazy(() => z.union([z.date(), z.string()])).optional(),
   target: z.lazy(() => EntityAndChildrenSchema).optional(),
-  timestamp: z.lazy(() => z.coerce.date()).optional(),
+  timestamp: z.lazy(() => z.union([z.date(), z.string()])).optional(),
 };
 
 export const ActionSchema: z.ZodType<Action> = z
@@ -128,6 +129,7 @@ export type EntityAndChildren =
   | CommandAndChildren
   | CreativeWorkAndChildren
   | EventAndChildren
+  | IntangibleAndChildren
   | JourneyAndChildren
   | MealAndChildren
   | MediaObjectAndChildren
@@ -347,7 +349,13 @@ export interface Session extends Omit<Entity, '@type'> {
   references?: EntityAndChildren[];
 }
 
-export type SessionAndChildren = Session | CallSessionAndChildren;
+export type SessionAndChildren =
+  | Session
+  | CallSessionAndChildren
+  | EnrollmentAndChildren
+  | MembershipAndChildren
+  | RelationshipAndChildren
+  | TenureAndChildren;
 
 const SessionProperties = {
   ...EntityProperties,
@@ -545,7 +553,11 @@ export interface ConsumeAction extends Omit<Action, '@type'> {
 }
 
 export type ConsumeActionAndChildren =
-  ConsumeAction | DrankActionAndChildren | EatActionAndChildren | ViewActionAndChildren;
+  | ConsumeAction
+  | DrankActionAndChildren
+  | EatActionAndChildren
+  | ViewActionAndChildren
+  | WatchActionAndChildren;
 
 const ConsumeActionProperties = {
   ...ActionProperties,
@@ -573,6 +585,42 @@ export const CreateActionSchema: z.ZodType<CreateAction> = z
   .object({
     '@type': z.literal('CreateAction'),
     ...CreateActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Intangible, child of https://schema.chronicle.app/Entity
+export interface Intangible extends Omit<Entity, '@type'> {
+  '@type': 'Intangible';
+}
+
+export type IntangibleAndChildren = Intangible | DefinedTermAndChildren;
+
+const IntangibleProperties = {
+  ...EntityProperties,
+};
+
+export const IntangibleSchema: z.ZodType<Intangible> = z
+  .object({
+    '@type': z.literal('Intangible'),
+    ...IntangibleProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// DefinedTerm, child of https://schema.chronicle.app/Intangible
+export interface DefinedTerm extends Omit<Intangible, '@type'> {
+  '@type': 'DefinedTerm';
+}
+
+export type DefinedTermAndChildren = DefinedTerm;
+
+const DefinedTermProperties = {
+  ...IntangibleProperties,
+};
+
+export const DefinedTermSchema: z.ZodType<DefinedTerm> = z
+  .object({
+    '@type': z.literal('DefinedTerm'),
+    ...DefinedTermProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -648,6 +696,26 @@ export const EatActionSchema: z.ZodType<EatAction> = z
   })
   .superRefine(requireNodeIdentity);
 
+// Enrollment, child of https://schema.chronicle.app/Session
+export interface Enrollment extends Omit<Session, '@type'> {
+  '@type': 'Enrollment';
+  degree?: string;
+}
+
+export type EnrollmentAndChildren = Enrollment;
+
+const EnrollmentProperties = {
+  ...SessionProperties,
+  degree: z.lazy(() => z.string()).optional(),
+};
+
+export const EnrollmentSchema: z.ZodType<Enrollment> = z
+  .object({
+    '@type': z.literal('Enrollment'),
+    ...EnrollmentProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // Event, child of https://schema.chronicle.app/Entity
 export interface Event extends Omit<Entity, '@type'> {
   '@type': 'Event';
@@ -687,6 +755,25 @@ export const ExecuteActionSchema: z.ZodType<ExecuteAction> = z
   .object({
     '@type': z.literal('ExecuteAction'),
     ...ExecuteActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// ExperienceAction, child of https://schema.chronicle.app/Action
+export interface ExperienceAction extends Omit<Action, '@type'> {
+  '@type': 'ExperienceAction';
+}
+
+export type ExperienceActionAndChildren =
+  ExperienceAction | JoinActionAndChildren | LeaveActionAndChildren;
+
+const ExperienceActionProperties = {
+  ...ActionProperties,
+};
+
+export const ExperienceActionSchema: z.ZodType<ExperienceAction> = z
+  .object({
+    '@type': z.literal('ExperienceAction'),
+    ...ExperienceActionProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -779,6 +866,24 @@ export const IntervalSchema: z.ZodType<Interval> = z.object({
   ...IntervalProperties,
 });
 
+// JoinAction, child of https://schema.chronicle.app/ExperienceAction
+export interface JoinAction extends Omit<ExperienceAction, '@type'> {
+  '@type': 'JoinAction';
+}
+
+export type JoinActionAndChildren = JoinAction;
+
+const JoinActionProperties = {
+  ...ExperienceActionProperties,
+};
+
+export const JoinActionSchema: z.ZodType<JoinAction> = z
+  .object({
+    '@type': z.literal('JoinAction'),
+    ...JoinActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // Journey, child of https://schema.chronicle.app/Entity
 export interface Journey extends Omit<Entity, '@type'> {
   '@type': 'Journey';
@@ -800,6 +905,24 @@ export const JourneySchema: z.ZodType<Journey> = z
   .object({
     '@type': z.literal('Journey'),
     ...JourneyProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// LeaveAction, child of https://schema.chronicle.app/ExperienceAction
+export interface LeaveAction extends Omit<ExperienceAction, '@type'> {
+  '@type': 'LeaveAction';
+}
+
+export type LeaveActionAndChildren = LeaveAction;
+
+const LeaveActionProperties = {
+  ...ExperienceActionProperties,
+};
+
+export const LeaveActionSchema: z.ZodType<LeaveAction> = z
+  .object({
+    '@type': z.literal('LeaveAction'),
+    ...LeaveActionProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -876,6 +999,26 @@ export const MealSchema: z.ZodType<Meal> = z
   .object({
     '@type': z.literal('Meal'),
     ...MealProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Membership, child of https://schema.chronicle.app/Session
+export interface Membership extends Omit<Session, '@type'> {
+  '@type': 'Membership';
+  role?: string;
+}
+
+export type MembershipAndChildren = Membership;
+
+const MembershipProperties = {
+  ...SessionProperties,
+  role: z.lazy(() => z.string()).optional(),
+};
+
+export const MembershipSchema: z.ZodType<Membership> = z
+  .object({
+    '@type': z.literal('Membership'),
+    ...MembershipProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -1089,6 +1232,26 @@ export const RealmSchema: z.ZodType<Realm> = z
   })
   .superRefine(requireNodeIdentity);
 
+// Relationship, child of https://schema.chronicle.app/Session
+export interface Relationship extends Omit<Session, '@type'> {
+  '@type': 'Relationship';
+  role?: string;
+}
+
+export type RelationshipAndChildren = Relationship;
+
+const RelationshipProperties = {
+  ...SessionProperties,
+  role: z.lazy(() => z.string()).optional(),
+};
+
+export const RelationshipSchema: z.ZodType<Relationship> = z
+  .object({
+    '@type': z.literal('Relationship'),
+    ...RelationshipProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // RespondAction, child of https://schema.chronicle.app/AssessAction
 export interface RespondAction extends Omit<AssessAction, '@type'> {
   '@type': 'RespondAction';
@@ -1176,6 +1339,26 @@ export const TaskSchema: z.ZodType<Task> = z
   .object({
     '@type': z.literal('Task'),
     ...TaskProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Tenure, child of https://schema.chronicle.app/Session
+export interface Tenure extends Omit<Session, '@type'> {
+  '@type': 'Tenure';
+  role?: string;
+}
+
+export type TenureAndChildren = Tenure;
+
+const TenureProperties = {
+  ...SessionProperties,
+  role: z.lazy(() => z.string()).optional(),
+};
+
+export const TenureSchema: z.ZodType<Tenure> = z
+  .object({
+    '@type': z.literal('Tenure'),
+    ...TenureProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -1305,6 +1488,26 @@ export const VisitActionSchema: z.ZodType<VisitAction> = z
   })
   .superRefine(requireNodeIdentity);
 
+// WatchAction, child of https://schema.chronicle.app/ConsumeAction
+export interface WatchAction extends Omit<ConsumeAction, '@type'> {
+  '@type': 'WatchAction';
+}
+
+export type WatchActionAndChildren = WatchAction;
+
+const WatchActionProperties = {
+  ...ConsumeActionProperties,
+};
+
+export const WatchActionSchema: z.ZodType<WatchAction> = z
+  .object({
+    '@type': z.literal('WatchAction'),
+    ...WatchActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+export const WatchActionAndChildrenSchema = WatchActionSchema;
+
 export const VisitActionAndChildrenSchema = VisitActionSchema;
 
 export const ViewActionAndChildrenSchema = ViewActionSchema;
@@ -1319,6 +1522,8 @@ export const TravelActionAndChildrenSchema = TravelActionSchema;
 
 export const ThreadAndChildrenSchema = ThreadSchema;
 
+export const TenureAndChildrenSchema = TenureSchema;
+
 export const TaskAndChildrenSchema = TaskSchema;
 
 export const TagAndChildrenSchema = TagSchema;
@@ -1328,6 +1533,8 @@ export const SoftwareApplicationAndChildrenSchema = SoftwareApplicationSchema;
 export const SoftwareAgentAndChildrenSchema = SoftwareAgentSchema;
 
 export const RespondActionAndChildrenSchema = RespondActionSchema;
+
+export const RelationshipAndChildrenSchema = RelationshipSchema;
 
 export const RealmAndChildrenSchema = RealmSchema;
 
@@ -1362,6 +1569,8 @@ export const MessageActionAndChildrenSchema = MessageActionSchema;
 
 export const MessageAndChildrenSchema = MessageSchema;
 
+export const MembershipAndChildrenSchema = MembershipSchema;
+
 export const MealAndChildrenSchema = MealSchema;
 
 export const LocationAndChildrenSchema = LocationSchema;
@@ -1381,7 +1590,11 @@ export const ReactActionAndChildrenSchema: z.ZodType<ReactActionAndChildren> = z
     }),
   ])
   .superRefine(requireNodeIdentity);
+export const LeaveActionAndChildrenSchema = LeaveActionSchema;
+
 export const JourneyAndChildrenSchema = JourneySchema;
+
+export const JoinActionAndChildrenSchema = JoinActionSchema;
 
 export const IntervalAndChildrenSchema = IntervalSchema;
 
@@ -1408,9 +1621,29 @@ export const FollowActionAndChildrenSchema = FollowActionSchema;
 
 export const FindActionAndChildrenSchema = FindActionSchema;
 
+export const ExperienceActionAndChildrenSchema: z.ZodType<ExperienceActionAndChildren> = z
+  .discriminatedUnion('@type', [
+    z.object({
+      '@type': z.literal('ExperienceAction'),
+      ...ExperienceActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('LeaveAction'),
+      ...LeaveActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('JoinAction'),
+      ...JoinActionProperties,
+    }),
+  ])
+  .superRefine(requireNodeIdentity);
 export const ExecuteActionAndChildrenSchema = ExecuteActionSchema;
 
 export const EventAndChildrenSchema = EventSchema;
+
+export const EnrollmentAndChildrenSchema = EnrollmentSchema;
 
 export const EatActionAndChildrenSchema = EatActionSchema;
 
@@ -1420,6 +1653,21 @@ export const DocumentObjectAndChildrenSchema = DocumentObjectSchema;
 
 export const DeleteActionAndChildrenSchema = DeleteActionSchema;
 
+export const DefinedTermAndChildrenSchema = DefinedTermSchema;
+
+export const IntangibleAndChildrenSchema: z.ZodType<IntangibleAndChildren> = z
+  .discriminatedUnion('@type', [
+    z.object({
+      '@type': z.literal('Intangible'),
+      ...IntangibleProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('DefinedTerm'),
+      ...DefinedTermProperties,
+    }),
+  ])
+  .superRefine(requireNodeIdentity);
 export const CreateActionAndChildrenSchema: z.ZodType<CreateActionAndChildren> = z
   .discriminatedUnion('@type', [
     z.object({
@@ -1438,6 +1686,11 @@ export const ConsumeActionAndChildrenSchema: z.ZodType<ConsumeActionAndChildren>
     z.object({
       '@type': z.literal('ConsumeAction'),
       ...ConsumeActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('WatchAction'),
+      ...WatchActionProperties,
     }),
 
     z.object({
@@ -1537,6 +1790,26 @@ export const SessionAndChildrenSchema: z.ZodType<SessionAndChildren> = z
     z.object({
       '@type': z.literal('Session'),
       ...SessionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Tenure'),
+      ...TenureProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Relationship'),
+      ...RelationshipProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Membership'),
+      ...MembershipProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Enrollment'),
+      ...EnrollmentProperties,
     }),
 
     z.object({
@@ -1732,6 +2005,16 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('Intangible'),
+      ...IntangibleProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('DefinedTerm'),
+      ...DefinedTermProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Command'),
       ...CommandProperties,
     }),
@@ -1784,6 +2067,26 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     z.object({
       '@type': z.literal('Session'),
       ...SessionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Tenure'),
+      ...TenureProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Relationship'),
+      ...RelationshipProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Membership'),
+      ...MembershipProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Enrollment'),
+      ...EnrollmentProperties,
     }),
 
     z.object({
@@ -1875,6 +2178,21 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('ExperienceAction'),
+      ...ExperienceActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('LeaveAction'),
+      ...LeaveActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('JoinAction'),
+      ...JoinActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('ExecuteAction'),
       ...ExecuteActionProperties,
     }),
@@ -1897,6 +2215,11 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     z.object({
       '@type': z.literal('ConsumeAction'),
       ...ConsumeActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('WatchAction'),
+      ...WatchActionProperties,
     }),
 
     z.object({
@@ -2038,6 +2361,16 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('Intangible'),
+      ...IntangibleProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('DefinedTerm'),
+      ...DefinedTermProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Command'),
       ...CommandProperties,
     }),
@@ -2090,6 +2423,26 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('Session'),
       ...SessionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Tenure'),
+      ...TenureProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Relationship'),
+      ...RelationshipProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Membership'),
+      ...MembershipProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Enrollment'),
+      ...EnrollmentProperties,
     }),
 
     z.object({
@@ -2178,6 +2531,21 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('ExperienceAction'),
+      ...ExperienceActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('LeaveAction'),
+      ...LeaveActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('JoinAction'),
+      ...JoinActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('ExecuteAction'),
       ...ExecuteActionProperties,
     }),
@@ -2200,6 +2568,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('ConsumeAction'),
       ...ConsumeActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('WatchAction'),
+      ...WatchActionProperties,
     }),
 
     z.object({

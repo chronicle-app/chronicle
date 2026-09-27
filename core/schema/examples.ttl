@@ -1281,6 +1281,218 @@ does not record when a like happened, so the action has no :timestamp.
 :VisitAction skos:example example:place-visit .
 :TravelAction skos:example example:trip .
 :Journey skos:example example:trip .
+example:job-started
+  rdfs:label "Starting a job";
+  rdfs:comment """
+A :JoinAction from a LinkedIn export: you started a job at an :Organization.
+The :result is the :Tenure, which carries the :role. The :timestamp is a civil
+date at the precision LinkedIn records, here a month. A :LeaveAction with the
+same :Tenure closes the job when it ends.
+""";
+  rdf:value [
+    a :JoinAction;
+    doc:key ("@type" "source" "result.role" "result.degree" "object.name");
+    :source "linkedin";
+    :timestamp "2022-08";
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "handle");
+      :source "linkedin";
+      :handle "sam-rivera";
+      :name "Sam Rivera";
+      :url "https://www.linkedin.com/in/sam-rivera";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Organization;
+      doc:key ("@type" "source" "name");
+      :source "linkedin";
+      :name "Example Robotics"
+    ];
+    :result [
+      a :Tenure;
+      doc:key ("@type" "source" "role" "action.object.name");
+      :source "linkedin";
+      :role "Staff Engineer";
+      :description "Built the warehouse fleet software."
+    ]
+  ] .
+
+example:school-finished
+  rdfs:label "Finishing school";
+  rdfs:comment """
+A :LeaveAction from a LinkedIn export: you finished a stretch of study at a
+school. The :result is the :Enrollment, which carries the :degree. LinkedIn
+often records only the year, so the :timestamp is a bare year.
+""";
+  rdf:value [
+    a :LeaveAction;
+    doc:key ("@type" "source" "result.role" "result.degree" "object.name");
+    :source "linkedin";
+    :timestamp "2014";
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "handle");
+      :source "linkedin";
+      :handle "sam-rivera";
+      :name "Sam Rivera";
+      :url "https://www.linkedin.com/in/sam-rivera";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Organization;
+      doc:key ("@type" "source" "name");
+      :source "linkedin";
+      :name "Example State University"
+    ];
+    :result [
+      a :Enrollment;
+      doc:key ("@type" "source" "degree" "action.object.name");
+      :source "linkedin";
+      :degree "Bachelor of Science (B.S.)"
+    ]
+  ] .
+
+example:linkedin-connection
+  rdfs:label "A LinkedIn connection";
+  rdfs:comment """
+A :FollowAction onto a person you connected with on LinkedIn, dated to the day
+of the connection. The person is keyed by their profile :handle and carries
+their current title as :description and their employer through :memberOf.
+""";
+  rdf:value [
+    a :FollowAction;
+    doc:key ("@type" "source" "agent.handle" "object.handle" "object.name");
+    :source "linkedin";
+    :timestamp "2026-06-06";
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "handle");
+      :source "linkedin";
+      :handle "sam-rivera";
+      :name "Sam Rivera";
+      :url "https://www.linkedin.com/in/sam-rivera";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Person;
+      doc:key ("@type" "source" "handle");
+      :source "linkedin";
+      :handle "alex-chen";
+      :name "Alex Chen";
+      :url "https://www.linkedin.com/in/alex-chen";
+      :description "Product Designer";
+      :memberOf [
+        a :Organization;
+        doc:key ("@type" "source" "name");
+        :source "linkedin";
+        :name "Example Robotics"
+      ]
+    ]
+  ] .
+
+example:skill-endorsement
+  rdfs:label "Endorsing a skill";
+  rdfs:comment """
+A :RespondAction for a LinkedIn skill endorsement: you vouched that Alex has a
+skill. The :result is a :Response whose :body is the skill, and whose :about is
+the skill as a :DefinedTerm.
+""";
+  rdf:value [
+    a :RespondAction;
+    doc:key ("@type" "source" "agent.handle" "object.handle" "result.body");
+    :source "linkedin";
+    :timestamp "2024-03-02T15:10:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "handle");
+      :source "linkedin";
+      :handle "sam-rivera";
+      :name "Sam Rivera";
+      :url "https://www.linkedin.com/in/sam-rivera";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Person;
+      doc:key ("@type" "source" "handle");
+      :source "linkedin";
+      :handle "alex-chen";
+      :name "Alex Chen";
+      :url "https://www.linkedin.com/in/alex-chen"
+    ];
+    :result [
+      a :Response;
+      doc:key ("@type" "source" "action.agent.handle" "action.object.handle" "body");
+      :source "linkedin";
+      :body "Interaction Design";
+      :about [
+        a :DefinedTerm;
+        doc:key ("@type" "source" "name");
+        :source "linkedin";
+        :name "Interaction Design"
+      ]
+    ]
+  ] .
+
+example:course-watched
+  rdfs:label "Watching a course";
+  rdfs:comment """
+A :WatchAction for a LinkedIn Learning course. The course is a :CreativeWork
+keyed by its title; :sourceFormat records which of LinkedIn's content types it
+is.
+""";
+  rdf:value [
+    a :WatchAction;
+    doc:key ("@type" "source" "object.name" "timestamp");
+    :source "linkedin";
+    :timestamp "2025-11-04T19:30:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "handle");
+      :source "linkedin";
+      :handle "sam-rivera";
+      :name "Sam Rivera";
+      :url "https://www.linkedin.com/in/sam-rivera";
+      :sameAs "@me"
+    ];
+    :object [
+      a :CreativeWork;
+      doc:key ("@type" "source" "name");
+      :source "linkedin";
+      :name "Intro to Rust";
+      :description "A first course in Rust.";
+      :sourceFormat "course"
+    ]
+  ] .
+
+example:course-saved
+  rdfs:label "Saving a course";
+  rdfs:comment """
+A :BookmarkAction for a LinkedIn Learning course you saved. The export says the
+course is saved but not when, so the action has no :timestamp.
+""";
+  rdf:value [
+    a :BookmarkAction;
+    doc:key ("@type" "source" "object.name");
+    :source "linkedin";
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "handle");
+      :source "linkedin";
+      :handle "sam-rivera";
+      :name "Sam Rivera";
+      :url "https://www.linkedin.com/in/sam-rivera";
+      :sameAs "@me"
+    ];
+    :object [
+      a :CreativeWork;
+      doc:key ("@type" "source" "name");
+      :source "linkedin";
+      :name "Intro to Rust";
+      :sourceFormat "course"
+    ]
+  ] .
+
 :Place skos:example example:place-visit .
 :Venue skos:example example:place-visit .
 :StructuredValue skos:example example:place-visit .
@@ -1498,3 +1710,17 @@ a sentence of prose, so the action has no :object.
 :Query skos:example example:instagram-search .
 :RespondAction skos:example example:instagram-reaction .
 :Response skos:example example:instagram-reaction .
+
+:JoinAction skos:example example:job-started .
+:LeaveAction skos:example example:school-finished .
+:Tenure skos:example example:job-started .
+:Enrollment skos:example example:school-finished .
+:role skos:example example:job-started .
+:degree skos:example example:school-finished .
+:FollowAction skos:example example:linkedin-connection .
+:RespondAction skos:example example:skill-endorsement .
+:Response skos:example example:skill-endorsement .
+:DefinedTerm skos:example example:skill-endorsement .
+:WatchAction skos:example example:course-watched .
+:BookmarkAction skos:example example:course-saved .
+:sourceFormat skos:example example:course-watched, example:course-saved .

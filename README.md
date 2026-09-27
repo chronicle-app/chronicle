@@ -52,6 +52,7 @@ These sources come bundled with the CLI:
 | Phone and FaceTime calls (Apple Call History)    | [call-history](plugins/call-history/README.md) |
 | FoodNoms meal logs                               | [foodnoms](plugins/foodnoms/README.md)         |
 | Instagram data export                            | [instagram](plugins/instagram/README.md)       |
+| LinkedIn data export                             | [linkedin](plugins/linkedin/README.md)         |
 
 Install other plugins with `chronicle plugins install <package>`.
 

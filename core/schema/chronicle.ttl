@@ -86,7 +86,8 @@
   rdfs:comment "The instant when the action occurred, as reported by the source. Records occurrence time, not the time Chronicle extracted the record.";
   owl:maxCardinality 1;
   :domainIncludes :Action;
-  :rangeIncludes :DateTime .
+  :rangeIncludes :Date,
+    :DateTime .
 :agent a rdf:Property;
   rdfs:comment "The doer of the action, when identified by the source. Omit when no doer is known; an occurrence can be recorded without an agent.";
   owl:maxCardinality 1;
@@ -443,3 +444,46 @@
   owl:maxCardinality 1;
   :domainIncludes :Action;
   :rangeIncludes :Entity .
+# linkedin
+:ExperienceAction a rdfs:Class;
+  rdfs:comment "A segment of lived activity the subject engaged in or underwent — a manually-logged time block or life episode (its :result is the :Session it constitutes: a :Tenure, :Residence, :Relationship, and the like), or a punctual life event (:BirthAction, :DeathAction). Carries the real occurrence via :startTime/:endTime; the constituted session takes its span from the action.";
+  rdfs:subClassOf :Action .
+:JoinAction a rdfs:Class;
+  rdfs:comment "The subject joined the :object organization or realm — the opening boundary of a membership. Its :result may carry the :Tenure, :Membership, or :Enrollment the membership constitutes.";
+  rdfs:subClassOf :ExperienceAction .
+:LeaveAction a rdfs:Class;
+  rdfs:comment "The subject left the :object organization or realm — the closing boundary of a membership opened by a :JoinAction.";
+  rdfs:subClassOf :ExperienceAction .
+:Tenure a rdfs:Class;
+  rdfs:comment "A stretch of employment — the :result of the :ExperienceAction whose span it takes. Dateless itself; carries the :employer (an :Organization) and the :role held. The subject's :memberOf run over the employer derives from this span.";
+  rdfs:subClassOf :Session .
+:Enrollment a rdfs:Class;
+  rdfs:comment "A stretch of study at a school — the :result of the :ExperienceAction whose span it takes. Dateless itself; carries the :school (an :Organization) and the :degree pursued. The subject's :memberOf run over the school derives from this span.";
+  rdfs:subClassOf :Session .
+:Membership a rdfs:Class;
+  rdfs:comment "A stretch of belonging to an organization or realm — the :result of the :ExperienceAction whose span it takes. Dateless itself; carries the :org and the :role held. The subject's :memberOf run derives from this span.";
+  rdfs:subClassOf :Session .
+:Relationship a rdfs:Class;
+  rdfs:comment "A stretch of romantic partnership — the :result of the :ExperienceAction whose span it takes. Dateless itself; names the other person via :with. The subject's :partner run derives from this span.";
+  rdfs:subClassOf :Session .
+:role a rdf:Property;
+  rdfs:comment "The role, title, or nature held during a :Tenure, :Membership, or :Relationship.";
+  owl:maxCardinality 1;
+  :domainIncludes :Tenure,
+    :Membership,
+    :Relationship;
+  :rangeIncludes :Text .
+:degree a rdf:Property;
+  rdfs:comment "The degree or program pursued during an :Enrollment.";
+  owl:maxCardinality 1;
+  :domainIncludes :Enrollment;
+  :rangeIncludes :Text .
+:Intangible a rdfs:Class;
+  rdfs:comment "An entity with no physical or creative existence of its own — a term, a selector, a category.";
+  rdfs:subClassOf :Entity .
+:DefinedTerm a rdfs:Class;
+  rdfs:comment "A word or code from a vocabulary — a tag, a category — used to classify other entities.";
+  rdfs:subClassOf :Intangible .
+:WatchAction a rdfs:Class;
+  rdfs:comment "The agent watched the :object — a video, a film, a show. Opens or extends the agent's :consuming run over it.";
+  rdfs:subClassOf :ConsumeAction .

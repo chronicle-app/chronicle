@@ -50,6 +50,9 @@
       "path": "plugins/instagram/tsconfig.lib.json"
     },
     {
+      "path": "plugins/linkedin/tsconfig.lib.json"
+    },
+    {
       "path": "core/icloud/tsconfig.lib.json"
     },
     {
