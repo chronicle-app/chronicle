@@ -45,6 +45,7 @@ These sources come bundled with the CLI:
 | Arc Timeline visits and trips                    | [arc-timeline](plugins/arc-timeline/README.md) |
 | Moves export places and moves                    | [moves-app](plugins/moves-app/README.md)       |
 | Claude Code transcripts                          | [claude-code](plugins/claude-code/README.md)   |
+| Facebook export                                  | [facebook](plugins/facebook/README.md)         |
 | Things 3                                         | [things-todo](plugins/things-todo/README.md)   |
 | Twitter/X archive tweets, likes, and DMs         | [twitter](plugins/twitter/README.md)           |
 | WhatsApp messages                                | [whatsapp](plugins/whatsapp/README.md)         |

@@ -1092,7 +1092,148 @@ does not record when a like happened, so the action has no :timestamp.
 :EatAction skos:example example:meal-logged .
 :DrankAction skos:example example:drink-logged .
 :Meal skos:example example:meal-logged, example:drink-logged .
-:Post skos:example example:tweet-published, example:tweet-liked .
+:Post skos:example example:tweet-published, example:tweet-liked, example:like, example:reaction .
 :PublishAction skos:example example:tweet-published .
-:LikeAction skos:example example:tweet-liked .
+:LikeAction skos:example example:tweet-liked, example:like .
 :references skos:example example:tweet-published .
+
+# facebook
+example:search
+  rdfs:label "A search on a platform";
+  rdfs:comment """
+A :FindAction for one entry in a Facebook export's search history. The :object
+is the :Query as entered, with the text as its :body. The export doesn't name
+the account owner here, so the :agent is Facebook's own self node, keyed by
+:source alone and merged into you through :sameAs.
+""";
+  rdf:value [
+    a :FindAction;
+    doc:key ("@type" "source" "timestamp" "agent.name" "object.body");
+    :source "facebook";
+    :timestamp "2026-05-09T18:22:07.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source");
+      :source "facebook";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Query;
+      doc:key ("@type" "source" "body");
+      :source "facebook";
+      :name "trail running shoes";
+      :body "trail running shoes"
+    ]
+  ] .
+
+example:like
+  rdfs:label "Liking a post";
+  rdfs:comment """
+A :LikeAction for the like button, from a Facebook export. The liked :Post is
+keyed by its :url, and its :author is the person the export names. A like
+carries no content, so there is no :result.
+""";
+  rdf:value [
+    a :LikeAction;
+    doc:key ("@type" "source" "timestamp" "agent.name" "object.url");
+    :source "facebook";
+    :timestamp "2026-05-09T18:22:07.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source");
+      :source "facebook";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Post;
+      doc:key ("@type" "source" "url");
+      :source "facebook";
+      :url "https://www.facebook.com/alex.morgan.example/posts/555000111";
+      :author [
+        a :Person;
+        doc:key ("@type" "source" "name");
+        :source "facebook";
+        :name "Alex Morgan"
+      ]
+    ]
+  ] .
+
+example:reaction
+  rdfs:label "Reacting to a post";
+  rdfs:comment """
+A reaction that carries content is a :RespondAction. Its :result is a
+:Response whose :body is the platform's own word for the reaction, kept as the
+export writes it. The Response has no id of its own, so its key reaches into
+the action that made it with `action.` paths.
+""";
+  rdf:value [
+    a :RespondAction;
+    doc:key ("@type" "source" "timestamp" "agent.name" "object.url" "result.body");
+    :source "facebook";
+    :timestamp "2026-05-09T18:23:07.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source");
+      :source "facebook";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Post;
+      doc:key ("@type" "source" "url");
+      :source "facebook";
+      :url "https://www.facebook.com/alex.morgan.example/posts/555000222";
+      :author [
+        a :Person;
+        doc:key ("@type" "source" "name");
+        :source "facebook";
+        :name "Alex Morgan"
+      ]
+    ];
+    :result [
+      a :Response;
+      doc:key ("@type" "source" "body" "action.timestamp" "action.agent.name" "action.object.url");
+      :source "facebook";
+      :body "love"
+    ]
+  ] .
+
+example:comment
+  rdfs:label "Commenting on a post";
+  rdfs:comment """
+A comment is a :RespondAction whose :result is a :Comment, the :Response that
+carries prose. The export names the commenter, so the :agent is keyed by name
+and is also the Comment's :author. It points at the commented-on post only in
+a sentence of prose, so the action has no :object.
+""";
+  rdf:value [
+    a :RespondAction;
+    doc:key ("@type" "source" "timestamp" "agent.name" "result.body");
+    :source "facebook";
+    :timestamp "2026-05-09T18:24:07.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "name");
+      :source "facebook";
+      :name "Sam Rivera";
+      :sameAs "@me"
+    ];
+    :result [
+      a :Comment;
+      doc:key ("@type" "source" "body");
+      :source "facebook";
+      :body "Great photo";
+      :author [
+        a :Agent;
+        doc:key ("@type" "source" "name");
+        :source "facebook";
+        :name "Sam Rivera";
+        :sameAs "@me"
+      ]
+    ]
+  ] .
+
+:FindAction skos:example example:search .
+:Query skos:example example:search .
+:RespondAction skos:example example:reaction, example:comment .
+:Response skos:example example:reaction .
+:Comment skos:example example:comment .

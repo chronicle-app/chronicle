@@ -401,4 +401,20 @@
   rdfs:comment "An entity pointed to from this one (e.g. an @mention or link).";
   rdfs:subPropertyOf :relation;
   :rangeIncludes :Entity .
+# facebook
+:FindAction a rdfs:Class;
+  rdfs:comment "The agent looked something up on a platform — an entry in a search history. :object is the :Query entered.";
+  rdfs:subClassOf :Action .
+:Query a rdfs:Class;
+  rdfs:comment "A search query as entered. Carries the query text as :body; the :object of a :FindAction.";
+  rdfs:subClassOf :CreativeWork .
+:RespondAction a rdfs:Class;
+  rdfs:comment "An agent responds to the :object with content — an emoji reaction, a comment, a rating, a review. The :result is the :Response carrying that content; the :object names what it is about. The payload-carrying counterpart of :LikeAction.";
+  rdfs:subClassOf :AssessAction .
+:Response a rdfs:Class;
+  rdfs:comment "An agent's response to a thing, carrying its content in two facets: :body (an emoji reaction is a one-character body; prose is a :Comment) and :ratingValue (a review carries both). The :result of a :RespondAction, whose :object names what the response is about. The payload is kept verbatim in the source's own vocabulary, a literal ❤️ beside a platform's LOVE. A like with no payload is a :LikeAction rather than a Response.";
+  rdfs:subClassOf :CreativeWork .
+:Comment a rdfs:Class;
+  rdfs:comment "A prose response — the :Response leaf whose :body is authored text.";
+  rdfs:subClassOf :Response .
 :author :domainIncludes :CreativeWork .

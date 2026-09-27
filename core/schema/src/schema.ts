@@ -72,6 +72,7 @@ export type ActionAndChildren =
   | CreateActionAndChildren
   | DeleteActionAndChildren
   | ExecuteActionAndChildren
+  | FindActionAndChildren
   | InteractActionAndChildren
   | MessageActionAndChildren
   | PlanActionAndChildren
@@ -184,7 +185,8 @@ export interface AssessAction extends Omit<Action, '@type'> {
   '@type': 'AssessAction';
 }
 
-export type AssessActionAndChildren = AssessAction | ReactActionAndChildren;
+export type AssessActionAndChildren =
+  AssessAction | ReactActionAndChildren | RespondActionAndChildren;
 
 const AssessActionProperties = {
   ...ActionProperties,
@@ -363,7 +365,8 @@ export interface CreativeWork extends Omit<Entity, '@type'> {
   references?: EntityAndChildren[];
 }
 
-export type CreativeWorkAndChildren = CreativeWork | ChannelAndChildren | PostAndChildren;
+export type CreativeWorkAndChildren =
+  CreativeWork | ChannelAndChildren | PostAndChildren | QueryAndChildren | ResponseAndChildren;
 
 const CreativeWorkProperties = {
   ...EntityProperties,
@@ -433,6 +436,42 @@ export const CommandSchema: z.ZodType<Command> = z
   .object({
     '@type': z.literal('Command'),
     ...CommandProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Response, child of https://schema.chronicle.app/CreativeWork
+export interface Response extends Omit<CreativeWork, '@type'> {
+  '@type': 'Response';
+}
+
+export type ResponseAndChildren = Response | CommentAndChildren;
+
+const ResponseProperties = {
+  ...CreativeWorkProperties,
+};
+
+export const ResponseSchema: z.ZodType<Response> = z
+  .object({
+    '@type': z.literal('Response'),
+    ...ResponseProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Comment, child of https://schema.chronicle.app/Response
+export interface Comment extends Omit<Response, '@type'> {
+  '@type': 'Comment';
+}
+
+export type CommentAndChildren = Comment;
+
+const CommentProperties = {
+  ...ResponseProperties,
+};
+
+export const CommentSchema: z.ZodType<Comment> = z
+  .object({
+    '@type': z.literal('Comment'),
+    ...CommentProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -602,6 +641,24 @@ export const ExecuteActionSchema: z.ZodType<ExecuteAction> = z
   .object({
     '@type': z.literal('ExecuteAction'),
     ...ExecuteActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// FindAction, child of https://schema.chronicle.app/Action
+export interface FindAction extends Omit<Action, '@type'> {
+  '@type': 'FindAction';
+}
+
+export type FindActionAndChildren = FindAction;
+
+const FindActionProperties = {
+  ...ActionProperties,
+};
+
+export const FindActionSchema: z.ZodType<FindAction> = z
+  .object({
+    '@type': z.literal('FindAction'),
+    ...FindActionProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -932,6 +989,24 @@ export const PublishActionSchema: z.ZodType<PublishAction> = z
   })
   .superRefine(requireNodeIdentity);
 
+// Query, child of https://schema.chronicle.app/CreativeWork
+export interface Query extends Omit<CreativeWork, '@type'> {
+  '@type': 'Query';
+}
+
+export type QueryAndChildren = Query;
+
+const QueryProperties = {
+  ...CreativeWorkProperties,
+};
+
+export const QuerySchema: z.ZodType<Query> = z
+  .object({
+    '@type': z.literal('Query'),
+    ...QueryProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // Realm, child of https://schema.chronicle.app/Entity
 export interface Realm extends Omit<Entity, '@type'> {
   '@type': 'Realm';
@@ -947,6 +1022,24 @@ export const RealmSchema: z.ZodType<Realm> = z
   .object({
     '@type': z.literal('Realm'),
     ...RealmProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// RespondAction, child of https://schema.chronicle.app/AssessAction
+export interface RespondAction extends Omit<AssessAction, '@type'> {
+  '@type': 'RespondAction';
+}
+
+export type RespondActionAndChildren = RespondAction;
+
+const RespondActionProperties = {
+  ...AssessActionProperties,
+};
+
+export const RespondActionSchema: z.ZodType<RespondAction> = z
+  .object({
+    '@type': z.literal('RespondAction'),
+    ...RespondActionProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -1170,7 +1263,11 @@ export const SoftwareApplicationAndChildrenSchema = SoftwareApplicationSchema;
 
 export const SoftwareAgentAndChildrenSchema = SoftwareAgentSchema;
 
+export const RespondActionAndChildrenSchema = RespondActionSchema;
+
 export const RealmAndChildrenSchema = RealmSchema;
+
+export const QueryAndChildrenSchema = QuerySchema;
 
 export const PublishActionAndChildrenSchema = PublishActionSchema;
 
@@ -1243,6 +1340,8 @@ export const StructuredValueAndChildrenSchema: z.ZodType<StructuredValueAndChild
   ]);
 export const ImageObjectAndChildrenSchema = ImageObjectSchema;
 
+export const FindActionAndChildrenSchema = FindActionSchema;
+
 export const ExecuteActionAndChildrenSchema = ExecuteActionSchema;
 
 export const EventAndChildrenSchema = EventSchema;
@@ -1293,6 +1392,21 @@ export const ConsumeActionAndChildrenSchema: z.ZodType<ConsumeActionAndChildren>
   .superRefine(requireNodeIdentity);
 export const CompleteActionAndChildrenSchema = CompleteActionSchema;
 
+export const CommentAndChildrenSchema = CommentSchema;
+
+export const ResponseAndChildrenSchema: z.ZodType<ResponseAndChildren> = z
+  .discriminatedUnion('@type', [
+    z.object({
+      '@type': z.literal('Response'),
+      ...ResponseProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Comment'),
+      ...CommentProperties,
+    }),
+  ])
+  .superRefine(requireNodeIdentity);
 export const CommandAndChildrenSchema = CommandSchema;
 
 export const CollectionAndChildrenSchema: z.ZodType<CollectionAndChildren> = z
@@ -1323,8 +1437,23 @@ export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> =
     }),
 
     z.object({
+      '@type': z.literal('Query'),
+      ...QueryProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Post'),
       ...PostProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Response'),
+      ...ResponseProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Comment'),
+      ...CommentProperties,
     }),
 
     z.object({
@@ -1418,6 +1547,11 @@ export const AssessActionAndChildrenSchema: z.ZodType<AssessActionAndChildren> =
     z.object({
       '@type': z.literal('AssessAction'),
       ...AssessActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('RespondAction'),
+      ...RespondActionProperties,
     }),
 
     z.object({
@@ -1537,8 +1671,23 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('Query'),
+      ...QueryProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Post'),
       ...PostProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Response'),
+      ...ResponseProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Comment'),
+      ...CommentProperties,
     }),
 
     z.object({
@@ -1635,6 +1784,11 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('FindAction'),
+      ...FindActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('ExecuteAction'),
       ...ExecuteActionProperties,
     }),
@@ -1702,6 +1856,11 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     z.object({
       '@type': z.literal('AssessAction'),
       ...AssessActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('RespondAction'),
+      ...RespondActionProperties,
     }),
 
     z.object({
@@ -1803,8 +1962,23 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('Query'),
+      ...QueryProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Post'),
       ...PostProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Response'),
+      ...ResponseProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Comment'),
+      ...CommentProperties,
     }),
 
     z.object({
@@ -1898,6 +2072,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('FindAction'),
+      ...FindActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('ExecuteAction'),
       ...ExecuteActionProperties,
     }),
@@ -1965,6 +2144,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('AssessAction'),
       ...AssessActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('RespondAction'),
+      ...RespondActionProperties,
     }),
 
     z.object({
