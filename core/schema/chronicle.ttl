@@ -54,7 +54,7 @@
   rdfs:subClassOf :Entity;
   rdfs:comment "A unit of work to be done, such as a to-do item. The task carries its :name and :description; actions record its planning, updates, completion, or cancellation." .
 :Collection a rdfs:Class;
-  rdfs:subClassOf :Entity;
+  rdfs:subClassOf :CreativeWork;
   rdfs:comment "A grouping of entities declared by a source, such as a list, an area of responsibility, or a section within a project. Members link to the collection through :isPartOf." .
 :Project a rdfs:Class;
   rdfs:subClassOf :Collection;
@@ -145,7 +145,7 @@
   rdfs:subClassOf :Action;
   rdfs:comment "The sending of a message. The :object identifies the message and :agent identifies the sender when known." .
 :MediaObject a rdfs:Class;
-  rdfs:subClassOf :Entity;
+  rdfs:subClassOf :CreativeWork;
   rdfs:comment "A media artifact, such as an image, audio recording, video, or document. Its :contentPath or :url locates the content, and :mimeType describes its format." .
 :ImageObject a rdfs:Class;
   rdfs:subClassOf :MediaObject;
@@ -580,3 +580,8 @@
   owl:maxCardinality 1;  :domainIncludes :ImageObject,
     :VideoObject;
   :rangeIncludes :Number .
+
+# youtube
+:AnnotateAction a rdfs:Class;
+  rdfs:comment "The agent wrote a note on something — a comment on a highlighted passage, a note on a work, a margin note on a page. Its :result is the :Comment, whose :about names what it annotates.";
+  rdfs:subClassOf :CreateAction .

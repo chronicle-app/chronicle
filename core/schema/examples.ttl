@@ -1559,6 +1559,293 @@ registration.
     ]
   ] .
 
+example:video-liked
+  rdfs:label "Liking a video";
+  rdfs:comment """
+A :LikeAction from the YouTube API: you liked a video. The agent is your own
+channel, keyed by its channel id as a :handle and tied to you through
+:sameAs "@me". The :VideoObject carries its :duration, its :datePublished, a
+thumbnail as its :emblem, and the uploading channel as :author.
+""";
+  rdf:value [
+    a :LikeAction;
+    doc:key ("@type" "source" "agent.handle" "object.sourceId" "timestamp");
+    :source "youtube";
+    :timestamp "2026-05-09T20:14:05.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "youtube";
+      :handle "UCexampleOwner0000000000";
+      :url "https://www.youtube.com/channel/UCexampleOwner0000000000";
+      :name "Pat Example";
+      :sameAs "@me"
+    ];
+    :object [
+      a :VideoObject;
+      doc:key ("@type" "source" "sourceId");
+      :source "youtube";
+      :sourceId "vid00000001";
+      :url "https://www.youtube.com/watch?v=vid00000001";
+      :name "Fixing a bike chain in five minutes";
+      :duration "PT5M12S";
+      :datePublished "2025-03-14T16:00:00Z";
+      :emblem [
+        a :ImageObject;
+        doc:key ("url");
+        :url "https://i.example.com/vi/vid00000001/maxresdefault.jpg"
+      ];
+      :author [
+        a :Agent;
+        doc:key ("@type" "source" "handle");
+        :source "youtube";
+        :handle "UCexampleWorkshop0000000";
+        :url "https://www.youtube.com/channel/UCexampleWorkshop0000000";
+        :name "Corner Bike Workshop"
+      ]
+    ]
+  ] .
+
+example:channel-followed
+  rdfs:label "Subscribing to a channel";
+  rdfs:comment """
+A :FollowAction for a YouTube subscription. It is keyed by the followed
+channel's id, so each re-read of the subscription list updates the same action.
+The :object is the channel as an :Agent.
+""";
+  rdf:value [
+    a :FollowAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "youtube";
+    :sourceId "UCexampleWorkshop0000000";
+    :timestamp "2025-11-02T08:30:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "youtube";
+      :handle "UCexampleOwner0000000000";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "youtube";
+      :handle "UCexampleWorkshop0000000";
+      :url "https://www.youtube.com/channel/UCexampleWorkshop0000000";
+      :name "Corner Bike Workshop"
+    ]
+  ] .
+
+example:playlist-created
+  rdfs:label "Creating a playlist";
+  rdfs:comment """
+A :CreateAction for a YouTube playlist, at the time the playlist was created.
+Its :result is the playlist as a :Collection, with its :visibility.
+""";
+  rdf:value [
+    a :CreateAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "youtube";
+    :sourceId "PLexample0001";
+    :timestamp "2024-02-20T19:45:10.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "youtube";
+      :handle "UCexampleOwner0000000000";
+      :sameAs "@me"
+    ];
+    :result [
+      a :Collection;
+      doc:key ("@type" "source" "sourceId");
+      :source "youtube";
+      :sourceId "PLexample0001";
+      :url "https://www.youtube.com/playlist?list=PLexample0001";
+      :name "Bike repair";
+      :visibility "unlisted"
+    ]
+  ] .
+
+example:video-added-to-playlist
+  rdfs:label "Adding a video to a playlist";
+  rdfs:comment """
+An :AddAction: you added a video (the :object) to a playlist (the :target). It
+is keyed by the video, the playlist, and the time, so the YouTube API and a
+Google Takeout archive produce the same key for the same addition.
+""";
+  rdf:value [
+    a :AddAction;
+    doc:key ("@type" "source" "object.sourceId" "target.sourceId" "timestamp");
+    :source "youtube";
+    :timestamp "2026-05-09T20:15:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "youtube";
+      :handle "UCexampleOwner0000000000";
+      :sameAs "@me"
+    ];
+    :object [
+      a :VideoObject;
+      doc:key ("@type" "source" "sourceId");
+      :source "youtube";
+      :sourceId "vid00000001";
+      :url "https://www.youtube.com/watch?v=vid00000001"
+    ];
+    :target [
+      a :Collection;
+      doc:key ("@type" "source" "sourceId");
+      :source "youtube";
+      :sourceId "PLexample0001";
+      :url "https://www.youtube.com/playlist?list=PLexample0001";
+      :name "Bike repair"
+    ]
+  ] .
+
+example:video-published
+  rdfs:label "Publishing a video";
+  rdfs:comment """
+A :PublishAction for a video uploaded to your channel. The action's
+:timestamp is the time the video was published, so the video itself carries no
+:datePublished.
+""";
+  rdf:value [
+    a :PublishAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "youtube";
+    :sourceId "vid00000002";
+    :timestamp "2025-08-01T12:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "youtube";
+      :handle "UCexampleOwner0000000000";
+      :sameAs "@me"
+    ];
+    :object [
+      a :VideoObject;
+      doc:key ("@type" "source" "sourceId");
+      :source "youtube";
+      :sourceId "vid00000002";
+      :url "https://www.youtube.com/watch?v=vid00000002";
+      :name "Summer ride";
+      :duration "PT2M3S"
+    ]
+  ] .
+
+example:video-watched
+  rdfs:label "Watching a video";
+  rdfs:comment """
+A :WatchAction from the watch history in a Google Takeout archive. The
+:object is the video, with its uploading channel as :author.
+""";
+  rdf:value [
+    a :WatchAction;
+    doc:key ("@type" "source" "agent.handle" "object.sourceId" "timestamp");
+    :source "youtube";
+    :timestamp "2026-05-10T02:46:36.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "youtube";
+      :handle "UCexampleOwner0000000000";
+      :sameAs "@me"
+    ];
+    :object [
+      a :VideoObject;
+      doc:key ("@type" "source" "sourceId");
+      :source "youtube";
+      :sourceId "vid00000001";
+      :url "https://www.youtube.com/watch?v=vid00000001";
+      :name "Fixing a bike chain in five minutes";
+      :author [
+        a :Agent;
+        doc:key ("@type" "source" "handle");
+        :source "youtube";
+        :handle "UCexampleWorkshop0000000";
+        :url "https://www.youtube.com/channel/UCexampleWorkshop0000000";
+        :name "Corner Bike Workshop"
+      ]
+    ]
+  ] .
+
+example:video-search
+  rdfs:label "Searching YouTube";
+  rdfs:comment """
+A :FindAction from the search history in a Google Takeout archive. The
+:object is the :Query, keyed by the text entered as its :body.
+""";
+  rdf:value [
+    a :FindAction;
+    doc:key ("@type" "source" "agent.handle" "object.body" "timestamp");
+    :source "youtube";
+    :timestamp "2026-05-09T20:10:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "youtube";
+      :handle "UCexampleOwner0000000000";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Query;
+      doc:key ("@type" "source" "body");
+      :source "youtube";
+      :name "fix bike chain";
+      :body "fix bike chain"
+    ]
+  ] .
+
+example:video-comment
+  rdfs:label "Commenting on a video";
+  rdfs:comment """
+An :AnnotateAction for a comment you left on a video, from a Google Takeout
+archive. Its :result is the :Comment, with the text as :body, you as :author,
+and the video as :about.
+""";
+  rdf:value [
+    a :AnnotateAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "youtube";
+    :sourceId "Ugexamplecomment01";
+    :timestamp "2026-05-09T20:20:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "youtube";
+      :handle "UCexampleOwner0000000000";
+      :sameAs "@me"
+    ];
+    :object [
+      a :VideoObject;
+      doc:key ("@type" "source" "sourceId");
+      :source "youtube";
+      :sourceId "vid00000001";
+      :url "https://www.youtube.com/watch?v=vid00000001"
+    ];
+    :result [
+      a :Comment;
+      doc:key ("@type" "source" "sourceId");
+      :source "youtube";
+      :sourceId "Ugexamplecomment01";
+      :body "The quick-link tip saved my ride.";
+      :author [
+        a :Agent;
+        doc:key ("@type" "source" "handle");
+        :source "youtube";
+        :handle "UCexampleOwner0000000000";
+        :sameAs "@me"
+      ];
+      :about [
+        a :VideoObject;
+        doc:key ("@type" "source" "sourceId");
+        :source "youtube";
+        :sourceId "vid00000001";
+        :url "https://www.youtube.com/watch?v=vid00000001"
+      ]
+    ]
+  ] .
+
 : skos:example example:message-from-alex, example:shell-command, example:task-completed .
 
 :Base skos:example example:entity-with-url .
@@ -2056,3 +2343,19 @@ a sentence of prose, so the action has no :object.
 :LikeAction skos:example example:loved-track .
 :FollowAction skos:example example:followed-friend .
 :CreateAction skos:example example:account-created .
+:LikeAction skos:example example:video-liked .
+:FollowAction skos:example example:channel-followed .
+:CreateAction skos:example example:playlist-created .
+:AddAction skos:example example:video-added-to-playlist .
+:PublishAction skos:example example:video-published .
+:WatchAction skos:example example:video-watched .
+:FindAction skos:example example:video-search .
+:Query skos:example example:video-search .
+:AnnotateAction skos:example example:video-comment .
+:Comment skos:example example:video-comment .
+
+:duration skos:example example:video-liked, example:video-published .
+:datePublished skos:example example:video-liked .
+:emblem skos:example example:video-liked .
+:visibility skos:example example:playlist-created .
+:target skos:example example:video-added-to-playlist .

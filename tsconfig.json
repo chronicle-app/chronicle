@@ -59,6 +59,9 @@
       "path": "plugins/lastfm/tsconfig.lib.json"
     },
     {
+      "path": "plugins/youtube/tsconfig.lib.json"
+    },
+    {
       "path": "core/icloud/tsconfig.lib.json"
     },
     {

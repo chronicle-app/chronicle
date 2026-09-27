@@ -162,14 +162,12 @@ export interface Entity extends Omit<Base, '@type'> {
 export type EntityAndChildren =
   | Entity
   | AgentAndChildren
-  | CollectionAndChildren
   | CommandAndChildren
   | CreativeWorkAndChildren
   | EventAndChildren
   | IntangibleAndChildren
   | JourneyAndChildren
   | MealAndChildren
-  | MediaObjectAndChildren
   | MessageAndChildren
   | PlaceAndChildren
   | RealmAndChildren
@@ -225,6 +223,43 @@ export const AgentSchema: z.ZodType<Agent> = z
   })
   .superRefine(requireNodeIdentity);
 
+// CreateAction, child of https://schema.chronicle.app/Action
+export interface CreateAction extends Omit<Action, '@type'> {
+  '@type': 'CreateAction';
+}
+
+export type CreateActionAndChildren =
+  CreateAction | AnnotateActionAndChildren | PublishActionAndChildren;
+
+const CreateActionProperties = {
+  ...ActionProperties,
+};
+
+export const CreateActionSchema: z.ZodType<CreateAction> = z
+  .object({
+    '@type': z.literal('CreateAction'),
+    ...CreateActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// AnnotateAction, child of https://schema.chronicle.app/CreateAction
+export interface AnnotateAction extends Omit<CreateAction, '@type'> {
+  '@type': 'AnnotateAction';
+}
+
+export type AnnotateActionAndChildren = AnnotateAction;
+
+const AnnotateActionProperties = {
+  ...CreateActionProperties,
+};
+
+export const AnnotateActionSchema: z.ZodType<AnnotateAction> = z
+  .object({
+    '@type': z.literal('AnnotateAction'),
+    ...AnnotateActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // AssessAction, child of https://schema.chronicle.app/Action
 export interface AssessAction extends Omit<Action, '@type'> {
   '@type': 'AssessAction';
@@ -244,8 +279,48 @@ export const AssessActionSchema: z.ZodType<AssessAction> = z
   })
   .superRefine(requireNodeIdentity);
 
-// MediaObject, child of https://schema.chronicle.app/Entity
-export interface MediaObject extends Omit<Entity, '@type'> {
+// CreativeWork, child of https://schema.chronicle.app/Entity
+export interface CreativeWork extends Omit<Entity, '@type'> {
+  '@type': 'CreativeWork';
+  author?: AgentAndChildren[];
+  datePublished?: Date | string;
+  genre?: string[];
+  references?: EntityAndChildren[];
+  sourceFormat?: string;
+  visibility?: string;
+}
+
+export type CreativeWorkAndChildren =
+  | CreativeWork
+  | ChannelAndChildren
+  | CollectionAndChildren
+  | MediaObjectAndChildren
+  | MusicAlbumAndChildren
+  | MusicRecordingAndChildren
+  | PodcastEpisodeAndChildren
+  | PostAndChildren
+  | QueryAndChildren
+  | ResponseAndChildren;
+
+const CreativeWorkProperties = {
+  ...EntityProperties,
+  author: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
+  datePublished: z.lazy(() => z.union([z.date(), z.string()])).optional(),
+  genre: z.lazy(() => z.array(z.string())).optional(),
+  references: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
+  sourceFormat: z.lazy(() => z.string()).optional(),
+  visibility: z.lazy(() => z.string()).optional(),
+};
+
+export const CreativeWorkSchema: z.ZodType<CreativeWork> = z
+  .object({
+    '@type': z.literal('CreativeWork'),
+    ...CreativeWorkProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// MediaObject, child of https://schema.chronicle.app/CreativeWork
+export interface MediaObject extends Omit<CreativeWork, '@type'> {
   '@type': 'MediaObject';
   contentPath?: string;
   mimeType?: string;
@@ -259,7 +334,7 @@ export type MediaObjectAndChildren =
   | VideoObjectAndChildren;
 
 const MediaObjectProperties = {
-  ...EntityProperties,
+  ...CreativeWorkProperties,
   contentPath: z.lazy(() => z.string()).optional(),
   mimeType: z.lazy(() => z.string()).optional(),
 };
@@ -452,44 +527,6 @@ export const CancelActionSchema: z.ZodType<CancelAction> = z
   })
   .superRefine(requireNodeIdentity);
 
-// CreativeWork, child of https://schema.chronicle.app/Entity
-export interface CreativeWork extends Omit<Entity, '@type'> {
-  '@type': 'CreativeWork';
-  author?: AgentAndChildren[];
-  datePublished?: Date | string;
-  genre?: string[];
-  references?: EntityAndChildren[];
-  sourceFormat?: string;
-  visibility?: string;
-}
-
-export type CreativeWorkAndChildren =
-  | CreativeWork
-  | ChannelAndChildren
-  | MusicAlbumAndChildren
-  | MusicRecordingAndChildren
-  | PodcastEpisodeAndChildren
-  | PostAndChildren
-  | QueryAndChildren
-  | ResponseAndChildren;
-
-const CreativeWorkProperties = {
-  ...EntityProperties,
-  author: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
-  datePublished: z.lazy(() => z.union([z.date(), z.string()])).optional(),
-  genre: z.lazy(() => z.array(z.string())).optional(),
-  references: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
-  sourceFormat: z.lazy(() => z.string()).optional(),
-  visibility: z.lazy(() => z.string()).optional(),
-};
-
-export const CreativeWorkSchema: z.ZodType<CreativeWork> = z
-  .object({
-    '@type': z.literal('CreativeWork'),
-    ...CreativeWorkProperties,
-  })
-  .superRefine(requireNodeIdentity);
-
 // Channel, child of https://schema.chronicle.app/CreativeWork
 export interface Channel extends Omit<CreativeWork, '@type'> {
   '@type': 'Channel';
@@ -512,15 +549,15 @@ export const ChannelSchema: z.ZodType<Channel> = z
   })
   .superRefine(requireNodeIdentity);
 
-// Collection, child of https://schema.chronicle.app/Entity
-export interface Collection extends Omit<Entity, '@type'> {
+// Collection, child of https://schema.chronicle.app/CreativeWork
+export interface Collection extends Omit<CreativeWork, '@type'> {
   '@type': 'Collection';
 }
 
 export type CollectionAndChildren = Collection | ProjectAndChildren | ThreadAndChildren;
 
 const CollectionProperties = {
-  ...EntityProperties,
+  ...CreativeWorkProperties,
 };
 
 export const CollectionSchema: z.ZodType<Collection> = z
@@ -623,24 +660,6 @@ export const ConsumeActionSchema: z.ZodType<ConsumeAction> = z
   .object({
     '@type': z.literal('ConsumeAction'),
     ...ConsumeActionProperties,
-  })
-  .superRefine(requireNodeIdentity);
-
-// CreateAction, child of https://schema.chronicle.app/Action
-export interface CreateAction extends Omit<Action, '@type'> {
-  '@type': 'CreateAction';
-}
-
-export type CreateActionAndChildren = CreateAction | PublishActionAndChildren;
-
-const CreateActionProperties = {
-  ...ActionProperties,
-};
-
-export const CreateActionSchema: z.ZodType<CreateAction> = z
-  .object({
-    '@type': z.literal('CreateAction'),
-    ...CreateActionProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -1871,19 +1890,6 @@ export const IntangibleAndChildrenSchema: z.ZodType<IntangibleAndChildren> = z
     }),
   ])
   .superRefine(requireNodeIdentity);
-export const CreateActionAndChildrenSchema: z.ZodType<CreateActionAndChildren> = z
-  .discriminatedUnion('@type', [
-    z.object({
-      '@type': z.literal('CreateAction'),
-      ...CreateActionProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('PublishAction'),
-      ...PublishActionProperties,
-    }),
-  ])
-  .superRefine(requireNodeIdentity);
 export const ConsumeActionAndChildrenSchema: z.ZodType<ConsumeActionAndChildren> = z
   .discriminatedUnion('@type', [
     z.object({
@@ -1956,54 +1962,6 @@ export const CollectionAndChildrenSchema: z.ZodType<CollectionAndChildren> = z
   .superRefine(requireNodeIdentity);
 export const ChannelAndChildrenSchema = ChannelSchema;
 
-export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> = z
-  .discriminatedUnion('@type', [
-    z.object({
-      '@type': z.literal('CreativeWork'),
-      ...CreativeWorkProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Query'),
-      ...QueryProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Post'),
-      ...PostProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('PodcastEpisode'),
-      ...PodcastEpisodeProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('MusicRecording'),
-      ...MusicRecordingProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('MusicAlbum'),
-      ...MusicAlbumProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Response'),
-      ...ResponseProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Comment'),
-      ...CommentProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Channel'),
-      ...ChannelProperties,
-    }),
-  ])
-  .superRefine(requireNodeIdentity);
 export const CancelActionAndChildrenSchema = CancelActionSchema;
 
 export const CallSessionAndChildrenSchema = CallSessionSchema;
@@ -2124,6 +2082,94 @@ export const MediaObjectAndChildrenSchema: z.ZodType<MediaObjectAndChildren> = z
     }),
   ])
   .superRefine(requireNodeIdentity);
+export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> = z
+  .discriminatedUnion('@type', [
+    z.object({
+      '@type': z.literal('CreativeWork'),
+      ...CreativeWorkProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Query'),
+      ...QueryProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Post'),
+      ...PostProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('PodcastEpisode'),
+      ...PodcastEpisodeProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('MusicRecording'),
+      ...MusicRecordingProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('MusicAlbum'),
+      ...MusicAlbumProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Response'),
+      ...ResponseProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Comment'),
+      ...CommentProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Collection'),
+      ...CollectionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Thread'),
+      ...ThreadProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Project'),
+      ...ProjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Channel'),
+      ...ChannelProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('MediaObject'),
+      ...MediaObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('VideoObject'),
+      ...VideoObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ImageObject'),
+      ...ImageObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('DocumentObject'),
+      ...DocumentObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('AudioObject'),
+      ...AudioObjectProperties,
+    }),
+  ])
+  .superRefine(requireNodeIdentity);
 export const AssessActionAndChildrenSchema: z.ZodType<AssessActionAndChildren> = z
   .discriminatedUnion('@type', [
     z.object({
@@ -2144,6 +2190,26 @@ export const AssessActionAndChildrenSchema: z.ZodType<AssessActionAndChildren> =
     z.object({
       '@type': z.literal('LikeAction'),
       ...LikeActionProperties,
+    }),
+  ])
+  .superRefine(requireNodeIdentity);
+export const AnnotateActionAndChildrenSchema = AnnotateActionSchema;
+
+export const CreateActionAndChildrenSchema: z.ZodType<CreateActionAndChildren> = z
+  .discriminatedUnion('@type', [
+    z.object({
+      '@type': z.literal('CreateAction'),
+      ...CreateActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('PublishAction'),
+      ...PublishActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('AnnotateAction'),
+      ...AnnotateActionProperties,
     }),
   ])
   .superRefine(requireNodeIdentity);
@@ -2253,18 +2319,33 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('Collection'),
-      ...CollectionProperties,
+      '@type': z.literal('Session'),
+      ...SessionProperties,
     }),
 
     z.object({
-      '@type': z.literal('Thread'),
-      ...ThreadProperties,
+      '@type': z.literal('Tenure'),
+      ...TenureProperties,
     }),
 
     z.object({
-      '@type': z.literal('Project'),
-      ...ProjectProperties,
+      '@type': z.literal('Relationship'),
+      ...RelationshipProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Membership'),
+      ...MembershipProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Enrollment'),
+      ...EnrollmentProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('CallSession'),
+      ...CallSessionProperties,
     }),
 
     z.object({
@@ -2308,38 +2389,23 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('Collection'),
+      ...CollectionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Thread'),
+      ...ThreadProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Project'),
+      ...ProjectProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Channel'),
       ...ChannelProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Session'),
-      ...SessionProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Tenure'),
-      ...TenureProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Relationship'),
-      ...RelationshipProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Membership'),
-      ...MembershipProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Enrollment'),
-      ...EnrollmentProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('CallSession'),
-      ...CallSessionProperties,
     }),
 
     z.object({
@@ -2471,16 +2537,6 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('CreateAction'),
-      ...CreateActionProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('PublishAction'),
-      ...PublishActionProperties,
-    }),
-
-    z.object({
       '@type': z.literal('ConsumeAction'),
       ...ConsumeActionProperties,
     }),
@@ -2568,6 +2624,21 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     z.object({
       '@type': z.literal('LikeAction'),
       ...LikeActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('CreateAction'),
+      ...CreateActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('PublishAction'),
+      ...PublishActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('AnnotateAction'),
+      ...AnnotateActionProperties,
     }),
 
     z.object({
@@ -2659,18 +2730,33 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('Collection'),
-      ...CollectionProperties,
+      '@type': z.literal('Session'),
+      ...SessionProperties,
     }),
 
     z.object({
-      '@type': z.literal('Thread'),
-      ...ThreadProperties,
+      '@type': z.literal('Tenure'),
+      ...TenureProperties,
     }),
 
     z.object({
-      '@type': z.literal('Project'),
-      ...ProjectProperties,
+      '@type': z.literal('Relationship'),
+      ...RelationshipProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Membership'),
+      ...MembershipProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Enrollment'),
+      ...EnrollmentProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('CallSession'),
+      ...CallSessionProperties,
     }),
 
     z.object({
@@ -2714,38 +2800,23 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('Collection'),
+      ...CollectionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Thread'),
+      ...ThreadProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Project'),
+      ...ProjectProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Channel'),
       ...ChannelProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Session'),
-      ...SessionProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Tenure'),
-      ...TenureProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Relationship'),
-      ...RelationshipProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Membership'),
-      ...MembershipProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Enrollment'),
-      ...EnrollmentProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('CallSession'),
-      ...CallSessionProperties,
     }),
 
     z.object({
@@ -2859,16 +2930,6 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('CreateAction'),
-      ...CreateActionProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('PublishAction'),
-      ...PublishActionProperties,
-    }),
-
-    z.object({
       '@type': z.literal('ConsumeAction'),
       ...ConsumeActionProperties,
     }),
@@ -2956,6 +3017,21 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('LikeAction'),
       ...LikeActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('CreateAction'),
+      ...CreateActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('PublishAction'),
+      ...PublishActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('AnnotateAction'),
+      ...AnnotateActionProperties,
     }),
 
     z.object({
