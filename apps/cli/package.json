@@ -22,6 +22,7 @@
     "@chronicle.app/schema": "0.2.0",
     "@chronicle.app/shell": "0.2.0",
     "@chronicle.app/things-todo": "0.2.0",
+    "@chronicle.app/twitter": "0.2.0",
     "@chronicle.app/whatsapp": "0.2.0",
     "@inkjs/ui": "^2.0.0",
     "@oclif/core": "^4.2",

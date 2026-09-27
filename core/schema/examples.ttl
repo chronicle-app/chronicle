@@ -917,6 +917,96 @@ there is no caller to key. The call stays on the timeline, and the
     ]
   ] .
 
+example:tweet-published
+  rdfs:label "Publishing a tweet";
+  rdfs:comment """
+You posted a tweet, read from a Twitter archive. The :PublishAction and the
+:Post it published are both keyed by the tweet's ID. The :Post keeps the tweet
+text as its :body, with Twitter's shortened links left in place.
+
+Each @mention and each link in the tweet is one of its :references. A mentioned
+account is an :Agent keyed by its Twitter user ID; a link is an :Entity keyed by
+its expanded :url, so other sources that see the same page share the node.
+""";
+  rdf:value [
+    a :PublishAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "twitter";
+    :sourceId "1234567890123456789";
+    :timestamp "2025-01-11T17:10:28.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "twitter";
+      :sourceId "111";
+      :handle "owner_example";
+      :name "Owner Example";
+      :url "https://twitter.com/owner_example";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Post;
+      doc:key ("@type" "source" "sourceId");
+      :source "twitter";
+      :sourceId "1234567890123456789";
+      :body "Trail notes from the weekend with @alex_example https://t.co/abc123";
+      :author [
+        a :Agent;
+        doc:key ("@type" "source" "sourceId");
+        :source "twitter";
+        :sourceId "111";
+        :handle "owner_example";
+        :name "Owner Example";
+        :url "https://twitter.com/owner_example";
+        :sameAs "@me"
+      ];
+      :references [
+        a :Agent;
+        doc:key ("@type" "source" "sourceId");
+        :source "twitter";
+        :sourceId "222";
+        :handle "alex_example";
+        :name "Alex Example";
+        :url "https://twitter.com/alex_example"
+      ], [
+        a :Entity;
+        doc:key ("@type" "url");
+        :url "https://example.com/trail-notes"
+      ]
+    ]
+  ] .
+
+example:tweet-liked
+  rdfs:label "Liking a tweet";
+  rdfs:comment """
+You liked someone else's tweet. The :LikeAction's :object is the liked :Post,
+keyed by the tweet's ID and carrying its text as its :body. A Twitter archive
+does not record when a like happened, so the action has no :timestamp.
+""";
+  rdf:value [
+    a :LikeAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "twitter";
+    :sourceId "9876543210987654321-like";
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "twitter";
+      :sourceId "111";
+      :handle "owner_example";
+      :name "Owner Example";
+      :url "https://twitter.com/owner_example";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Post;
+      doc:key ("@type" "source" "sourceId");
+      :source "twitter";
+      :sourceId "9876543210987654321";
+      :body "A tweet I liked from someone else"
+    ]
+  ] .
+
 : skos:example example:message-from-alex, example:shell-command, example:task-completed .
 
 :Base skos:example example:entity-with-url .
@@ -1002,3 +1092,7 @@ there is no caller to key. The call stays on the timeline, and the
 :EatAction skos:example example:meal-logged .
 :DrankAction skos:example example:drink-logged .
 :Meal skos:example example:meal-logged, example:drink-logged .
+:Post skos:example example:tweet-published, example:tweet-liked .
+:PublishAction skos:example example:tweet-published .
+:LikeAction skos:example example:tweet-liked .
+:references skos:example example:tweet-published .

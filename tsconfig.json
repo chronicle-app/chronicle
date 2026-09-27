@@ -41,6 +41,9 @@
       "path": "plugins/moves-app/tsconfig.lib.json"
     },
     {
+      "path": "plugins/twitter/tsconfig.lib.json"
+    },
+    {
       "path": "core/icloud/tsconfig.lib.json"
     },
     {

@@ -46,6 +46,7 @@ These sources come bundled with the CLI:
 | Moves export places and moves                    | [moves-app](plugins/moves-app/README.md)       |
 | Claude Code transcripts                          | [claude-code](plugins/claude-code/README.md)   |
 | Things 3                                         | [things-todo](plugins/things-todo/README.md)   |
+| Twitter/X archive tweets, likes, and DMs         | [twitter](plugins/twitter/README.md)           |
 | WhatsApp messages                                | [whatsapp](plugins/whatsapp/README.md)         |
 | Phone and FaceTime calls (Apple Call History)    | [call-history](plugins/call-history/README.md) |
 | FoodNoms meal logs                               | [foodnoms](plugins/foodnoms/README.md)         |
