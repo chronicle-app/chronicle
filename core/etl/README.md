@@ -115,9 +115,22 @@ Every record goes through normal identity handling.
 
 Media object builders, source-owner identity, and phone normalization helpers
 support iMessage and iCloud enrichment. Attachments remain references; this
-package does not copy their bytes. Attachment downloading, archive source
-adapters, system utilities, CLI flag helpers, and additional presentation
-transforms are not included.
+package does not copy their bytes. Attachment downloading, CLI flag helpers,
+and additional presentation transforms are not included.
+
+Three extractor and system helpers are shared by several sources:
+
+- `ArchiveExtractor` is a base for takeout-style exports read in place from an
+  `--input` directory. It reads JSON files, checks the since/until window,
+  repairs the mojibake these exports write, and attaches the export's account
+  info to each record's context. Layout knowledge stays in each plugin.
+- `MergingExtractor` merges several child extractors' newest-first streams into
+  one newest-first stream by the subclass's `sortKey`, and applies the limit to
+  the merged output. Pair it with a `DispatchingTransformer`.
+- `SystemInfo.getInstance()` returns the macOS, Linux, or Windows
+  implementation, which reads the user's real name, username, hostname, and a
+  stable platform identifier from the host. `SystemInfo.normalizeMachineName`
+  reduces a hostname or device name to its first label, lowercased.
 
 ## API sources and HTML
 
