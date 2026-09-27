@@ -102,8 +102,7 @@ export default class CallHistoryTransformer extends ChronicleTransformer {
       }
     } else if (others.length === 0) {
       // Blocked/private number — no keyable participant (and a name is not a
-      // session label). Keep the call on the timeline; note why it has no party.
-      session.notes = 'no participant handle (blocked or private number)';
+      // session label). Keep the call on the timeline.
       if (outgoing) action.agent = me;
     } else if (outgoing) {
       // Multiple handles without a group id (unusual), outgoing.
