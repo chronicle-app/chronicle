@@ -53,6 +53,9 @@
       "path": "plugins/linkedin/tsconfig.lib.json"
     },
     {
+      "path": "plugins/spotify/tsconfig.lib.json"
+    },
+    {
       "path": "core/icloud/tsconfig.lib.json"
     },
     {

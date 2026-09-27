@@ -439,6 +439,89 @@
   owl:maxCardinality 1;
   :domainIncludes :CreativeWork;
   :rangeIncludes :Text .
+# spotify
+:ListenAction a rdfs:Class;
+  rdfs:comment "The agent listened to the :object — a recording, a podcast episode. Opens or extends the agent's :consuming run over it.";
+  rdfs:subClassOf :ConsumeAction .
+:AddAction a rdfs:Class;
+  rdfs:comment "The agent added the :object to the :target — a track to a playlist, a work to a collection.";
+  rdfs:subClassOf :UpdateAction .
+:MusicRecording a rdfs:Class;
+  rdfs:comment "A recorded track — one performance of a :MusicComposition (:recordingOf) by an :artist, appearing on a :MusicAlbum via :inAlbum, with a :duration.";
+  rdfs:subClassOf :CreativeWork .
+:MusicAlbum a rdfs:Class;
+  rdfs:comment "A released collection of recordings by an :artist; each recording on it is a :track.";
+  rdfs:subClassOf :CreativeWork .
+:PerformingGroup a rdfs:Class;
+  rdfs:comment "An organization that performs — a band, a troupe, an ensemble.";
+  rdfs:subClassOf :Organization .
+:MusicGroup a rdfs:Class;
+  rdfs:comment "A musical act — a band, an orchestra, or a solo artist as a performing identity. The :artist of recordings and albums.";
+  rdfs:subClassOf :PerformingGroup .
+:PodcastEpisode a rdfs:Class;
+  rdfs:comment "One episode of a :PodcastSeries (via :series), with its :episodeNumber and :duration.";
+  rdfs:subClassOf :CreativeWork .
+:attribution a rdf:Property;
+  rdfs:comment "An agent responsible for a creative work coming into existence.";
+  rdfs:subPropertyOf :relation;
+  :abstract true;
+  :rangeIncludes :Agent .
+:performer a rdf:Property;
+  :propagatesEncounter true;
+  rdfs:comment "An agent who performed or realized an existing work.";
+  rdfs:subPropertyOf :attribution;
+  :rangeIncludes :Agent .
+:composition a rdf:Property;
+  rdfs:comment "A structural part/whole relation between entities. Direction-neutral; assert :partOf or :hasPart.";
+  rdfs:subPropertyOf :relation;
+  :abstract true;
+  :rangeIncludes :Entity .
+:partOf a rdf:Property;
+  :propagatesEncounter true;
+  rdfs:comment "This entity is a component of the referenced entity.";
+  rdfs:subPropertyOf :composition;
+  :rangeIncludes :CreativeWork .
+:emblem a rdf:Property;
+  rdfs:comment "The image an entity presents itself by — an avatar, poster, cover, logo, or favicon. Representation, not content: swap it and the entity is the same. Where a :depiction is a photograph someone took of the thing, an emblem is the image the thing was given to stand for it, photographic or not; banners and headers are decoration rather than emblems. The single elected image among candidates; its bytes live on the :ImageObject.";
+  rdfs:subPropertyOf :relation;
+  owl:maxCardinality 1;
+  :domainIncludes :Entity;
+  :rangeIncludes :ImageObject .
+:artist a rdf:Property;
+  :propagatesEncounter true;
+  rdfs:comment "The artist who created or performed the musical work.";
+  rdfs:subPropertyOf :performer;
+  :domainIncludes :MusicRecording,
+    :MusicAlbum,
+    :AudioObject;
+  :rangeIncludes :MusicGroup .
+:inAlbum a rdf:Property;
+  :propagatesEncounter true;
+  rdfs:comment "The album that contains this musical recording.";
+  owl:maxCardinality 1;
+  rdfs:subPropertyOf :partOf;
+  :domainIncludes :MusicRecording;
+  :rangeIncludes :MusicAlbum .
+:duration a rdf:Property;
+  rdfs:comment "The duration of the musical recording or media content.";
+  owl:maxCardinality 1;
+  :domainIncludes :MusicRecording,
+    :PodcastEpisode,
+    :AudioObject,
+    :VideoObject;
+  :rangeIncludes :Text .
+:genre a rdf:Property;
+  rdfs:comment "The genre of the creative work.";
+  :domainIncludes :CreativeWork,
+    :AudioObject;
+  :rangeIncludes :Text .
+:datePublished a rdf:Property;
+  rdfs:comment "When the work was published or released, at whatever precision the source knows (a bare year is a year-precision date). A date on the work's own timeline: the moment its :PublishAction occurred.";
+  owl:maxCardinality 1;
+  owl:equivalentProperty schemaorg:datePublished;
+  :domainIncludes :CreativeWork;
+  :rangeIncludes :Date,
+    :DateTime .
 :target a rdf:Property;
   rdfs:comment "What an action is directed toward, as opposed to what it is carried out on (:object). A collection operation targets the collection it adds to or removes from; a movement verb targets where it ended up, with :object naming where it began (:NavigateAction from one page to the next, :TravelAction from one place to the next).";
   owl:maxCardinality 1;
@@ -487,3 +570,13 @@
 :WatchAction a rdfs:Class;
   rdfs:comment "The agent watched the :object — a video, a film, a show. Opens or extends the agent's :consuming run over it.";
   rdfs:subClassOf :ConsumeAction .
+:width a rdf:Property;
+  rdfs:comment "The width of the media content in pixels.";
+  owl:maxCardinality 1;  :domainIncludes :ImageObject,
+    :VideoObject;
+  :rangeIncludes :Number .
+:height a rdf:Property;
+  rdfs:comment "The height of the media content in pixels.";
+  owl:maxCardinality 1;  :domainIncludes :ImageObject,
+    :VideoObject;
+  :rangeIncludes :Number .

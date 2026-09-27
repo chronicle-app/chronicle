@@ -37,22 +37,23 @@ Run `chronicle extract <source> --help` for a source's options. See the
 
 These sources come bundled with the CLI:
 
-| Source                                           | Package                                        |
-| ------------------------------------------------ | ---------------------------------------------- |
-| Shell history (bash, zsh, fish)                  | [shell](plugins/shell/README.md)               |
-| iMessage/SMS, with iCloud and contact enrichment | [imessage](plugins/imessage/README.md)         |
-| Safari browsing history                          | [safari](plugins/safari/README.md)             |
-| Arc Timeline visits and trips                    | [arc-timeline](plugins/arc-timeline/README.md) |
-| Moves export places and moves                    | [moves-app](plugins/moves-app/README.md)       |
-| Claude Code transcripts                          | [claude-code](plugins/claude-code/README.md)   |
-| Facebook export                                  | [facebook](plugins/facebook/README.md)         |
-| Things 3                                         | [things-todo](plugins/things-todo/README.md)   |
-| Twitter/X archive tweets, likes, and DMs         | [twitter](plugins/twitter/README.md)           |
-| WhatsApp messages                                | [whatsapp](plugins/whatsapp/README.md)         |
-| Phone and FaceTime calls (Apple Call History)    | [call-history](plugins/call-history/README.md) |
-| FoodNoms meal logs                               | [foodnoms](plugins/foodnoms/README.md)         |
-| Instagram data export                            | [instagram](plugins/instagram/README.md)       |
-| LinkedIn data export                             | [linkedin](plugins/linkedin/README.md)         |
+| Source                                              | Package                                        |
+| --------------------------------------------------- | ---------------------------------------------- |
+| Shell history (bash, zsh, fish)                     | [shell](plugins/shell/README.md)               |
+| iMessage/SMS, with iCloud and contact enrichment    | [imessage](plugins/imessage/README.md)         |
+| Safari browsing history                             | [safari](plugins/safari/README.md)             |
+| Arc Timeline visits and trips                       | [arc-timeline](plugins/arc-timeline/README.md) |
+| Moves export places and moves                       | [moves-app](plugins/moves-app/README.md)       |
+| Claude Code transcripts                             | [claude-code](plugins/claude-code/README.md)   |
+| Facebook export                                     | [facebook](plugins/facebook/README.md)         |
+| Things 3                                            | [things-todo](plugins/things-todo/README.md)   |
+| Twitter/X archive tweets, likes, and DMs            | [twitter](plugins/twitter/README.md)           |
+| WhatsApp messages                                   | [whatsapp](plugins/whatsapp/README.md)         |
+| Phone and FaceTime calls (Apple Call History)       | [call-history](plugins/call-history/README.md) |
+| FoodNoms meal logs                                  | [foodnoms](plugins/foodnoms/README.md)         |
+| Instagram data export                               | [instagram](plugins/instagram/README.md)       |
+| LinkedIn data export                                | [linkedin](plugins/linkedin/README.md)         |
+| Spotify listens, saved tracks and albums, playlists | [spotify](plugins/spotify/README.md)           |
 
 Install other plugins with `chronicle plugins install <package>`.
 

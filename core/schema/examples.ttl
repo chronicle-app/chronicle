@@ -1252,6 +1252,144 @@ does not record when a like happened, so the action has no :timestamp.
     ]
   ] .
 
+example:track-listen
+  rdfs:label "Listening to a track";
+  rdfs:comment """
+A :ListenAction for one play in Spotify's recently played list. The :agent is
+the Spotify account, keyed by its :handle. The :object is a :MusicRecording
+with its :duration, its :artist, and the :MusicAlbum it appears on through
+:inAlbum. The album cover is the recording's :emblem, an :ImageObject with a
+:width and :height.
+""";
+  rdf:value [
+    a :ListenAction;
+    doc:key ("@type" "source" "agent.handle" "object.sourceId" "timestamp");
+    :source "spotify";
+    :timestamp "2026-05-09T16:04:51.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "spotify";
+      :handle "pat";
+      :name "Pat Example";
+      :url "https://open.spotify.com/user/pat";
+      :sameAs "@me"
+    ];
+    :object [
+      a :MusicRecording;
+      doc:key ("@type" "source" "sourceId");
+      :source "spotify";
+      :sourceId "6mT8qR2vN5xK9pL3bH7wC4";
+      :url "https://open.spotify.com/track/6mT8qR2vN5xK9pL3bH7wC4";
+      :name "Morning Light";
+      :duration "PT215S";
+      :artist [
+        a :MusicGroup;
+        doc:key ("@type" "source" "sourceId");
+        :source "spotify";
+        :sourceId "4kQ7wN2pR8sT1vX3yZ5bC6";
+        :url "https://open.spotify.com/artist/4kQ7wN2pR8sT1vX3yZ5bC6";
+        :name "The Example Band"
+      ];
+      :inAlbum [
+        a :MusicAlbum;
+        doc:key ("@type" "source" "sourceId");
+        :source "spotify";
+        :sourceId "1bD4fG7hJ9kL2mN5pQ8rS3";
+        :url "https://open.spotify.com/album/1bD4fG7hJ9kL2mN5pQ8rS3";
+        :name "Morning Songs";
+        :datePublished "2024-03-01"
+      ];
+      :emblem [
+        a :ImageObject;
+        doc:key ("url");
+        :url "https://images.example.com/covers/morning-songs.jpg";
+        :width 640;
+        :height 640
+      ]
+    ]
+  ] .
+
+example:album-like
+  rdfs:label "Saving an album";
+  rdfs:comment """
+Saving an album to a Spotify library is a :LikeAction, timed by when the album
+was saved. The :MusicAlbum carries its release date as :datePublished and its
+performers as :artist.
+""";
+  rdf:value [
+    a :LikeAction;
+    doc:key ("@type" "source" "agent.handle" "object.sourceId" "timestamp");
+    :source "spotify";
+    :timestamp "2026-04-02T12:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "spotify";
+      :handle "pat";
+      :name "Pat Example";
+      :url "https://open.spotify.com/user/pat";
+      :sameAs "@me"
+    ];
+    :object [
+      a :MusicAlbum;
+      doc:key ("@type" "source" "sourceId");
+      :source "spotify";
+      :sourceId "1bD4fG7hJ9kL2mN5pQ8rS3";
+      :url "https://open.spotify.com/album/1bD4fG7hJ9kL2mN5pQ8rS3";
+      :name "Morning Songs";
+      :datePublished "2024-03-01";
+      :artist [
+        a :MusicGroup;
+        doc:key ("@type" "source" "sourceId");
+        :source "spotify";
+        :sourceId "4kQ7wN2pR8sT1vX3yZ5bC6";
+        :url "https://open.spotify.com/artist/4kQ7wN2pR8sT1vX3yZ5bC6";
+        :name "The Example Band"
+      ]
+    ]
+  ] .
+
+example:playlist-add
+  rdfs:label "Adding a track to a playlist";
+  rdfs:comment """
+An :AddAction for one entry in a Spotify playlist. The track is the :object and
+the playlist, an :Entity, is the :target. The action is keyed by the track, the
+playlist, and when the track was added.
+""";
+  rdf:value [
+    a :AddAction;
+    doc:key ("@type" "source" "object.sourceId" "target.sourceId" "timestamp");
+    :source "spotify";
+    :timestamp "2026-04-03T12:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "spotify";
+      :handle "pat";
+      :name "Pat Example";
+      :url "https://open.spotify.com/user/pat";
+      :sameAs "@me"
+    ];
+    :object [
+      a :MusicRecording;
+      doc:key ("@type" "source" "sourceId");
+      :source "spotify";
+      :sourceId "6mT8qR2vN5xK9pL3bH7wC4";
+      :url "https://open.spotify.com/track/6mT8qR2vN5xK9pL3bH7wC4";
+      :name "Morning Light";
+      :duration "PT215S"
+    ];
+    :target [
+      a :Entity;
+      doc:key ("@type" "source" "sourceId");
+      :source "spotify";
+      :sourceId "3cF6hJ8kM1nP4qS7tV9wX2";
+      :url "https://open.spotify.com/playlist/3cF6hJ8kM1nP4qS7tV9wX2";
+      :name "Road Trip"
+    ]
+  ] .
+
 : skos:example example:message-from-alex, example:shell-command, example:task-completed .
 
 :Base skos:example example:entity-with-url .
@@ -1724,3 +1862,17 @@ a sentence of prose, so the action has no :object.
 :WatchAction skos:example example:course-watched .
 :BookmarkAction skos:example example:course-saved .
 :sourceFormat skos:example example:course-watched, example:course-saved .
+:ListenAction skos:example example:track-listen .
+:LikeAction skos:example example:album-like .
+:AddAction skos:example example:playlist-add .
+:MusicRecording skos:example example:track-listen, example:playlist-add .
+:MusicAlbum skos:example example:track-listen, example:album-like .
+:MusicGroup skos:example example:track-listen .
+:artist skos:example example:track-listen, example:album-like .
+:inAlbum skos:example example:track-listen .
+:duration skos:example example:track-listen .
+:datePublished skos:example example:album-like .
+:emblem skos:example example:track-listen .
+:width skos:example example:track-listen .
+:height skos:example example:track-listen .
+:target skos:example example:playlist-add .
