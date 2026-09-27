@@ -68,6 +68,9 @@
       "path": "plugins/email/tsconfig.lib.json"
     },
     {
+      "path": "plugins/slack/tsconfig.lib.json"
+    },
+    {
       "path": "core/icloud/tsconfig.lib.json"
     },
     {

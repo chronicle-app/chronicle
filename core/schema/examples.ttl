@@ -1010,6 +1010,68 @@ action's message and reactor.
     ]
   ] .
 
+example:slack-message-with-image
+  rdfs:label "A Slack direct message with an image";
+  rdfs:comment """
+Alex sent Sam a direct message in a Slack workspace, with a screenshot
+attached. Alex and Sam are keyed by their Slack user IDs and are members
+(:memberOf) of the workspace, a :Realm. The screenshot is an :ImageObject with
+its pixel :width and :height and a :contentPath to the exported file.
+""";
+  rdf:value [
+    a :MessageAction;
+    doc:key ("@type" "source" "timestamp" "agent");
+    :source "slack";
+    :timestamp "2024-03-13T15:04:05.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "slack";
+      :sourceId "U0EXAMPLE1";
+      :handle "alex";
+      :name "Alex Chen";
+      :memberOf [
+        a :Realm;
+        doc:key ("@type" "source" "sourceId");
+        :source "slack";
+        :sourceId "T0EXAMPLE"
+      ]
+    ];
+    :object [
+      a :Message;
+      doc:key ("@type" "source" "body" "author");
+      :source "slack";
+      :body "Here's the new dashboard layout";
+      :author [
+        a :Agent;
+        doc:key ("@type" "source" "sourceId");
+        :source "slack";
+        :sourceId "U0EXAMPLE1";
+        :handle "alex";
+        :name "Alex Chen"
+      ];
+      :recipient [
+        a :Agent;
+        doc:key ("@type" "source" "sourceId");
+        :source "slack";
+        :sourceId "U0EXAMPLE2";
+        :handle "sam";
+        :name "Sam Rivera"
+      ];
+      :contains [
+        a :ImageObject;
+        doc:key ("@type" "source" "sourceId");
+        :source "slack";
+        :sourceId "F0EXAMPLE1";
+        :name "dashboard.png";
+        :mimeType "image/png";
+        :width 1440;
+        :height 900;
+        :contentPath "/Users/sam/slack-export/D0EXAMPLE/attachments/F0EXAMPLE1-dashboard.png"
+      ]
+    ]
+  ] .
+
 example:entity-with-url
   rdfs:label "An entity with a source ID and a URL";
   rdfs:comment """
@@ -2555,3 +2617,5 @@ a sentence of prose, so the action has no :object.
 :notes skos:example example:time-entry .
 :CallAction skos:example example:relayed-call .
 :CallSession skos:example example:relayed-call .
+:width skos:example example:slack-message-with-image .
+:height skos:example example:slack-message-with-image .

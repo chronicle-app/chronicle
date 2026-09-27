@@ -26,6 +26,7 @@
     "@chronicle.app/safari": "0.2.0",
     "@chronicle.app/schema": "0.2.0",
     "@chronicle.app/shell": "0.2.0",
+    "@chronicle.app/slack": "0.2.0",
     "@chronicle.app/spotify": "0.2.0",
     "@chronicle.app/things-todo": "0.2.0",
     "@chronicle.app/timing-app": "0.2.0",
