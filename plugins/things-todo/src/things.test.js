@@ -73,7 +73,8 @@ test('reads related projects, areas, tags and maps lifecycle events through sche
     ['project-1', 'area-1']
   );
   assert.equal(actions[0].data.object.about[0].sourceId, 'tag-1');
-  assert.equal(actions[0].data.object['@asserts'], undefined);
+  // Things is a snapshot source, so each read asserts the task's values are complete.
+  assert.deepEqual(actions[0].data.object['@asserts'], ['*']);
   const cancelled = await transformer.performTransform(rows.find(r => r.data.uuid === 'task-2'));
   assert.deepEqual(
     cancelled.map(r => r.data['@type']),
@@ -128,6 +129,7 @@ test('owner name comes from the macOS account unless agentName overrides it', as
     source: 'things-todo',
     name: 'Pat Example',
     sameAs: ['@me'],
+    '@asserts': ['*'],
   });
   const [unnamed] = await records(input, { limit: 1 });
   const [anonymous] = await new ThingsTodoTransformer().performTransform(unnamed);

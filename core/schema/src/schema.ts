@@ -26,6 +26,7 @@ export interface Base {
   sourceId?: string;
   '@key'?: KeyField[];
   '@id'?: string;
+  '@asserts'?: string[];
   '@assertedAt'?: Date | string;
 }
 
@@ -38,6 +39,7 @@ const BaseProperties = {
     .array(z.union([z.string(), z.object({ key: z.string(), value: z.string() })]))
     .optional(),
   '@id': z.string().optional(),
+  '@asserts': z.array(z.string()).optional(),
   '@assertedAt': z.union([z.coerce.date(), z.string()]).optional(),
 };
 
