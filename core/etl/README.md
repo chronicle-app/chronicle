@@ -107,8 +107,10 @@ detect absences, or keep hash/frontier cursors, and it adds no completeness
 annotations. `ChronicleTransformer` stamps each payload's `@assertedAt`, when the
 source observed it, unless the payload sets one. An event source's payload is
 asserted at its own `timestamp`, `startTime`, or `endTime`, and gets none without
-one. A snapshot source's payload is asserted at the extraction's read time. Every
-record goes through normal identity handling.
+one. A snapshot source's payload is asserted at the extraction's read time. An
+extractor that knows when the source observed a record passes it to
+`createRecord(data, context, { assertedAt })`, and that time beats both defaults.
+Every record goes through normal identity handling.
 
 Media object builders, source-owner identity, and phone normalization helpers
 support iMessage and iCloud enrichment. Attachments remain references; this

@@ -37,7 +37,11 @@ class FixtureExtractor extends Extractor {
       for (const data of this.items) {
         if (this.shouldStopExtracting(count)) return;
         count++;
-        yield this.createRecord(data, { recordType: data.kind ?? 'items' });
+        yield this.createRecord(
+          data,
+          { recordType: data.kind ?? 'items' },
+          { assertedAt: data.observed && new Date(data.observed) }
+        );
       }
     } finally {
       this.closed = true;
@@ -123,6 +127,25 @@ test('extracts, transforms, validates and serializes with the minimal schema and
       await stamp({ temporality: 'snapshot', assertedAt: '2026-02-01T00:00:00.000Z' }),
       '2026-02-01T00:00:00.000Z'
     );
+
+    // An extractor that knows when the source observed a record beats either default.
+    const loader = new MemoryLoader();
+    await collect(
+      new Runner({ quiet: true })
+        .addExtractor(
+          new FixtureExtractor([
+            {
+              id: 'fixture-3',
+              url: 'https://example.com/3',
+              timestamp: '2026-01-01T00:00:00Z',
+              observed: '2026-03-01T00:00:00Z',
+            },
+          ])
+        )
+        .addTransformer(new FixtureTransformer({ quiet: true }))
+        .addLoader(loader)
+    );
+    assert.equal(loader.records[0].data['@assertedAt'], '2026-03-01T00:00:00.000Z');
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
