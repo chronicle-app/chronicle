@@ -19,6 +19,12 @@ export interface Extraction {
    * The crawl/read "as of" time (ISO), kept as extraction metadata.
    */
   assertedAt?: string;
+  /**
+   * When the source observed this record (ISO), if the extractor knows — an
+   * API's per-item fetch time, or when a backup was taken. It becomes the
+   * payload's `@assertedAt` for either temporality, unless the payload sets one.
+   */
+  recordAssertedAt?: string;
 }
 
 export interface Transformation {
