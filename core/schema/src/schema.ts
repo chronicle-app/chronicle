@@ -121,6 +121,7 @@ export type EntityAndChildren =
   | CreativeWorkAndChildren
   | EventAndChildren
   | JourneyAndChildren
+  | MealAndChildren
   | MediaObjectAndChildren
   | MessageAndChildren
   | PlaceAndChildren
@@ -430,7 +431,8 @@ export interface ConsumeAction extends Omit<Action, '@type'> {
   '@type': 'ConsumeAction';
 }
 
-export type ConsumeActionAndChildren = ConsumeAction | ViewActionAndChildren;
+export type ConsumeActionAndChildren =
+  ConsumeAction | DrankActionAndChildren | EatActionAndChildren | ViewActionAndChildren;
 
 const ConsumeActionProperties = {
   ...ActionProperties,
@@ -476,6 +478,42 @@ export const DocumentObjectSchema: z.ZodType<DocumentObject> = z
   .object({
     '@type': z.literal('DocumentObject'),
     ...DocumentObjectProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// DrankAction, child of https://schema.chronicle.app/ConsumeAction
+export interface DrankAction extends Omit<ConsumeAction, '@type'> {
+  '@type': 'DrankAction';
+}
+
+export type DrankActionAndChildren = DrankAction;
+
+const DrankActionProperties = {
+  ...ConsumeActionProperties,
+};
+
+export const DrankActionSchema: z.ZodType<DrankAction> = z
+  .object({
+    '@type': z.literal('DrankAction'),
+    ...DrankActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// EatAction, child of https://schema.chronicle.app/ConsumeAction
+export interface EatAction extends Omit<ConsumeAction, '@type'> {
+  '@type': 'EatAction';
+}
+
+export type EatActionAndChildren = EatAction;
+
+const EatActionProperties = {
+  ...ConsumeActionProperties,
+};
+
+export const EatActionSchema: z.ZodType<EatAction> = z
+  .object({
+    '@type': z.literal('EatAction'),
+    ...EatActionProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -619,6 +657,24 @@ export const LocationSchema: z.ZodType<Location> = z.object({
   '@type': z.literal('Location'),
   ...LocationProperties,
 });
+
+// Meal, child of https://schema.chronicle.app/Entity
+export interface Meal extends Omit<Entity, '@type'> {
+  '@type': 'Meal';
+}
+
+export type MealAndChildren = Meal;
+
+const MealProperties = {
+  ...EntityProperties,
+};
+
+export const MealSchema: z.ZodType<Meal> = z
+  .object({
+    '@type': z.literal('Meal'),
+    ...MealProperties,
+  })
+  .superRefine(requireNodeIdentity);
 
 // Message, child of https://schema.chronicle.app/Entity
 export interface Message extends Omit<Entity, '@type'> {
@@ -1023,6 +1079,8 @@ export const MessageActionAndChildrenSchema = MessageActionSchema;
 
 export const MessageAndChildrenSchema = MessageSchema;
 
+export const MealAndChildrenSchema = MealSchema;
+
 export const LocationAndChildrenSchema = LocationSchema;
 
 export const JourneyAndChildrenSchema = JourneySchema;
@@ -1052,6 +1110,10 @@ export const ExecuteActionAndChildrenSchema = ExecuteActionSchema;
 
 export const EventAndChildrenSchema = EventSchema;
 
+export const EatActionAndChildrenSchema = EatActionSchema;
+
+export const DrankActionAndChildrenSchema = DrankActionSchema;
+
 export const DocumentObjectAndChildrenSchema = DocumentObjectSchema;
 
 export const DeleteActionAndChildrenSchema = DeleteActionSchema;
@@ -1066,6 +1128,16 @@ export const ConsumeActionAndChildrenSchema: z.ZodType<ConsumeActionAndChildren>
     z.object({
       '@type': z.literal('ViewAction'),
       ...ViewActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('EatAction'),
+      ...EatActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('DrankAction'),
+      ...DrankActionProperties,
     }),
   ])
   .superRefine(requireNodeIdentity);
@@ -1252,6 +1324,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('Meal'),
+      ...MealProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Journey'),
       ...JourneyProperties,
     }),
@@ -1400,6 +1477,16 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('EatAction'),
+      ...EatActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('DrankAction'),
+      ...DrankActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('CompleteAction'),
       ...CompleteActionProperties,
     }),
@@ -1470,6 +1557,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('Message'),
       ...MessageProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Meal'),
+      ...MealProperties,
     }),
 
     z.object({
@@ -1615,6 +1707,16 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('ViewAction'),
       ...ViewActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('EatAction'),
+      ...EatActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('DrankAction'),
+      ...DrankActionProperties,
     }),
 
     z.object({

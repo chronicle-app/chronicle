@@ -35,6 +35,9 @@
       "path": "plugins/call-history/tsconfig.lib.json"
     },
     {
+      "path": "plugins/foodnoms/tsconfig.lib.json"
+    },
+    {
       "path": "core/icloud/tsconfig.lib.json"
     },
     {

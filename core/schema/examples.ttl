@@ -699,6 +699,72 @@ travelled and when; its :result is the :Journey with the :travelMode, the
     ]
   ] .
 
+example:meal-logged
+  rdfs:label "Logging a meal";
+  rdfs:comment """
+An :EatAction for one food entry in FoodNoms, at the entry's :timestamp. The
+action and its :Meal are both keyed by the entry's ID. The meal's slot is its
+:category, and its brand, amount and calories are summed up in its
+:description. The :agent is the iCloud account that owns the app.
+""";
+  rdf:value [
+    a :EatAction;
+    doc:key ("source" "sourceId");
+    :source "foodnoms";
+    :sourceId "3f6c2a9e-1b4d-4c8e-9a7f-2d5e8b1c4a60";
+    :timestamp "2026-05-09T16:30:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "icloud";
+      :sourceId "1234567890";
+      :handle "you@example.com";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Meal;
+      doc:key ("@type" "source" "sourceId");
+      :source "foodnoms";
+      :sourceId "3f6c2a9e-1b4d-4c8e-9a7f-2d5e8b1c4a60";
+      :name "Lentil soup";
+      :category "Lunch";
+      :description "Lunch - Brand: Hearth Kitchen - 1.5 cup - 270 calories"
+    ]
+  ] .
+
+example:drink-logged
+  rdfs:label "Logging a drink";
+  rdfs:comment """
+FoodNoms doesn't record whether an entry is food or drink. An entry whose
+:name contains a common drink word becomes a :DrankAction instead of an
+:EatAction. The action's key leaves out its type, so the same entry keeps its
+identity if the guess changes.
+""";
+  rdf:value [
+    a :DrankAction;
+    doc:key ("source" "sourceId");
+    :source "foodnoms";
+    :sourceId "8b1e4d7a-2c9f-4e3b-b6a1-5f0d3c7e9a24";
+    :timestamp "2026-05-09T13:05:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "icloud";
+      :sourceId "1234567890";
+      :handle "you@example.com";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Meal;
+      doc:key ("@type" "source" "sourceId");
+      :source "foodnoms";
+      :sourceId "8b1e4d7a-2c9f-4e3b-b6a1-5f0d3c7e9a24";
+      :name "Iced latte";
+      :category "Breakfast";
+      :description "Breakfast - 12 fl oz - 190 calories"
+    ]
+  ] .
+
 example:entity-with-url
   rdfs:label "An entity with a source ID and a URL";
   rdfs:comment """
@@ -933,3 +999,6 @@ there is no caller to key. The call stays on the timeline, and the
 :CallAction skos:example example:phone-call, example:group-call .
 :CallSession skos:example example:phone-call, example:group-call .
 :notes skos:example example:blocked-call .
+:EatAction skos:example example:meal-logged .
+:DrankAction skos:example example:drink-logged .
+:Meal skos:example example:meal-logged, example:drink-logged .

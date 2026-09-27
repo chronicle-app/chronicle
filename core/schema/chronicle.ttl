@@ -361,3 +361,13 @@
     :Session;
   :rangeIncludes :Text .
 :recipient :domainIncludes :CallSession .
+# foodnoms
+:EatAction a rdfs:Class;
+  rdfs:comment "The agent ate the :object, a :Meal. Where it happened is the action's :location.";
+  rdfs:subClassOf :ConsumeAction .
+:DrankAction a rdfs:Class;
+  rdfs:comment "The agent drank the :object.";
+  rdfs:subClassOf :ConsumeAction .
+:Meal a rdfs:Class;
+  rdfs:comment "A meal or snack the subject ate — the :object of an :EatAction. Its slot (breakfast, lunch, dinner) is :category data.";
+  rdfs:subClassOf :Entity .

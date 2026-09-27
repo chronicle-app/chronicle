@@ -47,6 +47,7 @@ These sources come bundled with the CLI:
 | Things 3                                         | [things-todo](plugins/things-todo/README.md)   |
 | WhatsApp messages                                | [whatsapp](plugins/whatsapp/README.md)         |
 | Phone and FaceTime calls (Apple Call History)    | [call-history](plugins/call-history/README.md) |
+| FoodNoms meal logs                               | [foodnoms](plugins/foodnoms/README.md)         |
 
 Install other plugins with `chronicle plugins install <package>`.
 
