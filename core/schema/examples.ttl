@@ -3114,6 +3114,192 @@ author, and the text: the same note twice on one article is one comment.
     ]
   ] .
 
+example:arena-block-connected
+  rdfs:label "Connecting a block to an Are.na channel";
+  rdfs:comment """
+You connected an image block into one of your channels on Are.na. The
+:BookmarkAction is keyed by Are.na's ID for the connection. Its :object is the
+block, a :Post keyed by the block's ID, and its :target is the channel, a
+:Collection with a :description and a :visibility.
+
+The block's image is its content, so it is one of the :Post's :contains, an
+:ImageObject with a :width, a :height, and its alt text as a :caption. The page
+the image came from is one of its :references. Your avatar is your :emblem.
+""";
+  rdf:value [
+    a :BookmarkAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "arena";
+    :sourceId "100";
+    :timestamp "2025-01-10T00:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "arena";
+      :sourceId "1";
+      :handle "pat-example";
+      :name "Pat Example";
+      :url "https://www.are.na/pat-example";
+      :emblem [
+        a :ImageObject;
+        doc:key ("url");
+        :url "https://example.com/avatars/pat.png"
+      ];
+      :sameAs "@me"
+    ];
+    :object [
+      a :Post;
+      doc:key ("@type" "source" "sourceId");
+      :source "arena";
+      :sourceId "20";
+      :url "https://www.are.na/block/20";
+      :name "Synthetic photo";
+      :body "A photo";
+      :author [
+        a :Agent;
+        doc:key ("@type" "source" "sourceId");
+        :source "arena";
+        :sourceId "1"
+      ];
+      :references [
+        a :Entity;
+        doc:key ("url");
+        :url "https://example.com/photo"
+      ];
+      :contains [
+        a :ImageObject;
+        doc:key ("url");
+        :url "https://example.com/images/20.jpg";
+        :width 800;
+        :height 600;
+        :caption "A synthetic photo"
+      ]
+    ];
+    :target [
+      a :Collection;
+      doc:key ("@type" "source" "sourceId");
+      :source "arena";
+      :sourceId "10";
+      :name "Mood board";
+      :url "https://www.are.na/pat-example/mood-board";
+      :description "Things I like";
+      :visibility "public"
+    ]
+  ] .
+
+example:arena-channel-created
+  rdfs:label "Creating an Are.na channel";
+  rdfs:comment """
+You created a channel on Are.na. The :CreateAction is keyed by the channel's
+ID, and its :object is the channel, a :Collection. Are.na's `closed` channels
+can be seen by anyone, so their :visibility is `public`.
+""";
+  rdf:value [
+    a :CreateAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "arena";
+    :sourceId "channel-11";
+    :timestamp "2024-12-01T00:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "arena";
+      :sourceId "1";
+      :handle "pat-example";
+      :name "Pat Example";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Collection;
+      doc:key ("@type" "source" "sourceId");
+      :source "arena";
+      :sourceId "11";
+      :name "Shared reading";
+      :url "https://www.are.na/pat-example/shared-reading";
+      :visibility "public"
+    ]
+  ] .
+
+example:arena-comment
+  rdfs:label "Commenting on an Are.na block";
+  rdfs:comment """
+You left a comment on Alex's block. The :CreateAction's :object is the
+:Comment, keyed by its ID, with its text as its :body. The :Comment is
+:about the block, a :Post by Alex.
+""";
+  rdf:value [
+    a :CreateAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "arena";
+    :sourceId "comment-30";
+    :timestamp "2025-01-04T00:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "arena";
+      :sourceId "1";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Comment;
+      doc:key ("@type" "source" "sourceId");
+      :source "arena";
+      :sourceId "30";
+      :body "Nice";
+      :author [
+        a :Agent;
+        doc:key ("@type" "source" "sourceId");
+        :source "arena";
+        :sourceId "1"
+      ];
+      :about [
+        a :Post;
+        doc:key ("@type" "source" "sourceId");
+        :source "arena";
+        :sourceId "21";
+        :url "https://www.are.na/block/21";
+        :body "Hello from Alex";
+        :author [
+          a :Agent;
+          doc:key ("@type" "source" "sourceId");
+          :source "arena";
+          :sourceId "2";
+          :handle "alex-example";
+          :name "Alex Example"
+        ]
+      ]
+    ]
+  ] .
+
+example:arena-follow
+  rdfs:label "Following an Are.na channel";
+  rdfs:comment """
+You follow Alex's channel on Are.na. Are.na lists who you follow but not when
+you started, so the :FollowAction has no timestamp. It is keyed by who follows
+what: its :source, :agent, and :object.
+""";
+  rdf:value [
+    a :FollowAction;
+    doc:key ("@type" "source" "agent" "object");
+    :source "arena";
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "arena";
+      :sourceId "1";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Collection;
+      doc:key ("@type" "source" "sourceId");
+      :source "arena";
+      :sourceId "12";
+      :name "Field notes";
+      :url "https://www.are.na/alex-example/field-notes";
+      :visibility "public"
+    ]
+  ] .
+
 : skos:example example:message-from-alex, example:shell-command, example:task-completed .
 
 :Base skos:example example:entity-with-url .
@@ -3699,3 +3885,16 @@ a sentence of prose, so the action has no :object.
 :LikeAction skos:example example:reader-item-starred .
 :AnnotateAction skos:example example:reader-item-annotated .
 :Comment skos:example example:reader-item-annotated .
+
+:CreateAction skos:example example:arena-channel-created, example:arena-comment .
+:BookmarkAction skos:example example:arena-block-connected .
+:FollowAction skos:example example:arena-follow .
+:Post skos:example example:arena-block-connected .
+:Comment skos:example example:arena-comment .
+:emblem skos:example example:arena-block-connected .
+:visibility skos:example example:arena-block-connected, example:arena-channel-created .
+:width skos:example example:arena-block-connected .
+:height skos:example example:arena-block-connected .
+:caption skos:example example:arena-block-connected .
+:target skos:example example:arena-block-connected .
+:references skos:example example:arena-block-connected .

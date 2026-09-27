@@ -1103,6 +1103,7 @@ export const FollowActionSchema: z.ZodType<FollowAction> = z
 // ImageObject, child of https://schema.chronicle.app/MediaObject
 export interface ImageObject extends Omit<MediaObject, '@type'> {
   '@type': 'ImageObject';
+  caption?: string;
   height?: number;
   width?: number;
 }
@@ -1111,6 +1112,7 @@ export type ImageObjectAndChildren = ImageObject;
 
 const ImageObjectProperties = {
   ...MediaObjectProperties,
+  caption: z.lazy(() => z.string()).optional(),
   height: z.lazy(() => z.number()).optional(),
   width: z.lazy(() => z.number()).optional(),
 };

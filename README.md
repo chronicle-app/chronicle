@@ -67,6 +67,7 @@ These sources come bundled with the CLI:
 | Obsidian notes and links                                              | [obsidian](plugins/obsidian/README.md)           |
 | Pinboard bookmarks                                                    | [pinboard](plugins/pinboard/README.md)           |
 | Google Reader archive actions                                         | [google-reader](plugins/google-reader/README.md) |
+| Are.na channels, blocks, comments, and follows                        | [arena](plugins/arena/README.md)                 |
 
 Install other plugins with `chronicle plugins install <package>`.
 

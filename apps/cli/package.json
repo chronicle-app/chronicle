@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@chronicle.app/arc-timeline": "0.2.0",
+    "@chronicle.app/arena": "0.2.0",
     "@chronicle.app/auth": "0.2.0",
     "@chronicle.app/bluesky": "0.2.0",
     "@chronicle.app/call-history": "0.2.0",

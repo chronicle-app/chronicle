@@ -706,3 +706,9 @@
   rdfs:comment "Tags for categorization or labeling.";
   :domainIncludes :Entity;
   :rangeIncludes :Text .
+# arena
+:caption a rdf:Property;
+  rdfs:comment "A caption or description for the media content.";
+  owl:maxCardinality 1;
+  :domainIncludes :ImageObject;
+  :rangeIncludes :Text .
