@@ -2956,6 +2956,164 @@ and a web page keyed by its :url.
     ]
   ] .
 
+example:reader-item-read
+  rdfs:label "Reading a feed item in Google Reader";
+  rdfs:comment """
+You read a feed item, as recorded in a Google Reader archive. The :ReadAction
+is keyed by Reader's item ID and your Reader user ID. The item is an :Article
+keyed by the same item ID, so it keeps its identity even when it has no :url;
+its :body is the item's HTML content.
+
+You are keyed by your Reader user ID. Through :sameAs you are also your email
+address in the `email` namespace and your Google account ID, so other Google
+sources resolve to the same person. The :timestamp is the item's archive time,
+not a separate time for the read.
+""";
+  rdf:value [
+    a :ReadAction;
+    doc:key ("@type" "source" "sourceId" "agent.sourceId");
+    :source "google-reader";
+    :sourceId "tag:google.com,2005:reader/item/5d0cb0a4e1f2a3b4";
+    :timestamp "2010-01-01T17:42:08.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "google-reader";
+      :sourceId "01234567890123456789";
+      :handle "pat@example.com";
+      :name "Pat Example";
+      :sameAs [
+        a :Agent;
+        doc:key ("@type" "source" "handle");
+        :source "email";
+        :handle "pat@example.com";
+        :name "Pat Example"
+      ], [
+        a :Agent;
+        doc:key ("@type" "source" "sourceId");
+        :source "google-account";
+        :sourceId "01234567890123456789";
+        :name "Pat Example"
+      ], "@me"
+    ];
+    :object [
+      a :Article;
+      doc:key ("@type" "source" "sourceId");
+      :source "google-reader";
+      :sourceId "tag:google.com,2005:reader/item/5d0cb0a4e1f2a3b4";
+      :url "https://trails.example.com/2010/01/lost-lake";
+      :name "Lost Lake in winter";
+      :body "<p>The trail to Lost Lake stays open all winter.</p>"
+    ]
+  ] .
+
+example:reader-item-shared
+  rdfs:label "Sharing a feed item in Google Reader";
+  rdfs:comment """
+You shared a feed item with your Reader followers. Reader records this as the
+item's "broadcast" state, which becomes a :PublishAction on the :Article. It
+has the same key shape and :timestamp as reading the item.
+""";
+  rdf:value [
+    a :PublishAction;
+    doc:key ("@type" "source" "sourceId" "agent.sourceId");
+    :source "google-reader";
+    :sourceId "tag:google.com,2005:reader/item/5d0cb0a4e1f2a3b4";
+    :timestamp "2010-01-01T17:42:08.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "google-reader";
+      :sourceId "01234567890123456789";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Article;
+      doc:key ("@type" "source" "sourceId");
+      :source "google-reader";
+      :sourceId "tag:google.com,2005:reader/item/5d0cb0a4e1f2a3b4";
+      :url "https://trails.example.com/2010/01/lost-lake";
+      :name "Lost Lake in winter";
+      :body "<p>The trail to Lost Lake stays open all winter.</p>"
+    ]
+  ] .
+
+example:reader-item-starred
+  rdfs:label "Starring a feed item in Google Reader";
+  rdfs:comment """
+You starred a feed item. Reader's "starred" state becomes a :LikeAction on the
+:Article, keyed like the other item states.
+""";
+  rdf:value [
+    a :LikeAction;
+    doc:key ("@type" "source" "sourceId" "agent.sourceId");
+    :source "google-reader";
+    :sourceId "tag:google.com,2005:reader/item/5d0cb0a4e1f2a3b4";
+    :timestamp "2010-01-01T17:42:08.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "google-reader";
+      :sourceId "01234567890123456789";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Article;
+      doc:key ("@type" "source" "sourceId");
+      :source "google-reader";
+      :sourceId "tag:google.com,2005:reader/item/5d0cb0a4e1f2a3b4";
+      :url "https://trails.example.com/2010/01/lost-lake";
+      :name "Lost Lake in winter";
+      :body "<p>The trail to Lost Lake stays open all winter.</p>"
+    ]
+  ] .
+
+example:reader-item-annotated
+  rdfs:label "Adding a note to a feed item in Google Reader";
+  rdfs:comment """
+You added a note to a feed item. The :AnnotateAction's :result is a :Comment
+whose :body is the note, whose :author is you, and which is :about the
+:Article. Reader has no ID for a note, so both are keyed by the article, the
+author, and the text: the same note twice on one article is one comment.
+""";
+  rdf:value [
+    a :AnnotateAction;
+    doc:key ("@type" "source" "object.sourceId" "agent.sourceId" "result.body");
+    :source "google-reader";
+    :timestamp "2010-01-01T17:42:08.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "google-reader";
+      :sourceId "01234567890123456789";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Article;
+      doc:key ("@type" "source" "sourceId");
+      :source "google-reader";
+      :sourceId "tag:google.com,2005:reader/item/5d0cb0a4e1f2a3b4"
+    ];
+    :result [
+      a :Comment;
+      doc:key ("@type" "source" "body" "about.0.sourceId" "author.0.sourceId");
+      :source "google-reader";
+      :body "Worth the snowshoes.";
+      :author [
+        a :Agent;
+        doc:key ("@type" "source" "sourceId");
+        :source "google-reader";
+        :sourceId "01234567890123456789"
+      ];
+      :about [
+        a :Article;
+        doc:key ("@type" "source" "sourceId");
+        :source "google-reader";
+        :sourceId "tag:google.com,2005:reader/item/5d0cb0a4e1f2a3b4"
+      ]
+    ]
+  ] .
+
 : skos:example example:message-from-alex, example:shell-command, example:task-completed .
 
 :Base skos:example example:entity-with-url .
@@ -3534,3 +3692,10 @@ a sentence of prose, so the action has no :object.
 :references skos:example example:note-edited .
 :DocumentObject skos:example example:note-edited .
 :UpdateAction skos:example example:note-edited .
+
+:ReadAction skos:example example:reader-item-read .
+:Article skos:example example:reader-item-read, example:reader-item-annotated .
+:PublishAction skos:example example:reader-item-shared .
+:LikeAction skos:example example:reader-item-starred .
+:AnnotateAction skos:example example:reader-item-annotated .
+:Comment skos:example example:reader-item-annotated .

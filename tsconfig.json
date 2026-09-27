@@ -92,6 +92,9 @@
       "path": "plugins/pinboard/tsconfig.lib.json"
     },
     {
+      "path": "plugins/google-reader/tsconfig.lib.json"
+    },
+    {
       "path": "core/icloud/tsconfig.lib.json"
     },
     {

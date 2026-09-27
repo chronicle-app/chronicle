@@ -21,6 +21,7 @@
     "@chronicle.app/foodnoms": "0.2.0",
     "@chronicle.app/foursquare": "0.2.0",
     "@chronicle.app/goodreads": "0.2.0",
+    "@chronicle.app/google-reader": "0.2.0",
     "@chronicle.app/imessage": "0.2.0",
     "@chronicle.app/instagram": "0.2.0",
     "@chronicle.app/lastfm": "0.2.0",
