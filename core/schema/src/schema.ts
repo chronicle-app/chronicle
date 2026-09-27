@@ -52,12 +52,12 @@ export const BaseSchema: z.ZodType<Base> = z
 export interface Action extends Omit<Base, '@type'> {
   '@type': 'Action';
   agent?: AgentAndChildren;
-  endTime?: Date;
+  endTime?: Date | string;
   instrument?: EntityAndChildren;
   location?: LocationAndChildren | PlaceAndChildren;
   object?: EntityAndChildren;
   result?: EntityAndChildren;
-  startTime?: Date;
+  startTime?: Date | string;
   timestamp?: Date;
 }
 
@@ -77,12 +77,12 @@ export type ActionAndChildren =
 const ActionProperties = {
   ...BaseProperties,
   agent: z.lazy(() => AgentAndChildrenSchema).optional(),
-  endTime: z.lazy(() => z.coerce.date()).optional(),
+  endTime: z.lazy(() => z.union([z.date(), z.string()])).optional(),
   instrument: z.lazy(() => EntityAndChildrenSchema).optional(),
   location: z.lazy(() => z.union([LocationAndChildrenSchema, PlaceAndChildrenSchema])).optional(),
   object: z.lazy(() => EntityAndChildrenSchema).optional(),
   result: z.lazy(() => EntityAndChildrenSchema).optional(),
-  startTime: z.lazy(() => z.coerce.date()).optional(),
+  startTime: z.lazy(() => z.union([z.date(), z.string()])).optional(),
   timestamp: z.lazy(() => z.coerce.date()).optional(),
 };
 
@@ -115,6 +115,7 @@ export type EntityAndChildren =
   | CollectionAndChildren
   | CommandAndChildren
   | CreativeWorkAndChildren
+  | EventAndChildren
   | JourneyAndChildren
   | MediaObjectAndChildren
   | MessageAndChildren
@@ -378,6 +379,30 @@ export const DocumentObjectSchema: z.ZodType<DocumentObject> = z
   })
   .superRefine(requireNodeIdentity);
 
+// Event, child of https://schema.chronicle.app/Entity
+export interface Event extends Omit<Entity, '@type'> {
+  '@type': 'Event';
+  endTime?: Date | string;
+  location?: LocationAndChildren | PlaceAndChildren;
+  startTime?: Date | string;
+}
+
+export type EventAndChildren = Event;
+
+const EventProperties = {
+  ...EntityProperties,
+  endTime: z.lazy(() => z.union([z.date(), z.string()])).optional(),
+  location: z.lazy(() => z.union([LocationAndChildrenSchema, PlaceAndChildrenSchema])).optional(),
+  startTime: z.lazy(() => z.union([z.date(), z.string()])).optional(),
+};
+
+export const EventSchema: z.ZodType<Event> = z
+  .object({
+    '@type': z.literal('Event'),
+    ...EventProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // ExecuteAction, child of https://schema.chronicle.app/Action
 export interface ExecuteAction extends Omit<Action, '@type'> {
   '@type': 'ExecuteAction';
@@ -414,6 +439,41 @@ export const ImageObjectSchema: z.ZodType<ImageObject> = z
   })
   .superRefine(requireNodeIdentity);
 
+// StructuredValue, child of
+export interface StructuredValue {
+  '@type': 'StructuredValue';
+}
+
+export type StructuredValueAndChildren =
+  StructuredValue | IntervalAndChildren | LocationAndChildren;
+
+const StructuredValueProperties = {};
+
+export const StructuredValueSchema: z.ZodType<StructuredValue> = z.object({
+  '@type': z.literal('StructuredValue'),
+  ...StructuredValueProperties,
+});
+
+// Interval, child of https://schema.chronicle.app/StructuredValue
+export interface Interval extends Omit<StructuredValue, '@type'> {
+  '@type': 'Interval';
+  endTime?: Date | string;
+  startTime?: Date | string;
+}
+
+export type IntervalAndChildren = Interval;
+
+const IntervalProperties = {
+  ...StructuredValueProperties,
+  endTime: z.lazy(() => z.union([z.date(), z.string()])).optional(),
+  startTime: z.lazy(() => z.union([z.date(), z.string()])).optional(),
+};
+
+export const IntervalSchema: z.ZodType<Interval> = z.object({
+  '@type': z.literal('Interval'),
+  ...IntervalProperties,
+});
+
 // Journey, child of https://schema.chronicle.app/Entity
 export interface Journey extends Omit<Entity, '@type'> {
   '@type': 'Journey';
@@ -437,20 +497,6 @@ export const JourneySchema: z.ZodType<Journey> = z
     ...JourneyProperties,
   })
   .superRefine(requireNodeIdentity);
-
-// StructuredValue, child of
-export interface StructuredValue {
-  '@type': 'StructuredValue';
-}
-
-export type StructuredValueAndChildren = StructuredValue | LocationAndChildren;
-
-const StructuredValueProperties = {};
-
-export const StructuredValueSchema: z.ZodType<StructuredValue> = z.object({
-  '@type': z.literal('StructuredValue'),
-  ...StructuredValueProperties,
-});
 
 // Location, child of https://schema.chronicle.app/StructuredValue
 export interface Location extends Omit<StructuredValue, '@type'> {
@@ -879,6 +925,10 @@ export const MessageAndChildrenSchema = MessageSchema;
 
 export const LocationAndChildrenSchema = LocationSchema;
 
+export const JourneyAndChildrenSchema = JourneySchema;
+
+export const IntervalAndChildrenSchema = IntervalSchema;
+
 export const StructuredValueAndChildrenSchema: z.ZodType<StructuredValueAndChildren> =
   z.discriminatedUnion('@type', [
     z.object({
@@ -890,12 +940,17 @@ export const StructuredValueAndChildrenSchema: z.ZodType<StructuredValueAndChild
       '@type': z.literal('Location'),
       ...LocationProperties,
     }),
-  ]);
-export const JourneyAndChildrenSchema = JourneySchema;
 
+    z.object({
+      '@type': z.literal('Interval'),
+      ...IntervalProperties,
+    }),
+  ]);
 export const ImageObjectAndChildrenSchema = ImageObjectSchema;
 
 export const ExecuteActionAndChildrenSchema = ExecuteActionSchema;
+
+export const EventAndChildrenSchema = EventSchema;
 
 export const DocumentObjectAndChildrenSchema = DocumentObjectSchema;
 
@@ -1051,6 +1106,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     z.object({
       '@type': z.literal('Journey'),
       ...JourneyProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Event'),
+      ...EventProperties,
     }),
 
     z.object({
@@ -1242,6 +1302,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('Journey'),
       ...JourneyProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Event'),
+      ...EventProperties,
     }),
 
     z.object({
