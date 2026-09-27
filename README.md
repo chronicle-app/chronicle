@@ -43,6 +43,7 @@ These sources come bundled with the CLI:
 | iMessage/SMS, with iCloud and contact enrichment | [imessage](plugins/imessage/README.md)         |
 | Safari browsing history                          | [safari](plugins/safari/README.md)             |
 | Arc Timeline visits and trips                    | [arc-timeline](plugins/arc-timeline/README.md) |
+| Moves export places and moves                    | [moves-app](plugins/moves-app/README.md)       |
 | Claude Code transcripts                          | [claude-code](plugins/claude-code/README.md)   |
 | Things 3                                         | [things-todo](plugins/things-todo/README.md)   |
 | WhatsApp messages                                | [whatsapp](plugins/whatsapp/README.md)         |
