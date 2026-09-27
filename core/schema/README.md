@@ -30,7 +30,8 @@ event time, agents, membership, authors, and recipients.
 `Text`, `URL`, `DateTime`, and `Number` are literal datatypes. Cardinality in
 `chronicle.ttl` defines each property's constraints: `owl:minCardinality 1` makes
 it required, and `owl:maxCardinality 1` makes it single-valued; otherwise it is a list. Records carry `@type` and at least one of `@key` (a nonempty list of
-identity fields or computed key entries) or `@id` (an existing identity).
+identity fields or computed key entries) or `@id` (an existing identity). A
+record can also carry `@assertedAt`, the instant its source observed it.
 Identity validation checks that declaration, not the existence or hash of the
 referenced fields. Source-specific extraction owns the values; never invent IDs
 to make a record pass validation.

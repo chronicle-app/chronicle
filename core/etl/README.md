@@ -103,9 +103,12 @@ Logging goes to stderr. Dates in JSON/CSV/table output use ISO strings.
 
 This package covers extraction only: contracts, the runner transformation loop,
 routing, and the loaders above. It does not track runs, settle destinations,
-detect absences, or keep hash/frontier cursors, and it adds no store-specific
-snapshot or completeness annotations. Extraction temporality and read time are
-metadata only, and every record goes through normal identity handling.
+detect absences, or keep hash/frontier cursors, and it adds no completeness
+annotations. `ChronicleTransformer` stamps each payload's `@assertedAt`, when the
+source observed it, unless the payload sets one. An event source's payload is
+asserted at its own `timestamp`, `startTime`, or `endTime`, and gets none without
+one. A snapshot source's payload is asserted at the extraction's read time. Every
+record goes through normal identity handling.
 
 Media object builders, source-owner identity, and phone normalization helpers
 support iMessage and iCloud enrichment. Attachments remain references; this

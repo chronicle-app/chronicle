@@ -26,6 +26,7 @@ export interface Base {
   sourceId?: string;
   '@key'?: KeyField[];
   '@id'?: string;
+  '@assertedAt'?: Date | string;
 }
 
 export type BaseAndChildren = Base | ActionAndChildren | EntityAndChildren;
@@ -37,6 +38,7 @@ const BaseProperties = {
     .array(z.union([z.string(), z.object({ key: z.string(), value: z.string() })]))
     .optional(),
   '@id': z.string().optional(),
+  '@assertedAt': z.union([z.coerce.date(), z.string()]).optional(),
 };
 
 export const BaseSchema: z.ZodType<Base> = z
@@ -150,7 +152,8 @@ export interface Agent extends Omit<Entity, '@type'> {
   memberOf?: EntityAndChildren[];
 }
 
-export type AgentAndChildren = Agent | PersonAndChildren | SoftwareAgentAndChildren;
+export type AgentAndChildren =
+  Agent | OrganizationAndChildren | PersonAndChildren | SoftwareAgentAndChildren;
 
 const AgentProperties = {
   ...EntityProperties,
@@ -515,6 +518,28 @@ export const MessageActionSchema: z.ZodType<MessageAction> = z
   })
   .superRefine(requireNodeIdentity);
 
+// Organization, child of https://schema.chronicle.app/Agent
+export interface Organization extends Omit<Agent, '@type'> {
+  '@type': 'Organization';
+  member?: (AgentAndChildren | PersonAndChildren)[];
+}
+
+export type OrganizationAndChildren = Organization;
+
+const OrganizationProperties = {
+  ...AgentProperties,
+  member: z
+    .lazy(() => z.array(z.union([AgentAndChildrenSchema, PersonAndChildrenSchema])))
+    .optional(),
+};
+
+export const OrganizationSchema: z.ZodType<Organization> = z
+  .object({
+    '@type': z.literal('Organization'),
+    ...OrganizationProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // Person, child of https://schema.chronicle.app/Agent
 export interface Person extends Omit<Agent, '@type'> {
   '@type': 'Person';
@@ -846,6 +871,8 @@ export const PlaceAndChildrenSchema: z.ZodType<PlaceAndChildren> = z
   .superRefine(requireNodeIdentity);
 export const PersonAndChildrenSchema = PersonSchema;
 
+export const OrganizationAndChildrenSchema = OrganizationSchema;
+
 export const MessageActionAndChildrenSchema = MessageActionSchema;
 
 export const MessageAndChildrenSchema = MessageSchema;
@@ -972,6 +999,11 @@ export const AgentAndChildrenSchema: z.ZodType<AgentAndChildren> = z
       '@type': z.literal('Person'),
       ...PersonProperties,
     }),
+
+    z.object({
+      '@type': z.literal('Organization'),
+      ...OrganizationProperties,
+    }),
   ])
   .superRefine(requireNodeIdentity);
 export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
@@ -1089,6 +1121,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     z.object({
       '@type': z.literal('Person'),
       ...PersonProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Organization'),
+      ...OrganizationProperties,
     }),
   ])
   .superRefine(requireNodeIdentity);
@@ -1275,6 +1312,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('Person'),
       ...PersonProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Organization'),
+      ...OrganizationProperties,
     }),
 
     z.object({

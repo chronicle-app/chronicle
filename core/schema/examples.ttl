@@ -789,6 +789,7 @@ An :Entity with a :name, keyed by its :source and :sourceId. The :url is a
 :category skos:example example:place-visit .
 :travelMode skos:example example:trip .
 :distance skos:example example:trip .
+:Number skos:example example:trip, example:place-visit .
 :path skos:example example:trip .
 :member skos:example example:group-reply .
 :inReplyTo skos:example example:group-reply .

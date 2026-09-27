@@ -77,6 +77,7 @@ test('messages become schema-valid MessageActions, newest first', async t => {
     sourceId: 'G1',
     // The timestamp stays the ISO string the transformer writes.
     timestamp: '2025-01-01T00:00:03.000Z',
+    '@assertedAt': '2025-01-01T00:00:03.000Z',
     agent: riley,
     object: {
       '@type': 'Message',
