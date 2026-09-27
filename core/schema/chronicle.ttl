@@ -585,3 +585,32 @@
 :AnnotateAction a rdfs:Class;
   rdfs:comment "The agent wrote a note on something — a comment on a highlighted passage, a note on a work, a margin note on a page. Its :result is the :Comment, whose :about names what it annotates.";
   rdfs:subClassOf :CreateAction .
+
+# timing-app
+:DeviceSession a rdfs:Class;
+  rdfs:comment "A screen-usage segment — an app-focus/app-usage block on a device. The :result of an :ExecuteAction (which carries the measured span); dateless itself, carrying the focused resource (:subject), the project (:isPartOf), and, when no resource is present, the window title (:name).";
+  rdfs:subClassOf :Session .
+:PhysicalObject a rdfs:Class;
+  rdfs:comment "A tangible object the subject owns or uses and has a history with — a device, a vehicle, an instrument. Its kind is open-ended :category data ('computer', 'car'); its make and model is :model. Subclasses name functional roles an object plays in actions, such as :Device.";
+  rdfs:subClassOf :Entity .
+:Device a rdfs:Class;
+  rdfs:comment "A physical computing device the subject runs software on — the :instrument of an :ExecuteAction, and the device a :DeviceSession takes place on. A functional role rather than a kind: whether it is a computer, phone, or tablet is :category data. It runs within a :Realm (via :inRealm), the logical machine that may outlive the hardware.";
+  rdfs:subClassOf :PhysicalObject .
+:Directory a rdfs:Class;
+  rdfs:subClassOf :Collection;
+  rdfs:comment "A filesystem directory: a :Collection whose members are the files (:MediaObject) and subdirectories (:Directory) it :contains, identified by its path (:handle) within the machine it lives on (:inRealm). It has no content of its own; its membership is its content." .
+:workingDirectory a rdf:Property;
+  rdfs:comment "The filesystem directory a session took place in — a terminal's current working directory or a folder open in a file manager. Where the session happened, not what it was about (cf. :subject).";
+  owl:maxCardinality 1;
+  :domainIncludes :Session;
+  :rangeIncludes :Directory .
+:subject a rdf:Property;
+  rdfs:comment "The specific resource a session was spent on — the document, page, or media in focus. A specialization of :about (subject matter) for sessions.";
+  rdfs:subPropertyOf :about;
+  :domainIncludes :Session;
+  :rangeIncludes :Entity .
+:model a rdf:Property;
+  rdfs:comment "The make/model of a physical object (e.g. 'Mac17,9', 'iPhone15,2') — the manufactured model, distinct from the object's own :name and from its :category kind.";
+  owl:maxCardinality 1;
+  :domainIncludes :PhysicalObject;
+  :rangeIncludes :Text .

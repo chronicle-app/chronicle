@@ -56,6 +56,7 @@ These sources come bundled with the CLI:
 | Spotify listens, saved tracks and albums, playlists                   | [spotify](plugins/spotify/README.md)           |
 | Last.fm listens, loved tracks, and friends                            | [lastfm](plugins/lastfm/README.md)             |
 | YouTube likes, subscriptions, playlists, uploads, and Takeout history | [youtube](plugins/youtube/README.md)           |
+| Timing app usage, time entries, and calls                             | [timing-app](plugins/timing-app/README.md)     |
 
 Install other plugins with `chronicle plugins install <package>`.
 

@@ -62,6 +62,9 @@
       "path": "plugins/youtube/tsconfig.lib.json"
     },
     {
+      "path": "plugins/timing-app/tsconfig.lib.json"
+    },
+    {
       "path": "core/icloud/tsconfig.lib.json"
     },
     {

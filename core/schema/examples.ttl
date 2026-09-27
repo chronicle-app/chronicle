@@ -1846,6 +1846,190 @@ and the video as :about.
     ]
   ] .
 
+example:app-usage-block
+  rdfs:label "A block of app usage";
+  rdfs:comment """
+An :ExecuteAction for one block of app usage recorded by Timing. The action
+carries the measured span, the app as its :object, and the :Device as its
+:instrument. Its :result is the :DeviceSession: the :Directory the terminal was
+in (:workingDirectory), the :Project it counted toward (:isPartOf), and the
+window title as its :name.
+
+The device is keyed by Timing's ID for it, with its hardware address linked
+through :sameAs. Its kind is :category data and its make is :model. The
+directory is keyed by its path within the machine it lives on (:inRealm), the
+same :Realm the device runs in.
+""";
+  rdf:value [
+    a :ExecuteAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "timing-app";
+    :sourceId "101";
+    :startTime "2026-03-14T09:20:00.000Z"^^xsd:dateTime;
+    :endTime "2026-03-14T09:25:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source");
+      :source "timing-app";
+      :sameAs "@me"
+    ];
+    :object [
+      a :SoftwareApplication;
+      doc:key ("@type" "source" "handle");
+      :source "apple-bundle-id";
+      :handle "com.mitchellh.ghostty";
+      :name "Ghostty"
+    ];
+    :instrument [
+      a :Device;
+      doc:key ("@type" "source" "sourceId");
+      :source "timing-app";
+      :sourceId "1234567890123456789";
+      :name "pat-mbp";
+      :category "computer";
+      :model "Mac15,3";
+      :sameAs [
+        a :Device;
+        doc:key ("@type" "source" "handle");
+        :source "mac-address";
+        :handle "00:11:22:33:44:55"
+      ];
+      :inRealm [
+        a :Realm;
+        doc:key ("@type" "source" "handle");
+        :source "hostname";
+        :handle "pat-mbp"
+      ]
+    ];
+    :result [
+      a :DeviceSession;
+      doc:key ("@type" "source" "sourceId");
+      :source "timing-app";
+      :sourceId "101";
+      :name "npm test";
+      :isPartOf [
+        a :Project;
+        doc:key ("@type" "source" "sourceId");
+        :source "timing-app";
+        :sourceId "2";
+        :name "Chronicle"
+      ];
+      :workingDirectory [
+        a :Directory;
+        doc:key ("source" "handle" "inRealm.handle");
+        :source "filesystem";
+        :handle "/Users/pat/projects/chronicle";
+        :name "chronicle";
+        :inRealm [
+          a :Realm;
+          doc:key ("@type" "source" "handle");
+          :source "hostname";
+          :handle "pat-mbp"
+        ]
+      ]
+    ]
+  ] .
+
+example:document-session
+  rdfs:label "Time spent on a document";
+  rdfs:comment """
+A :DeviceSession whose :subject is the file in focus, a :DocumentObject keyed
+by its path within the machine it lives on (:inRealm). The window title only
+repeated the file's name, so the session has no :name of its own.
+""";
+  rdf:value [
+    a :DeviceSession;
+    doc:key ("@type" "source" "sourceId");
+    :source "timing-app";
+    :sourceId "103";
+    :subject [
+      a :DocumentObject;
+      doc:key ("source" "handle" "inRealm.handle");
+      :source "filesystem";
+      :handle "/Users/pat/notes/garden plan.md";
+      :name "garden plan.md";
+      :inRealm [
+        a :Realm;
+        doc:key ("@type" "source" "handle");
+        :source "hostname";
+        :handle "pat-mbp"
+      ]
+    ]
+  ] .
+
+example:time-entry
+  rdfs:label "A logged time entry";
+  rdfs:comment """
+An :ExperienceAction for a block of time logged by hand in Timing. The action
+carries when it happened; its :result is the :Session, with the entry's title
+as :name, its :notes, and the :Project it belongs to (:isPartOf).
+""";
+  rdf:value [
+    a :ExperienceAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "timing-app";
+    :sourceId "201";
+    :startTime "2026-03-14T19:00:00.000Z"^^xsd:dateTime;
+    :endTime "2026-03-14T20:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source");
+      :source "timing-app";
+      :sameAs "@me"
+    ];
+    :result [
+      a :Session;
+      doc:key ("@type" "source" "sourceId");
+      :source "timing-app";
+      :sourceId "201";
+      :name "Bedtime routine";
+      :notes "Two books tonight";
+      :isPartOf [
+        a :Project;
+        doc:key ("@type" "source" "sourceId");
+        :source "timing-app";
+        :sourceId "4";
+        :name "Family"
+      ]
+    ]
+  ] .
+
+example:relayed-call
+  rdfs:label "A call relayed through Timing";
+  rdfs:comment """
+A :CallAction from the Apple call history that Timing keeps. It is keyed by
+Apple's call ID in the `apple-phone` source, so it folds with the same call
+read from the phone. Timing records no direction, so there is no :agent. The
+:CallSession carries the other party as its :recipient, keyed by the phone
+number.
+""";
+  rdf:value [
+    a :CallAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "apple-phone";
+    :sourceId "5B1E2C3D-4F50-4A61-8B72-9C83D4E5F607";
+    :startTime "2026-03-14T12:02:30.000Z"^^xsd:dateTime;
+    :endTime "2026-03-14T12:03:03.000Z"^^xsd:dateTime;
+    :result [
+      a :CallSession;
+      doc:key ("@type" "source" "sourceId");
+      :source "apple-phone";
+      :sourceId "5B1E2C3D-4F50-4A61-8B72-9C83D4E5F607";
+      :recipient [
+        a :Agent;
+        doc:key ("source" "handle");
+        :source "apple-phone";
+        :handle "+15555550123";
+        :sameAs [
+          a :Agent;
+          doc:key ("source" "handle");
+          :source "phone";
+          :handle "+15555550123"
+        ]
+      ]
+    ]
+  ] .
+
 : skos:example example:message-from-alex, example:shell-command, example:task-completed .
 
 :Base skos:example example:entity-with-url .
@@ -2359,3 +2543,15 @@ a sentence of prose, so the action has no :object.
 :emblem skos:example example:video-liked .
 :visibility skos:example example:playlist-created .
 :target skos:example example:video-added-to-playlist .
+
+:DeviceSession skos:example example:app-usage-block, example:document-session .
+:Device skos:example example:app-usage-block .
+:Directory skos:example example:app-usage-block .
+:workingDirectory skos:example example:app-usage-block .
+:model skos:example example:app-usage-block .
+:subject skos:example example:document-session .
+:ExperienceAction skos:example example:time-entry .
+:Session skos:example example:time-entry .
+:notes skos:example example:time-entry .
+:CallAction skos:example example:relayed-call .
+:CallSession skos:example example:relayed-call .

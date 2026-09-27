@@ -169,6 +169,7 @@ export type EntityAndChildren =
   | JourneyAndChildren
   | MealAndChildren
   | MessageAndChildren
+  | PhysicalObjectAndChildren
   | PlaceAndChildren
   | RealmAndChildren
   | SessionAndChildren
@@ -466,11 +467,14 @@ export interface Session extends Omit<Entity, '@type'> {
   '@type': 'Session';
   notes?: string;
   references?: EntityAndChildren[];
+  subject?: EntityAndChildren[];
+  workingDirectory?: DirectoryAndChildren;
 }
 
 export type SessionAndChildren =
   | Session
   | CallSessionAndChildren
+  | DeviceSessionAndChildren
   | EnrollmentAndChildren
   | MembershipAndChildren
   | RelationshipAndChildren
@@ -480,6 +484,8 @@ const SessionProperties = {
   ...EntityProperties,
   notes: z.lazy(() => z.string()).optional(),
   references: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
+  subject: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
+  workingDirectory: z.lazy(() => DirectoryAndChildrenSchema).optional(),
 };
 
 export const SessionSchema: z.ZodType<Session> = z
@@ -554,7 +560,8 @@ export interface Collection extends Omit<CreativeWork, '@type'> {
   '@type': 'Collection';
 }
 
-export type CollectionAndChildren = Collection | ProjectAndChildren | ThreadAndChildren;
+export type CollectionAndChildren =
+  Collection | DirectoryAndChildren | ProjectAndChildren | ThreadAndChildren;
 
 const CollectionProperties = {
   ...CreativeWorkProperties,
@@ -714,6 +721,80 @@ export const DeleteActionSchema: z.ZodType<DeleteAction> = z
   .object({
     '@type': z.literal('DeleteAction'),
     ...DeleteActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// PhysicalObject, child of https://schema.chronicle.app/Entity
+export interface PhysicalObject extends Omit<Entity, '@type'> {
+  '@type': 'PhysicalObject';
+  model?: string;
+}
+
+export type PhysicalObjectAndChildren = PhysicalObject | DeviceAndChildren;
+
+const PhysicalObjectProperties = {
+  ...EntityProperties,
+  model: z.lazy(() => z.string()).optional(),
+};
+
+export const PhysicalObjectSchema: z.ZodType<PhysicalObject> = z
+  .object({
+    '@type': z.literal('PhysicalObject'),
+    ...PhysicalObjectProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Device, child of https://schema.chronicle.app/PhysicalObject
+export interface Device extends Omit<PhysicalObject, '@type'> {
+  '@type': 'Device';
+}
+
+export type DeviceAndChildren = Device;
+
+const DeviceProperties = {
+  ...PhysicalObjectProperties,
+};
+
+export const DeviceSchema: z.ZodType<Device> = z
+  .object({
+    '@type': z.literal('Device'),
+    ...DeviceProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// DeviceSession, child of https://schema.chronicle.app/Session
+export interface DeviceSession extends Omit<Session, '@type'> {
+  '@type': 'DeviceSession';
+}
+
+export type DeviceSessionAndChildren = DeviceSession;
+
+const DeviceSessionProperties = {
+  ...SessionProperties,
+};
+
+export const DeviceSessionSchema: z.ZodType<DeviceSession> = z
+  .object({
+    '@type': z.literal('DeviceSession'),
+    ...DeviceSessionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Directory, child of https://schema.chronicle.app/Collection
+export interface Directory extends Omit<Collection, '@type'> {
+  '@type': 'Directory';
+}
+
+export type DirectoryAndChildren = Directory;
+
+const DirectoryProperties = {
+  ...CollectionProperties,
+};
+
+export const DirectorySchema: z.ZodType<Directory> = z
+  .object({
+    '@type': z.literal('Directory'),
+    ...DirectoryProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -1873,6 +1954,25 @@ export const DrankActionAndChildrenSchema = DrankActionSchema;
 
 export const DocumentObjectAndChildrenSchema = DocumentObjectSchema;
 
+export const DirectoryAndChildrenSchema = DirectorySchema;
+
+export const DeviceSessionAndChildrenSchema = DeviceSessionSchema;
+
+export const DeviceAndChildrenSchema = DeviceSchema;
+
+export const PhysicalObjectAndChildrenSchema: z.ZodType<PhysicalObjectAndChildren> = z
+  .discriminatedUnion('@type', [
+    z.object({
+      '@type': z.literal('PhysicalObject'),
+      ...PhysicalObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Device'),
+      ...DeviceProperties,
+    }),
+  ])
+  .superRefine(requireNodeIdentity);
 export const DeleteActionAndChildrenSchema = DeleteActionSchema;
 
 export const DefinedTermAndChildrenSchema = DefinedTermSchema;
@@ -1958,6 +2058,11 @@ export const CollectionAndChildrenSchema: z.ZodType<CollectionAndChildren> = z
       '@type': z.literal('Project'),
       ...ProjectProperties,
     }),
+
+    z.object({
+      '@type': z.literal('Directory'),
+      ...DirectoryProperties,
+    }),
   ])
   .superRefine(requireNodeIdentity);
 export const ChannelAndChildrenSchema = ChannelSchema;
@@ -1991,6 +2096,11 @@ export const SessionAndChildrenSchema: z.ZodType<SessionAndChildren> = z
     z.object({
       '@type': z.literal('Enrollment'),
       ...EnrollmentProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('DeviceSession'),
+      ...DeviceSessionProperties,
     }),
 
     z.object({
@@ -2137,6 +2247,11 @@ export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> =
     z.object({
       '@type': z.literal('Project'),
       ...ProjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Directory'),
+      ...DirectoryProperties,
     }),
 
     z.object({
@@ -2304,6 +2419,16 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('PhysicalObject'),
+      ...PhysicalObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Device'),
+      ...DeviceProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Intangible'),
       ...IntangibleProperties,
     }),
@@ -2341,6 +2466,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     z.object({
       '@type': z.literal('Enrollment'),
       ...EnrollmentProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('DeviceSession'),
+      ...DeviceSessionProperties,
     }),
 
     z.object({
@@ -2401,6 +2531,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     z.object({
       '@type': z.literal('Project'),
       ...ProjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Directory'),
+      ...DirectoryProperties,
     }),
 
     z.object({
@@ -2715,6 +2850,16 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('PhysicalObject'),
+      ...PhysicalObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Device'),
+      ...DeviceProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Intangible'),
       ...IntangibleProperties,
     }),
@@ -2752,6 +2897,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('Enrollment'),
       ...EnrollmentProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('DeviceSession'),
+      ...DeviceSessionProperties,
     }),
 
     z.object({
@@ -2812,6 +2962,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('Project'),
       ...ProjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Directory'),
+      ...DirectoryProperties,
     }),
 
     z.object({

@@ -27,6 +27,7 @@
     "@chronicle.app/shell": "0.2.0",
     "@chronicle.app/spotify": "0.2.0",
     "@chronicle.app/things-todo": "0.2.0",
+    "@chronicle.app/timing-app": "0.2.0",
     "@chronicle.app/twitter": "0.2.0",
     "@chronicle.app/whatsapp": "0.2.0",
     "@chronicle.app/youtube": "0.2.0",
