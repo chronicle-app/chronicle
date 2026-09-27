@@ -29,6 +29,9 @@
       "path": "plugins/arc-timeline/tsconfig.lib.json"
     },
     {
+      "path": "plugins/whatsapp/tsconfig.lib.json"
+    },
+    {
       "path": "core/icloud/tsconfig.lib.json"
     },
     {

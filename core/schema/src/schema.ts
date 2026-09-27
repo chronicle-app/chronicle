@@ -26,6 +26,7 @@ export interface Base {
   sourceId?: string;
   '@key'?: KeyField[];
   '@id'?: string;
+  '@assertedAt'?: Date | string;
 }
 
 export type BaseAndChildren = Base | ActionAndChildren | EntityAndChildren;
@@ -37,6 +38,7 @@ const BaseProperties = {
     .array(z.union([z.string(), z.object({ key: z.string(), value: z.string() })]))
     .optional(),
   '@id': z.string().optional(),
+  '@assertedAt': z.union([z.coerce.date(), z.string()]).optional(),
 };
 
 export const BaseSchema: z.ZodType<Base> = z
@@ -112,6 +114,7 @@ export type EntityAndChildren =
   | AgentAndChildren
   | CollectionAndChildren
   | CommandAndChildren
+  | CreativeWorkAndChildren
   | JourneyAndChildren
   | MediaObjectAndChildren
   | MessageAndChildren
@@ -149,7 +152,8 @@ export interface Agent extends Omit<Entity, '@type'> {
   memberOf?: EntityAndChildren[];
 }
 
-export type AgentAndChildren = Agent | PersonAndChildren | SoftwareAgentAndChildren;
+export type AgentAndChildren =
+  Agent | OrganizationAndChildren | PersonAndChildren | SoftwareAgentAndChildren;
 
 const AgentProperties = {
   ...EntityProperties,
@@ -223,6 +227,46 @@ export const CancelActionSchema: z.ZodType<CancelAction> = z
   .object({
     '@type': z.literal('CancelAction'),
     ...CancelActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// CreativeWork, child of https://schema.chronicle.app/Entity
+export interface CreativeWork extends Omit<Entity, '@type'> {
+  '@type': 'CreativeWork';
+}
+
+export type CreativeWorkAndChildren = CreativeWork | ChannelAndChildren;
+
+const CreativeWorkProperties = {
+  ...EntityProperties,
+};
+
+export const CreativeWorkSchema: z.ZodType<CreativeWork> = z
+  .object({
+    '@type': z.literal('CreativeWork'),
+    ...CreativeWorkProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Channel, child of https://schema.chronicle.app/CreativeWork
+export interface Channel extends Omit<CreativeWork, '@type'> {
+  '@type': 'Channel';
+  member?: (AgentAndChildren | PersonAndChildren)[];
+}
+
+export type ChannelAndChildren = Channel;
+
+const ChannelProperties = {
+  ...CreativeWorkProperties,
+  member: z
+    .lazy(() => z.array(z.union([AgentAndChildrenSchema, PersonAndChildrenSchema])))
+    .optional(),
+};
+
+export const ChannelSchema: z.ZodType<Channel> = z
+  .object({
+    '@type': z.literal('Channel'),
+    ...ChannelProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -435,6 +479,7 @@ export interface Message extends Omit<Entity, '@type'> {
   '@type': 'Message';
   author?: AgentAndChildren[];
   contains?: MediaObjectAndChildren[];
+  inReplyTo?: MessageAndChildren[];
   recipient?: AgentAndChildren[];
 }
 
@@ -444,6 +489,7 @@ const MessageProperties = {
   ...EntityProperties,
   author: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
   contains: z.lazy(() => z.array(MediaObjectAndChildrenSchema)).optional(),
+  inReplyTo: z.lazy(() => z.array(MessageAndChildrenSchema)).optional(),
   recipient: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
 };
 
@@ -469,6 +515,28 @@ export const MessageActionSchema: z.ZodType<MessageAction> = z
   .object({
     '@type': z.literal('MessageAction'),
     ...MessageActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Organization, child of https://schema.chronicle.app/Agent
+export interface Organization extends Omit<Agent, '@type'> {
+  '@type': 'Organization';
+  member?: (AgentAndChildren | PersonAndChildren)[];
+}
+
+export type OrganizationAndChildren = Organization;
+
+const OrganizationProperties = {
+  ...AgentProperties,
+  member: z
+    .lazy(() => z.array(z.union([AgentAndChildrenSchema, PersonAndChildrenSchema])))
+    .optional(),
+};
+
+export const OrganizationSchema: z.ZodType<Organization> = z
+  .object({
+    '@type': z.literal('Organization'),
+    ...OrganizationProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -803,6 +871,8 @@ export const PlaceAndChildrenSchema: z.ZodType<PlaceAndChildren> = z
   .superRefine(requireNodeIdentity);
 export const PersonAndChildrenSchema = PersonSchema;
 
+export const OrganizationAndChildrenSchema = OrganizationSchema;
+
 export const MessageActionAndChildrenSchema = MessageActionSchema;
 
 export const MessageAndChildrenSchema = MessageSchema;
@@ -866,6 +936,21 @@ export const CollectionAndChildrenSchema: z.ZodType<CollectionAndChildren> = z
     }),
   ])
   .superRefine(requireNodeIdentity);
+export const ChannelAndChildrenSchema = ChannelSchema;
+
+export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> = z
+  .discriminatedUnion('@type', [
+    z.object({
+      '@type': z.literal('CreativeWork'),
+      ...CreativeWorkProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Channel'),
+      ...ChannelProperties,
+    }),
+  ])
+  .superRefine(requireNodeIdentity);
 export const CancelActionAndChildrenSchema = CancelActionSchema;
 
 export const AudioObjectAndChildrenSchema = AudioObjectSchema;
@@ -913,6 +998,11 @@ export const AgentAndChildrenSchema: z.ZodType<AgentAndChildren> = z
     z.object({
       '@type': z.literal('Person'),
       ...PersonProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Organization'),
+      ...OrganizationProperties,
     }),
   ])
   .superRefine(requireNodeIdentity);
@@ -984,6 +1074,16 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('CreativeWork'),
+      ...CreativeWorkProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Channel'),
+      ...ChannelProperties,
+    }),
+
+    z.object({
       '@type': z.literal('MediaObject'),
       ...MediaObjectProperties,
     }),
@@ -1021,6 +1121,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     z.object({
       '@type': z.literal('Person'),
       ...PersonProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Organization'),
+      ...OrganizationProperties,
     }),
   ])
   .superRefine(requireNodeIdentity);
@@ -1160,6 +1265,16 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('CreativeWork'),
+      ...CreativeWorkProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Channel'),
+      ...ChannelProperties,
+    }),
+
+    z.object({
       '@type': z.literal('MediaObject'),
       ...MediaObjectProperties,
     }),
@@ -1197,6 +1312,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('Person'),
       ...PersonProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Organization'),
+      ...OrganizationProperties,
     }),
 
     z.object({

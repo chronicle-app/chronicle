@@ -186,6 +186,7 @@ test('visits and trips become schema-valid actions, newest first', async t => {
     },
     startTime: new Date('2025-01-01T09:00:00Z'),
     endTime: new Date('2025-01-01T10:00:00Z'),
+    '@assertedAt': new Date('2025-01-01T09:00:00Z'),
   });
 
   // A visit without a place entry is a Place keyed by its coordinates.

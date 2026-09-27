@@ -52,6 +52,7 @@ class FixtureTransformer extends ChronicleTransformer {
         '@type': 'Action',
         '@key': ['sourceId'],
         sourceId: data.id,
+        ...(data.timestamp && { timestamp: data.timestamp }),
         object: { '@type': 'Entity', '@key': ['url'], url: data.url, name: data.title },
       },
     ];
@@ -100,8 +101,28 @@ test('extracts, transforms, validates and serializes with the minimal schema and
       sourceId: 'fixture-1',
       object: { '@type': 'Entity', '@key': ['url'], url: 'https://example.com/1', name: 'Example' },
     });
+    // An event with no occurrence time carries no @assertedAt.
     assert.equal('@assertedAt' in transformed.data, false);
     assert.equal('@asserts' in transformed.data.object, false);
+
+    // An event is asserted at its own time; a snapshot at the extraction's time.
+    const transformer = new FixtureTransformer({ quiet: true });
+    const stamp = async extraction => {
+      const [{ data }] = await transformer.performTransform({
+        data: { id: 'fixture-2', url: 'https://example.com/2', timestamp: '2026-01-01T00:00:00Z' },
+        schema: 'raw',
+        transformations: [],
+        extraction: { source: 'fixture', delivery: 'export', ...extraction },
+        context: {},
+        toString: 'fixture',
+      });
+      return data['@assertedAt'];
+    };
+    assert.equal(await stamp({ temporality: 'event' }), '2026-01-01T00:00:00Z');
+    assert.equal(
+      await stamp({ temporality: 'snapshot', assertedAt: '2026-02-01T00:00:00.000Z' }),
+      '2026-02-01T00:00:00.000Z'
+    );
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

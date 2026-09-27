@@ -61,6 +61,7 @@ test('visits become schema-valid ViewActions, newest first', async t => {
   assert.deepEqual(view.data, {
     '@type': 'ViewAction',
     timestamp: new Date('2025-01-01T00:00:01Z'),
+    '@assertedAt': new Date('2025-01-01T00:00:01Z'),
     '@key': ['@type', 'source', 'timestamp'],
     source: 'safari',
     agent: {
