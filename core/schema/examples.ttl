@@ -714,6 +714,143 @@ An :Entity with a :name, keyed by its :source and :sourceId. The :url is a
     :url "https://notes.example.com/n/1042"
   ] .
 
+example:phone-call
+  rdfs:label "A phone call you made";
+  rdfs:comment """
+You called Alex from your iPhone. The :CallAction spans the call from
+:startTime to :endTime; a missed call is a zero-length span. You are the
+:agent, and the :result is the :CallSession, which carries Alex as its
+:recipient. Both are keyed by Apple's ID for the call.
+
+Alex is keyed by the number in the `apple-phone` namespace and linked through
+:sameAs to the same number in the `phone` namespace, which other sources can
+share, and to Alex's card in Contacts.
+""";
+  rdf:value [
+    a :CallAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "apple-phone";
+    :sourceId "4E7C2A91-3B5D-4F08-9A6E-1D2C3B4A5F60";
+    :startTime "2026-05-09T17:02:00.000Z"^^xsd:dateTime;
+    :endTime "2026-05-09T17:06:41.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "icloud";
+      :sourceId "1234567890";
+      :handle "sam@example.com";
+      :sameAs "@me"
+    ];
+    :result [
+      a :CallSession;
+      doc:key ("@type" "source" "sourceId");
+      :source "apple-phone";
+      :sourceId "4E7C2A91-3B5D-4F08-9A6E-1D2C3B4A5F60";
+      :recipient [
+        a :Agent;
+        doc:key ("source" "handle");
+        :source "apple-phone";
+        :handle "+15555550142";
+        :name "Alex Chen";
+        :sameAs [
+          a :Agent;
+          doc:key ("source" "handle");
+          :source "phone";
+          :handle "+15555550142"
+        ], [
+          a :Person;
+          doc:key ("source" "sourceId");
+          :source "apple-contacts";
+          :sourceId "8F3A1C2E-5B6D-4E7F-9A0B-1C2D3E4F5A6B";
+          :name "Alex Chen"
+        ]
+      ]
+    ]
+  ] .
+
+example:group-call
+  rdfs:label "A group FaceTime call";
+  rdfs:comment """
+Someone started a group FaceTime call that included you. Apple doesn't record
+who started it, so the :CallAction has no :agent. The :CallSession has you as
+its :recipient and :isPartOf a :Channel keyed by the group's ID, whose :member
+edges list the other people on the call.
+""";
+  rdf:value [
+    a :CallAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "apple-phone";
+    :sourceId "B21F6D3E-8C4A-4E59-A7D0-6F1E2C3B4A59";
+    :startTime "2026-05-10T19:30:00.000Z"^^xsd:dateTime;
+    :endTime "2026-05-10T20:12:15.000Z"^^xsd:dateTime;
+    :result [
+      a :CallSession;
+      doc:key ("@type" "source" "sourceId");
+      :source "apple-phone";
+      :sourceId "B21F6D3E-8C4A-4E59-A7D0-6F1E2C3B4A59";
+      :recipient [
+        a :Person;
+        doc:key ("@type" "source" "sourceId");
+        :source "icloud";
+        :sourceId "1234567890";
+        :handle "sam@example.com";
+        :sameAs "@me"
+      ];
+      :isPartOf [
+        a :Channel;
+        doc:key ("@type" "source" "sourceId");
+        :source "apple-phone";
+        :sourceId "9C8B7A6F5E4D3C2B1A0F9E8D7C6B5A49";
+        :member [
+          a :Agent;
+          doc:key ("source" "handle");
+          :source "apple-phone";
+          :handle "+15555550142";
+          :sameAs [
+            a :Agent;
+            doc:key ("source" "handle");
+            :source "phone";
+            :handle "+15555550142"
+          ]
+        ], [
+          a :Agent;
+          doc:key ("source" "handle");
+          :source "apple-phone";
+          :handle "riley@example.com";
+          :sameAs [
+            a :Agent;
+            doc:key ("source" "handle");
+            :source "email";
+            :handle "riley@example.com"
+          ]
+        ]
+      ]
+    ]
+  ] .
+
+example:blocked-call
+  rdfs:label "A call from a blocked number";
+  rdfs:comment """
+A call came in from a blocked or private number. Apple records no address, so
+there is no caller to key. The call stays on the timeline, and the
+:CallSession explains the missing party in its :notes.
+""";
+  rdf:value [
+    a :CallAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "apple-phone";
+    :sourceId "0D9E8F7A-6B5C-4D3E-8F2A-1B0C9D8E7F65";
+    :startTime "2026-05-11T08:15:00.000Z"^^xsd:dateTime;
+    :endTime "2026-05-11T08:15:12.000Z"^^xsd:dateTime;
+    :result [
+      a :CallSession;
+      doc:key ("@type" "source" "sourceId");
+      :source "apple-phone";
+      :sourceId "0D9E8F7A-6B5C-4D3E-8F2A-1B0C9D8E7F65";
+      :notes "no participant handle (blocked or private number)"
+    ]
+  ] .
+
 : skos:example example:message-from-alex, example:shell-command, example:task-completed .
 
 :Base skos:example example:entity-with-url .
@@ -793,3 +930,6 @@ An :Entity with a :name, keyed by its :source and :sourceId. The :url is a
 :path skos:example example:trip .
 :member skos:example example:group-reply .
 :inReplyTo skos:example example:group-reply .
+:CallAction skos:example example:phone-call, example:group-call .
+:CallSession skos:example example:phone-call, example:group-call .
+:notes skos:example example:blocked-call .

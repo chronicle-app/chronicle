@@ -32,6 +32,9 @@
       "path": "plugins/whatsapp/tsconfig.lib.json"
     },
     {
+      "path": "plugins/call-history/tsconfig.lib.json"
+    },
+    {
       "path": "core/icloud/tsconfig.lib.json"
     },
     {

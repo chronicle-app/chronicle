@@ -337,3 +337,27 @@
   rdfs:comment "An agent involved in an entity as addressee, attendee, or member.";
   rdfs:subPropertyOf :relation;
   :rangeIncludes :Agent .
+
+# call-history
+:InteractAction a rdfs:Class;
+  rdfs:comment "An agent engages with another agent or a social object — communicating, following.";
+  rdfs:subClassOf :Action .
+:CommunicateAction a rdfs:Class;
+  rdfs:comment "An agent conveys something to others — a message, a call, a check-in.";
+  rdfs:subClassOf :InteractAction .
+:CallAction a rdfs:Class;
+  rdfs:comment "A phone or video call. :agent is the caller when known; the :result is the :CallSession the call constitutes, which carries the receiver as its :recipient and, for a group call, the :Channel it is :isPartOf.";
+  rdfs:subClassOf :CommunicateAction .
+:Session a rdfs:Class;
+  rdfs:comment "A described segment of time — a bounded, characterized interval of the subject's logged activity (an app-usage block, a manual time block, a call). A sibling of :Event (a named happening); both carry a declared :scheduledTime, while their actual aliveness derives from the activity that constitutes them. A session constituted by an action (:DeviceSession, :CallSession) takes its occurrence from that action; an atomic session (a manual time block) carries its own :startTime/:endTime, like :Event.";
+  rdfs:subClassOf :Entity .
+:CallSession a rdfs:Class;
+  rdfs:comment "A phone or FaceTime call as a described segment of time — the :result of a :CallAction. Carries the :recipient (the receiver) and, for group calls, :isPartOf a :Channel whose :member is the roster. A missed call is a zero-length span; a connected call a non-zero one.";
+  rdfs:subClassOf :Session .
+:notes a rdf:Property;
+  rdfs:comment "Additional notes or observations.";
+  owl:maxCardinality 1;
+  :domainIncludes :Entity,
+    :Session;
+  :rangeIncludes :Text .
+:recipient :domainIncludes :CallSession .

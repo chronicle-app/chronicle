@@ -46,6 +46,7 @@ These sources come bundled with the CLI:
 | Claude Code transcripts                          | [claude-code](plugins/claude-code/README.md)   |
 | Things 3                                         | [things-todo](plugins/things-todo/README.md)   |
 | WhatsApp messages                                | [whatsapp](plugins/whatsapp/README.md)         |
+| Phone and FaceTime calls (Apple Call History)    | [call-history](plugins/call-history/README.md) |
 
 Install other plugins with `chronicle plugins install <package>`.
 

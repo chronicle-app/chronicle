@@ -70,6 +70,7 @@ export type ActionAndChildren =
   | ConsumeActionAndChildren
   | DeleteActionAndChildren
   | ExecuteActionAndChildren
+  | InteractActionAndChildren
   | MessageActionAndChildren
   | PlanActionAndChildren
   | TravelActionAndChildren
@@ -107,6 +108,7 @@ export interface Entity extends Omit<Base, '@type'> {
   isPartOf?: EntityAndChildren[];
   location?: LocationAndChildren | PlaceAndChildren;
   name?: string;
+  notes?: string;
   sameAs?: (EntityAndChildren | string)[];
   url?: string;
 }
@@ -123,6 +125,7 @@ export type EntityAndChildren =
   | MessageAndChildren
   | PlaceAndChildren
   | RealmAndChildren
+  | SessionAndChildren
   | SoftwareApplicationAndChildren
   | TagAndChildren
   | TaskAndChildren;
@@ -138,6 +141,7 @@ const EntityProperties = {
   isPartOf: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
   location: z.lazy(() => z.union([LocationAndChildrenSchema, PlaceAndChildrenSchema])).optional(),
   name: z.lazy(() => z.string()).optional(),
+  notes: z.lazy(() => z.string()).optional(),
   sameAs: z.lazy(() => z.array(z.union([EntityAndChildrenSchema, z.string()]))).optional(),
   url: z.lazy(() => z.string().url()).optional(),
 };
@@ -212,6 +216,100 @@ export const AudioObjectSchema: z.ZodType<AudioObject> = z
   .object({
     '@type': z.literal('AudioObject'),
     ...AudioObjectProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// InteractAction, child of https://schema.chronicle.app/Action
+export interface InteractAction extends Omit<Action, '@type'> {
+  '@type': 'InteractAction';
+}
+
+export type InteractActionAndChildren = InteractAction | CommunicateActionAndChildren;
+
+const InteractActionProperties = {
+  ...ActionProperties,
+};
+
+export const InteractActionSchema: z.ZodType<InteractAction> = z
+  .object({
+    '@type': z.literal('InteractAction'),
+    ...InteractActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// CommunicateAction, child of https://schema.chronicle.app/InteractAction
+export interface CommunicateAction extends Omit<InteractAction, '@type'> {
+  '@type': 'CommunicateAction';
+}
+
+export type CommunicateActionAndChildren = CommunicateAction | CallActionAndChildren;
+
+const CommunicateActionProperties = {
+  ...InteractActionProperties,
+};
+
+export const CommunicateActionSchema: z.ZodType<CommunicateAction> = z
+  .object({
+    '@type': z.literal('CommunicateAction'),
+    ...CommunicateActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// CallAction, child of https://schema.chronicle.app/CommunicateAction
+export interface CallAction extends Omit<CommunicateAction, '@type'> {
+  '@type': 'CallAction';
+}
+
+export type CallActionAndChildren = CallAction;
+
+const CallActionProperties = {
+  ...CommunicateActionProperties,
+};
+
+export const CallActionSchema: z.ZodType<CallAction> = z
+  .object({
+    '@type': z.literal('CallAction'),
+    ...CallActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Session, child of https://schema.chronicle.app/Entity
+export interface Session extends Omit<Entity, '@type'> {
+  '@type': 'Session';
+  notes?: string;
+}
+
+export type SessionAndChildren = Session | CallSessionAndChildren;
+
+const SessionProperties = {
+  ...EntityProperties,
+  notes: z.lazy(() => z.string()).optional(),
+};
+
+export const SessionSchema: z.ZodType<Session> = z
+  .object({
+    '@type': z.literal('Session'),
+    ...SessionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// CallSession, child of https://schema.chronicle.app/Session
+export interface CallSession extends Omit<Session, '@type'> {
+  '@type': 'CallSession';
+  recipient?: AgentAndChildren[];
+}
+
+export type CallSessionAndChildren = CallSession;
+
+const CallSessionProperties = {
+  ...SessionProperties,
+  recipient: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
+};
+
+export const CallSessionSchema: z.ZodType<CallSession> = z
+  .object({
+    '@type': z.literal('CallSession'),
+    ...CallSessionProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -1010,6 +1108,54 @@ export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> =
   .superRefine(requireNodeIdentity);
 export const CancelActionAndChildrenSchema = CancelActionSchema;
 
+export const CallSessionAndChildrenSchema = CallSessionSchema;
+
+export const SessionAndChildrenSchema: z.ZodType<SessionAndChildren> = z
+  .discriminatedUnion('@type', [
+    z.object({
+      '@type': z.literal('Session'),
+      ...SessionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('CallSession'),
+      ...CallSessionProperties,
+    }),
+  ])
+  .superRefine(requireNodeIdentity);
+export const CallActionAndChildrenSchema = CallActionSchema;
+
+export const CommunicateActionAndChildrenSchema: z.ZodType<CommunicateActionAndChildren> = z
+  .discriminatedUnion('@type', [
+    z.object({
+      '@type': z.literal('CommunicateAction'),
+      ...CommunicateActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('CallAction'),
+      ...CallActionProperties,
+    }),
+  ])
+  .superRefine(requireNodeIdentity);
+export const InteractActionAndChildrenSchema: z.ZodType<InteractActionAndChildren> = z
+  .discriminatedUnion('@type', [
+    z.object({
+      '@type': z.literal('InteractAction'),
+      ...InteractActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('CommunicateAction'),
+      ...CommunicateActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('CallAction'),
+      ...CallActionProperties,
+    }),
+  ])
+  .superRefine(requireNodeIdentity);
 export const AudioObjectAndChildrenSchema = AudioObjectSchema;
 
 export const MediaObjectAndChildrenSchema: z.ZodType<MediaObjectAndChildren> = z
@@ -1146,6 +1292,16 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('Session'),
+      ...SessionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('CallSession'),
+      ...CallSessionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('MediaObject'),
       ...MediaObjectProperties,
     }),
@@ -1252,6 +1408,21 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
       '@type': z.literal('CancelAction'),
       ...CancelActionProperties,
     }),
+
+    z.object({
+      '@type': z.literal('InteractAction'),
+      ...InteractActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('CommunicateAction'),
+      ...CommunicateActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('CallAction'),
+      ...CallActionProperties,
+    }),
   ])
   .superRefine(requireNodeIdentity);
 export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
@@ -1339,6 +1510,16 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('Channel'),
       ...ChannelProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Session'),
+      ...SessionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('CallSession'),
+      ...CallSessionProperties,
     }),
 
     z.object({
@@ -1444,6 +1625,21 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('CancelAction'),
       ...CancelActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('InteractAction'),
+      ...InteractActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('CommunicateAction'),
+      ...CommunicateActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('CallAction'),
+      ...CallActionProperties,
     }),
   ])
   .superRefine(requireNodeIdentity);
