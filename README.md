@@ -65,6 +65,7 @@ These sources come bundled with the CLI:
 | Marvin reading sessions and highlights                                | [marvin](plugins/marvin/README.md)             |
 | Zotero works, highlights, notes, and reading                          | [zotero](plugins/zotero/README.md)             |
 | Obsidian notes and links                                              | [obsidian](plugins/obsidian/README.md)         |
+| Pinboard bookmarks                                                    | [pinboard](plugins/pinboard/README.md)         |
 
 Install other plugins with `chronicle plugins install <package>`.
 

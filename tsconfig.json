@@ -89,6 +89,9 @@
       "path": "plugins/obsidian/tsconfig.lib.json"
     },
     {
+      "path": "plugins/pinboard/tsconfig.lib.json"
+    },
+    {
       "path": "core/icloud/tsconfig.lib.json"
     },
     {

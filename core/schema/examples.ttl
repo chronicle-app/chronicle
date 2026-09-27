@@ -619,6 +619,46 @@ history.
     ]
   ] .
 
+example:bookmark
+  rdfs:label "Saving a bookmark";
+  rdfs:comment """
+A :BookmarkAction for one Pinboard bookmark, keyed by Pinboard's hash for the
+saved url and dated when it was saved. The page is an :Entity keyed by its :url
+and :source, so this source's note and tags stay its own; the :url still merges
+it with the same page from other sources. Its :name is the bookmark title, its
+:description the note, and each tag is a :Tag in :about.
+""";
+  rdf:value [
+    a :BookmarkAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "pinboard";
+    :sourceId "a8c4e2f9b7314d0e6f25c1b9e3a7d840";
+    :timestamp "2026-05-09T16:04:51.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "handle");
+      :source "pinboard";
+      :handle "pat";
+      :name "pat";
+      :url "https://pinboard.in/u:pat/";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Entity;
+      doc:key ("url" "source");
+      :source "pinboard";
+      :url "https://trees.example.org/urban-guide";
+      :name "A guide to urban trees";
+      :description "Read before planting season.";
+      :about [
+        a :Tag;
+        doc:key ("@type" "source" "handle");
+        :source "pinboard";
+        :handle "trees"
+      ]
+    ]
+  ] .
+
 example:place-visit
   rdfs:label "Visiting a place";
   rdfs:comment """
@@ -2942,6 +2982,7 @@ and a web page keyed by its :url.
 :DeleteAction skos:example example:task-deleted .
 :ConsumeAction skos:example example:page-visit .
 :ViewAction skos:example example:page-visit .
+:BookmarkAction skos:example example:bookmark .
 :VisitAction skos:example example:place-visit .
 :TravelAction skos:example example:trip .
 :Journey skos:example example:trip .
