@@ -59,6 +59,7 @@ These sources come bundled with the CLI:
 | Timing app usage, time entries, and calls                             | [timing-app](plugins/timing-app/README.md)     |
 | Email from mbox files                                                 | [email](plugins/email/README.md)               |
 | Slack messages from a slackdump export                                | [slack](plugins/slack/README.md)               |
+| Foursquare/Swarm check-ins                                            | [foursquare](plugins/foursquare/README.md)     |
 
 Install other plugins with `chronicle plugins install <package>`.
 

@@ -431,7 +431,8 @@ export interface CommunicateAction extends Omit<InteractAction, '@type'> {
   '@type': 'CommunicateAction';
 }
 
-export type CommunicateActionAndChildren = CommunicateAction | CallActionAndChildren;
+export type CommunicateActionAndChildren =
+  CommunicateAction | CallActionAndChildren | CheckInActionAndChildren;
 
 const CommunicateActionProperties = {
   ...InteractActionProperties,
@@ -552,6 +553,24 @@ export const ChannelSchema: z.ZodType<Channel> = z
   .object({
     '@type': z.literal('Channel'),
     ...ChannelProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// CheckInAction, child of https://schema.chronicle.app/CommunicateAction
+export interface CheckInAction extends Omit<CommunicateAction, '@type'> {
+  '@type': 'CheckInAction';
+}
+
+export type CheckInActionAndChildren = CheckInAction;
+
+const CheckInActionProperties = {
+  ...CommunicateActionProperties,
+};
+
+export const CheckInActionSchema: z.ZodType<CheckInAction> = z
+  .object({
+    '@type': z.literal('CheckInAction'),
+    ...CheckInActionProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -2065,6 +2084,8 @@ export const CollectionAndChildrenSchema: z.ZodType<CollectionAndChildren> = z
     }),
   ])
   .superRefine(requireNodeIdentity);
+export const CheckInActionAndChildrenSchema = CheckInActionSchema;
+
 export const ChannelAndChildrenSchema = ChannelSchema;
 
 export const CancelActionAndChildrenSchema = CancelActionSchema;
@@ -2119,6 +2140,11 @@ export const CommunicateActionAndChildrenSchema: z.ZodType<CommunicateActionAndC
     }),
 
     z.object({
+      '@type': z.literal('CheckInAction'),
+      ...CheckInActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('CallAction'),
       ...CallActionProperties,
     }),
@@ -2139,6 +2165,11 @@ export const InteractActionAndChildrenSchema: z.ZodType<InteractActionAndChildre
     z.object({
       '@type': z.literal('CommunicateAction'),
       ...CommunicateActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('CheckInAction'),
+      ...CheckInActionProperties,
     }),
 
     z.object({
@@ -2727,6 +2758,11 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('CheckInAction'),
+      ...CheckInActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('CallAction'),
       ...CallActionProperties,
     }),
@@ -3137,6 +3173,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('CommunicateAction'),
       ...CommunicateActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('CheckInAction'),
+      ...CheckInActionProperties,
     }),
 
     z.object({

@@ -660,7 +660,7 @@ to, so the same venue from Foursquare merges with it.
         a :Venue;
         doc:key ("@type" "source" "sourceId");
         :source "foursquare";
-        :sourceId "64a7c921b80e4d32a619f085";
+        :sourceId "0123456789abcdef01234567";
         :name "Corner Café"
       ]
     ]
@@ -1068,6 +1068,51 @@ its pixel :width and :height and a :contentPath to the exported file.
         :width 1440;
         :height 900;
         :contentPath "/Users/sam/slack-export/D0EXAMPLE/attachments/F0EXAMPLE1-dashboard.png"
+      ]
+    ]
+  ] .
+
+example:checkin
+  rdfs:label "Checking in at a venue";
+  rdfs:comment """
+A :CheckInAction for one Foursquare check-in, keyed by the check-in id and
+timed at when it was made. The :object is a :Venue keyed by the Foursquare venue
+id, with its categories and a :Location value. An Arc Timeline place that links
+to the same id with :sameAs merges with it. The :agent is the Foursquare account,
+with its profile photo as its :emblem.
+""";
+  rdf:value [
+    a :CheckInAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "foursquare";
+    :sourceId "5f3c2a1b9e8d7c6b5a4f3e2d";
+    :timestamp "2026-05-09T09:14:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "foursquare";
+      :sourceId "12345678";
+      :name "Pat Example";
+      :url "https://foursquare.com/user/12345678";
+      :sameAs "@me";
+      :emblem [
+        a :ImageObject;
+        doc:key ("url");
+        :url "https://fastly.4sqi.net/img/user/300x300/12345678-EXAMPLE.jpg"
+      ]
+    ];
+    :object [
+      a :Venue;
+      doc:key ("@type" "source" "sourceId");
+      :source "foursquare";
+      :sourceId "0123456789abcdef01234567";
+      :name "Corner Café";
+      :category "Café", "Bakery";
+      :location [
+        a :Location;
+        :latitude 43.65;
+        :longitude -79.38;
+        :address "1 Example St, Toronto ON, Canada"
       ]
     ]
   ] .
@@ -2619,3 +2664,5 @@ a sentence of prose, so the action has no :object.
 :CallSession skos:example example:relayed-call .
 :width skos:example example:slack-message-with-image .
 :height skos:example example:slack-message-with-image .
+:CheckInAction skos:example example:checkin .
+:emblem skos:example example:checkin .

@@ -614,3 +614,8 @@
   owl:maxCardinality 1;
   :domainIncludes :PhysicalObject;
   :rangeIncludes :Text .
+
+# foursquare
+:CheckInAction a rdfs:Class;
+  rdfs:comment "The agent announced their presence at the :object, a :Venue, at :timestamp.";
+  rdfs:subClassOf :CommunicateAction .
