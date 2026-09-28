@@ -2046,7 +2046,7 @@ example:time-entry
   rdfs:comment """
 An :ExperienceAction for a block of time logged by hand in Timing. The action
 carries when it happened; its :result is the :Session, with the entry's title
-as :name, its :notes, and the :Project it belongs to (:isPartOf).
+as :name, its notes as :description, and the :Project it belongs to (:isPartOf).
 """;
   rdf:value [
     a :ExperienceAction;
@@ -2067,7 +2067,7 @@ as :name, its :notes, and the :Project it belongs to (:isPartOf).
       :source "timing-app";
       :sourceId "201";
       :name "Bedtime routine";
-      :notes "Two books tonight";
+      :description "Two books tonight";
       :isPartOf [
         a :Project;
         doc:key ("@type" "source" "sourceId");
@@ -2483,7 +2483,7 @@ course is saved but not when, so the action has no :timestamp.
 :sourceId skos:example example:entity-with-url, example:message-with-photo .
 :name skos:example example:entity-with-url .
 :url skos:example example:entity-with-url .
-:description skos:example example:task-edited .
+:description skos:example example:task-edited, example:time-entry .
 :handle skos:example example:message-from-alex, example:shell-command .
 :sameAs skos:example example:message-from-alex, example:assistant-prompt .
 :object skos:example example:shell-command .
@@ -2744,7 +2744,6 @@ a sentence of prose, so the action has no :object.
 :subject skos:example example:document-session .
 :ExperienceAction skos:example example:time-entry .
 :Session skos:example example:time-entry .
-:notes skos:example example:time-entry .
 :CallAction skos:example example:relayed-call .
 :CallSession skos:example example:relayed-call .
 :width skos:example example:slack-message-with-image .
