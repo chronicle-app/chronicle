@@ -63,6 +63,11 @@ test('bundled sources are discoverable from an unrelated cwd; JSON has no diagno
       `${name} is not listed`
     );
   }
+  // A bare `chronicle extract <source>` needs exactly one default per source.
+  for (const source of new Set(sources.map(x => x.source))) {
+    const defaults = sources.filter(x => x.source === source && x.default);
+    assert.equal(defaults.length, 1, `${source} has ${defaults.length} default extractors`);
+  }
   const help = success(run('extract', 'shell', '--help'));
   assert.match(help, /history/);
   assert.doesNotMatch(success(run('--help')), /archive|sync|serve/);
@@ -262,4 +267,27 @@ test('missing CSV input reports a normal command error instead of an unhandled s
   assert.equal(result.status, 1);
   assert.match(result.stderr, /ENOENT/);
   assert.doesNotMatch(result.stderr, /Unhandled 'error' event/);
+});
+
+test('table columns fit their content, and grow columns share the width that is left', async () => {
+  const { columnWidths, truncate } = await import('../dist/components/Table.js');
+  const columns = [
+    { key: 'source', title: 'Source' },
+    { key: 'types', title: 'Types', grow: true, minWidth: 5 },
+    { key: 'description', title: 'Description', grow: true, minWidth: 8 },
+  ];
+  const data = [{ source: 'google-reader', types: 'a'.repeat(30), description: 'b'.repeat(40) }];
+
+  // Without a width, every column fits its content.
+  assert.deepEqual(columnWidths(columns, data), [13, 30, 40]);
+  // Too narrow for everything: grow columns get their minimum; the rest never shrink.
+  assert.deepEqual(columnWidths(columns, data, 20), [13, 5, 8]);
+  // The leftover is split evenly on top of each minimum…
+  assert.deepEqual(columnWidths(columns, data, 47), [13, 14, 16]);
+  // …and a column that fits its content passes its share on.
+  assert.deepEqual(columnWidths(columns, data, 200), [13, 30, 40]);
+  assert.deepEqual(columnWidths(columns, [{ ...data[0], types: 'abc' }], 47), [13, 5, 25]);
+
+  assert.equal(truncate('channels, connections', 10), 'channels,…');
+  assert.equal(truncate('calls', 10), 'calls');
 });

@@ -7,7 +7,7 @@ import FacebookTransformer from '../FacebookTransformer.js';
 export class FacebookArchiveMessagesExtractor extends FacebookArchiveExtractor {
   static override recordTypes = ['messages'];
   static override description = 'Messenger conversations';
-  static override default = false;
+  static override default = true;
   static override defaultTransformer = FacebookTransformer;
 
   async *extract(): AsyncGenerator<Record> {

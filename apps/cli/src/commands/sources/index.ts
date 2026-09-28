@@ -115,6 +115,7 @@ export default class Sources extends BaseCommand<typeof Sources> {
       source: ext.source,
       strategy: ext.strategy,
       delivery: ext.delivery,
+      default: Boolean(ext.default),
       recordTypes: ext.recordType,
       description: ext.description,
       packageName: ext.packageName,
