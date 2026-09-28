@@ -4,7 +4,15 @@ Chronicle plugin for [Are.na](https://www.are.na) — extracts your channels, th
 
 ## Authentication
 
-Are.na uses OAuth2. Register an application at [Are.na OAuth settings](https://www.are.na/settings/oauth):
+Create a [personal access token](https://www.are.na/developers/personal-access-tokens) with read-only access, then store it:
+
+```bash
+chronicle auth set arena
+```
+
+It prompts for the token and reuses it on later extractions. To use a token for a single run, pass `--access-token` instead.
+
+Alternatively, authenticate with OAuth. Register an application at [Are.na OAuth settings](https://www.are.na/settings/oauth):
 
 1. Set the **Redirect URI** to `http://127.0.0.1:7463/callback` — this is Chronicle's default OAuth callback (port 7463). Are.na validates the redirect URI exactly, so use `127.0.0.1` (not `localhost`) and match the port. If you run `chronicle auth` with a custom `--port`, register that port's callback instead.
 2. Note the application's **Client ID** and **Client Secret**.
@@ -15,7 +23,7 @@ Then authenticate:
 chronicle auth login arena --client-id YOUR_CLIENT_ID --client-secret YOUR_CLIENT_SECRET
 ```
 
-The resulting access token is stored locally and reused on subsequent extractions (the plugin requests read-only access). Alternatively, pass a token directly per run with `--access-token`.
+The resulting access token is stored locally and reused on subsequent extractions (the plugin requests read-only access).
 
 ## Usage
 
