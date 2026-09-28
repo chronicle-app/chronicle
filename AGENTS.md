@@ -18,6 +18,8 @@ Chronicle extracts personal history into a shared vocabulary.
   already covers, or what Node or a library already guarantees.
 - When changing behavior, extend an existing test before adding a new one.
 - Add a changeset (`npx changeset`) to pull requests that should ship in a release.
+- Never check in planning or design docs. Keep plans in `.plans/`, which is
+  git-ignored.
 - Run `npm run quality` for code changes. Run `npm run packages:check` after
   package or dependency changes to verify installed tarballs.
 - Do not co-author commits as coding agent
