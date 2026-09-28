@@ -111,7 +111,6 @@ export interface Entity extends Omit<Base, '@type'> {
   isPartOf?: EntityAndChildren[];
   location?: LocationAndChildren | PlaceAndChildren;
   name?: string;
-  notes?: string;
   references?: EntityAndChildren[];
   sameAs?: (EntityAndChildren | string)[];
   url?: string;
@@ -146,7 +145,6 @@ const EntityProperties = {
   isPartOf: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
   location: z.lazy(() => z.union([LocationAndChildrenSchema, PlaceAndChildrenSchema])).optional(),
   name: z.lazy(() => z.string()).optional(),
-  notes: z.lazy(() => z.string()).optional(),
   references: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
   sameAs: z.lazy(() => z.array(z.union([EntityAndChildrenSchema, z.string()]))).optional(),
   url: z.lazy(() => z.string().url()).optional(),
@@ -301,7 +299,6 @@ export const CallActionSchema: z.ZodType<CallAction> = z
 // Session, child of https://schema.chronicle.app/Entity
 export interface Session extends Omit<Entity, '@type'> {
   '@type': 'Session';
-  notes?: string;
   references?: EntityAndChildren[];
 }
 
@@ -309,7 +306,6 @@ export type SessionAndChildren = Session | CallSessionAndChildren;
 
 const SessionProperties = {
   ...EntityProperties,
-  notes: z.lazy(() => z.string()).optional(),
   references: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
 };
 
