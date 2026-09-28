@@ -682,7 +682,6 @@
   :domainIncludes :Selector;
   :rangeIncludes :Text .
 
-# obsidian
 :tags a rdf:Property;
   rdfs:comment "Tags for categorization or labeling.";
   :domainIncludes :Entity;
