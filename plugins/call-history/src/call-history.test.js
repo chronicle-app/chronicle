@@ -133,13 +133,11 @@ test('calls become schema-valid CallActions, newest first', async t => {
     })
   );
 
-  // A blocked or private number has no participant, only a note.
+  // A blocked or private number has no participant.
   assert.deepEqual(
     byId.get('CALL-BLOCKED'),
     call('CALL-BLOCKED', '2025-01-01T00:04:00.000Z', '2025-01-01T00:04:05.000Z', {
-      result: session('CALL-BLOCKED', {
-        notes: 'no participant handle (blocked or private number)',
-      }),
+      result: session('CALL-BLOCKED'),
     })
   );
 
