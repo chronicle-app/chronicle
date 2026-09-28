@@ -1333,7 +1333,6 @@ export const MembershipSchema: z.ZodType<Membership> = z
 export interface Message extends Omit<CreativeWork, '@type'> {
   '@type': 'Message';
   author?: AgentAndChildren[];
-  contains?: MediaObjectAndChildren[];
   inReplyTo?: MessageAndChildren[];
   recipient?: AgentAndChildren[];
 }
@@ -1343,7 +1342,6 @@ export type MessageAndChildren = Message;
 const MessageProperties = {
   ...CreativeWorkProperties,
   author: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
-  contains: z.lazy(() => z.array(MediaObjectAndChildrenSchema)).optional(),
   inReplyTo: z.lazy(() => z.array(MessageAndChildrenSchema)).optional(),
   recipient: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
 };
