@@ -339,7 +339,6 @@
   rdfs:subPropertyOf :relation;
   :rangeIncludes :Agent .
 
-# call-history
 :InteractAction a rdfs:Class;
   rdfs:comment "An agent engages with another agent or a social object — communicating, following.";
   rdfs:subClassOf :Action .
@@ -356,7 +355,6 @@
   rdfs:comment "A phone or FaceTime call as a described segment of time — the :result of a :CallAction. Carries the :recipient (the receiver) and, for group calls, :isPartOf a :Channel whose :member is the roster. A missed call is a zero-length span; a connected call a non-zero one.";
   rdfs:subClassOf :Session .
 :recipient :domainIncludes :CallSession .
-# foodnoms
 :EatAction a rdfs:Class;
   rdfs:comment "The agent ate the :object, a :Meal. Where it happened is the action's :location.";
   rdfs:subClassOf :ConsumeAction .
@@ -366,7 +364,6 @@
 :Meal a rdfs:Class;
   rdfs:comment "A meal or snack the subject ate — the :object of an :EatAction. Its slot (breakfast, lunch, dinner) is :category data.";
   rdfs:subClassOf :Entity .
-# twitter
 :Post a rdfs:Class;
   rdfs:comment "A work published to a social or media platform — a feed post, a story, a reel, a tweet. A media-agnostic container: it may carry a text :body and :contains one or more media files (:MediaObject). Its native presentation format (feed, story, reel) is its :sourceFormat.";
   rdfs:subClassOf :CreativeWork .
@@ -396,7 +393,6 @@
   rdfs:comment "An entity pointed to from this one (e.g. an @mention or link).";
   rdfs:subPropertyOf :relation;
   :rangeIncludes :Entity .
-# facebook
 :FindAction a rdfs:Class;
   rdfs:comment "The agent looked something up on a platform — an entry in a search history. :object is the :Query entered.";
   rdfs:subClassOf :Action .
@@ -413,7 +409,6 @@
   rdfs:comment "A prose response — the :Response leaf whose :body is authored text.";
   rdfs:subClassOf :Response .
 :author :domainIncludes :CreativeWork .
-# instagram
 :FollowAction a rdfs:Class;
   rdfs:comment "The agent began following the :object — an account, a feed, a collection. Opens the agent's :follows run over it.";
   rdfs:subClassOf :InteractAction .
@@ -433,7 +428,6 @@
   owl:maxCardinality 1;
   :domainIncludes :CreativeWork;
   :rangeIncludes :Text .
-# spotify
 :ListenAction a rdfs:Class;
   rdfs:comment "The agent listened to the :object — a recording, a podcast episode. Opens or extends the agent's :consuming run over it.";
   rdfs:subClassOf :ConsumeAction .
@@ -521,7 +515,6 @@
   owl:maxCardinality 1;
   :domainIncludes :Action;
   :rangeIncludes :Entity .
-# linkedin
 :ExperienceAction a rdfs:Class;
   rdfs:comment "A segment of lived activity the subject engaged in or underwent — a manually-logged time block or life episode (its :result is the :Session it constitutes: a :Tenure, :Residence, :Relationship, and the like), or a punctual life event (:BirthAction, :DeathAction). Carries the real occurrence via :startTime/:endTime; the constituted session takes its span from the action.";
   rdfs:subClassOf :Action .
@@ -575,12 +568,10 @@
     :VideoObject;
   :rangeIncludes :Number .
 
-# youtube
 :AnnotateAction a rdfs:Class;
   rdfs:comment "The agent wrote a note on something — a comment on a highlighted passage, a note on a work, a margin note on a page. Its :result is the :Comment, whose :about names what it annotates.";
   rdfs:subClassOf :CreateAction .
 
-# timing-app
 :DeviceSession a rdfs:Class;
   rdfs:comment "A screen-usage segment — an app-focus/app-usage block on a device. The :result of an :ExecuteAction (which carries the measured span); dateless itself, carrying the focused resource (:subject), the project (:isPartOf), and, when no resource is present, the window title (:name).";
   rdfs:subClassOf :Session .
@@ -609,12 +600,10 @@
   :domainIncludes :PhysicalObject;
   :rangeIncludes :Text .
 
-# foursquare
 :CheckInAction a rdfs:Class;
   rdfs:comment "The agent announced their presence at the :object, a :Venue, at :timestamp.";
   rdfs:subClassOf :CommunicateAction .
 
-# goodreads
 :Book a rdfs:Class;
   rdfs:comment "A book, as an edition: carries its :author and :pageCount.";
   rdfs:subClassOf :CreativeWork .
@@ -636,7 +625,6 @@
   :domainIncludes :CreativeWork;
   :rangeIncludes :Agent .
 
-# marvin
 :ReadAction a rdfs:Class;
   rdfs:comment "The agent read the :object — a book, an article, a document. Opens or extends the agent's :consuming run over it.";
   rdfs:subClassOf :ConsumeAction .
@@ -647,7 +635,6 @@
   rdfs:comment "A passage selected from a work — a highlight, an excerpt. Carries the text as :body, its position in the work via :selector, and, for a visual annotation, its :annotationStyle and :color. The :result of a :QuoteAction.";
   rdfs:subClassOf :CreativeWork .
 
-# zotero
 :Category a rdfs:Class;
   rdfs:comment "A classification drawn from a fixed set of kinds, as distinct from a free-form :Tag.";
   rdfs:subClassOf :DefinedTerm .
