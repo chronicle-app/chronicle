@@ -13,8 +13,10 @@ npm install @chronicle.app/facebook
 ### Basic extraction
 
 ```bash
-chronicle extract facebook --type messages --input /path/to/facebook/file
+chronicle extract facebook --input /path/to/facebook/file
 ```
+
+This reads Messenger conversations, the default. Pass `--type reactions`, `--type comments` or `--type searches` for the rest of the export.
 
 ### With date filtering
 

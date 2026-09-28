@@ -13,8 +13,10 @@ npm install @chronicle.app/instagram
 ### Basic extraction
 
 ```bash
-chronicle extract instagram --type posts --input /path/to/instagram/export
+chronicle extract instagram --input /path/to/instagram/export
 ```
+
+This reads your posts, the default. Pass `--type` with `stories`, `messages`, `likes`, `follows`, `saves`, `comments` or `searches` for the rest of the export.
 
 ### With date filtering
 

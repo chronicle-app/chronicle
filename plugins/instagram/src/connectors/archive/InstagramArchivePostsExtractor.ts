@@ -13,7 +13,7 @@ import InstagramTransformer from '../InstagramTransformer.js';
 export class InstagramArchivePostsExtractor extends InstagramArchiveExtractor {
   static override description = 'Posts';
   static override recordTypes = ['posts'];
-  static override default = false;
+  static override default = true;
   static override defaultTransformer = InstagramTransformer;
 
   private static readonly FILES = [
