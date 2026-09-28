@@ -242,6 +242,18 @@ test('follows become FollowActions of users, channels and groups', async t => {
   ]);
 });
 
+test('--limit caps the follows, not the one record that carries them', async t => {
+  fakeArena(t);
+  const limited = await run(ArenaFollowingExtractor, { limit: 2 });
+  assert.deepEqual(
+    limited.payloads.map(p => p.object.sourceId),
+    [alex.sourceId, sharedReading.sourceId]
+  );
+  // 0 means no limit.
+  const all = await run(ArenaFollowingExtractor, { limit: 0 });
+  assert.equal(all.payloads.length, 3);
+});
+
 test('a selected user is not tagged as the token owner', async t => {
   const requests = fakeArena(t);
   const { payloads } = await run(ArenaFollowingExtractor, { userId: 2 });
