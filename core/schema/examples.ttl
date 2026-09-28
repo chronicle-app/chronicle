@@ -619,6 +619,46 @@ history.
     ]
   ] .
 
+example:bookmark
+  rdfs:label "Saving a bookmark";
+  rdfs:comment """
+A :BookmarkAction for one Pinboard bookmark, keyed by Pinboard's hash for the
+saved url and dated when it was saved. The page is an :Entity keyed by its :url
+and :source, so this source's note and tags stay its own; the :url still merges
+it with the same page from other sources. Its :name is the bookmark title, its
+:description the note, and each tag is a :Tag in :about.
+""";
+  rdf:value [
+    a :BookmarkAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "pinboard";
+    :sourceId "a8c4e2f9b7314d0e6f25c1b9e3a7d840";
+    :timestamp "2026-05-09T16:04:51.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "handle");
+      :source "pinboard";
+      :handle "pat";
+      :name "pat";
+      :url "https://pinboard.in/u:pat/";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Entity;
+      doc:key ("url" "source");
+      :source "pinboard";
+      :url "https://trees.example.org/urban-guide";
+      :name "A guide to urban trees";
+      :description "Read before planting season.";
+      :about [
+        a :Tag;
+        doc:key ("@type" "source" "handle");
+        :source "pinboard";
+        :handle "trees"
+      ]
+    ]
+  ] .
+
 example:place-visit
   rdfs:label "Visiting a place";
   rdfs:comment """
@@ -660,7 +700,7 @@ to, so the same venue from Foursquare merges with it.
         a :Venue;
         doc:key ("@type" "source" "sourceId");
         :source "foursquare";
-        :sourceId "64a7c921b80e4d32a619f085";
+        :sourceId "0123456789abcdef01234567";
         :name "Corner Café"
       ]
     ]
@@ -762,6 +802,358 @@ identity if the guess changes.
       :name "Iced latte";
       :category "Breakfast";
       :description "Breakfast - 12 fl oz - 190 calories"
+    ]
+  ] .
+
+example:instagram-story
+  rdfs:label "Publishing a story";
+  rdfs:comment """
+You posted a photo story on Instagram. The :PublishAction's :object is a
+:Post, keyed by the media ID Instagram wrote into the file name. Its
+:sourceFormat says it was a story rather than a feed post or a reel, and its
+:visibility is `private` because only the archive link reaches it. The photo
+itself is an :ImageObject the post :contains, with the same ID.
+""";
+  rdf:value [
+    a :PublishAction;
+    doc:key ("@type" "source" "object.sourceId");
+    :source "instagram";
+    :timestamp "2024-09-02T18:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "instagram";
+      :handle "sam.rivera";
+      :name "Sam Rivera";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Post;
+      doc:key ("@type" "source" "sourceId");
+      :source "instagram";
+      :sourceId "4444444444";
+      :sourceFormat "story";
+      :visibility "private";
+      :url "https://www.instagram.com/stories/archive/4444444444/";
+      :body "Morning coffee";
+      :contains [
+        a :ImageObject;
+        doc:key ("@type" "source" "sourceId");
+        :source "instagram";
+        :sourceId "4444444444";
+        :contentPath "/Users/sam/Downloads/instagram-export/media/stories/202409/4444444444.jpg";
+        :mimeType "image/jpeg"
+      ]
+    ]
+  ] .
+
+example:instagram-like
+  rdfs:label "Liking a post";
+  rdfs:comment """
+You liked someone else's Instagram post. The :LikeAction is keyed by who liked
+what: your handle and the post's shortcode. The :Post carries the caption as
+its :body and the account that posted it as its :author.
+""";
+  rdf:value [
+    a :LikeAction;
+    doc:key ("@type" "source" "agent.handle" "object.sourceId");
+    :source "instagram";
+    :timestamp "2024-08-30T06:40:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "instagram";
+      :handle "sam.rivera";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Post;
+      doc:key ("@type" "source" "sourceId");
+      :source "instagram";
+      :sourceId "C0ExampleA1";
+      :url "https://www.instagram.com/p/C0ExampleA1/";
+      :body "Café vibes";
+      :author [
+        a :Agent;
+        doc:key ("@type" "source" "handle");
+        :source "instagram";
+        :handle "alexchen";
+        :url "https://www.instagram.com/alexchen"
+      ]
+    ]
+  ] .
+
+example:instagram-follow
+  rdfs:label "Following an account";
+  rdfs:comment """
+You started following an account on Instagram. The :FollowAction's :agent is
+the follower and its :object the account followed, each keyed by handle. When
+someone follows you, the two sides swap.
+""";
+  rdf:value [
+    a :FollowAction;
+    doc:key ("@type" "source" "agent.handle" "object.handle");
+    :source "instagram";
+    :timestamp "2020-09-13T12:26:40.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "instagram";
+      :handle "sam.rivera";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "instagram";
+      :handle "alexchen";
+      :url "https://www.instagram.com/alexchen"
+    ]
+  ] .
+
+example:instagram-save
+  rdfs:label "Saving a post to a collection";
+  rdfs:comment """
+You saved a post into your Travel collection. The :BookmarkAction's :object is
+the saved :Post and its :target the :Collection it went into, keyed by name.
+A save outside any collection has no :target.
+""";
+  rdf:value [
+    a :BookmarkAction;
+    doc:key ("@type" "source" "object.sourceId" "target.name");
+    :source "instagram";
+    :timestamp "2020-07-03T19:11:47.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "instagram";
+      :handle "sam.rivera";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Post;
+      doc:key ("@type" "source" "sourceId");
+      :source "instagram";
+      :sourceId "CExample-B2";
+      :url "https://www.instagram.com/p/CExample-B2/";
+      :author [
+        a :Agent;
+        doc:key ("@type" "source" "handle");
+        :source "instagram";
+        :handle "travel.demo";
+        :url "https://www.instagram.com/travel.demo"
+      ]
+    ];
+    :target [
+      a :Collection;
+      doc:key ("@type" "source" "name");
+      :source "instagram";
+      :name "Travel"
+    ]
+  ] .
+
+example:instagram-comment
+  rdfs:label "Writing a comment";
+  rdfs:comment """
+You commented on a post. The export names only the account whose post it was,
+not the post, so the :Comment :references that account. With no ID to key on,
+the comment is keyed by that account, its :body, and the time of the
+:CreateAction, so two identical comments at different times stay apart.
+""";
+  rdf:value [
+    a :CreateAction;
+    doc:key ("@type" "source" "object.references[*].handle" "object.body" "timestamp");
+    :source "instagram";
+    :timestamp "2024-05-06T12:53:20.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "instagram";
+      :handle "sam.rivera";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Comment;
+      doc:key ("@type" "source" "references[*].handle" "body" "action.timestamp");
+      :source "instagram";
+      :body "Congrats!";
+      :references [
+        a :Agent;
+        doc:key ("@type" "source" "handle");
+        :source "instagram";
+        :handle "alexchen";
+        :url "https://www.instagram.com/alexchen"
+      ]
+    ]
+  ] .
+
+example:instagram-search
+  rdfs:label "Searching for a phrase";
+  rdfs:comment """
+You searched Instagram for a phrase. The :FindAction's :object is a :Query
+keyed by its text. A search for a profile has the account as its :object
+instead.
+""";
+  rdf:value [
+    a :FindAction;
+    doc:key ("@type" "source" "object.handle" "object.body" "timestamp");
+    :source "instagram";
+    :timestamp "2025-08-07T04:29:08.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "instagram";
+      :handle "sam.rivera";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Query;
+      doc:key ("@type" "source" "body");
+      :source "instagram";
+      :name "vegan ramen";
+      :body "vegan ramen"
+    ]
+  ] .
+
+example:instagram-reaction
+  rdfs:label "Reacting to a message";
+  rdfs:comment """
+Alex reacted to your direct message with a heart. The :RespondAction's
+:object is the :Message and its :result a :Response whose :body is the emoji.
+The response has no ID of its own, so it is keyed by the emoji and the
+action's message and reactor.
+""";
+  rdf:value [
+    a :RespondAction;
+    doc:key ("@type" "source" "object.sourceId" "agent.handle" "agent.name" "result.body");
+    :source "instagram";
+    :timestamp "2023-11-14T22:15:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "instagram";
+      :handle "alexchen";
+      :url "https://www.instagram.com/alexchen"
+    ];
+    :object [
+      a :Message;
+      doc:key ("@type" "source" "sourceId");
+      :source "instagram";
+      :sourceId "alexchen_123/1700000000000";
+      :body "hello"
+    ];
+    :result [
+      a :Response;
+      doc:key ("@type" "source" "body" "action.object.sourceId" "action.agent.handle" "action.agent.name");
+      :source "instagram";
+      :body "❤️"
+    ]
+  ] .
+
+example:slack-message-with-image
+  rdfs:label "A Slack direct message with an image";
+  rdfs:comment """
+Alex sent Sam a direct message in a Slack workspace, with a screenshot
+attached. Alex and Sam are keyed by their Slack user IDs and are members
+(:memberOf) of the workspace, a :Realm. The screenshot is an :ImageObject with
+its pixel :width and :height and a :contentPath to the exported file.
+""";
+  rdf:value [
+    a :MessageAction;
+    doc:key ("@type" "source" "timestamp" "agent");
+    :source "slack";
+    :timestamp "2024-03-13T15:04:05.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "slack";
+      :sourceId "U0EXAMPLE1";
+      :handle "alex";
+      :name "Alex Chen";
+      :memberOf [
+        a :Realm;
+        doc:key ("@type" "source" "sourceId");
+        :source "slack";
+        :sourceId "T0EXAMPLE"
+      ]
+    ];
+    :object [
+      a :Message;
+      doc:key ("@type" "source" "body" "author");
+      :source "slack";
+      :body "Here's the new dashboard layout";
+      :author [
+        a :Agent;
+        doc:key ("@type" "source" "sourceId");
+        :source "slack";
+        :sourceId "U0EXAMPLE1";
+        :handle "alex";
+        :name "Alex Chen"
+      ];
+      :recipient [
+        a :Agent;
+        doc:key ("@type" "source" "sourceId");
+        :source "slack";
+        :sourceId "U0EXAMPLE2";
+        :handle "sam";
+        :name "Sam Rivera"
+      ];
+      :contains [
+        a :ImageObject;
+        doc:key ("@type" "source" "sourceId");
+        :source "slack";
+        :sourceId "F0EXAMPLE1";
+        :name "dashboard.png";
+        :mimeType "image/png";
+        :width 1440;
+        :height 900;
+        :contentPath "/Users/sam/slack-export/D0EXAMPLE/attachments/F0EXAMPLE1-dashboard.png"
+      ]
+    ]
+  ] .
+
+example:checkin
+  rdfs:label "Checking in at a venue";
+  rdfs:comment """
+A :CheckInAction for one Foursquare check-in, keyed by the check-in id and
+timed at when it was made. The :object is a :Venue keyed by the Foursquare venue
+id, with its categories and a :Location value. An Arc Timeline place that links
+to the same id with :sameAs merges with it. The :agent is the Foursquare account,
+with its profile photo as its :emblem.
+""";
+  rdf:value [
+    a :CheckInAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "foursquare";
+    :sourceId "5f3c2a1b9e8d7c6b5a4f3e2d";
+    :timestamp "2026-05-09T09:14:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "foursquare";
+      :sourceId "12345678";
+      :name "Pat Example";
+      :url "https://foursquare.com/user/12345678";
+      :sameAs "@me";
+      :emblem [
+        a :ImageObject;
+        doc:key ("url");
+        :url "https://fastly.4sqi.net/img/user/300x300/12345678-EXAMPLE.jpg"
+      ]
+    ];
+    :object [
+      a :Venue;
+      doc:key ("@type" "source" "sourceId");
+      :source "foursquare";
+      :sourceId "0123456789abcdef01234567";
+      :name "Corner Café";
+      :category "Café", "Bakery";
+      :location [
+        a :Location;
+        :latitude 43.65;
+        :longitude -79.38;
+        :address "1 Example St, Toronto ON, Canada"
+      ]
     ]
   ] .
 
@@ -984,6 +1376,1907 @@ does not record when a like happened, so the action has no :timestamp.
     ]
   ] .
 
+example:track-listen
+  rdfs:label "Listening to a track";
+  rdfs:comment """
+A :ListenAction for one play in Spotify's recently played list. The :agent is
+the Spotify account, keyed by its :handle. The :object is a :MusicRecording
+with its :duration, its :artist, and the :MusicAlbum it appears on through
+:inAlbum. The album cover is the recording's :emblem, an :ImageObject with a
+:width and :height.
+""";
+  rdf:value [
+    a :ListenAction;
+    doc:key ("@type" "source" "agent.handle" "object.sourceId" "timestamp");
+    :source "spotify";
+    :timestamp "2026-05-09T16:04:51.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "spotify";
+      :handle "pat";
+      :name "Pat Example";
+      :url "https://open.spotify.com/user/pat";
+      :sameAs "@me"
+    ];
+    :object [
+      a :MusicRecording;
+      doc:key ("@type" "source" "sourceId");
+      :source "spotify";
+      :sourceId "6mT8qR2vN5xK9pL3bH7wC4";
+      :url "https://open.spotify.com/track/6mT8qR2vN5xK9pL3bH7wC4";
+      :name "Morning Light";
+      :duration "PT215S";
+      :artist [
+        a :MusicGroup;
+        doc:key ("@type" "source" "sourceId");
+        :source "spotify";
+        :sourceId "4kQ7wN2pR8sT1vX3yZ5bC6";
+        :url "https://open.spotify.com/artist/4kQ7wN2pR8sT1vX3yZ5bC6";
+        :name "The Example Band"
+      ];
+      :inAlbum [
+        a :MusicAlbum;
+        doc:key ("@type" "source" "sourceId");
+        :source "spotify";
+        :sourceId "1bD4fG7hJ9kL2mN5pQ8rS3";
+        :url "https://open.spotify.com/album/1bD4fG7hJ9kL2mN5pQ8rS3";
+        :name "Morning Songs";
+        :datePublished "2024-03-01"
+      ];
+      :emblem [
+        a :ImageObject;
+        doc:key ("url");
+        :url "https://images.example.com/covers/morning-songs.jpg";
+        :width 640;
+        :height 640
+      ]
+    ]
+  ] .
+
+example:album-like
+  rdfs:label "Saving an album";
+  rdfs:comment """
+Saving an album to a Spotify library is a :LikeAction, timed by when the album
+was saved. The :MusicAlbum carries its release date as :datePublished and its
+performers as :artist.
+""";
+  rdf:value [
+    a :LikeAction;
+    doc:key ("@type" "source" "agent.handle" "object.sourceId" "timestamp");
+    :source "spotify";
+    :timestamp "2026-04-02T12:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "spotify";
+      :handle "pat";
+      :name "Pat Example";
+      :url "https://open.spotify.com/user/pat";
+      :sameAs "@me"
+    ];
+    :object [
+      a :MusicAlbum;
+      doc:key ("@type" "source" "sourceId");
+      :source "spotify";
+      :sourceId "1bD4fG7hJ9kL2mN5pQ8rS3";
+      :url "https://open.spotify.com/album/1bD4fG7hJ9kL2mN5pQ8rS3";
+      :name "Morning Songs";
+      :datePublished "2024-03-01";
+      :artist [
+        a :MusicGroup;
+        doc:key ("@type" "source" "sourceId");
+        :source "spotify";
+        :sourceId "4kQ7wN2pR8sT1vX3yZ5bC6";
+        :url "https://open.spotify.com/artist/4kQ7wN2pR8sT1vX3yZ5bC6";
+        :name "The Example Band"
+      ]
+    ]
+  ] .
+
+example:playlist-add
+  rdfs:label "Adding a track to a playlist";
+  rdfs:comment """
+An :AddAction for one entry in a Spotify playlist. The track is the :object and
+the playlist, an :Entity, is the :target. The action is keyed by the track, the
+playlist, and when the track was added.
+""";
+  rdf:value [
+    a :AddAction;
+    doc:key ("@type" "source" "object.sourceId" "target.sourceId" "timestamp");
+    :source "spotify";
+    :timestamp "2026-04-03T12:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "spotify";
+      :handle "pat";
+      :name "Pat Example";
+      :url "https://open.spotify.com/user/pat";
+      :sameAs "@me"
+    ];
+    :object [
+      a :MusicRecording;
+      doc:key ("@type" "source" "sourceId");
+      :source "spotify";
+      :sourceId "6mT8qR2vN5xK9pL3bH7wC4";
+      :url "https://open.spotify.com/track/6mT8qR2vN5xK9pL3bH7wC4";
+      :name "Morning Light";
+      :duration "PT215S"
+    ];
+    :target [
+      a :Entity;
+      doc:key ("@type" "source" "sourceId");
+      :source "spotify";
+      :sourceId "3cF6hJ8kM1nP4qS7tV9wX2";
+      :url "https://open.spotify.com/playlist/3cF6hJ8kM1nP4qS7tV9wX2";
+      :name "Road Trip"
+    ]
+  ] .
+
+example:scrobble
+  rdfs:label "A scrobbled track";
+  rdfs:comment """
+A :ListenAction for one play in a Last.fm listening history, keyed by its
+:timestamp. The :MusicRecording, its :MusicAlbum (through :inAlbum), and the
+:MusicGroup that is their :artist are keyed by their MusicBrainz IDs as
+:sourceId. :artist accepts multiple values, so it is an array even with one
+artist. Cover art and the artist's picture are each an :emblem, an
+:ImageObject keyed by its :url. The listener is an :Agent keyed by their
+Last.fm username as :handle.
+""";
+  rdf:value [
+    a :ListenAction;
+    doc:key ("@type" "source" "timestamp");
+    :source "lastfm";
+    :timestamp "2026-05-09T18:22:07.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "lastfm";
+      :handle "sam_listens";
+      :url "https://www.last.fm/user/sam_listens";
+      :name "Sam Rivers";
+      :sameAs "@me"
+    ];
+    :object [
+      a :MusicRecording;
+      doc:key ("@type" "source" "sourceId");
+      :source "lastfm";
+      :sourceId "3f2b7c1e-8a4d-4e6f-9b0a-1c2d3e4f5a6b";
+      :url "https://www.last.fm/music/The+Example+Band/_/Morning+Light";
+      :name "Morning Light";
+      :emblem [
+        a :ImageObject;
+        doc:key ("url");
+        :url "https://images.example.com/covers/morning-light.png"
+      ];
+      :artist [
+        a :MusicGroup;
+        doc:key ("@type" "source" "sourceId");
+        :source "lastfm";
+        :sourceId "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
+        :name "The Example Band";
+        :url "https://www.last.fm/music/The+Example+Band";
+        :emblem [
+          a :ImageObject;
+          doc:key ("url");
+          :url "https://images.example.com/artists/the-example-band.png"
+        ]
+      ];
+      :inAlbum [
+        a :MusicAlbum;
+        doc:key ("@type" "source" "sourceId");
+        :source "lastfm";
+        :sourceId "0d1e2f3a-4b5c-4d6e-8f7a-9b0c1d2e3f4a";
+        :name "Early Hours";
+        :artist [
+          a :MusicGroup;
+          doc:key ("@type" "source" "sourceId");
+          :source "lastfm";
+          :sourceId "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
+          :name "The Example Band";
+          :url "https://www.last.fm/music/The+Example+Band"
+        ]
+      ]
+    ]
+  ] .
+
+example:loved-track
+  rdfs:label "A loved track";
+  rdfs:comment """
+A :LikeAction for a track the listener loved on Last.fm, keyed by the
+:timestamp when they loved it. This recording has no MusicBrainz ID, so it and
+its :artist are keyed by their Last.fm :url.
+""";
+  rdf:value [
+    a :LikeAction;
+    doc:key ("@type" "source" "timestamp");
+    :source "lastfm";
+    :timestamp "2026-04-18T21:05:33.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "lastfm";
+      :handle "sam_listens";
+      :url "https://www.last.fm/user/sam_listens";
+      :sameAs "@me"
+    ];
+    :object [
+      a :MusicRecording;
+      doc:key ("url");
+      :url "https://www.last.fm/music/Other+Example/_/Harbour+Lights";
+      :name "Harbour Lights";
+      :artist [
+        a :MusicGroup;
+        doc:key ("url");
+        :source "lastfm";
+        :name "Other Example";
+        :url "https://www.last.fm/music/Other+Example"
+      ]
+    ]
+  ] .
+
+example:followed-friend
+  rdfs:label "Following a friend";
+  rdfs:comment """
+A :FollowAction for a user the listener follows on Last.fm. Last.fm gives no
+date for the follow, so the action has no :timestamp; it is keyed by the
+followed user's username as :sourceId, and each read of the friends list
+reports it again. The friend is an :Agent keyed by :handle, with their real
+:name and avatar as :emblem.
+""";
+  rdf:value [
+    a :FollowAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "lastfm";
+    :sourceId "alex_plays";
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "lastfm";
+      :handle "sam_listens";
+      :url "https://www.last.fm/user/sam_listens";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "lastfm";
+      :handle "alex_plays";
+      :url "https://www.last.fm/user/alex_plays";
+      :name "Alex Chen";
+      :emblem [
+        a :ImageObject;
+        doc:key ("url");
+        :url "https://images.example.com/avatars/alex_plays.png"
+      ]
+    ]
+  ] .
+
+example:account-created
+  rdfs:label "An account being registered";
+  rdfs:comment """
+A :CreateAction for the day a Last.fm account was registered. The account's
+:Agent is both the :agent and the :result: the account came into being. The
+action is keyed by the username as :sourceId, and the agent is a bare :handle
+reference, so the friend's current name and avatar are not dated to the
+registration.
+""";
+  rdf:value [
+    a :CreateAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "lastfm";
+    :sourceId "alex_plays";
+    :timestamp "2012-03-14T16:20:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "lastfm";
+      :handle "alex_plays"
+    ];
+    :result [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "lastfm";
+      :handle "alex_plays"
+    ]
+  ] .
+
+example:video-liked
+  rdfs:label "Liking a video";
+  rdfs:comment """
+A :LikeAction from the YouTube API: you liked a video. The agent is your own
+channel, keyed by its channel id as a :handle and tied to you through
+:sameAs "@me". The :VideoObject carries its :duration, its :datePublished, a
+thumbnail as its :emblem, and the uploading channel as :author.
+""";
+  rdf:value [
+    a :LikeAction;
+    doc:key ("@type" "source" "agent.handle" "object.sourceId" "timestamp");
+    :source "youtube";
+    :timestamp "2026-05-09T20:14:05.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "youtube";
+      :handle "UCexampleOwner0000000000";
+      :url "https://www.youtube.com/channel/UCexampleOwner0000000000";
+      :name "Pat Example";
+      :sameAs "@me"
+    ];
+    :object [
+      a :VideoObject;
+      doc:key ("@type" "source" "sourceId");
+      :source "youtube";
+      :sourceId "vid00000001";
+      :url "https://www.youtube.com/watch?v=vid00000001";
+      :name "Fixing a bike chain in five minutes";
+      :duration "PT5M12S";
+      :datePublished "2025-03-14T16:00:00Z";
+      :emblem [
+        a :ImageObject;
+        doc:key ("url");
+        :url "https://i.example.com/vi/vid00000001/maxresdefault.jpg"
+      ];
+      :author [
+        a :Agent;
+        doc:key ("@type" "source" "handle");
+        :source "youtube";
+        :handle "UCexampleWorkshop0000000";
+        :url "https://www.youtube.com/channel/UCexampleWorkshop0000000";
+        :name "Corner Bike Workshop"
+      ]
+    ]
+  ] .
+
+example:channel-followed
+  rdfs:label "Subscribing to a channel";
+  rdfs:comment """
+A :FollowAction for a YouTube subscription. It is keyed by the followed
+channel's id, so each re-read of the subscription list updates the same action.
+The :object is the channel as an :Agent.
+""";
+  rdf:value [
+    a :FollowAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "youtube";
+    :sourceId "UCexampleWorkshop0000000";
+    :timestamp "2025-11-02T08:30:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "youtube";
+      :handle "UCexampleOwner0000000000";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "youtube";
+      :handle "UCexampleWorkshop0000000";
+      :url "https://www.youtube.com/channel/UCexampleWorkshop0000000";
+      :name "Corner Bike Workshop"
+    ]
+  ] .
+
+example:playlist-created
+  rdfs:label "Creating a playlist";
+  rdfs:comment """
+A :CreateAction for a YouTube playlist, at the time the playlist was created.
+Its :result is the playlist as a :Collection, with its :visibility.
+""";
+  rdf:value [
+    a :CreateAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "youtube";
+    :sourceId "PLexample0001";
+    :timestamp "2024-02-20T19:45:10.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "youtube";
+      :handle "UCexampleOwner0000000000";
+      :sameAs "@me"
+    ];
+    :result [
+      a :Collection;
+      doc:key ("@type" "source" "sourceId");
+      :source "youtube";
+      :sourceId "PLexample0001";
+      :url "https://www.youtube.com/playlist?list=PLexample0001";
+      :name "Bike repair";
+      :visibility "unlisted"
+    ]
+  ] .
+
+example:video-added-to-playlist
+  rdfs:label "Adding a video to a playlist";
+  rdfs:comment """
+An :AddAction: you added a video (the :object) to a playlist (the :target). It
+is keyed by the video, the playlist, and the time, so the YouTube API and a
+Google Takeout archive produce the same key for the same addition.
+""";
+  rdf:value [
+    a :AddAction;
+    doc:key ("@type" "source" "object.sourceId" "target.sourceId" "timestamp");
+    :source "youtube";
+    :timestamp "2026-05-09T20:15:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "youtube";
+      :handle "UCexampleOwner0000000000";
+      :sameAs "@me"
+    ];
+    :object [
+      a :VideoObject;
+      doc:key ("@type" "source" "sourceId");
+      :source "youtube";
+      :sourceId "vid00000001";
+      :url "https://www.youtube.com/watch?v=vid00000001"
+    ];
+    :target [
+      a :Collection;
+      doc:key ("@type" "source" "sourceId");
+      :source "youtube";
+      :sourceId "PLexample0001";
+      :url "https://www.youtube.com/playlist?list=PLexample0001";
+      :name "Bike repair"
+    ]
+  ] .
+
+example:video-published
+  rdfs:label "Publishing a video";
+  rdfs:comment """
+A :PublishAction for a video uploaded to your channel. The action's
+:timestamp is the time the video was published, so the video itself carries no
+:datePublished.
+""";
+  rdf:value [
+    a :PublishAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "youtube";
+    :sourceId "vid00000002";
+    :timestamp "2025-08-01T12:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "youtube";
+      :handle "UCexampleOwner0000000000";
+      :sameAs "@me"
+    ];
+    :object [
+      a :VideoObject;
+      doc:key ("@type" "source" "sourceId");
+      :source "youtube";
+      :sourceId "vid00000002";
+      :url "https://www.youtube.com/watch?v=vid00000002";
+      :name "Summer ride";
+      :duration "PT2M3S"
+    ]
+  ] .
+
+example:video-watched
+  rdfs:label "Watching a video";
+  rdfs:comment """
+A :WatchAction from the watch history in a Google Takeout archive. The
+:object is the video, with its uploading channel as :author.
+""";
+  rdf:value [
+    a :WatchAction;
+    doc:key ("@type" "source" "agent.handle" "object.sourceId" "timestamp");
+    :source "youtube";
+    :timestamp "2026-05-10T02:46:36.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "youtube";
+      :handle "UCexampleOwner0000000000";
+      :sameAs "@me"
+    ];
+    :object [
+      a :VideoObject;
+      doc:key ("@type" "source" "sourceId");
+      :source "youtube";
+      :sourceId "vid00000001";
+      :url "https://www.youtube.com/watch?v=vid00000001";
+      :name "Fixing a bike chain in five minutes";
+      :author [
+        a :Agent;
+        doc:key ("@type" "source" "handle");
+        :source "youtube";
+        :handle "UCexampleWorkshop0000000";
+        :url "https://www.youtube.com/channel/UCexampleWorkshop0000000";
+        :name "Corner Bike Workshop"
+      ]
+    ]
+  ] .
+
+example:video-search
+  rdfs:label "Searching YouTube";
+  rdfs:comment """
+A :FindAction from the search history in a Google Takeout archive. The
+:object is the :Query, keyed by the text entered as its :body.
+""";
+  rdf:value [
+    a :FindAction;
+    doc:key ("@type" "source" "agent.handle" "object.body" "timestamp");
+    :source "youtube";
+    :timestamp "2026-05-09T20:10:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "youtube";
+      :handle "UCexampleOwner0000000000";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Query;
+      doc:key ("@type" "source" "body");
+      :source "youtube";
+      :name "fix bike chain";
+      :body "fix bike chain"
+    ]
+  ] .
+
+example:video-comment
+  rdfs:label "Commenting on a video";
+  rdfs:comment """
+An :AnnotateAction for a comment you left on a video, from a Google Takeout
+archive. Its :result is the :Comment, with the text as :body, you as :author,
+and the video as :about.
+""";
+  rdf:value [
+    a :AnnotateAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "youtube";
+    :sourceId "Ugexamplecomment01";
+    :timestamp "2026-05-09T20:20:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "handle");
+      :source "youtube";
+      :handle "UCexampleOwner0000000000";
+      :sameAs "@me"
+    ];
+    :object [
+      a :VideoObject;
+      doc:key ("@type" "source" "sourceId");
+      :source "youtube";
+      :sourceId "vid00000001";
+      :url "https://www.youtube.com/watch?v=vid00000001"
+    ];
+    :result [
+      a :Comment;
+      doc:key ("@type" "source" "sourceId");
+      :source "youtube";
+      :sourceId "Ugexamplecomment01";
+      :body "The quick-link tip saved my ride.";
+      :author [
+        a :Agent;
+        doc:key ("@type" "source" "handle");
+        :source "youtube";
+        :handle "UCexampleOwner0000000000";
+        :sameAs "@me"
+      ];
+      :about [
+        a :VideoObject;
+        doc:key ("@type" "source" "sourceId");
+        :source "youtube";
+        :sourceId "vid00000001";
+        :url "https://www.youtube.com/watch?v=vid00000001"
+      ]
+    ]
+  ] .
+
+example:app-usage-block
+  rdfs:label "A block of app usage";
+  rdfs:comment """
+An :ExecuteAction for one block of app usage recorded by Timing. The action
+carries the measured span, the app as its :object, and the :Device as its
+:instrument. Its :result is the :DeviceSession: the :Directory the terminal was
+in (:workingDirectory), the :Project it counted toward (:isPartOf), and the
+window title as its :name.
+
+The device is keyed by Timing's ID for it, with its hardware address linked
+through :sameAs. Its kind is :category data and its make is :model. The
+directory is keyed by its path within the machine it lives on (:inRealm), the
+same :Realm the device runs in.
+""";
+  rdf:value [
+    a :ExecuteAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "timing-app";
+    :sourceId "101";
+    :startTime "2026-03-14T09:20:00.000Z"^^xsd:dateTime;
+    :endTime "2026-03-14T09:25:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source");
+      :source "timing-app";
+      :sameAs "@me"
+    ];
+    :object [
+      a :SoftwareApplication;
+      doc:key ("@type" "source" "handle");
+      :source "apple-bundle-id";
+      :handle "com.mitchellh.ghostty";
+      :name "Ghostty"
+    ];
+    :instrument [
+      a :Device;
+      doc:key ("@type" "source" "sourceId");
+      :source "timing-app";
+      :sourceId "1234567890123456789";
+      :name "pat-mbp";
+      :category "computer";
+      :model "Mac15,3";
+      :sameAs [
+        a :Device;
+        doc:key ("@type" "source" "handle");
+        :source "mac-address";
+        :handle "00:11:22:33:44:55"
+      ];
+      :inRealm [
+        a :Realm;
+        doc:key ("@type" "source" "handle");
+        :source "hostname";
+        :handle "pat-mbp"
+      ]
+    ];
+    :result [
+      a :DeviceSession;
+      doc:key ("@type" "source" "sourceId");
+      :source "timing-app";
+      :sourceId "101";
+      :name "npm test";
+      :isPartOf [
+        a :Project;
+        doc:key ("@type" "source" "sourceId");
+        :source "timing-app";
+        :sourceId "2";
+        :name "Chronicle"
+      ];
+      :workingDirectory [
+        a :Directory;
+        doc:key ("source" "handle" "inRealm.handle");
+        :source "filesystem";
+        :handle "/Users/pat/projects/chronicle";
+        :name "chronicle";
+        :inRealm [
+          a :Realm;
+          doc:key ("@type" "source" "handle");
+          :source "hostname";
+          :handle "pat-mbp"
+        ]
+      ]
+    ]
+  ] .
+
+example:document-session
+  rdfs:label "Time spent on a document";
+  rdfs:comment """
+A :DeviceSession whose :subject is the file in focus, a :DocumentObject keyed
+by its path within the machine it lives on (:inRealm). The window title only
+repeated the file's name, so the session has no :name of its own.
+""";
+  rdf:value [
+    a :DeviceSession;
+    doc:key ("@type" "source" "sourceId");
+    :source "timing-app";
+    :sourceId "103";
+    :subject [
+      a :DocumentObject;
+      doc:key ("source" "handle" "inRealm.handle");
+      :source "filesystem";
+      :handle "/Users/pat/notes/garden plan.md";
+      :name "garden plan.md";
+      :inRealm [
+        a :Realm;
+        doc:key ("@type" "source" "handle");
+        :source "hostname";
+        :handle "pat-mbp"
+      ]
+    ]
+  ] .
+
+example:time-entry
+  rdfs:label "A logged time entry";
+  rdfs:comment """
+An :ExperienceAction for a block of time logged by hand in Timing. The action
+carries when it happened; its :result is the :Session, with the entry's title
+as :name, its notes as :description, and the :Project it belongs to (:isPartOf).
+""";
+  rdf:value [
+    a :ExperienceAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "timing-app";
+    :sourceId "201";
+    :startTime "2026-03-14T19:00:00.000Z"^^xsd:dateTime;
+    :endTime "2026-03-14T20:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source");
+      :source "timing-app";
+      :sameAs "@me"
+    ];
+    :result [
+      a :Session;
+      doc:key ("@type" "source" "sourceId");
+      :source "timing-app";
+      :sourceId "201";
+      :name "Bedtime routine";
+      :description "Two books tonight";
+      :isPartOf [
+        a :Project;
+        doc:key ("@type" "source" "sourceId");
+        :source "timing-app";
+        :sourceId "4";
+        :name "Family"
+      ]
+    ]
+  ] .
+
+example:relayed-call
+  rdfs:label "A call relayed through Timing";
+  rdfs:comment """
+A :CallAction from the Apple call history that Timing keeps. It is keyed by
+Apple's call ID in the `apple-phone` source, so it folds with the same call
+read from the phone. Timing records no direction, so there is no :agent. The
+:CallSession carries the other party as its :recipient, keyed by the phone
+number.
+""";
+  rdf:value [
+    a :CallAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "apple-phone";
+    :sourceId "5B1E2C3D-4F50-4A61-8B72-9C83D4E5F607";
+    :startTime "2026-03-14T12:02:30.000Z"^^xsd:dateTime;
+    :endTime "2026-03-14T12:03:03.000Z"^^xsd:dateTime;
+    :result [
+      a :CallSession;
+      doc:key ("@type" "source" "sourceId");
+      :source "apple-phone";
+      :sourceId "5B1E2C3D-4F50-4A61-8B72-9C83D4E5F607";
+      :recipient [
+        a :Agent;
+        doc:key ("source" "handle");
+        :source "apple-phone";
+        :handle "+15555550123";
+        :sameAs [
+          a :Agent;
+          doc:key ("source" "handle");
+          :source "phone";
+          :handle "+15555550123"
+        ]
+      ]
+    ]
+  ] .
+
+example:bluesky-follow
+  rdfs:label "Following an account on Bluesky";
+  rdfs:comment """
+A :FollowAction for an account you started following on Bluesky. The action is
+keyed by the follow record's address in your repository, and its :timestamp is
+when the record was created.
+
+Both accounts are :Agent nodes keyed by their decentralized identifier (DID) as
+the :sourceId. You are marked with :sameAs.
+""";
+  rdf:value [
+    a :FollowAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "bluesky";
+    :sourceId "did:plc:k3v9x2m7q4w8r1t6y5z0abcd/app.bsky.graph.follow/3lbq7x2mfsk2a";
+    :timestamp "2026-03-14T16:05:42.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "bluesky";
+      :sourceId "did:plc:k3v9x2m7q4w8r1t6y5z0abcd";
+      :name "Sam Rivera";
+      :description "Hiking, bread, and maps.";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "bluesky";
+      :sourceId "did:plc:p8n2c5h7j1g4f6d3s9a0wxyz";
+      :name "Alex Chen"
+    ]
+  ] .
+
+example:bluesky-like
+  rdfs:label "Liking a post on Bluesky";
+  rdfs:comment """
+A :LikeAction for a post you liked on Bluesky. The :Post has its text in :body,
+its :author, and its photos in :contains. Each photo is an :ImageObject keyed
+by its :url, with a :width and :height when Bluesky reports them and the alt
+text as its :description.
+""";
+  rdf:value [
+    a :LikeAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "bluesky";
+    :sourceId "did:plc:k3v9x2m7q4w8r1t6y5z0abcd/app.bsky.feed.like/3lcr4m8tnvk2b";
+    :timestamp "2026-03-15T09:12:03.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "bluesky";
+      :sourceId "did:plc:k3v9x2m7q4w8r1t6y5z0abcd";
+      :name "Sam Rivera";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Post;
+      doc:key ("@type" "source" "sourceId");
+      :source "bluesky";
+      :sourceId "did:plc:p8n2c5h7j1g4f6d3s9a0wxyz/app.bsky.feed.post/3lcq9w2kd7s2c";
+      :body "First frost on the community garden this morning.";
+      :author [
+        a :Agent;
+        doc:key ("@type" "source" "sourceId");
+        :source "bluesky";
+        :sourceId "did:plc:p8n2c5h7j1g4f6d3s9a0wxyz";
+        :name "Alex Chen"
+      ];
+      :contains [
+        a :ImageObject;
+        doc:key ("url");
+        :url "https://cdn.example.com/img/frost.jpg";
+        :width 2000;
+        :height 1500;
+        :description "Frost on kale leaves"
+      ]
+    ]
+  ] .
+
+example:bluesky-post-published
+  rdfs:label "A post published on Bluesky";
+  rdfs:comment """
+A :PublishAction for a post by the account that wrote it. Its :timestamp is
+when the post was created. The :Post is the same node a :LikeAction points to,
+so liking a post also records who published it and when.
+""";
+  rdf:value [
+    a :PublishAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "bluesky";
+    :sourceId "did:plc:p8n2c5h7j1g4f6d3s9a0wxyz/app.bsky.feed.post/3lcq9w2kd7s2c";
+    :timestamp "2026-03-15T07:48:30.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "bluesky";
+      :sourceId "did:plc:p8n2c5h7j1g4f6d3s9a0wxyz";
+      :name "Alex Chen"
+    ];
+    :object [
+      a :Post;
+      doc:key ("@type" "source" "sourceId");
+      :source "bluesky";
+      :sourceId "did:plc:p8n2c5h7j1g4f6d3s9a0wxyz/app.bsky.feed.post/3lcq9w2kd7s2c";
+      :body "First frost on the community garden this morning."
+    ]
+  ] .
+
+example:book-finished
+  rdfs:label "Finishing a book";
+  rdfs:comment """
+A reader's Goodreads export lists a book on their `read` shelf. The row
+becomes two actions on the same :Book, keyed by Goodreads' book ID: a
+:BookmarkAction at the date the book was added to a shelf, and a
+:CompleteAction at the date it was finished. This example shows the finish.
+
+The book carries its :author, its :publisher (an :Organization keyed by
+name), its :pageCount, and the reader's review as its :description. The
+book's ISBN-13 is a :sameAs key in the `isbn` namespace, so the same
+edition read through any source that knows its ISBN collapses onto one
+book. Each custom shelf the book sits on is a :Collection it :isPartOf,
+keyed by the shelf's permalink.
+""";
+  rdf:value [
+    a :CompleteAction;
+    doc:key ("@type" "source" "object.sourceId" "timestamp");
+    :source "goodreads";
+    :timestamp "2025-03-14T00:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "goodreads";
+      :sourceId "1234567";
+      :name "Sam Rivera";
+      :url "https://www.goodreads.com/user/show/1234567";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Book;
+      doc:key ("@type" "source" "sourceId");
+      :source "goodreads";
+      :sourceId "40961427";
+      :name "The Lighthouse Keeper";
+      :url "https://www.goodreads.com/book/show/40961427";
+      :description "Quiet and patient. The last chapter stayed with me.";
+      :pageCount 312;
+      :author [
+        a :Person;
+        doc:key ("@type" "source" "name");
+        :source "goodreads";
+        :name "Maya Lindqvist"
+      ], [
+        a :Person;
+        doc:key ("@type" "source" "name");
+        :source "goodreads";
+        :name "Tomas Berg"
+      ];
+      :publisher [
+        a :Organization;
+        doc:key ("@type" "source" "name");
+        :source "goodreads";
+        :name "Harbor Press"
+      ];
+      :isPartOf [
+        a :Collection;
+        doc:key ("@type" "url");
+        :source "goodreads";
+        :name "favorites";
+        :url "https://www.goodreads.com/review/list/1234567?shelf=favorites"
+      ];
+      :sameAs [
+        a :Book;
+        doc:key ("source" "sourceId");
+        :source "isbn";
+        :sourceId "9780000000019";
+        :name "The Lighthouse Keeper"
+      ]
+    ]
+  ] .
+
+example:book-shelved
+  rdfs:label "Shelving a book to read";
+  rdfs:comment """
+A book on the reader's `to-read` shelf becomes a :BookmarkAction at the date
+it was added: the reader saved it for later. The reader has no Goodreads ID
+configured here, so they are keyed by name.
+""";
+  rdf:value [
+    a :BookmarkAction;
+    doc:key ("@type" "source" "object.sourceId" "timestamp");
+    :source "goodreads";
+    :timestamp "2025-06-02T00:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "name");
+      :source "goodreads";
+      :name "Sam Rivera";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Book;
+      doc:key ("@type" "source" "sourceId");
+      :source "goodreads";
+      :sourceId "51234";
+      :name "Field Notes on Tides";
+      :url "https://www.goodreads.com/book/show/51234";
+      :author [
+        a :Person;
+        doc:key ("@type" "source" "name");
+        :source "goodreads";
+        :name "Ines Okafor"
+      ]
+    ]
+  ] .
+
+example:marvin-reading-session
+  rdfs:label "A reading session";
+  rdfs:comment """
+A :ReadAction for one session with a book in an e-reader. The :startTime and
+:endTime bound the session. The :object is the :Book, keyed by its :name and
+its author's name because the export has no book IDs. The export doesn't
+name the reader either, so the :agent is keyed by source only and marked as
+you with :sameAs.
+""";
+  rdf:value [
+    a :ReadAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "marvin";
+    :sourceId "1711234567";
+    :startTime "2026-03-01T21:05:00.000Z"^^xsd:dateTime;
+    :endTime "2026-03-01T21:20:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source");
+      :source "marvin";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Book;
+      doc:key ("@type" "source" "name" "author.name");
+      :source "marvin";
+      :sourceId "The Lantern Keeper";
+      :name "The Lantern Keeper";
+      :author [
+        a :Person;
+        doc:key ("@type" "source" "name");
+        :source "marvin";
+        :sourceId "Jane Doe";
+        :name "Jane Doe"
+      ]
+    ]
+  ] .
+
+example:marvin-highlight
+  rdfs:label "Highlighting a passage in a book";
+  rdfs:comment """
+A :QuoteAction for a highlight made in an e-reader. Its :result is the
+:Quotation, which carries the highlighted text as :body and is part of the
+:Book it was taken from (:isPartOf).
+""";
+  rdf:value [
+    a :QuoteAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "marvin";
+    :sourceId "4821";
+    :timestamp "2026-03-02T08:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source");
+      :source "marvin";
+      :sameAs "@me"
+    ];
+    :result [
+      a :Quotation;
+      doc:key ("@type" "source" "sourceId");
+      :source "marvin";
+      :sourceId "4821";
+      :body "The light was steady, and so was she.";
+      :isPartOf [
+        a :Book;
+        doc:key ("@type" "source" "name" "author.name");
+        :source "marvin";
+        :sourceId "The Lantern Keeper";
+        :name "The Lantern Keeper";
+        :author [
+          a :Person;
+          doc:key ("@type" "source" "name");
+          :source "marvin";
+          :sourceId "Jane Doe";
+          :name "Jane Doe"
+        ]
+      ]
+    ]
+  ] .
+
+example:marvin-note
+  rdfs:label "A note on a highlight";
+  rdfs:comment """
+An :AnnotateAction for a note written on a highlight. Its :result is the
+:Comment, and :about names the :Quotation it annotates. A note with no
+highlight is about the :Book instead.
+""";
+  rdf:value [
+    a :AnnotateAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "marvin";
+    :sourceId "4821";
+    :timestamp "2026-03-02T08:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source");
+      :source "marvin";
+      :sameAs "@me"
+    ];
+    :result [
+      a :Comment;
+      doc:key ("@type" "source" "sourceId");
+      :source "marvin";
+      :sourceId "4821";
+      :description "Echoes the opening chapter.";
+      :about [
+        a :Quotation;
+        doc:key ("@type" "source" "sourceId");
+        :source "marvin";
+        :sourceId "4821";
+        :body "The light was steady, and so was she."
+      ]
+    ]
+  ] .
+
+example:zotero-work-saved
+  rdfs:label "Saving a book to a reference library";
+  rdfs:comment """
+A :BookmarkAction for a book saved to Zotero. The :Book is keyed by Zotero's
+item key within the library, a :Realm, since item keys are unique only per
+library. It carries its :datePublished (a bare year here), :pageCount,
+:publisher, an :author, and an editor as :creator. Its ISBN is a :sameAs edge
+in the `isbn` namespace, so any source that knows the ISBN names the same
+book.
+""";
+  rdf:value [
+    a :BookmarkAction;
+    doc:key ("@type" "source" "sourceId" "object.inRealm.handle");
+    :source "zotero";
+    :sourceId "BOOKAAAA";
+    :timestamp "2024-11-05T10:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "zotero";
+      :sourceId "LuK3xAmp";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Book;
+      doc:key ("source" "sourceId" "inRealm.handle");
+      :source "zotero";
+      :sourceId "BOOKAAAA";
+      :inRealm [
+        a :Realm;
+        doc:key ("@type" "source" "handle");
+        :source "zotero";
+        :handle "7654321"
+      ];
+      :name "Collected Trails";
+      :datePublished "2019";
+      :pageCount 320;
+      :publisher [
+        a :Organization;
+        doc:key ("@type" "source" "name");
+        :source "zotero";
+        :name "Example Press"
+      ];
+      :author [
+        a :Person;
+        doc:key ("@type" "source" "name");
+        :source "zotero";
+        :name "Pat Example"
+      ];
+      :creator [
+        a :Person;
+        doc:key ("@type" "source" "name");
+        :source "zotero";
+        :name "Alex Example"
+      ];
+      :sameAs [
+        a :Book;
+        doc:key ("source" "sourceId");
+        :source "isbn";
+        :sourceId "9780306406157";
+        :name "Collected Trails"
+      ]
+    ]
+  ] .
+
+example:zotero-highlight
+  rdfs:label "Highlighting a passage in a PDF";
+  rdfs:comment """
+A :QuoteAction for a highlight made in Zotero's PDF reader. Its :result is the
+:Quotation: the highlighted text as :body, its :color and :annotationStyle,
+and its position as a :PageSelector, with the page number as :selectorValue
+and the printed page label as :selectorLabel. The quotation is part of the
+PDF it was made in, which is the same entity as the :Article it belongs to
+(:sameAs).
+""";
+  rdf:value [
+    a :QuoteAction;
+    doc:key ("@type" "source" "sourceId" "result.inRealm.handle");
+    :source "zotero";
+    :sourceId "ANNOPDF1";
+    :timestamp "2025-01-11T09:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "zotero";
+      :sourceId "LuK3xAmp";
+      :sameAs "@me"
+    ];
+    :result [
+      a :Quotation;
+      doc:key ("@type" "source" "sourceId" "inRealm.handle");
+      :source "zotero";
+      :sourceId "ANNOPDF1";
+      :inRealm [
+        a :Realm;
+        doc:key ("@type" "source" "handle");
+        :source "zotero";
+        :handle "7654321"
+      ];
+      :body "Erosion doubles on wet days.";
+      :color "#ffd400";
+      :annotationStyle "highlight";
+      :isPartOf [
+        a :DocumentObject;
+        doc:key ("source" "sourceId" "inRealm.handle");
+        :source "zotero";
+        :sourceId "ATTPDF01";
+        :inRealm [
+          a :Realm;
+          doc:key ("@type" "source" "handle");
+          :source "zotero";
+          :handle "7654321"
+        ];
+        :sameAs [
+          a :Article;
+          doc:key ("source" "sourceId" "inRealm.handle");
+          :source "zotero";
+          :sourceId "WORKAAAA";
+          :inRealm [
+            a :Realm;
+            doc:key ("@type" "source" "handle");
+            :source "zotero";
+            :handle "7654321"
+          ];
+          :name "Trail Erosion in Alpine Meadows"
+        ]
+      ];
+      :selector [
+        a :PageSelector;
+        doc:key ("@type" "selectorValue");
+        :selectorValue "12";
+        :selectorLabel "12"
+      ]
+    ]
+  ] .
+
+example:zotero-highlight-comment
+  rdfs:label "Commenting on a highlight";
+  rdfs:comment """
+An :AnnotateAction for the comment written on a highlight. Its :result is the
+:Comment, whose text is its :description and which is :about the
+:Quotation it was written on.
+""";
+  rdf:value [
+    a :AnnotateAction;
+    doc:key ("@type" "source" "sourceId" "result.inRealm.handle");
+    :source "zotero";
+    :sourceId "ANNOPDF1";
+    :timestamp "2025-01-11T09:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "zotero";
+      :sourceId "LuK3xAmp";
+      :sameAs "@me"
+    ];
+    :result [
+      a :Comment;
+      doc:key ("@type" "source" "sourceId" "inRealm.handle");
+      :source "zotero";
+      :sourceId "ANNOPDF1";
+      :inRealm [
+        a :Realm;
+        doc:key ("@type" "source" "handle");
+        :source "zotero";
+        :handle "7654321"
+      ];
+      :description "Check the 2023 data.";
+      :about [
+        a :Quotation;
+        doc:key ("@type" "source" "sourceId" "inRealm.handle");
+        :source "zotero";
+        :sourceId "ANNOPDF1";
+        :inRealm [
+          a :Realm;
+          doc:key ("@type" "source" "handle");
+          :source "zotero";
+          :handle "7654321"
+        ];
+        :body "Erosion doubles on wet days.";
+        :color "#ffd400";
+        :annotationStyle "highlight";
+        :isPartOf [
+          a :DocumentObject;
+          doc:key ("source" "sourceId" "inRealm.handle");
+          :source "zotero";
+          :sourceId "ATTPDF01";
+          :inRealm [
+            a :Realm;
+            doc:key ("@type" "source" "handle");
+            :source "zotero";
+            :handle "7654321"
+          ];
+          :sameAs [
+            a :Article;
+            doc:key ("source" "sourceId" "inRealm.handle");
+            :source "zotero";
+            :sourceId "WORKAAAA";
+            :inRealm [
+              a :Realm;
+              doc:key ("@type" "source" "handle");
+              :source "zotero";
+              :handle "7654321"
+            ];
+            :name "Trail Erosion in Alpine Meadows"
+          ]
+        ];
+        :selector [
+          a :PageSelector;
+          doc:key ("@type" "selectorValue");
+          :selectorValue "12";
+          :selectorLabel "12"
+        ]
+      ]
+    ]
+  ] .
+
+example:zotero-epub-highlight
+  rdfs:label "Underlining a passage in an EPUB";
+  rdfs:comment """
+A :QuoteAction for an underline in an EPUB. The :Quotation's position is an
+:EpubCfiSelector, whose :selectorValue is the EPUB Canonical Fragment
+Identifier.
+""";
+  rdf:value [
+    a :QuoteAction;
+    doc:key ("@type" "source" "sourceId" "result.inRealm.handle");
+    :source "zotero";
+    :sourceId "ANNOEPUB";
+    :timestamp "2025-01-22T07:30:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "zotero";
+      :sourceId "LuK3xAmp";
+      :sameAs "@me"
+    ];
+    :result [
+      a :Quotation;
+      doc:key ("@type" "source" "sourceId" "inRealm.handle");
+      :source "zotero";
+      :sourceId "ANNOEPUB";
+      :inRealm [
+        a :Realm;
+        doc:key ("@type" "source" "handle");
+        :source "zotero";
+        :handle "7654321"
+      ];
+      :body "Carry more water than you think.";
+      :annotationStyle "underline";
+      :isPartOf [
+        a :DocumentObject;
+        doc:key ("source" "sourceId" "inRealm.handle");
+        :source "zotero";
+        :sourceId "ORPHAN01";
+        :inRealm [
+          a :Realm;
+          doc:key ("@type" "source" "handle");
+          :source "zotero";
+          :handle "7654321"
+        ];
+        :name "field-guide.epub"
+      ];
+      :selector [
+        a :EpubCfiSelector;
+        doc:key ("@type" "selectorValue");
+        :selectorValue "epubcfi(/6/4!/4/2/1:0)"
+      ]
+    ]
+  ] .
+
+example:zotero-snapshot-saved
+  rdfs:label "Saving a snapshot of a web page";
+  rdfs:comment """
+A :BookmarkAction for a web page snapshot saved to Zotero on its own. The
+snapshot is a :DocumentObject with the page's :url, and :snapshotOf points it
+at the page, an :Entity keyed by its URL, so the snapshot joins the page any
+other source knows.
+""";
+  rdf:value [
+    a :BookmarkAction;
+    doc:key ("@type" "source" "sourceId" "object.inRealm.handle");
+    :source "zotero";
+    :sourceId "SNAPSHOT";
+    :timestamp "2025-02-03T15:20:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "zotero";
+      :sourceId "LuK3xAmp";
+      :sameAs "@me"
+    ];
+    :object [
+      a :DocumentObject;
+      doc:key ("source" "sourceId" "inRealm.handle");
+      :source "zotero";
+      :sourceId "SNAPSHOT";
+      :inRealm [
+        a :Realm;
+        doc:key ("@type" "source" "handle");
+        :source "zotero";
+        :handle "7654321"
+      ];
+      :name "Lost Lake Trail";
+      :mimeType "text/html";
+      :url "https://trails.example.com/lost-lake";
+      :snapshotOf [
+        a :Entity;
+        doc:key ("url");
+        :url "https://trails.example.com/lost-lake"
+      ]
+    ]
+  ] .
+
+example:zotero-blog-post-saved
+  rdfs:label "Saving a blog post to a reference library";
+  rdfs:comment """
+A :BookmarkAction for a blog post saved to Zotero. Zotero's blog and forum
+posts are a :Post, with its :author and :datePublished.
+""";
+  rdf:value [
+    a :BookmarkAction;
+    doc:key ("@type" "source" "sourceId" "object.inRealm.handle");
+    :source "zotero";
+    :sourceId "POSTAAAA";
+    :timestamp "2025-02-10T11:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "zotero";
+      :sourceId "LuK3xAmp";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Post;
+      doc:key ("source" "sourceId" "inRealm.handle");
+      :source "zotero";
+      :sourceId "POSTAAAA";
+      :inRealm [
+        a :Realm;
+        doc:key ("@type" "source" "handle");
+        :source "zotero";
+        :handle "7654321"
+      ];
+      :name "Ten Quiet Trails";
+      :url "https://blog.example.com/ten-quiet-trails";
+      :datePublished "2025-02-08";
+      :author [
+        a :Person;
+        doc:key ("@type" "source" "name");
+        :source "zotero";
+        :name "Sam Rivera"
+      ]
+    ]
+  ] .
+
+example:zotero-podcast-saved
+  rdfs:label "Saving a podcast episode to a reference library";
+  rdfs:comment """
+A :BookmarkAction for a podcast saved to Zotero. A Zotero podcast item is a
+single :PodcastEpisode.
+""";
+  rdf:value [
+    a :BookmarkAction;
+    doc:key ("@type" "source" "sourceId" "object.inRealm.handle");
+    :source "zotero";
+    :sourceId "PODCASTA";
+    :timestamp "2025-02-12T19:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "zotero";
+      :sourceId "LuK3xAmp";
+      :sameAs "@me"
+    ];
+    :object [
+      a :PodcastEpisode;
+      doc:key ("source" "sourceId" "inRealm.handle");
+      :source "zotero";
+      :sourceId "PODCASTA";
+      :inRealm [
+        a :Realm;
+        doc:key ("@type" "source" "handle");
+        :source "zotero";
+        :handle "7654321"
+      ];
+      :name "Trail Building 101";
+      :datePublished "2025-01"
+    ]
+  ] .
+
+example:note-edited
+  rdfs:label "Editing a note";
+  rdfs:comment """
+An :UpdateAction for a Markdown note in an Obsidian vault, at the file's
+modification time. The :DocumentObject is keyed by its path in the vault, its
+:handle, within a :Realm for the vault. It keeps the note's :body, its
+:tags, and the :references its links resolve to: another note in the vault,
+and a web page keyed by its :url.
+""";
+  rdf:value [
+    a :UpdateAction;
+    doc:key ("@type" "source" "object.handle" "object.inRealm.handle" "timestamp");
+    :source "obsidian";
+    :timestamp "2026-04-12T08:15:02.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source");
+      :source "obsidian";
+      :sameAs "@me"
+    ];
+    :object [
+      a :DocumentObject;
+      doc:key ("source" "handle" "inRealm.handle");
+      :source "obsidian";
+      :handle "Garden/Seeds.md";
+      :name "Seeds";
+      :mimeType "text/markdown";
+      :body "Order tomato seeds before [[Planting schedule]]. See [the catalog](https://seeds.example.com/).\n";
+      :tags "garden", "todo/spring";
+      :inRealm [
+        a :Realm;
+        doc:key ("@type" "source" "handle");
+        :source "obsidian";
+        :handle "Notebook"
+      ];
+      :references [
+        a :DocumentObject;
+        doc:key ("source" "handle" "inRealm.handle");
+        :source "obsidian";
+        :handle "Garden/Planting schedule.md";
+        :name "Planting schedule";
+        :mimeType "text/markdown";
+        :inRealm [
+          a :Realm;
+          doc:key ("@type" "source" "handle");
+          :source "obsidian";
+          :handle "Notebook"
+        ]
+      ], [
+        a :Entity;
+        doc:key ("url");
+        :source "url";
+        :url "https://seeds.example.com/"
+      ]
+    ]
+  ] .
+
+example:reader-item-read
+  rdfs:label "Reading a feed item in Google Reader";
+  rdfs:comment """
+You read a feed item, as recorded in a Google Reader archive. The :ReadAction
+is keyed by Reader's item ID and your Reader user ID. The item is an :Article
+keyed by the same item ID, so it keeps its identity even when it has no :url;
+its :body is the item's HTML content.
+
+You are keyed by your Reader user ID. Through :sameAs you are also your email
+address in the `email` namespace and your Google account ID, so other Google
+sources resolve to the same person. The :timestamp is the item's archive time,
+not a separate time for the read.
+""";
+  rdf:value [
+    a :ReadAction;
+    doc:key ("@type" "source" "sourceId" "agent.sourceId");
+    :source "google-reader";
+    :sourceId "tag:google.com,2005:reader/item/5d0cb0a4e1f2a3b4";
+    :timestamp "2010-01-01T17:42:08.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "google-reader";
+      :sourceId "01234567890123456789";
+      :handle "pat@example.com";
+      :name "Pat Example";
+      :sameAs [
+        a :Agent;
+        doc:key ("@type" "source" "handle");
+        :source "email";
+        :handle "pat@example.com";
+        :name "Pat Example"
+      ], [
+        a :Agent;
+        doc:key ("@type" "source" "sourceId");
+        :source "google-account";
+        :sourceId "01234567890123456789";
+        :name "Pat Example"
+      ], "@me"
+    ];
+    :object [
+      a :Article;
+      doc:key ("@type" "source" "sourceId");
+      :source "google-reader";
+      :sourceId "tag:google.com,2005:reader/item/5d0cb0a4e1f2a3b4";
+      :url "https://trails.example.com/2010/01/lost-lake";
+      :name "Lost Lake in winter";
+      :body "<p>The trail to Lost Lake stays open all winter.</p>"
+    ]
+  ] .
+
+example:reader-item-shared
+  rdfs:label "Sharing a feed item in Google Reader";
+  rdfs:comment """
+You shared a feed item with your Reader followers. Reader records this as the
+item's "broadcast" state, which becomes a :PublishAction on the :Article. It
+has the same key shape and :timestamp as reading the item.
+""";
+  rdf:value [
+    a :PublishAction;
+    doc:key ("@type" "source" "sourceId" "agent.sourceId");
+    :source "google-reader";
+    :sourceId "tag:google.com,2005:reader/item/5d0cb0a4e1f2a3b4";
+    :timestamp "2010-01-01T17:42:08.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "google-reader";
+      :sourceId "01234567890123456789";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Article;
+      doc:key ("@type" "source" "sourceId");
+      :source "google-reader";
+      :sourceId "tag:google.com,2005:reader/item/5d0cb0a4e1f2a3b4";
+      :url "https://trails.example.com/2010/01/lost-lake";
+      :name "Lost Lake in winter";
+      :body "<p>The trail to Lost Lake stays open all winter.</p>"
+    ]
+  ] .
+
+example:reader-item-starred
+  rdfs:label "Starring a feed item in Google Reader";
+  rdfs:comment """
+You starred a feed item. Reader's "starred" state becomes a :LikeAction on the
+:Article, keyed like the other item states.
+""";
+  rdf:value [
+    a :LikeAction;
+    doc:key ("@type" "source" "sourceId" "agent.sourceId");
+    :source "google-reader";
+    :sourceId "tag:google.com,2005:reader/item/5d0cb0a4e1f2a3b4";
+    :timestamp "2010-01-01T17:42:08.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "google-reader";
+      :sourceId "01234567890123456789";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Article;
+      doc:key ("@type" "source" "sourceId");
+      :source "google-reader";
+      :sourceId "tag:google.com,2005:reader/item/5d0cb0a4e1f2a3b4";
+      :url "https://trails.example.com/2010/01/lost-lake";
+      :name "Lost Lake in winter";
+      :body "<p>The trail to Lost Lake stays open all winter.</p>"
+    ]
+  ] .
+
+example:reader-item-annotated
+  rdfs:label "Adding a note to a feed item in Google Reader";
+  rdfs:comment """
+You added a note to a feed item. The :AnnotateAction's :result is a :Comment
+whose :body is the note, whose :author is you, and which is :about the
+:Article. Reader has no ID for a note, so both are keyed by the article, the
+author, and the text: the same note twice on one article is one comment.
+""";
+  rdf:value [
+    a :AnnotateAction;
+    doc:key ("@type" "source" "object.sourceId" "agent.sourceId" "result.body");
+    :source "google-reader";
+    :timestamp "2010-01-01T17:42:08.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "google-reader";
+      :sourceId "01234567890123456789";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Article;
+      doc:key ("@type" "source" "sourceId");
+      :source "google-reader";
+      :sourceId "tag:google.com,2005:reader/item/5d0cb0a4e1f2a3b4"
+    ];
+    :result [
+      a :Comment;
+      doc:key ("@type" "source" "body" "about.0.sourceId" "author.0.sourceId");
+      :source "google-reader";
+      :body "Worth the snowshoes.";
+      :author [
+        a :Agent;
+        doc:key ("@type" "source" "sourceId");
+        :source "google-reader";
+        :sourceId "01234567890123456789"
+      ];
+      :about [
+        a :Article;
+        doc:key ("@type" "source" "sourceId");
+        :source "google-reader";
+        :sourceId "tag:google.com,2005:reader/item/5d0cb0a4e1f2a3b4"
+      ]
+    ]
+  ] .
+
+example:arena-block-connected
+  rdfs:label "Connecting a block to an Are.na channel";
+  rdfs:comment """
+You connected an image block into one of your channels on Are.na. The
+:BookmarkAction is keyed by Are.na's ID for the connection. Its :object is the
+block, a :Post keyed by the block's ID, and its :target is the channel, a
+:Collection with a :description and a :visibility.
+
+The block's image is its content, so it is one of the :Post's :contains, an
+:ImageObject with a :width, a :height, and its alt text as a :caption. The page
+the image came from is one of its :references. Your avatar is your :emblem.
+""";
+  rdf:value [
+    a :BookmarkAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "arena";
+    :sourceId "100";
+    :timestamp "2025-01-10T00:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "arena";
+      :sourceId "1";
+      :handle "pat-example";
+      :name "Pat Example";
+      :url "https://www.are.na/pat-example";
+      :emblem [
+        a :ImageObject;
+        doc:key ("url");
+        :url "https://example.com/avatars/pat.png"
+      ];
+      :sameAs "@me"
+    ];
+    :object [
+      a :Post;
+      doc:key ("@type" "source" "sourceId");
+      :source "arena";
+      :sourceId "20";
+      :url "https://www.are.na/block/20";
+      :name "Synthetic photo";
+      :body "A photo";
+      :author [
+        a :Agent;
+        doc:key ("@type" "source" "sourceId");
+        :source "arena";
+        :sourceId "1"
+      ];
+      :references [
+        a :Entity;
+        doc:key ("url");
+        :url "https://example.com/photo"
+      ];
+      :contains [
+        a :ImageObject;
+        doc:key ("url");
+        :url "https://example.com/images/20.jpg";
+        :width 800;
+        :height 600;
+        :caption "A synthetic photo"
+      ]
+    ];
+    :target [
+      a :Collection;
+      doc:key ("@type" "source" "sourceId");
+      :source "arena";
+      :sourceId "10";
+      :name "Mood board";
+      :url "https://www.are.na/pat-example/mood-board";
+      :description "Things I like";
+      :visibility "public"
+    ]
+  ] .
+
+example:arena-channel-created
+  rdfs:label "Creating an Are.na channel";
+  rdfs:comment """
+You created a channel on Are.na. The :CreateAction is keyed by the channel's
+ID, and its :object is the channel, a :Collection. Are.na's `closed` channels
+can be seen by anyone, so their :visibility is `public`.
+""";
+  rdf:value [
+    a :CreateAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "arena";
+    :sourceId "channel-11";
+    :timestamp "2024-12-01T00:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "arena";
+      :sourceId "1";
+      :handle "pat-example";
+      :name "Pat Example";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Collection;
+      doc:key ("@type" "source" "sourceId");
+      :source "arena";
+      :sourceId "11";
+      :name "Shared reading";
+      :url "https://www.are.na/pat-example/shared-reading";
+      :visibility "public"
+    ]
+  ] .
+
+example:arena-comment
+  rdfs:label "Commenting on an Are.na block";
+  rdfs:comment """
+You left a comment on Alex's block. The :CreateAction's :object is the
+:Comment, keyed by its ID, with its text as its :body. The :Comment is
+:about the block, a :Post by Alex.
+""";
+  rdf:value [
+    a :CreateAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "arena";
+    :sourceId "comment-30";
+    :timestamp "2025-01-04T00:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "arena";
+      :sourceId "1";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Comment;
+      doc:key ("@type" "source" "sourceId");
+      :source "arena";
+      :sourceId "30";
+      :body "Nice";
+      :author [
+        a :Agent;
+        doc:key ("@type" "source" "sourceId");
+        :source "arena";
+        :sourceId "1"
+      ];
+      :about [
+        a :Post;
+        doc:key ("@type" "source" "sourceId");
+        :source "arena";
+        :sourceId "21";
+        :url "https://www.are.na/block/21";
+        :body "Hello from Alex";
+        :author [
+          a :Agent;
+          doc:key ("@type" "source" "sourceId");
+          :source "arena";
+          :sourceId "2";
+          :handle "alex-example";
+          :name "Alex Example"
+        ]
+      ]
+    ]
+  ] .
+
+example:arena-follow
+  rdfs:label "Following an Are.na channel";
+  rdfs:comment """
+You follow Alex's channel on Are.na. Are.na lists who you follow but not when
+you started, so the :FollowAction has no timestamp. It is keyed by who follows
+what: its :source, :agent, and :object.
+""";
+  rdf:value [
+    a :FollowAction;
+    doc:key ("@type" "source" "agent" "object");
+    :source "arena";
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "arena";
+      :sourceId "1";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Collection;
+      doc:key ("@type" "source" "sourceId");
+      :source "arena";
+      :sourceId "12";
+      :name "Field notes";
+      :url "https://www.are.na/alex-example/field-notes";
+      :visibility "public"
+    ]
+  ] .
+
 : skos:example example:message-from-alex, example:shell-command, example:task-completed .
 
 :Base skos:example example:entity-with-url .
@@ -1010,9 +3303,222 @@ does not record when a like happened, so the action has no :timestamp.
 :DeleteAction skos:example example:task-deleted .
 :ConsumeAction skos:example example:page-visit .
 :ViewAction skos:example example:page-visit .
+:BookmarkAction skos:example example:bookmark .
 :VisitAction skos:example example:place-visit .
 :TravelAction skos:example example:trip .
 :Journey skos:example example:trip .
+example:job-started
+  rdfs:label "Starting a job";
+  rdfs:comment """
+A :JoinAction from a LinkedIn export: you started a job at an :Organization.
+The :result is the :Tenure, which carries the :role. The :timestamp is a civil
+date at the precision LinkedIn records, here a month. A :LeaveAction with the
+same :Tenure closes the job when it ends.
+""";
+  rdf:value [
+    a :JoinAction;
+    doc:key ("@type" "source" "result.role" "result.degree" "object.name");
+    :source "linkedin";
+    :timestamp "2022-08";
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "handle");
+      :source "linkedin";
+      :handle "sam-rivera";
+      :name "Sam Rivera";
+      :url "https://www.linkedin.com/in/sam-rivera";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Organization;
+      doc:key ("@type" "source" "name");
+      :source "linkedin";
+      :name "Example Robotics"
+    ];
+    :result [
+      a :Tenure;
+      doc:key ("@type" "source" "role" "action.object.name");
+      :source "linkedin";
+      :role "Staff Engineer";
+      :description "Built the warehouse fleet software."
+    ]
+  ] .
+
+example:school-finished
+  rdfs:label "Finishing school";
+  rdfs:comment """
+A :LeaveAction from a LinkedIn export: you finished a stretch of study at a
+school. The :result is the :Enrollment, which carries the :degree. LinkedIn
+often records only the year, so the :timestamp is a bare year.
+""";
+  rdf:value [
+    a :LeaveAction;
+    doc:key ("@type" "source" "result.role" "result.degree" "object.name");
+    :source "linkedin";
+    :timestamp "2014";
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "handle");
+      :source "linkedin";
+      :handle "sam-rivera";
+      :name "Sam Rivera";
+      :url "https://www.linkedin.com/in/sam-rivera";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Organization;
+      doc:key ("@type" "source" "name");
+      :source "linkedin";
+      :name "Example State University"
+    ];
+    :result [
+      a :Enrollment;
+      doc:key ("@type" "source" "degree" "action.object.name");
+      :source "linkedin";
+      :degree "Bachelor of Science (B.S.)"
+    ]
+  ] .
+
+example:linkedin-connection
+  rdfs:label "A LinkedIn connection";
+  rdfs:comment """
+A :FollowAction onto a person you connected with on LinkedIn, dated to the day
+of the connection. The person is keyed by their profile :handle and carries
+their current title as :description and their employer through :memberOf.
+""";
+  rdf:value [
+    a :FollowAction;
+    doc:key ("@type" "source" "agent.handle" "object.handle" "object.name");
+    :source "linkedin";
+    :timestamp "2026-06-06";
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "handle");
+      :source "linkedin";
+      :handle "sam-rivera";
+      :name "Sam Rivera";
+      :url "https://www.linkedin.com/in/sam-rivera";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Person;
+      doc:key ("@type" "source" "handle");
+      :source "linkedin";
+      :handle "alex-chen";
+      :name "Alex Chen";
+      :url "https://www.linkedin.com/in/alex-chen";
+      :description "Product Designer";
+      :memberOf [
+        a :Organization;
+        doc:key ("@type" "source" "name");
+        :source "linkedin";
+        :name "Example Robotics"
+      ]
+    ]
+  ] .
+
+example:skill-endorsement
+  rdfs:label "Endorsing a skill";
+  rdfs:comment """
+A :RespondAction for a LinkedIn skill endorsement: you vouched that Alex has a
+skill. The :result is a :Response whose :body is the skill, and whose :about is
+the skill as a :DefinedTerm.
+""";
+  rdf:value [
+    a :RespondAction;
+    doc:key ("@type" "source" "agent.handle" "object.handle" "result.body");
+    :source "linkedin";
+    :timestamp "2024-03-02T15:10:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "handle");
+      :source "linkedin";
+      :handle "sam-rivera";
+      :name "Sam Rivera";
+      :url "https://www.linkedin.com/in/sam-rivera";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Person;
+      doc:key ("@type" "source" "handle");
+      :source "linkedin";
+      :handle "alex-chen";
+      :name "Alex Chen";
+      :url "https://www.linkedin.com/in/alex-chen"
+    ];
+    :result [
+      a :Response;
+      doc:key ("@type" "source" "action.agent.handle" "action.object.handle" "body");
+      :source "linkedin";
+      :body "Interaction Design";
+      :about [
+        a :DefinedTerm;
+        doc:key ("@type" "source" "name");
+        :source "linkedin";
+        :name "Interaction Design"
+      ]
+    ]
+  ] .
+
+example:course-watched
+  rdfs:label "Watching a course";
+  rdfs:comment """
+A :WatchAction for a LinkedIn Learning course. The course is a :CreativeWork
+keyed by its title; :sourceFormat records which of LinkedIn's content types it
+is.
+""";
+  rdf:value [
+    a :WatchAction;
+    doc:key ("@type" "source" "object.name" "timestamp");
+    :source "linkedin";
+    :timestamp "2025-11-04T19:30:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "handle");
+      :source "linkedin";
+      :handle "sam-rivera";
+      :name "Sam Rivera";
+      :url "https://www.linkedin.com/in/sam-rivera";
+      :sameAs "@me"
+    ];
+    :object [
+      a :CreativeWork;
+      doc:key ("@type" "source" "name");
+      :source "linkedin";
+      :name "Intro to Rust";
+      :description "A first course in Rust.";
+      :sourceFormat "course"
+    ]
+  ] .
+
+example:course-saved
+  rdfs:label "Saving a course";
+  rdfs:comment """
+A :BookmarkAction for a LinkedIn Learning course you saved. The export says the
+course is saved but not when, so the action has no :timestamp.
+""";
+  rdf:value [
+    a :BookmarkAction;
+    doc:key ("@type" "source" "object.name");
+    :source "linkedin";
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "handle");
+      :source "linkedin";
+      :handle "sam-rivera";
+      :name "Sam Rivera";
+      :url "https://www.linkedin.com/in/sam-rivera";
+      :sameAs "@me"
+    ];
+    :object [
+      a :CreativeWork;
+      doc:key ("@type" "source" "name");
+      :source "linkedin";
+      :name "Intro to Rust";
+      :sourceFormat "course"
+    ]
+  ] .
+
 :Place skos:example example:place-visit .
 :Venue skos:example example:place-visit .
 :StructuredValue skos:example example:place-visit .
@@ -1032,7 +3538,7 @@ does not record when a like happened, so the action has no :timestamp.
 :sourceId skos:example example:entity-with-url, example:message-with-photo .
 :name skos:example example:entity-with-url .
 :url skos:example example:entity-with-url .
-:description skos:example example:task-edited .
+:description skos:example example:task-edited, example:time-entry .
 :handle skos:example example:message-from-alex, example:shell-command .
 :sameAs skos:example example:message-from-alex, example:assistant-prompt .
 :object skos:example example:shell-command .
@@ -1068,7 +3574,302 @@ does not record when a like happened, so the action has no :timestamp.
 :EatAction skos:example example:meal-logged .
 :DrankAction skos:example example:drink-logged .
 :Meal skos:example example:meal-logged, example:drink-logged .
-:Post skos:example example:tweet-published, example:tweet-liked .
+:Post skos:example example:tweet-published, example:tweet-liked, example:like, example:reaction .
 :PublishAction skos:example example:tweet-published .
-:LikeAction skos:example example:tweet-liked .
+:LikeAction skos:example example:tweet-liked, example:like .
 :references skos:example example:tweet-published .
+
+# facebook
+example:search
+  rdfs:label "A search on a platform";
+  rdfs:comment """
+A :FindAction for one entry in a Facebook export's search history. The :object
+is the :Query as entered, with the text as its :body. The export doesn't name
+the account owner here, so the :agent is Facebook's own self node, keyed by
+:source alone and merged into you through :sameAs.
+""";
+  rdf:value [
+    a :FindAction;
+    doc:key ("@type" "source" "timestamp" "agent.name" "object.body");
+    :source "facebook";
+    :timestamp "2026-05-09T18:22:07.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source");
+      :source "facebook";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Query;
+      doc:key ("@type" "source" "body");
+      :source "facebook";
+      :name "trail running shoes";
+      :body "trail running shoes"
+    ]
+  ] .
+
+example:like
+  rdfs:label "Liking a post";
+  rdfs:comment """
+A :LikeAction for the like button, from a Facebook export. The liked :Post is
+keyed by its :url, and its :author is the person the export names. A like
+carries no content, so there is no :result.
+""";
+  rdf:value [
+    a :LikeAction;
+    doc:key ("@type" "source" "timestamp" "agent.name" "object.url");
+    :source "facebook";
+    :timestamp "2026-05-09T18:22:07.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source");
+      :source "facebook";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Post;
+      doc:key ("@type" "source" "url");
+      :source "facebook";
+      :url "https://www.facebook.com/alex.morgan.example/posts/555000111";
+      :author [
+        a :Person;
+        doc:key ("@type" "source" "name");
+        :source "facebook";
+        :name "Alex Morgan"
+      ]
+    ]
+  ] .
+
+example:reaction
+  rdfs:label "Reacting to a post";
+  rdfs:comment """
+A reaction that carries content is a :RespondAction. Its :result is a
+:Response whose :body is the platform's own word for the reaction, kept as the
+export writes it. The Response has no id of its own, so its key reaches into
+the action that made it with `action.` paths.
+""";
+  rdf:value [
+    a :RespondAction;
+    doc:key ("@type" "source" "timestamp" "agent.name" "object.url" "result.body");
+    :source "facebook";
+    :timestamp "2026-05-09T18:23:07.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source");
+      :source "facebook";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Post;
+      doc:key ("@type" "source" "url");
+      :source "facebook";
+      :url "https://www.facebook.com/alex.morgan.example/posts/555000222";
+      :author [
+        a :Person;
+        doc:key ("@type" "source" "name");
+        :source "facebook";
+        :name "Alex Morgan"
+      ]
+    ];
+    :result [
+      a :Response;
+      doc:key ("@type" "source" "body" "action.timestamp" "action.agent.name" "action.object.url");
+      :source "facebook";
+      :body "love"
+    ]
+  ] .
+
+example:comment
+  rdfs:label "Commenting on a post";
+  rdfs:comment """
+A comment is a :RespondAction whose :result is a :Comment, the :Response that
+carries prose. The export names the commenter, so the :agent is keyed by name
+and is also the Comment's :author. It points at the commented-on post only in
+a sentence of prose, so the action has no :object.
+""";
+  rdf:value [
+    a :RespondAction;
+    doc:key ("@type" "source" "timestamp" "agent.name" "result.body");
+    :source "facebook";
+    :timestamp "2026-05-09T18:24:07.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "name");
+      :source "facebook";
+      :name "Sam Rivera";
+      :sameAs "@me"
+    ];
+    :result [
+      a :Comment;
+      doc:key ("@type" "source" "body");
+      :source "facebook";
+      :body "Great photo";
+      :author [
+        a :Agent;
+        doc:key ("@type" "source" "name");
+        :source "facebook";
+        :name "Sam Rivera";
+        :sameAs "@me"
+      ]
+    ]
+  ] .
+
+:FindAction skos:example example:search .
+:Query skos:example example:search .
+:RespondAction skos:example example:reaction, example:comment .
+:Response skos:example example:reaction .
+:Comment skos:example example:comment .
+
+:Post skos:example example:instagram-story, example:instagram-like .
+:PublishAction skos:example example:instagram-story .
+:sourceFormat skos:example example:instagram-story .
+:visibility skos:example example:instagram-story .
+:LikeAction skos:example example:instagram-like .
+:FollowAction skos:example example:instagram-follow .
+:BookmarkAction skos:example example:instagram-save .
+:target skos:example example:instagram-save .
+:CreateAction skos:example example:instagram-comment .
+:Comment skos:example example:instagram-comment .
+:references skos:example example:instagram-comment .
+:FindAction skos:example example:instagram-search .
+:Query skos:example example:instagram-search .
+:RespondAction skos:example example:instagram-reaction .
+:Response skos:example example:instagram-reaction .
+
+:JoinAction skos:example example:job-started .
+:LeaveAction skos:example example:school-finished .
+:Tenure skos:example example:job-started .
+:Enrollment skos:example example:school-finished .
+:role skos:example example:job-started .
+:degree skos:example example:school-finished .
+:FollowAction skos:example example:linkedin-connection .
+:RespondAction skos:example example:skill-endorsement .
+:Response skos:example example:skill-endorsement .
+:DefinedTerm skos:example example:skill-endorsement .
+:WatchAction skos:example example:course-watched .
+:BookmarkAction skos:example example:course-saved .
+:sourceFormat skos:example example:course-watched, example:course-saved .
+:ListenAction skos:example example:track-listen .
+:LikeAction skos:example example:album-like .
+:AddAction skos:example example:playlist-add .
+:MusicRecording skos:example example:track-listen, example:playlist-add .
+:MusicAlbum skos:example example:track-listen, example:album-like .
+:MusicGroup skos:example example:track-listen .
+:artist skos:example example:track-listen, example:album-like .
+:inAlbum skos:example example:track-listen .
+:duration skos:example example:track-listen .
+:datePublished skos:example example:album-like .
+:emblem skos:example example:track-listen .
+:width skos:example example:track-listen .
+:height skos:example example:track-listen .
+:target skos:example example:playlist-add .
+
+:ListenAction skos:example example:scrobble .
+:MusicRecording skos:example example:scrobble, example:loved-track .
+:MusicAlbum skos:example example:scrobble .
+:MusicGroup skos:example example:scrobble .
+:artist skos:example example:scrobble .
+:inAlbum skos:example example:scrobble .
+:emblem skos:example example:scrobble, example:followed-friend .
+:LikeAction skos:example example:loved-track .
+:FollowAction skos:example example:followed-friend .
+:CreateAction skos:example example:account-created .
+:LikeAction skos:example example:video-liked .
+:FollowAction skos:example example:channel-followed .
+:CreateAction skos:example example:playlist-created .
+:AddAction skos:example example:video-added-to-playlist .
+:PublishAction skos:example example:video-published .
+:WatchAction skos:example example:video-watched .
+:FindAction skos:example example:video-search .
+:Query skos:example example:video-search .
+:AnnotateAction skos:example example:video-comment .
+:Comment skos:example example:video-comment .
+
+:duration skos:example example:video-liked, example:video-published .
+:datePublished skos:example example:video-liked .
+:emblem skos:example example:video-liked .
+:visibility skos:example example:playlist-created .
+:target skos:example example:video-added-to-playlist .
+
+:DeviceSession skos:example example:app-usage-block, example:document-session .
+:Device skos:example example:app-usage-block .
+:Directory skos:example example:app-usage-block .
+:workingDirectory skos:example example:app-usage-block .
+:model skos:example example:app-usage-block .
+:subject skos:example example:document-session .
+:ExperienceAction skos:example example:time-entry .
+:Session skos:example example:time-entry .
+:CallAction skos:example example:relayed-call .
+:CallSession skos:example example:relayed-call .
+:width skos:example example:slack-message-with-image .
+:height skos:example example:slack-message-with-image .
+:CheckInAction skos:example example:checkin .
+:emblem skos:example example:checkin .
+
+# bluesky
+:FollowAction skos:example example:bluesky-follow .
+:LikeAction skos:example example:bluesky-like .
+:PublishAction skos:example example:bluesky-post-published .
+:Post skos:example example:bluesky-like, example:bluesky-post-published .
+:width skos:example example:bluesky-like .
+:height skos:example example:bluesky-like .
+
+:Book skos:example example:book-finished, example:book-shelved .
+:BookmarkAction skos:example example:book-shelved .
+:pageCount skos:example example:book-finished .
+:publisher skos:example example:book-finished .
+
+:ReadAction skos:example example:marvin-reading-session .
+:Book skos:example example:marvin-reading-session, example:marvin-highlight .
+:QuoteAction skos:example example:marvin-highlight .
+:Quotation skos:example example:marvin-highlight, example:marvin-note .
+:AnnotateAction skos:example example:marvin-note .
+:Comment skos:example example:marvin-note .
+
+:BookmarkAction skos:example example:zotero-work-saved, example:zotero-snapshot-saved .
+:Book skos:example example:zotero-work-saved .
+:Article skos:example example:zotero-highlight .
+:Post skos:example example:zotero-blog-post-saved .
+:PodcastEpisode skos:example example:zotero-podcast-saved .
+:QuoteAction skos:example example:zotero-highlight, example:zotero-epub-highlight .
+:Quotation skos:example example:zotero-highlight, example:zotero-epub-highlight .
+:PageSelector skos:example example:zotero-highlight .
+:EpubCfiSelector skos:example example:zotero-epub-highlight .
+:AnnotateAction skos:example example:zotero-highlight-comment .
+:Comment skos:example example:zotero-highlight-comment .
+:datePublished skos:example example:zotero-work-saved, example:zotero-blog-post-saved .
+:pageCount skos:example example:zotero-work-saved .
+:publisher skos:example example:zotero-work-saved .
+:creator skos:example example:zotero-work-saved .
+:snapshotOf skos:example example:zotero-snapshot-saved .
+:color skos:example example:zotero-highlight .
+:annotationStyle skos:example example:zotero-highlight, example:zotero-epub-highlight .
+:selector skos:example example:zotero-highlight, example:zotero-epub-highlight .
+:selectorValue skos:example example:zotero-highlight, example:zotero-epub-highlight .
+:selectorLabel skos:example example:zotero-highlight .
+
+# obsidian
+:tags skos:example example:note-edited .
+:references skos:example example:note-edited .
+:DocumentObject skos:example example:note-edited .
+:UpdateAction skos:example example:note-edited .
+
+:ReadAction skos:example example:reader-item-read .
+:Article skos:example example:reader-item-read, example:reader-item-annotated .
+:PublishAction skos:example example:reader-item-shared .
+:LikeAction skos:example example:reader-item-starred .
+:AnnotateAction skos:example example:reader-item-annotated .
+:Comment skos:example example:reader-item-annotated .
+
+:CreateAction skos:example example:arena-channel-created, example:arena-comment .
+:BookmarkAction skos:example example:arena-block-connected .
+:FollowAction skos:example example:arena-follow .
+:Post skos:example example:arena-block-connected .
+:Comment skos:example example:arena-comment .
+:emblem skos:example example:arena-block-connected .
+:visibility skos:example example:arena-block-connected, example:arena-channel-created .
+:width skos:example example:arena-block-connected .
+:height skos:example example:arena-block-connected .
+:caption skos:example example:arena-block-connected .
+:target skos:example example:arena-block-connected .
+:references skos:example example:arena-block-connected .

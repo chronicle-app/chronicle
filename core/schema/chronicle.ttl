@@ -54,7 +54,7 @@
   rdfs:subClassOf :Entity;
   rdfs:comment "A unit of work to be done, such as a to-do item. The task carries its :name and :description; actions record its planning, updates, completion, or cancellation." .
 :Collection a rdfs:Class;
-  rdfs:subClassOf :Entity;
+  rdfs:subClassOf :CreativeWork;
   rdfs:comment "A grouping of entities declared by a source, such as a list, an area of responsibility, or a section within a project. Members link to the collection through :isPartOf." .
 :Project a rdfs:Class;
   rdfs:subClassOf :Collection;
@@ -86,7 +86,8 @@
   rdfs:comment "The instant when the action occurred, as reported by the source. Records occurrence time, not the time Chronicle extracted the record.";
   owl:maxCardinality 1;
   :domainIncludes :Action;
-  :rangeIncludes :DateTime .
+  :rangeIncludes :Date,
+    :DateTime .
 :agent a rdf:Property;
   rdfs:comment "The doer of the action, when identified by the source. Omit when no doer is known; an occurrence can be recorded without an agent.";
   owl:maxCardinality 1;
@@ -138,13 +139,13 @@
   :rangeIncludes :Entity .
 
 :Message a rdfs:Class;
-  rdfs:subClassOf :Entity;
+  rdfs:subClassOf :CreativeWork;
   rdfs:comment "A communicated item, such as a text message or chat reply. Its :body carries text, :contains links attachments, and :recipient identifies the intended receivers." .
 :MessageAction a rdfs:Class;
   rdfs:subClassOf :Action;
   rdfs:comment "The sending of a message. The :object identifies the message and :agent identifies the sender when known." .
 :MediaObject a rdfs:Class;
-  rdfs:subClassOf :Entity;
+  rdfs:subClassOf :CreativeWork;
   rdfs:comment "A media artifact, such as an image, audio recording, video, or document. Its :contentPath or :url locates the content, and :mimeType describes its format." .
 :ImageObject a rdfs:Class;
   rdfs:subClassOf :MediaObject;
@@ -163,8 +164,8 @@
   :domainIncludes :Message;
   :rangeIncludes :Agent .
 :contains a rdf:Property;
-  rdfs:comment "A media artifact carried by a message, such as an attached image, voice recording, video, or document.";
-  :domainIncludes :Message;
+  rdfs:comment "The components an entity is materially made of — the media files that constitute a :Post (a photo, a carousel's images and videos), the attachments carried by a :Message. Each component is a leaf-typed :MediaObject carrying its own bytes.";
+  :domainIncludes :Entity;
   :rangeIncludes :MediaObject .
 :contentPath a rdf:Property;
   rdfs:comment "An absolute filesystem path to the local file containing the media bytes. Describes where the extracted content is available on the source machine.";
@@ -181,7 +182,7 @@
   rdfs:subClassOf :Agent;
   rdfs:comment "Running software acting as a participant, such as an assistant, bot, or automation. It can be the :agent of an action or the :author of a message." .
 :SoftwareApplication a rdfs:Class;
-  rdfs:subClassOf :Entity;
+  rdfs:subClassOf :CreativeWork;
   rdfs:comment "A software application or model used to perform work. An action can identify it through :instrument, using the source-provided application or model identifier." .
 :Thread a rdfs:Class;
   rdfs:subClassOf :Collection;
@@ -338,7 +339,6 @@
   rdfs:subPropertyOf :relation;
   :rangeIncludes :Agent .
 
-# call-history
 :InteractAction a rdfs:Class;
   rdfs:comment "An agent engages with another agent or a social object — communicating, following.";
   rdfs:subClassOf :Action .
@@ -355,7 +355,6 @@
   rdfs:comment "A phone or FaceTime call as a described segment of time — the :result of a :CallAction. Carries the :recipient (the receiver) and, for group calls, :isPartOf a :Channel whose :member is the roster. A missed call is a zero-length span; a connected call a non-zero one.";
   rdfs:subClassOf :Session .
 :recipient :domainIncludes :CallSession .
-# foodnoms
 :EatAction a rdfs:Class;
   rdfs:comment "The agent ate the :object, a :Meal. Where it happened is the action's :location.";
   rdfs:subClassOf :ConsumeAction .
@@ -365,7 +364,6 @@
 :Meal a rdfs:Class;
   rdfs:comment "A meal or snack the subject ate — the :object of an :EatAction. Its slot (breakfast, lunch, dinner) is :category data.";
   rdfs:subClassOf :Entity .
-# twitter
 :Post a rdfs:Class;
   rdfs:comment "A work published to a social or media platform — a feed post, a story, a reel, a tweet. A media-agnostic container: it may carry a text :body and :contains one or more media files (:MediaObject). Its native presentation format (feed, story, reel) is its :sourceFormat.";
   rdfs:subClassOf :CreativeWork .
@@ -395,4 +393,301 @@
   rdfs:comment "An entity pointed to from this one (e.g. an @mention or link).";
   rdfs:subPropertyOf :relation;
   :rangeIncludes :Entity .
+:FindAction a rdfs:Class;
+  rdfs:comment "The agent looked something up on a platform — an entry in a search history. :object is the :Query entered.";
+  rdfs:subClassOf :Action .
+:Query a rdfs:Class;
+  rdfs:comment "A search query as entered. Carries the query text as :body; the :object of a :FindAction.";
+  rdfs:subClassOf :CreativeWork .
+:RespondAction a rdfs:Class;
+  rdfs:comment "An agent responds to the :object with content — an emoji reaction, a comment, a rating, a review. The :result is the :Response carrying that content; the :object names what it is about. The payload-carrying counterpart of :LikeAction.";
+  rdfs:subClassOf :AssessAction .
+:Response a rdfs:Class;
+  rdfs:comment "An agent's response to a thing, carrying its content in two facets: :body (an emoji reaction is a one-character body; prose is a :Comment) and :ratingValue (a review carries both). The :result of a :RespondAction, whose :object names what the response is about. The payload is kept verbatim in the source's own vocabulary, a literal ❤️ beside a platform's LOVE. A like with no payload is a :LikeAction rather than a Response.";
+  rdfs:subClassOf :CreativeWork .
+:Comment a rdfs:Class;
+  rdfs:comment "A prose response — the :Response leaf whose :body is authored text.";
+  rdfs:subClassOf :Response .
 :author :domainIncludes :CreativeWork .
+:FollowAction a rdfs:Class;
+  rdfs:comment "The agent began following the :object — an account, a feed, a collection. Opens the agent's :follows run over it.";
+  rdfs:subClassOf :InteractAction .
+:OrganizeAction a rdfs:Class;
+  rdfs:comment "An agent arranges or plans things — saving, bookmarking, scheduling.";
+  rdfs:subClassOf :Action .
+:BookmarkAction a rdfs:Class;
+  rdfs:comment "The agent saved the :object for later — a bookmarked page, an article saved to a reading list, a work shelved as to-read.";
+  rdfs:subClassOf :OrganizeAction .
+:sourceFormat a rdf:Property;
+  rdfs:comment "The source's own presentation format for an item — which of the platform's native content shapes it is among items of the same type: a story, feed post, or reel; a video, short, or live stream; a full episode, trailer, or bonus. A descriptive, per-source, open-vocabulary label, present only where the source has such a sub-format.";
+  owl:maxCardinality 1;
+  :domainIncludes :CreativeWork;
+  :rangeIncludes :Text .
+:visibility a rdf:Property;
+  rdfs:comment "How widely the work is shared: `public`, `private`, or `unlisted`, always as these lowercase tokens. A coarse bucket shared across sources, onto which each source's own audience states map.";
+  owl:maxCardinality 1;
+  :domainIncludes :CreativeWork;
+  :rangeIncludes :Text .
+:ListenAction a rdfs:Class;
+  rdfs:comment "The agent listened to the :object — a recording, a podcast episode. Opens or extends the agent's :consuming run over it.";
+  rdfs:subClassOf :ConsumeAction .
+:AddAction a rdfs:Class;
+  rdfs:comment "The agent added the :object to the :target — a track to a playlist, a work to a collection.";
+  rdfs:subClassOf :UpdateAction .
+:MusicRecording a rdfs:Class;
+  rdfs:comment "A recorded track — one performance of a :MusicComposition (:recordingOf) by an :artist, appearing on a :MusicAlbum via :inAlbum, with a :duration.";
+  rdfs:subClassOf :CreativeWork .
+:MusicAlbum a rdfs:Class;
+  rdfs:comment "A released collection of recordings by an :artist; each recording on it is a :track.";
+  rdfs:subClassOf :CreativeWork .
+:PerformingGroup a rdfs:Class;
+  rdfs:comment "An organization that performs — a band, a troupe, an ensemble.";
+  rdfs:subClassOf :Organization .
+:MusicGroup a rdfs:Class;
+  rdfs:comment "A musical act — a band, an orchestra, or a solo artist as a performing identity. The :artist of recordings and albums.";
+  rdfs:subClassOf :PerformingGroup .
+:PodcastEpisode a rdfs:Class;
+  rdfs:comment "One episode of a :PodcastSeries (via :series), with its :episodeNumber and :duration.";
+  rdfs:subClassOf :CreativeWork .
+:attribution a rdf:Property;
+  rdfs:comment "An agent responsible for a creative work coming into existence.";
+  rdfs:subPropertyOf :relation;
+  :abstract true;
+  :rangeIncludes :Agent .
+:performer a rdf:Property;
+  :propagatesEncounter true;
+  rdfs:comment "An agent who performed or realized an existing work.";
+  rdfs:subPropertyOf :attribution;
+  :rangeIncludes :Agent .
+:composition a rdf:Property;
+  rdfs:comment "A structural part/whole relation between entities. Direction-neutral; assert :partOf or :hasPart.";
+  rdfs:subPropertyOf :relation;
+  :abstract true;
+  :rangeIncludes :Entity .
+:partOf a rdf:Property;
+  :propagatesEncounter true;
+  rdfs:comment "This entity is a component of the referenced entity.";
+  rdfs:subPropertyOf :composition;
+  :rangeIncludes :CreativeWork .
+:emblem a rdf:Property;
+  rdfs:comment "The image an entity presents itself by — an avatar, poster, cover, logo, or favicon. Representation, not content: swap it and the entity is the same. Where a :depiction is a photograph someone took of the thing, an emblem is the image the thing was given to stand for it, photographic or not; banners and headers are decoration rather than emblems. The single elected image among candidates; its bytes live on the :ImageObject.";
+  rdfs:subPropertyOf :relation;
+  owl:maxCardinality 1;
+  :domainIncludes :Entity;
+  :rangeIncludes :ImageObject .
+:artist a rdf:Property;
+  :propagatesEncounter true;
+  rdfs:comment "The artist who created or performed the musical work.";
+  rdfs:subPropertyOf :performer;
+  :domainIncludes :MusicRecording,
+    :MusicAlbum,
+    :AudioObject;
+  :rangeIncludes :MusicGroup .
+:inAlbum a rdf:Property;
+  :propagatesEncounter true;
+  rdfs:comment "The album that contains this musical recording.";
+  owl:maxCardinality 1;
+  rdfs:subPropertyOf :partOf;
+  :domainIncludes :MusicRecording;
+  :rangeIncludes :MusicAlbum .
+:duration a rdf:Property;
+  rdfs:comment "The duration of the musical recording or media content.";
+  owl:maxCardinality 1;
+  :domainIncludes :MusicRecording,
+    :PodcastEpisode,
+    :AudioObject,
+    :VideoObject;
+  :rangeIncludes :Text .
+:genre a rdf:Property;
+  rdfs:comment "The genre of the creative work.";
+  :domainIncludes :CreativeWork,
+    :AudioObject;
+  :rangeIncludes :Text .
+:datePublished a rdf:Property;
+  rdfs:comment "When the work was published or released, at whatever precision the source knows (a bare year is a year-precision date). A date on the work's own timeline: the moment its :PublishAction occurred.";
+  owl:maxCardinality 1;
+  owl:equivalentProperty schemaorg:datePublished;
+  :domainIncludes :CreativeWork;
+  :rangeIncludes :Date,
+    :DateTime .
+:target a rdf:Property;
+  rdfs:comment "What an action is directed toward, as opposed to what it is carried out on (:object). A collection operation targets the collection it adds to or removes from; a movement verb targets where it ended up, with :object naming where it began (:NavigateAction from one page to the next, :TravelAction from one place to the next).";
+  owl:maxCardinality 1;
+  :domainIncludes :Action;
+  :rangeIncludes :Entity .
+:ExperienceAction a rdfs:Class;
+  rdfs:comment "A segment of lived activity the subject engaged in or underwent — a manually-logged time block or life episode (its :result is the :Session it constitutes: a :Tenure, :Residence, :Relationship, and the like), or a punctual life event (:BirthAction, :DeathAction). Carries the real occurrence via :startTime/:endTime; the constituted session takes its span from the action.";
+  rdfs:subClassOf :Action .
+:JoinAction a rdfs:Class;
+  rdfs:comment "The subject joined the :object organization or realm — the opening boundary of a membership. Its :result may carry the :Tenure, :Membership, or :Enrollment the membership constitutes.";
+  rdfs:subClassOf :ExperienceAction .
+:LeaveAction a rdfs:Class;
+  rdfs:comment "The subject left the :object organization or realm — the closing boundary of a membership opened by a :JoinAction.";
+  rdfs:subClassOf :ExperienceAction .
+:Tenure a rdfs:Class;
+  rdfs:comment "A stretch of employment — the :result of the :ExperienceAction whose span it takes. Dateless itself; carries the :employer (an :Organization) and the :role held. The subject's :memberOf run over the employer derives from this span.";
+  rdfs:subClassOf :Session .
+:Enrollment a rdfs:Class;
+  rdfs:comment "A stretch of study at a school — the :result of the :ExperienceAction whose span it takes. Dateless itself; carries the :school (an :Organization) and the :degree pursued. The subject's :memberOf run over the school derives from this span.";
+  rdfs:subClassOf :Session .
+:Membership a rdfs:Class;
+  rdfs:comment "A stretch of belonging to an organization or realm — the :result of the :ExperienceAction whose span it takes. Dateless itself; carries the :org and the :role held. The subject's :memberOf run derives from this span.";
+  rdfs:subClassOf :Session .
+:Relationship a rdfs:Class;
+  rdfs:comment "A stretch of romantic partnership — the :result of the :ExperienceAction whose span it takes. Dateless itself; names the other person via :with. The subject's :partner run derives from this span.";
+  rdfs:subClassOf :Session .
+:role a rdf:Property;
+  rdfs:comment "The role, title, or nature held during a :Tenure, :Membership, or :Relationship.";
+  owl:maxCardinality 1;
+  :domainIncludes :Tenure,
+    :Membership,
+    :Relationship;
+  :rangeIncludes :Text .
+:degree a rdf:Property;
+  rdfs:comment "The degree or program pursued during an :Enrollment.";
+  owl:maxCardinality 1;
+  :domainIncludes :Enrollment;
+  :rangeIncludes :Text .
+:Intangible a rdfs:Class;
+  rdfs:comment "An entity with no physical or creative existence of its own — a term, a selector, a category.";
+  rdfs:subClassOf :Entity .
+:DefinedTerm a rdfs:Class;
+  rdfs:comment "A word or code from a vocabulary — a tag, a category — used to classify other entities.";
+  rdfs:subClassOf :Intangible .
+:WatchAction a rdfs:Class;
+  rdfs:comment "The agent watched the :object — a video, a film, a show. Opens or extends the agent's :consuming run over it.";
+  rdfs:subClassOf :ConsumeAction .
+:width a rdf:Property;
+  rdfs:comment "The width of the media content in pixels.";
+  owl:maxCardinality 1;  :domainIncludes :ImageObject,
+    :VideoObject;
+  :rangeIncludes :Number .
+:height a rdf:Property;
+  rdfs:comment "The height of the media content in pixels.";
+  owl:maxCardinality 1;  :domainIncludes :ImageObject,
+    :VideoObject;
+  :rangeIncludes :Number .
+
+:AnnotateAction a rdfs:Class;
+  rdfs:comment "The agent wrote a note on something — a comment on a highlighted passage, a note on a work, a margin note on a page. Its :result is the :Comment, whose :about names what it annotates.";
+  rdfs:subClassOf :CreateAction .
+
+:DeviceSession a rdfs:Class;
+  rdfs:comment "A screen-usage segment — an app-focus/app-usage block on a device. The :result of an :ExecuteAction (which carries the measured span); dateless itself, carrying the focused resource (:subject), the project (:isPartOf), and, when no resource is present, the window title (:name).";
+  rdfs:subClassOf :Session .
+:PhysicalObject a rdfs:Class;
+  rdfs:comment "A tangible object the subject owns or uses and has a history with — a device, a vehicle, an instrument. Its kind is open-ended :category data ('computer', 'car'); its make and model is :model. Subclasses name functional roles an object plays in actions, such as :Device.";
+  rdfs:subClassOf :Entity .
+:Device a rdfs:Class;
+  rdfs:comment "A physical computing device the subject runs software on — the :instrument of an :ExecuteAction, and the device a :DeviceSession takes place on. A functional role rather than a kind: whether it is a computer, phone, or tablet is :category data. It runs within a :Realm (via :inRealm), the logical machine that may outlive the hardware.";
+  rdfs:subClassOf :PhysicalObject .
+:Directory a rdfs:Class;
+  rdfs:subClassOf :Collection;
+  rdfs:comment "A filesystem directory: a :Collection whose members are the files (:MediaObject) and subdirectories (:Directory) it :contains, identified by its path (:handle) within the machine it lives on (:inRealm). It has no content of its own; its membership is its content." .
+:workingDirectory a rdf:Property;
+  rdfs:comment "The filesystem directory a session took place in — a terminal's current working directory or a folder open in a file manager. Where the session happened, not what it was about (cf. :subject).";
+  owl:maxCardinality 1;
+  :domainIncludes :Session;
+  :rangeIncludes :Directory .
+:subject a rdf:Property;
+  rdfs:comment "The specific resource a session was spent on — the document, page, or media in focus. A specialization of :about (subject matter) for sessions.";
+  rdfs:subPropertyOf :about;
+  :domainIncludes :Session;
+  :rangeIncludes :Entity .
+:model a rdf:Property;
+  rdfs:comment "The make/model of a physical object (e.g. 'Mac17,9', 'iPhone15,2') — the manufactured model, distinct from the object's own :name and from its :category kind.";
+  owl:maxCardinality 1;
+  :domainIncludes :PhysicalObject;
+  :rangeIncludes :Text .
+
+:CheckInAction a rdfs:Class;
+  rdfs:comment "The agent announced their presence at the :object, a :Venue, at :timestamp.";
+  rdfs:subClassOf :CommunicateAction .
+
+:Book a rdfs:Class;
+  rdfs:comment "A book, as an edition: carries its :author and :pageCount.";
+  rdfs:subClassOf :CreativeWork .
+:pageCount a rdf:Property;
+  rdfs:comment "The number of pages in a document or book (an edition-level count).";
+  owl:maxCardinality 1;
+  :domainIncludes :DocumentObject,
+    :Book;
+  :rangeIncludes :Number .
+:publisher a rdf:Property;
+  rdfs:comment "The publisher of the creative work.";
+  rdfs:subPropertyOf :creator;
+  :domainIncludes :CreativeWork;
+  :rangeIncludes :Organization .
+:creator a rdf:Property;
+  :propagatesEncounter true;
+  rdfs:comment "An agent who brought the work into existence (authored, produced, or released it).";
+  rdfs:subPropertyOf :attribution;
+  :domainIncludes :CreativeWork;
+  :rangeIncludes :Agent .
+
+:ReadAction a rdfs:Class;
+  rdfs:comment "The agent read the :object — a book, an article, a document. Opens or extends the agent's :consuming run over it.";
+  rdfs:subClassOf :ConsumeAction .
+:QuoteAction a rdfs:Class;
+  rdfs:comment "The agent selected a passage of the :object — a highlight in a book or document, an excerpt from a page. Its :result is the :Quotation carrying the text and its position via :selector.";
+  rdfs:subClassOf :CreateAction .
+:Quotation a rdfs:Class;
+  rdfs:comment "A passage selected from a work — a highlight, an excerpt. Carries the text as :body, its position in the work via :selector, and, for a visual annotation, its :annotationStyle and :color. The :result of a :QuoteAction.";
+  rdfs:subClassOf :CreativeWork .
+
+:Category a rdfs:Class;
+  rdfs:comment "A classification drawn from a fixed set of kinds, as distinct from a free-form :Tag.";
+  rdfs:subClassOf :DefinedTerm .
+:Selector a rdfs:Class;
+  rdfs:comment "A position within a resource — where a passage sits in a book, a page, or a media file. Carries a machine value (:selectorValue), a readable label (:selectorLabel), and a normalized position (:selectorProgress); the subclasses name the addressing scheme.";
+  rdfs:subClassOf :Intangible .
+:PageSelector a rdfs:Class;
+  rdfs:comment "A position in a paginated document, addressed by page number.";
+  rdfs:subClassOf :Selector .
+:EpubCfiSelector a rdfs:Class;
+  rdfs:comment "A position in an EPUB, addressed by a Canonical Fragment Identifier.";
+  rdfs:subClassOf :Selector .
+:Article a rdfs:Class;
+  rdfs:comment "A written piece published on the web or in a periodical — a news story, a blog post, a feed item.";
+  rdfs:subClassOf :CreativeWork .
+:snapshotOf a rdf:Property;
+  rdfs:comment "The resource this media is a capture of: a screenshot or archive (the :result of a :ScreenshotAction or :ArchiveAction) points at the :Entity whose URL it captured at a moment. The referent is the addressed resource itself, the URL entity. Screenshot and archive are told apart by the media's type; being a snapshot is the role this edge confers.";
+  rdfs:subPropertyOf :relation;
+  :domainIncludes :MediaObject;
+  :rangeIncludes :Entity .
+:color a rdf:Property;
+  rdfs:comment "Color associated with the entity (hex or name).";
+  owl:maxCardinality 1;
+  :domainIncludes :Quotation,
+    :Tag,
+    :Category;
+  :rangeIncludes :Text .
+:annotationStyle a rdf:Property;
+  rdfs:comment "Type of visual annotation (highlight, underline, strikethrough, squiggly, box, margin).";
+  owl:maxCardinality 1;
+  :domainIncludes :Quotation;
+  :rangeIncludes :Text .
+:selector a rdf:Property;
+  rdfs:comment "Selectors identifying content position within a resource.";
+  :domainIncludes :Quotation;
+  :rangeIncludes :Selector .
+:selectorValue a rdf:Property;
+  rdfs:comment "The selector value string (EPUB CFI, media fragment, page number, etc.).";
+  owl:maxCardinality 1;
+  :domainIncludes :Selector;
+  :rangeIncludes :Text .
+:selectorLabel a rdf:Property;
+  rdfs:comment "Human-readable location label such as pt3ch1p40, p215, or 23:43.";
+  owl:maxCardinality 1;
+  :domainIncludes :Selector;
+  :rangeIncludes :Text .
+
+:tags a rdf:Property;
+  rdfs:comment "Tags for categorization or labeling.";
+  :domainIncludes :Entity;
+  :rangeIncludes :Text .
+:caption a rdf:Property;
+  rdfs:comment "A caption or description for the media content.";
+  owl:maxCardinality 1;
+  :domainIncludes :ImageObject;
+  :rangeIncludes :Text .

@@ -1,0 +1,10 @@
+export { InstagramArchiveExtractor } from './connectors/archive/InstagramArchiveExtractor.js';
+export { InstagramArchivePostsExtractor } from './connectors/archive/InstagramArchivePostsExtractor.js';
+export { InstagramArchiveStoriesExtractor } from './connectors/archive/InstagramArchiveStoriesExtractor.js';
+export { InstagramArchiveMessagesExtractor } from './connectors/archive/InstagramArchiveMessagesExtractor.js';
+export { InstagramArchiveLikesExtractor } from './connectors/archive/InstagramArchiveLikesExtractor.js';
+export { InstagramArchiveFollowsExtractor } from './connectors/archive/InstagramArchiveFollowsExtractor.js';
+export { InstagramArchiveSavesExtractor } from './connectors/archive/InstagramArchiveSavesExtractor.js';
+export { InstagramArchiveCommentsExtractor } from './connectors/archive/InstagramArchiveCommentsExtractor.js';
+export { InstagramArchiveSearchesExtractor } from './connectors/archive/InstagramArchiveSearchesExtractor.js';
+export { default as InstagramTransformer } from './connectors/InstagramTransformer.js';

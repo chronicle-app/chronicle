@@ -44,6 +44,60 @@
       "path": "plugins/twitter/tsconfig.lib.json"
     },
     {
+      "path": "plugins/facebook/tsconfig.lib.json"
+    },
+    {
+      "path": "plugins/instagram/tsconfig.lib.json"
+    },
+    {
+      "path": "plugins/linkedin/tsconfig.lib.json"
+    },
+    {
+      "path": "plugins/spotify/tsconfig.lib.json"
+    },
+    {
+      "path": "plugins/lastfm/tsconfig.lib.json"
+    },
+    {
+      "path": "plugins/youtube/tsconfig.lib.json"
+    },
+    {
+      "path": "plugins/timing-app/tsconfig.lib.json"
+    },
+    {
+      "path": "plugins/email/tsconfig.lib.json"
+    },
+    {
+      "path": "plugins/slack/tsconfig.lib.json"
+    },
+    {
+      "path": "plugins/foursquare/tsconfig.lib.json"
+    },
+    {
+      "path": "plugins/bluesky/tsconfig.lib.json"
+    },
+    {
+      "path": "plugins/goodreads/tsconfig.lib.json"
+    },
+    {
+      "path": "plugins/marvin/tsconfig.lib.json"
+    },
+    {
+      "path": "plugins/zotero/tsconfig.lib.json"
+    },
+    {
+      "path": "plugins/obsidian/tsconfig.lib.json"
+    },
+    {
+      "path": "plugins/pinboard/tsconfig.lib.json"
+    },
+    {
+      "path": "plugins/google-reader/tsconfig.lib.json"
+    },
+    {
+      "path": "plugins/arena/tsconfig.lib.json"
+    },
+    {
       "path": "core/icloud/tsconfig.lib.json"
     },
     {

@@ -37,19 +37,37 @@ Run `chronicle extract <source> --help` for a source's options. See the
 
 These sources come bundled with the CLI:
 
-| Source                                           | Package                                        |
-| ------------------------------------------------ | ---------------------------------------------- |
-| Shell history (bash, zsh, fish)                  | [shell](plugins/shell/README.md)               |
-| iMessage/SMS, with iCloud and contact enrichment | [imessage](plugins/imessage/README.md)         |
-| Safari browsing history                          | [safari](plugins/safari/README.md)             |
-| Arc Timeline visits and trips                    | [arc-timeline](plugins/arc-timeline/README.md) |
-| Moves export places and moves                    | [moves-app](plugins/moves-app/README.md)       |
-| Claude Code transcripts                          | [claude-code](plugins/claude-code/README.md)   |
-| Things 3                                         | [things-todo](plugins/things-todo/README.md)   |
-| Twitter/X archive tweets, likes, and DMs         | [twitter](plugins/twitter/README.md)           |
-| WhatsApp messages                                | [whatsapp](plugins/whatsapp/README.md)         |
-| Phone and FaceTime calls (Apple Call History)    | [call-history](plugins/call-history/README.md) |
-| FoodNoms meal logs                               | [foodnoms](plugins/foodnoms/README.md)         |
+| Source                                                                | Package                                          |
+| --------------------------------------------------------------------- | ------------------------------------------------ |
+| Shell history (bash, zsh, fish)                                       | [shell](plugins/shell/README.md)                 |
+| iMessage/SMS, with iCloud and contact enrichment                      | [imessage](plugins/imessage/README.md)           |
+| Safari browsing history                                               | [safari](plugins/safari/README.md)               |
+| Arc Timeline visits and trips                                         | [arc-timeline](plugins/arc-timeline/README.md)   |
+| Moves export places and moves                                         | [moves-app](plugins/moves-app/README.md)         |
+| Claude Code transcripts                                               | [claude-code](plugins/claude-code/README.md)     |
+| Facebook export                                                       | [facebook](plugins/facebook/README.md)           |
+| Things 3                                                              | [things-todo](plugins/things-todo/README.md)     |
+| Twitter/X archive tweets, likes, and DMs                              | [twitter](plugins/twitter/README.md)             |
+| WhatsApp messages                                                     | [whatsapp](plugins/whatsapp/README.md)           |
+| Phone and FaceTime calls (Apple Call History)                         | [call-history](plugins/call-history/README.md)   |
+| FoodNoms meal logs                                                    | [foodnoms](plugins/foodnoms/README.md)           |
+| Instagram data export                                                 | [instagram](plugins/instagram/README.md)         |
+| LinkedIn data export                                                  | [linkedin](plugins/linkedin/README.md)           |
+| Spotify listens, saved tracks and albums, playlists                   | [spotify](plugins/spotify/README.md)             |
+| Last.fm listens, loved tracks, and friends                            | [lastfm](plugins/lastfm/README.md)               |
+| YouTube likes, subscriptions, playlists, uploads, and Takeout history | [youtube](plugins/youtube/README.md)             |
+| Timing app usage, time entries, and calls                             | [timing-app](plugins/timing-app/README.md)       |
+| Email from mbox files                                                 | [email](plugins/email/README.md)                 |
+| Slack messages from a slackdump export                                | [slack](plugins/slack/README.md)                 |
+| Foursquare/Swarm check-ins                                            | [foursquare](plugins/foursquare/README.md)       |
+| Bluesky follows, followers, and likes                                 | [bluesky](plugins/bluesky/README.md)             |
+| Goodreads shelves and reading history                                 | [goodreads](plugins/goodreads/README.md)         |
+| Marvin reading sessions and highlights                                | [marvin](plugins/marvin/README.md)               |
+| Zotero works, highlights, notes, and reading                          | [zotero](plugins/zotero/README.md)               |
+| Obsidian notes and links                                              | [obsidian](plugins/obsidian/README.md)           |
+| Pinboard bookmarks                                                    | [pinboard](plugins/pinboard/README.md)           |
+| Google Reader archive actions                                         | [google-reader](plugins/google-reader/README.md) |
+| Are.na channels, blocks, comments, and follows                        | [arena](plugins/arena/README.md)                 |
 
 Install other plugins with `chronicle plugins install <package>`.
 
