@@ -63,12 +63,14 @@ The extractor parses the following email components:
 
 ## Schema
 
-The plugin generates Chronicle records of type `email` with the following data structure:
+- Each email is a `MessageAction` by the sender whose object is a `Message`.
+  The message's `name` is the subject, its `description` is the body, and its
+  `recipient`s are the To, CC and BCC addresses.
+- Each address is an `Agent` whose `handle` is the email address and whose
+  `name` is the display name, or the address when there is none.
 
-- Sender and recipient information
-- Message metadata (subject, date, message ID)
-- Complete message content and headers
-- Proper date/time handling for filtering and chronological ordering
+The source is `email`. A message with a Message-ID uses it as its `sourceId`;
+one without is identified by its sender, date and subject.
 
 ## Tests
 
