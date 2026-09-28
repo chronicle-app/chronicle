@@ -1,4 +1,5 @@
 import { defineConfig } from 'astro/config';
+import { buildInfo, defineBuild } from './scripts/build-info.js';
 import { DATA_DIRECTORIES, defineDirectories } from './scripts/directories.js';
 
 // Pages read the schema and guides when they load, outside Vite's module graph,
@@ -25,7 +26,7 @@ export default defineConfig({
   compressHTML: false,
   server: { port: 4321 },
   vite: {
-    define: defineDirectories(),
+    define: { ...defineDirectories(), ...defineBuild(buildInfo()) },
     plugins: [reloadOnDataChange(Object.values(DATA_DIRECTORIES))],
   },
 });
