@@ -24,7 +24,7 @@ override async setup(): Promise<void> {
 
 `isSqliteBusy(err)` reports whether an error is SQLITE_BUSY (including extended busy codes). Opening a locked database succeeds; the first read fails.
 
-`allRows<T>(stmt, ...params)`, `getRow<T>(stmt, ...params)` and `iterateRows<T>(stmt, ...params)` wrap `all()`, `get()` and `iterate()` with a row type, so call sites need no `as unknown as T[]`. The type is not checked at runtime.
+`allRows<T>(stmt, ...params)`, `getRow<T>(stmt, ...params)` and `iterateRows<T>(stmt, ...params)` wrap `all()`, `get()` and `iterate()` with a row type, so call sites need no `as unknown as T[]`. The type is not checked at runtime. `iterateRows` also keeps its statement referenced until iteration ends, so iterating `db.prepare(sql)` inline is safe. On Node 22.13, `iterate()` alone does not, and garbage collection mid-iteration throws "statement has been finalized".
 
 The connection is read-only: missing databases are not created, and journal mode is not changed. Live WAL databases require access to the database and its sidecar files; a copied database must include uncheckpointed WAL contents or be a consistent SQLite backup.
 

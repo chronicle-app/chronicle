@@ -1,5 +1,5 @@
 import { Record, normalizePhoneNumber } from '@chronicle.app/etl';
-import { SqliteExtractor } from '@chronicle.app/etl-sqlite';
+import { SqliteExtractor, iterateRows } from '@chronicle.app/etl-sqlite';
 import { z } from 'zod';
 import TimingCallTransformer from './TimingCallTransformer.js';
 
@@ -61,7 +61,7 @@ export class TimingCallExtractor extends SqliteExtractor<typeof TimingCallExtrac
       params.push(limit);
     }
 
-    for (const row of this.db.prepare(sql).iterate(...params) as Iterable<any>) {
+    for (const row of iterateRows<any>(this.db.prepare(sql), ...params)) {
       // The title is either a real handle (unnamed contact) or a display name.
       const title: string | null = row.contactTitle || null;
       let handle: string | null = null;

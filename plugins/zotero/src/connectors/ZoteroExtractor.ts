@@ -1,5 +1,5 @@
 import { Record, SystemInfo } from '@chronicle.app/etl';
-import { SqliteExtractor, timeRangeConditions } from '@chronicle.app/etl-sqlite';
+import { SqliteExtractor, timeRangeConditions, iterateRows } from '@chronicle.app/etl-sqlite';
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 import { createHash, randomUUID } from 'node:crypto';
 import { constants as fsConstants, copyFileSync, readFileSync, rmSync, statSync } from 'node:fs';
@@ -267,7 +267,7 @@ export class ZoteroExtractor extends SqliteExtractor<typeof ZoteroExtractor> {
         AND it.typeName NOT IN ('attachment', 'annotation', 'note')${clause}
       ORDER BY i.dateModified DESC`;
 
-    for (const row of this.db!.prepare(sql).iterate(...params) as Iterable<WorkRow>) {
+    for (const row of iterateRows<WorkRow>(this.db!.prepare(sql), ...params)) {
       if (this.shouldStopExtracting(this.extractedCount)) return;
 
       const data: ZoteroWorkRecord = {
@@ -313,7 +313,7 @@ export class ZoteroExtractor extends SqliteExtractor<typeof ZoteroExtractor> {
         AND (att.parentItemID IS NULL OR att.parentItemID NOT IN (SELECT itemID FROM deletedItems))${clause}
       ORDER BY i.dateModified DESC`;
 
-    for (const row of this.db!.prepare(sql).iterate(...params) as Iterable<AnnotationRow>) {
+    for (const row of iterateRows<AnnotationRow>(this.db!.prepare(sql), ...params)) {
       if (this.shouldStopExtracting(this.extractedCount)) return;
 
       const attachment = this.buildAttachment({
@@ -369,7 +369,7 @@ export class ZoteroExtractor extends SqliteExtractor<typeof ZoteroExtractor> {
         AND i.itemID NOT IN (SELECT itemID FROM deletedItems)${clause}
       ORDER BY i.dateModified DESC`;
 
-    for (const row of this.db!.prepare(sql).iterate(...params) as Iterable<AttachmentRow>) {
+    for (const row of iterateRows<AttachmentRow>(this.db!.prepare(sql), ...params)) {
       if (this.shouldStopExtracting(this.extractedCount)) return;
 
       const data: ZoteroOrphanAttachmentRecord = {
@@ -404,7 +404,7 @@ export class ZoteroExtractor extends SqliteExtractor<typeof ZoteroExtractor> {
         AND (n.parentItemID IS NULL OR n.parentItemID NOT IN (SELECT itemID FROM deletedItems))${clause}
       ORDER BY i.dateModified DESC`;
 
-    for (const row of this.db!.prepare(sql).iterate(...params) as Iterable<NoteRow>) {
+    for (const row of iterateRows<NoteRow>(this.db!.prepare(sql), ...params)) {
       if (this.shouldStopExtracting(this.extractedCount)) return;
 
       const work = this.loadWorkRef(row.parentItemID);

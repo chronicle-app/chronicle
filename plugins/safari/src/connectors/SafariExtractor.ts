@@ -4,6 +4,7 @@ import {
   SqliteExtractor,
   timeRangeConditions,
   unixToSafariTimestamp,
+  iterateRows,
 } from '@chronicle.app/etl-sqlite';
 import { getICloudAccount } from '@chronicle.app/icloud';
 import { z } from 'zod';
@@ -85,7 +86,7 @@ export class SafariExtractor extends SqliteExtractor<typeof SafariExtractor> {
     const account =
       this.config.account === undefined ? await getICloudAccount() : this.config.account;
 
-    for (const row of this.db.prepare(sql).iterate(...values)) {
+    for (const row of iterateRows<any>(this.db.prepare(sql), ...values)) {
       const processedRow = this.processRow(row);
 
       yield this.createRecord(processedRow, {
