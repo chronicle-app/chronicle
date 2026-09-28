@@ -12,7 +12,7 @@ process.env.CHRONICLE_CONFIG_DIR = configDir;
 process.on('exit', () => rmSync(configDir, { recursive: true, force: true }));
 
 const { CredentialManager } = await import('@chronicle.app/auth');
-const { ArenaBookmarksExtractor, ArenaFollowingExtractor, ArenaOAuthProvider, ArenaTransformer } =
+const { ArenaBookmarksExtractor, ArenaFollowingExtractor, ArenaTransformer } =
   await import('../dist/index.js');
 const { fakeArena } = await import('./fixture.test-helper.js');
 
@@ -266,61 +266,10 @@ test('stored credentials are used when no token is given, and required otherwise
   await CredentialManager.storeCredentials('arena', {
     provider: 'arena',
     access_token: 'stored-token',
-    token_type: 'Bearer',
+    token_type: 'static',
     created_at: '2025-01-01T00:00:00Z',
   });
   const extractor = new ArenaFollowingExtractor({});
   await extractor.setup();
   assert.equal(requests.at(-1).authorization, 'Bearer stored-token');
-});
-
-test('the OAuth provider authorizes read access and exchanges codes at the v3 endpoint', async () => {
-  const posts = [];
-  class TestProvider extends ArenaOAuthProvider {
-    async postToken(url, data, config) {
-      posts.push({ url, data: Object.fromEntries(data), config });
-      return {
-        access_token: 'token',
-        token_type: 'Bearer',
-        scope: 'read',
-        expires_in: 3600,
-        refresh_token: 'refresh',
-      };
-    }
-  }
-  const provider = new TestProvider({
-    clientId: 'client',
-    clientSecret: 'secret',
-    redirectUri: 'http://127.0.0.1:7463/callback',
-    state: 'csrf',
-  });
-
-  const url = new URL(provider.buildAuthUrl());
-  assert.equal(url.origin + url.pathname, 'https://www.are.na/oauth/authorize');
-  assert.deepEqual(Object.fromEntries(url.searchParams), {
-    client_id: 'client',
-    redirect_uri: 'http://127.0.0.1:7463/callback',
-    response_type: 'code',
-    state: 'csrf',
-    scope: 'read',
-  });
-
-  const token = await provider.exchangeCodeForToken('code');
-  assert.deepEqual(posts, [
-    {
-      url: 'https://api.are.na/v3/oauth/token',
-      data: {
-        grant_type: 'authorization_code',
-        code: 'code',
-        redirect_uri: 'http://127.0.0.1:7463/callback',
-        client_id: 'client',
-        client_secret: 'secret',
-      },
-      config: { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
-    },
-  ]);
-  assert.equal(token.provider, 'arena');
-  assert.equal(token.access_token, 'token');
-  assert.equal(token.refresh_token, 'refresh');
-  assert.equal(token.expires_in, 3600);
 });

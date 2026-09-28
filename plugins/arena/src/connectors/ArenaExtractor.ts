@@ -48,8 +48,7 @@ export default abstract class ArenaExtractor extends Extractor<typeof ArenaExtra
       throw new Error(
         'No Are.na access token found. Either:\n' +
           '1. Create a personal access token at https://www.are.na/developers/personal-access-tokens and run: chronicle auth set arena\n' +
-          '2. Run: chronicle auth login arena --client-id YOUR_CLIENT_ID --client-secret YOUR_CLIENT_SECRET\n' +
-          '3. Provide a token directly with --access-token'
+          '2. Provide a token directly with --access-token'
       );
     }
 

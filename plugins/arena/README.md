@@ -12,19 +12,6 @@ chronicle auth set arena
 
 It prompts for the token and reuses it on later extractions. To use a token for a single run, pass `--access-token` instead.
 
-Alternatively, authenticate with OAuth. Register an application at [Are.na OAuth settings](https://www.are.na/settings/oauth):
-
-1. Set the **Redirect URI** to `http://127.0.0.1:7463/callback` — this is Chronicle's default OAuth callback (port 7463). Are.na validates the redirect URI exactly, so use `127.0.0.1` (not `localhost`) and match the port. If you run `chronicle auth` with a custom `--port`, register that port's callback instead.
-2. Note the application's **Client ID** and **Client Secret**.
-
-Then authenticate:
-
-```bash
-chronicle auth login arena --client-id YOUR_CLIENT_ID --client-secret YOUR_CLIENT_SECRET
-```
-
-The resulting access token is stored locally and reused on subsequent extractions (the plugin requests read-only access).
-
 ## Usage
 
 ### Channels, blocks, and comments (default)
