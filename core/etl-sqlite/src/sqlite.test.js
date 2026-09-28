@@ -4,6 +4,8 @@ import { DatabaseSync } from 'node:sqlite';
 import { copyFileSync, mkdtempSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { setFlagsFromString } from 'node:v8';
+import { runInNewContext } from 'node:vm';
 import {
   SqliteExtractor,
   getRow,
@@ -140,4 +142,20 @@ test('a locked source is detected as busy and subclasses can fall back to a copy
     error => !isSqliteBusy(error)
   );
   assert.equal(extractor.connection(), null);
+});
+
+test('iterateRows keeps an inline statement alive through garbage collection', () => {
+  // Node 22.13's iterate() does not hold its statement, so collecting an
+  // unreferenced statement mid-iteration finalizes it.
+  setFlagsFromString('--expose-gc');
+  const gc = runInNewContext('gc');
+  const db = new DatabaseSync(':memory:');
+  db.exec('CREATE TABLE t (n INTEGER)');
+  for (let n = 0; n < 5; n++) db.prepare('INSERT INTO t VALUES (?)').run(n);
+  const seen = [];
+  for (const row of iterateRows(db.prepare('SELECT n FROM t ORDER BY n'))) {
+    gc();
+    seen.push(row.n);
+  }
+  assert.deepEqual(seen, [0, 1, 2, 3, 4]);
 });

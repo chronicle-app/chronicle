@@ -1,4 +1,5 @@
 import { Record } from '@chronicle.app/etl';
+import { iterateRows } from '@chronicle.app/etl-sqlite';
 import TimingAppTransformer from './TimingAppTransformer.js';
 import { TimingDbExtractor, TimingProject } from './TimingDbExtractor.js';
 
@@ -51,7 +52,7 @@ export class TimeEntriesExtractor extends TimingDbExtractor<typeof TimeEntriesEx
       sql += ` LIMIT ?`;
       params.push(limit);
     }
-    return this.db!.prepare(sql).iterate(...params) as Iterable<any>;
+    return iterateRows<any>(this.db!.prepare(sql), ...params);
   }
 
   private buildRecord(row: any, projectChain: (id: string | null) => TimingProject[]): Record {

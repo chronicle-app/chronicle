@@ -18,12 +18,16 @@ export function getRow<T>(statement: StatementSync, ...params: Parameters): T | 
   return (statement.get as (...args: Parameters) => unknown)(...params) as T | undefined;
 }
 
-/** Run a statement and iterate its rows one at a time, typed as `T`. */
-export function iterateRows<T>(
-  statement: StatementSync,
-  ...params: Parameters
-): Iterator<T> & Iterable<T> {
-  return (statement.iterate as (...args: Parameters) => Iterator<T> & Iterable<T>)(...params);
+/**
+ * Run a statement and iterate its rows one at a time, typed as `T`.
+ *
+ * The generator keeps `statement` referenced until iteration ends. On Node
+ * 22.13, the iterator from `iterate()` does not, so a statement prepared inline
+ * (`iterateRows(db.prepare(sql))`) can be garbage collected mid-iteration, and
+ * the next row throws "statement has been finalized".
+ */
+export function* iterateRows<T>(statement: StatementSync, ...params: Parameters): Generator<T> {
+  yield* (statement.iterate as (...args: Parameters) => Iterable<T>)(...params);
 }
 
 const SQLITE_BUSY = 5;

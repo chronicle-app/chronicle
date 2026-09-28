@@ -4,6 +4,7 @@ import {
   safariToUnixTimestamp,
   timeRangeConditions,
   unixToSafariTimestamp,
+  iterateRows,
 } from '@chronicle.app/etl-sqlite';
 import { z } from 'zod';
 import CallHistoryTransformer from './CallHistoryTransformer.js';
@@ -73,7 +74,7 @@ export class AppleCallHistoryExtractor extends SqliteExtractor<typeof AppleCallH
       params.push(limit);
     }
 
-    for (const row of this.db.prepare(sql).iterate(...params) as Iterable<any>) {
+    for (const row of iterateRows<any>(this.db.prepare(sql), ...params)) {
       const handles = dedupe([
         ...(participants.get(row.pk) ?? []),
         ...(row.address ? [row.address] : []),

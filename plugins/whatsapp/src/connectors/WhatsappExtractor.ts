@@ -4,6 +4,7 @@ import {
   safariToUnixTimestamp,
   timeRangeConditions,
   unixToSafariTimestamp,
+  iterateRows,
 } from '@chronicle.app/etl-sqlite';
 import {
   getICloudAccount,
@@ -121,7 +122,7 @@ export class WhatsappExtractor extends SqliteExtractor<typeof WhatsappExtractor>
     // result set (.all) — a full-history iPhone backup is ~360k messages. The lookup
     // tables above are already loaded and nothing in the loop queries the DB, so the
     // open cursor is safe across yields.
-    const rows = this.db!.prepare(sql).iterate(...values) as IterableIterator<any>;
+    const rows = iterateRows<any>(this.db!.prepare(sql), ...values);
 
     for (const row of rows) {
       const isFromMe = row.isFromMe === 1;
