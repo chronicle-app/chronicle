@@ -45,7 +45,7 @@ selectable on its own:
 - **Time entry → `ExperienceAction` + `Session`.** A manually-logged block of
   real time (Timing's "time entries"; each belongs to a project). The action
   carries the real occurrence (`startTime`/`endTime`, not `scheduledTime`); the
-  lean `Session` object carries `isPartOf` → Project, `name` (title), and `notes`.
+  lean `Session` object carries `isPartOf` → Project, `name` (title), and `description` (notes).
 - **Project ancestry** is nested via `isPartOf` on the session (leaf → parent →
   …), not emitted as standalone records.
 - **Call relay (`--type calls`).** Timing relays Apple Call History; this plugin
