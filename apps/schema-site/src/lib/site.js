@@ -1,6 +1,7 @@
 // The schema and guides, read once per build, with the derived structure the
-// pages share. The build defines the data directories (see astro.config.mjs).
-/* global __SCHEMA_DIRECTORY__, __GUIDES_DIRECTORY__ */
+// pages share. The build defines the data directories and the build info (see
+// astro.config.mjs).
+/* global __SCHEMA_DIRECTORY__, __GUIDES_DIRECTORY__, __BUILD_INFO__ */
 import { join } from 'node:path';
 import { loadGuides } from './guides.js';
 import { paths, TERM } from './html.js';
@@ -20,6 +21,12 @@ const BASE = import.meta.env.BASE_URL.replace(/\/?$/, '/');
 export const url = path => BASE + path;
 
 export const REPOSITORY = 'https://github.com/chronicle-app/chronicle';
+
+/** When the site was built, and the commit it was built from (or null). */
+export const build = __BUILD_INFO__;
+/** The build time in UTC to the minute, such as `2026-09-28 18:30 UTC`. */
+export const builtAt = `${build.time.slice(0, 10)} ${build.time.slice(11, 16)} UTC`;
+export const commitUrl = commit => `${REPOSITORY}/commit/${commit}`;
 
 /** A link to the schema change issue form, with the term filled in when given. */
 export function suggestChange(term) {

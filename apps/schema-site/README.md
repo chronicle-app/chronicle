@@ -67,3 +67,9 @@ The root is `main`. `releases/<version>/` holds the first release of each
 vocabulary version, rebuilt from its tag. Term IRIs such as `/Task` redirect to
 their pages. The build fails if a rebuilt snapshot differs from the published
 one.
+
+Every page's footer shows when the site was built and the commit it was built
+from, and `build.json` at each root holds the same, so a script can check that
+the published site is current. The commit comes from `CHRONICLE_SITE_COMMIT`,
+which the deployment sets to the tag's commit when it rebuilds a snapshot, then
+`GITHUB_SHA`, then the checkout's `HEAD`; without one, only the time is shown.

@@ -80,7 +80,12 @@ async function buildTag(tag, output, base) {
   execFileSync('tar', ['-x', '-C', checkout], {
     input: git(['archive', tag, SCHEMA, SITE], { maxBuffer: 1024 ** 3 }),
   });
-  execFileSync(process.execPath, [join(checkout, BUILDER), output, base], { stdio: 'inherit' });
+  // The snapshot's pages name the tag's commit, not the one being deployed.
+  const commit = git(['rev-parse', `${tag}^{commit}`], { encoding: 'utf8' }).trim();
+  execFileSync(process.execPath, [join(checkout, BUILDER), output, base], {
+    stdio: 'inherit',
+    env: { ...process.env, CHRONICLE_SITE_COMMIT: commit },
+  });
   return true;
 }
 

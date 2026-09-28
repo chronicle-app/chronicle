@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import { BaseAndChildrenSchema } from '../../../core/schema/dist/index.js';
 import { readSchema } from '../src/lib/model.js';
 import { validateRecords } from '../src/lib/validate.js';
+import { buildCommit } from './build-info.js';
 import { buildSite } from './build.js';
 import { DATA_DIRECTORIES } from './directories.js';
 
@@ -50,10 +51,28 @@ test('the validator accepts every example, in Chronicle JSON and JSON-LD', () =>
   }
 });
 
+test('the build commit comes from the deployment, then CI, then the checkout', () => {
+  const [tag, ci, head] = ['a', 'b', 'c'].map(digit => digit.repeat(40));
+  const fromHead = () => head;
+  assert.equal(buildCommit({ CHRONICLE_SITE_COMMIT: tag, GITHUB_SHA: ci }, fromHead), tag);
+  assert.equal(buildCommit({ GITHUB_SHA: ci }, fromHead), ci);
+  assert.equal(buildCommit({}, fromHead), head);
+  // Without a usable commit the site shows only the build time.
+  assert.equal(
+    buildCommit({}, () => null),
+    null
+  );
+  assert.equal(buildCommit({ GITHUB_SHA: 'not-a-commit' }, fromHead), null);
+});
+
 test('the built site has a page for every term and no broken links', async () => {
   const output = mkdtempSync(join(tmpdir(), 'chronicle-schema-site-'));
+  const info = {
+    time: '2026-09-28T18:30:05.000Z',
+    commit: '0123456789abcdef0123456789abcdef01234567',
+  };
   try {
-    await buildSite({ output });
+    await buildSite({ output, info });
     for (const name of schema.classes.keys()) {
       assert.ok(existsSync(join(output, 'classes', `${name}.html`)), name);
     }
@@ -84,6 +103,18 @@ test('the built site has a page for every term and no broken links', async () =>
       }
     }
     assert.ok(existsSync(join(output, 'chronicle.ttl')));
+
+    // Every page says when and from which commit it was built.
+    assert.deepEqual(JSON.parse(readFileSync(join(output, 'build.json'), 'utf8')), info);
+    const home = readFileSync(join(output, 'index.html'), 'utf8').replaceAll(/\s+/g, ' ');
+    assert.match(
+      home,
+      /Built <time datetime="2026-09-28T18:30:05\.000Z">2026-09-28 18:30 UTC<\/time>/
+    );
+    assert.match(
+      home,
+      /from <a href="https:\/\/github\.com\/chronicle-app\/chronicle\/commit\/0123456789abcdef0123456789abcdef01234567"><code>0123456<\/code><\/a>/
+    );
   } finally {
     rmSync(output, { recursive: true, force: true });
   }

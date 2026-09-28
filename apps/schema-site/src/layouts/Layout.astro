@@ -1,7 +1,10 @@
 ---
 // The page shell: top bar, sidebar, table of contents, footer, and search dialog.
 import {
+  build,
+  builtAt,
   classes,
+  commitUrl,
   examples,
   firstSentence,
   guides,
@@ -33,6 +36,7 @@ const open = (prefix: string) => current.startsWith(prefix);
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{kind === 'home' ? 'Chronicle Schema' : `${title} · Chronicle Schema`}</title>
     <meta name="description" content={firstSentence(description)} />
+    <meta name="chronicle-build" content={[build.time, build.commit].filter(Boolean).join(' ')} />
     <link rel="icon" href={url('assets/favicon.png')} type="image/png" />
     <link rel="apple-touch-icon" href={url('assets/apple-touch-icon.png')} />
     <link rel="stylesheet" href={url('assets/site.css')} />
@@ -107,6 +111,14 @@ const open = (prefix: string) => current.startsWith(prefix);
           <a href={url('chronicle.ttl')} download>Download the ontology</a>
           <a href={suggestChange()}>Suggest a new term</a>
           <a href="https://chronicle.app/">Chronicle</a>
+          <span class="footer-build">
+            Built <time datetime={build.time}>{builtAt}</time>
+            {build.commit && (
+              <>
+                from <a href={commitUrl(build.commit)}><code>{build.commit.slice(0, 7)}</code></a>
+              </>
+            )}
+          </span>
           <span class="footer-copyright">© {new Date().getFullYear()} <a href="https://hyfen.net/">Andrew Louis</a></span>
         </footer>
       </main>
