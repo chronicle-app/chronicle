@@ -699,6 +699,72 @@ travelled and when; its :result is the :Journey with the :travelMode, the
     ]
   ] .
 
+example:meal-logged
+  rdfs:label "Logging a meal";
+  rdfs:comment """
+An :EatAction for one food entry in FoodNoms, at the entry's :timestamp. The
+action and its :Meal are both keyed by the entry's ID. The meal's slot is its
+:category, and its brand, amount and calories are summed up in its
+:description. The :agent is the iCloud account that owns the app.
+""";
+  rdf:value [
+    a :EatAction;
+    doc:key ("source" "sourceId");
+    :source "foodnoms";
+    :sourceId "3f6c2a9e-1b4d-4c8e-9a7f-2d5e8b1c4a60";
+    :timestamp "2026-05-09T16:30:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "icloud";
+      :sourceId "1234567890";
+      :handle "you@example.com";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Meal;
+      doc:key ("@type" "source" "sourceId");
+      :source "foodnoms";
+      :sourceId "3f6c2a9e-1b4d-4c8e-9a7f-2d5e8b1c4a60";
+      :name "Lentil soup";
+      :category "Lunch";
+      :description "Lunch - Brand: Hearth Kitchen - 1.5 cup - 270 calories"
+    ]
+  ] .
+
+example:drink-logged
+  rdfs:label "Logging a drink";
+  rdfs:comment """
+FoodNoms doesn't record whether an entry is food or drink. An entry whose
+:name contains a common drink word becomes a :DrankAction instead of an
+:EatAction. The action's key leaves out its type, so the same entry keeps its
+identity if the guess changes.
+""";
+  rdf:value [
+    a :DrankAction;
+    doc:key ("source" "sourceId");
+    :source "foodnoms";
+    :sourceId "8b1e4d7a-2c9f-4e3b-b6a1-5f0d3c7e9a24";
+    :timestamp "2026-05-09T13:05:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "icloud";
+      :sourceId "1234567890";
+      :handle "you@example.com";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Meal;
+      doc:key ("@type" "source" "sourceId");
+      :source "foodnoms";
+      :sourceId "8b1e4d7a-2c9f-4e3b-b6a1-5f0d3c7e9a24";
+      :name "Iced latte";
+      :category "Breakfast";
+      :description "Breakfast - 12 fl oz - 190 calories"
+    ]
+  ] .
+
 example:entity-with-url
   rdfs:label "An entity with a source ID and a URL";
   rdfs:comment """
@@ -712,6 +778,210 @@ An :Entity with a :name, keyed by its :source and :sourceId. The :url is a
     :sourceId "note-1042";
     :name "Seed order for spring";
     :url "https://notes.example.com/n/1042"
+  ] .
+
+example:phone-call
+  rdfs:label "A phone call you made";
+  rdfs:comment """
+You called Alex from your iPhone. The :CallAction spans the call from
+:startTime to :endTime; a missed call is a zero-length span. You are the
+:agent, and the :result is the :CallSession, which carries Alex as its
+:recipient. Both are keyed by Apple's ID for the call.
+
+Alex is keyed by the number in the `apple-phone` namespace and linked through
+:sameAs to the same number in the `phone` namespace, which other sources can
+share, and to Alex's card in Contacts.
+""";
+  rdf:value [
+    a :CallAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "apple-phone";
+    :sourceId "4E7C2A91-3B5D-4F08-9A6E-1D2C3B4A5F60";
+    :startTime "2026-05-09T17:02:00.000Z"^^xsd:dateTime;
+    :endTime "2026-05-09T17:06:41.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "icloud";
+      :sourceId "1234567890";
+      :handle "sam@example.com";
+      :sameAs "@me"
+    ];
+    :result [
+      a :CallSession;
+      doc:key ("@type" "source" "sourceId");
+      :source "apple-phone";
+      :sourceId "4E7C2A91-3B5D-4F08-9A6E-1D2C3B4A5F60";
+      :recipient [
+        a :Agent;
+        doc:key ("source" "handle");
+        :source "apple-phone";
+        :handle "+15555550142";
+        :name "Alex Chen";
+        :sameAs [
+          a :Agent;
+          doc:key ("source" "handle");
+          :source "phone";
+          :handle "+15555550142"
+        ], [
+          a :Person;
+          doc:key ("source" "sourceId");
+          :source "apple-contacts";
+          :sourceId "8F3A1C2E-5B6D-4E7F-9A0B-1C2D3E4F5A6B";
+          :name "Alex Chen"
+        ]
+      ]
+    ]
+  ] .
+
+example:group-call
+  rdfs:label "A group FaceTime call";
+  rdfs:comment """
+Someone started a group FaceTime call that included you. Apple doesn't record
+who started it, so the :CallAction has no :agent. The :CallSession has you as
+its :recipient and :isPartOf a :Channel keyed by the group's ID, whose :member
+edges list the other people on the call.
+""";
+  rdf:value [
+    a :CallAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "apple-phone";
+    :sourceId "B21F6D3E-8C4A-4E59-A7D0-6F1E2C3B4A59";
+    :startTime "2026-05-10T19:30:00.000Z"^^xsd:dateTime;
+    :endTime "2026-05-10T20:12:15.000Z"^^xsd:dateTime;
+    :result [
+      a :CallSession;
+      doc:key ("@type" "source" "sourceId");
+      :source "apple-phone";
+      :sourceId "B21F6D3E-8C4A-4E59-A7D0-6F1E2C3B4A59";
+      :recipient [
+        a :Person;
+        doc:key ("@type" "source" "sourceId");
+        :source "icloud";
+        :sourceId "1234567890";
+        :handle "sam@example.com";
+        :sameAs "@me"
+      ];
+      :isPartOf [
+        a :Channel;
+        doc:key ("@type" "source" "sourceId");
+        :source "apple-phone";
+        :sourceId "9C8B7A6F5E4D3C2B1A0F9E8D7C6B5A49";
+        :member [
+          a :Agent;
+          doc:key ("source" "handle");
+          :source "apple-phone";
+          :handle "+15555550142";
+          :sameAs [
+            a :Agent;
+            doc:key ("source" "handle");
+            :source "phone";
+            :handle "+15555550142"
+          ]
+        ], [
+          a :Agent;
+          doc:key ("source" "handle");
+          :source "apple-phone";
+          :handle "riley@example.com";
+          :sameAs [
+            a :Agent;
+            doc:key ("source" "handle");
+            :source "email";
+            :handle "riley@example.com"
+          ]
+        ]
+      ]
+    ]
+  ] .
+
+example:tweet-published
+  rdfs:label "Publishing a tweet";
+  rdfs:comment """
+You posted a tweet, read from a Twitter archive. The :PublishAction and the
+:Post it published are both keyed by the tweet's ID. The :Post keeps the tweet
+text as its :body, with Twitter's shortened links left in place.
+
+Each @mention and each link in the tweet is one of its :references. A mentioned
+account is an :Agent keyed by its Twitter user ID; a link is an :Entity keyed by
+its expanded :url, so other sources that see the same page share the node.
+""";
+  rdf:value [
+    a :PublishAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "twitter";
+    :sourceId "1234567890123456789";
+    :timestamp "2025-01-11T17:10:28.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "twitter";
+      :sourceId "111";
+      :handle "owner_example";
+      :name "Owner Example";
+      :url "https://twitter.com/owner_example";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Post;
+      doc:key ("@type" "source" "sourceId");
+      :source "twitter";
+      :sourceId "1234567890123456789";
+      :body "Trail notes from the weekend with @alex_example https://t.co/abc123";
+      :author [
+        a :Agent;
+        doc:key ("@type" "source" "sourceId");
+        :source "twitter";
+        :sourceId "111";
+        :handle "owner_example";
+        :name "Owner Example";
+        :url "https://twitter.com/owner_example";
+        :sameAs "@me"
+      ];
+      :references [
+        a :Agent;
+        doc:key ("@type" "source" "sourceId");
+        :source "twitter";
+        :sourceId "222";
+        :handle "alex_example";
+        :name "Alex Example";
+        :url "https://twitter.com/alex_example"
+      ], [
+        a :Entity;
+        doc:key ("@type" "url");
+        :url "https://example.com/trail-notes"
+      ]
+    ]
+  ] .
+
+example:tweet-liked
+  rdfs:label "Liking a tweet";
+  rdfs:comment """
+You liked someone else's tweet. The :LikeAction's :object is the liked :Post,
+keyed by the tweet's ID and carrying its text as its :body. A Twitter archive
+does not record when a like happened, so the action has no :timestamp.
+""";
+  rdf:value [
+    a :LikeAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "twitter";
+    :sourceId "9876543210987654321-like";
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "twitter";
+      :sourceId "111";
+      :handle "owner_example";
+      :name "Owner Example";
+      :url "https://twitter.com/owner_example";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Post;
+      doc:key ("@type" "source" "sourceId");
+      :source "twitter";
+      :sourceId "9876543210987654321";
+      :body "A tweet I liked from someone else"
+    ]
   ] .
 
 : skos:example example:message-from-alex, example:shell-command, example:task-completed .
@@ -793,3 +1063,12 @@ An :Entity with a :name, keyed by its :source and :sourceId. The :url is a
 :path skos:example example:trip .
 :member skos:example example:group-reply .
 :inReplyTo skos:example example:group-reply .
+:CallAction skos:example example:phone-call, example:group-call .
+:CallSession skos:example example:phone-call, example:group-call .
+:EatAction skos:example example:meal-logged .
+:DrankAction skos:example example:drink-logged .
+:Meal skos:example example:meal-logged, example:drink-logged .
+:Post skos:example example:tweet-published, example:tweet-liked .
+:PublishAction skos:example example:tweet-published .
+:LikeAction skos:example example:tweet-liked .
+:references skos:example example:tweet-published .

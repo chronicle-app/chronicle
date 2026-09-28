@@ -337,3 +337,62 @@
   rdfs:comment "An agent involved in an entity as addressee, attendee, or member.";
   rdfs:subPropertyOf :relation;
   :rangeIncludes :Agent .
+
+# call-history
+:InteractAction a rdfs:Class;
+  rdfs:comment "An agent engages with another agent or a social object — communicating, following.";
+  rdfs:subClassOf :Action .
+:CommunicateAction a rdfs:Class;
+  rdfs:comment "An agent conveys something to others — a message, a call, a check-in.";
+  rdfs:subClassOf :InteractAction .
+:CallAction a rdfs:Class;
+  rdfs:comment "A phone or video call. :agent is the caller when known; the :result is the :CallSession the call constitutes, which carries the receiver as its :recipient and, for a group call, the :Channel it is :isPartOf.";
+  rdfs:subClassOf :CommunicateAction .
+:Session a rdfs:Class;
+  rdfs:comment "A described segment of time — a bounded, characterized interval of the subject's logged activity (an app-usage block, a manual time block, a call). A sibling of :Event (a named happening); both carry a declared :scheduledTime, while their actual aliveness derives from the activity that constitutes them. A session constituted by an action (:DeviceSession, :CallSession) takes its occurrence from that action; an atomic session (a manual time block) carries its own :startTime/:endTime, like :Event.";
+  rdfs:subClassOf :Entity .
+:CallSession a rdfs:Class;
+  rdfs:comment "A phone or FaceTime call as a described segment of time — the :result of a :CallAction. Carries the :recipient (the receiver) and, for group calls, :isPartOf a :Channel whose :member is the roster. A missed call is a zero-length span; a connected call a non-zero one.";
+  rdfs:subClassOf :Session .
+:recipient :domainIncludes :CallSession .
+# foodnoms
+:EatAction a rdfs:Class;
+  rdfs:comment "The agent ate the :object, a :Meal. Where it happened is the action's :location.";
+  rdfs:subClassOf :ConsumeAction .
+:DrankAction a rdfs:Class;
+  rdfs:comment "The agent drank the :object.";
+  rdfs:subClassOf :ConsumeAction .
+:Meal a rdfs:Class;
+  rdfs:comment "A meal or snack the subject ate — the :object of an :EatAction. Its slot (breakfast, lunch, dinner) is :category data.";
+  rdfs:subClassOf :Entity .
+# twitter
+:Post a rdfs:Class;
+  rdfs:comment "A work published to a social or media platform — a feed post, a story, a reel, a tweet. A media-agnostic container: it may carry a text :body and :contains one or more media files (:MediaObject). Its native presentation format (feed, story, reel) is its :sourceFormat.";
+  rdfs:subClassOf :CreativeWork .
+:PublishAction a rdfs:Class;
+  rdfs:comment "A work was published or released. Its :agent is the publisher when known and its :object the work; the work's :datePublished is when this occurred.";
+  rdfs:subClassOf :CreateAction .
+:CreateAction a rdfs:Class;
+  rdfs:comment "The agent brought a work into existence. Its :result is the work created; the subclasses name the kind of making.";
+  rdfs:subClassOf :Action .
+:LikeAction a rdfs:Class;
+  rdfs:comment "The agent liked the :object. Opens the agent's standing :likes run over it.";
+  rdfs:subClassOf :ReactAction .
+:ReactAction a rdfs:Class;
+  rdfs:comment "A payload-free stance an agent takes on the :object, such as a like. A reaction that carries content (an emoji, a comment) is a :RespondAction.";
+  rdfs:subClassOf :AssessAction .
+:AssessAction a rdfs:Class;
+  rdfs:comment "An agent takes a stance on the :object — a like, a reaction, a rating, a review.";
+  rdfs:subClassOf :Action .
+:references a rdf:Property;
+  rdfs:comment "An entity this one references — an @mention, or a link from one resource to another (a web page's outbound link, a citation).";
+  rdfs:subPropertyOf :mentions;
+  :domainIncludes :CreativeWork,
+    :Session,
+    :Entity;
+  :rangeIncludes :Entity .
+:mentions a rdf:Property;
+  rdfs:comment "An entity pointed to from this one (e.g. an @mention or link).";
+  rdfs:subPropertyOf :relation;
+  :rangeIncludes :Entity .
+:author :domainIncludes :CreativeWork .

@@ -275,7 +275,7 @@ const writeSchemaFile = (classes, properties, version) =>
       } ${interfaceParents.join(',')} {
 "@type": "${shortName}";
 ${proprtyStr.join('\n')}
-${shortName === 'Base' ? '"@key"?: KeyField[];\n"@id"?: string;\n"@assertedAt"?: Date | string;' : ''}
+${shortName === 'Base' ? '"@key"?: KeyField[];\n"@id"?: string;\n"@asserts"?: string[];\n"@assertedAt"?: Date | string;' : ''}
 }
 \n`;
 
@@ -350,7 +350,7 @@ ${shortName === 'Base' ? '"@key"?: KeyField[];\n"@id"?: string;\n"@assertedAt"?:
     })
     .join('\n')}
 ${attributes.filter(Boolean).join(',\n')}
-${shortName === 'Base' ? ',"@key": z.array(z.union([z.string(), z.object({ key: z.string(), value: z.string() })])).optional(),\n"@id": z.string().optional(),\n"@assertedAt": z.union([z.coerce.date(), z.string()]).optional(),' : ''}
+${shortName === 'Base' ? ',"@key": z.array(z.union([z.string(), z.object({ key: z.string(), value: z.string() })])).optional(),\n"@id": z.string().optional(),\n"@asserts": z.array(z.string()).optional(),\n"@assertedAt": z.union([z.coerce.date(), z.string()]).optional(),' : ''}
 };
 \n\n`;
 

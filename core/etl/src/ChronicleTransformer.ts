@@ -2,6 +2,30 @@ import { Transformer } from './transformer.js';
 import { Record } from './types.js';
 import { BaseAndChildren, BaseAndChildrenSchema } from '@chronicle.app/schema';
 
+/**
+ * Mark every entity node in a payload as a complete snapshot of its predicates
+ * by adding the `'*'` wildcard to its `@asserts` (preserving explicit entries).
+ * Persistence expands `'*'` to the node's present cardinality-many predicates and
+ * mints completeness markers, so a value that departed since the last snapshot
+ * (a task moved out of a project) closes. Inert on nodes persistence doesn't
+ * treat as observation subjects (the action itself, value nodes).
+ */
+function markComplete(node: unknown): void {
+  if (Array.isArray(node)) {
+    for (const item of node) markComplete(item);
+    return;
+  }
+  if (!node || typeof node !== 'object') return;
+  const obj = node as { [key: string]: unknown };
+  if (typeof obj['@type'] === 'string') {
+    const existing = Array.isArray(obj['@asserts'])
+      ? (obj['@asserts'] as unknown[]).filter((x): x is string => typeof x === 'string')
+      : [];
+    if (!existing.includes('*')) obj['@asserts'] = [...existing, '*'];
+  }
+  for (const value of Object.values(obj)) markComplete(value);
+}
+
 // A subclass of Transformer that always outputs valid Chronicle Schema
 export abstract class ChronicleTransformer extends Transformer {
   static override outputSchema: string = 'chronicle';
@@ -10,7 +34,20 @@ export abstract class ChronicleTransformer extends Transformer {
 
   protected override recordToString(record: Record): string {
     const obj = record.data as BaseAndChildren;
-    const parts = [record.extraction.source, obj['@type'], obj.sourceId];
+    const objWithTimestamp = obj as any;
+    const timestampValue =
+      objWithTimestamp?.endTime ?? objWithTimestamp?.startTime ?? objWithTimestamp?.timestamp;
+    let timestampString = '';
+
+    if (timestampValue) {
+      try {
+        timestampString = new Date(timestampValue).toISOString();
+      } catch {
+        timestampString = new Date().toISOString();
+      }
+    }
+
+    const parts = [obj.source, obj['@type'], timestampString];
     return parts.filter(Boolean).join('.');
   }
 
@@ -50,6 +87,12 @@ export abstract class ChronicleTransformer extends Transformer {
       // node carries none and is correctly sighted implicit-now at ingest.
       const occurrence = top.timestamp ?? top.startTime ?? top.endTime;
       if (occurrence !== undefined) top['@assertedAt'] = occurrence;
+    }
+    if (record.extraction.temporality === 'snapshot') {
+      // Completeness axis: a state re-read enumerates the whole set, so every
+      // entity node asserts `'*'` — closing cardinality-many values that
+      // departed since the last snapshot.
+      markComplete(result);
     }
     BaseAndChildrenSchema.parse(result);
   }

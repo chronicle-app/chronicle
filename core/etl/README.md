@@ -103,8 +103,9 @@ Logging goes to stderr. Dates in JSON/CSV/table output use ISO strings.
 
 This package covers extraction only: contracts, the runner transformation loop,
 routing, and the loaders above. It does not track runs, settle destinations,
-detect absences, or keep hash/frontier cursors, and it adds no completeness
-annotations. `ChronicleTransformer` stamps each payload's `@assertedAt`, when the
+detect absences, or keep hash/frontier cursors. `ChronicleTransformer` marks
+every node of a snapshot source's payload `@asserts: ['*']`, a complete read of
+its current values, and stamps each payload's `@assertedAt`, when the
 source observed it, unless the payload sets one. An event source's payload is
 asserted at its own `timestamp`, `startTime`, or `endTime`, and gets none without
 one. A snapshot source's payload is asserted at the extraction's read time. An
@@ -114,9 +115,38 @@ Every record goes through normal identity handling.
 
 Media object builders, source-owner identity, and phone normalization helpers
 support iMessage and iCloud enrichment. Attachments remain references; this
-package does not copy their bytes. Attachment downloading, API/archive/CSV
-source adapters, system utilities, CLI flag helpers, and additional presentation
-transforms are not included.
+package does not copy their bytes. Attachment downloading, CLI flag helpers,
+and additional presentation transforms are not included.
+
+Three extractor and system helpers are shared by several sources:
+
+- `ArchiveExtractor` is a base for takeout-style exports read in place from an
+  `--input` directory. It reads JSON files, checks the since/until window,
+  repairs the mojibake these exports write, and attaches the export's account
+  info to each record's context. Layout knowledge stays in each plugin.
+- `MergingExtractor` merges several child extractors' newest-first streams into
+  one newest-first stream by the subclass's `sortKey`, and applies the limit to
+  the merged output. Pair it with a `DispatchingTransformer`.
+- `SystemInfo.getInstance()` returns the macOS, Linux, or Windows
+  implementation, which reads the user's real name, username, hostname, and a
+  stable platform identifier from the host. `SystemInfo.normalizeMachineName`
+  reduces a hostname or device name to its first label, lowercased.
+
+## API sources and HTML
+
+`ApiProxy` is a base class for a source's HTTP client. It holds one axios client,
+sends a bearer token once the subclass calls `setAccessToken`, and maps HTTP 401
+to `ApiAuthError` and HTTP 429 to `ApiRateLimitError` (with `retryAfterSeconds`
+from `Retry-After`). Other errors pass through. A subclass loads its own
+credentials in `initialize()`. `paginateOffset`, `paginateByPage`, and
+`paginateCursor` drive a fetch-page callback to the end of the results or to a
+`limit`, waiting `pageDelayMs` between pages; `ApiProxy` exposes each with its
+own page delay.
+
+`htmlToText` and `htmlToMarkdown` render markup that a source stores as content,
+such as a message body or a feed summary. Both return `undefined` for an empty
+fragment and leave text without markup as written. `decodeEntities`,
+`looksLikeHtml`, and `tokenizeHtml` are the pieces they are built from.
 
 SQLite extraction lives in `@chronicle.app/etl-sqlite`, using built-in
 `node:sqlite` and read-only source connections.

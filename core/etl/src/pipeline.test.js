@@ -128,6 +128,20 @@ test('extracts, transforms, validates and serializes with the minimal schema and
       '2026-02-01T00:00:00.000Z'
     );
 
+    // A snapshot re-reads current state, so every node asserts its set is complete.
+    const [{ data: snapshot, toString: label }] = await transformer.performTransform({
+      data: { id: 'fixture-4', url: 'https://example.com/4', timestamp: '2026-01-01T00:00:00Z' },
+      schema: 'raw',
+      transformations: [],
+      extraction: { source: 'fixture', delivery: 'export', temporality: 'snapshot' },
+      context: {},
+      toString: 'fixture',
+    });
+    assert.deepEqual(snapshot['@asserts'], ['*']);
+    assert.deepEqual(snapshot.object['@asserts'], ['*']);
+    // Payloads are labelled by source, type, and time.
+    assert.equal(label, 'Action.2026-01-01T00:00:00.000Z');
+
     // An extractor that knows when the source observed a record beats either default.
     const loader = new MemoryLoader();
     await collect(

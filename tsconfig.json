@@ -32,6 +32,18 @@
       "path": "plugins/whatsapp/tsconfig.lib.json"
     },
     {
+      "path": "plugins/call-history/tsconfig.lib.json"
+    },
+    {
+      "path": "plugins/foodnoms/tsconfig.lib.json"
+    },
+    {
+      "path": "plugins/moves-app/tsconfig.lib.json"
+    },
+    {
+      "path": "plugins/twitter/tsconfig.lib.json"
+    },
+    {
       "path": "core/icloud/tsconfig.lib.json"
     },
     {
