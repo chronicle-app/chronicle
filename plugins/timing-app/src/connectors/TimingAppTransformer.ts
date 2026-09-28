@@ -300,7 +300,7 @@ export default class TimingAppTransformer extends ChronicleTransformer {
     };
 
     if (ctx.title) session.name = ctx.title;
-    if (ctx.notes) session.notes = ctx.notes;
+    if (ctx.notes) session.description = ctx.notes;
     const project = this.buildProjectChain(ctx.projectChain);
     if (project) session.isPartOf = [project];
 
