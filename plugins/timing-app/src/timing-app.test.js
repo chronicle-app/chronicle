@@ -226,7 +226,7 @@ test('the default run merges app usage, time entries, and calls, newest first', 
     result: {
       ...byId('Session', '201'),
       name: 'Bedtime routine',
-      notes: 'with family',
+      description: 'with family',
       isPartOf: [project('4', 'Family')],
     },
     '@assertedAt': iso(200),
