@@ -1286,29 +1286,6 @@ edges list the other people on the call.
     ]
   ] .
 
-example:blocked-call
-  rdfs:label "A call from a blocked number";
-  rdfs:comment """
-A call came in from a blocked or private number. Apple records no address, so
-there is no caller to key. The call stays on the timeline, and the
-:CallSession explains the missing party in its :notes.
-""";
-  rdf:value [
-    a :CallAction;
-    doc:key ("@type" "source" "sourceId");
-    :source "apple-phone";
-    :sourceId "0D9E8F7A-6B5C-4D3E-8F2A-1B0C9D8E7F65";
-    :startTime "2026-05-11T08:15:00.000Z"^^xsd:dateTime;
-    :endTime "2026-05-11T08:15:12.000Z"^^xsd:dateTime;
-    :result [
-      a :CallSession;
-      doc:key ("@type" "source" "sourceId");
-      :source "apple-phone";
-      :sourceId "0D9E8F7A-6B5C-4D3E-8F2A-1B0C9D8E7F65";
-      :notes "no participant handle (blocked or private number)"
-    ]
-  ] .
-
 example:tweet-published
   rdfs:label "Publishing a tweet";
   rdfs:comment """
@@ -3594,7 +3571,6 @@ course is saved but not when, so the action has no :timestamp.
 :inReplyTo skos:example example:group-reply .
 :CallAction skos:example example:phone-call, example:group-call .
 :CallSession skos:example example:phone-call, example:group-call .
-:notes skos:example example:blocked-call .
 :EatAction skos:example example:meal-logged .
 :DrankAction skos:example example:drink-logged .
 :Meal skos:example example:meal-logged, example:drink-logged .
