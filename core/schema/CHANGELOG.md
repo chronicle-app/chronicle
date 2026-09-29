@@ -2,6 +2,8 @@
 
 ## 0.3.0
 
+The vocabulary version (`owl:versionInfo`, exported as `SCHEMA_VERSION`) is now `0.2.0`. It adds 119 terms since the vocabulary released with 0.2.0 and removes none.
+
 ### Minor Changes
 
 - d8d36ef: Add the Arc Timeline plugin, bundled with the CLI. It reads Arc Timeline's daily iCloud backup and emits a `VisitAction` for each stay and a `TravelAction` with a `Journey` for each trip. The vocabulary adds `VisitAction`, `TravelAction`, `Journey`, `Place`, `Venue`, the `Location` structured value, and `Number`, with `startTime`, `endTime`, `result`, `location`, `latitude`, `longitude`, `address`, `category`, `travelMode`, `distance`, and `path`.

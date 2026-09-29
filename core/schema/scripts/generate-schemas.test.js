@@ -49,13 +49,14 @@ test('generation fails for undeclared property ranges and malformed Turtle', () 
 });
 
 test('vocabulary version is generated and invalid declarations are rejected', () => {
-  const changed = generate(ontology.replace('owl:versionInfo "0.1.0"', 'owl:versionInfo "0.2.0"'));
+  // Whatever the vocabulary's current version, swap it for others.
+  const current = /owl:versionInfo "[^"]*"/;
+  assert.match(ontology, current);
+  const changed = generate(ontology.replace(current, 'owl:versionInfo "9.8.7"'));
   assert.equal(changed.status, 0, changed.stderr);
-  assert.match(changed.generated, /SCHEMA_VERSION = '0.2.0'/);
+  assert.match(changed.generated, /SCHEMA_VERSION = '9.8.7'/);
   for (const replacement of ['', 'owl:versionInfo "invalid"', 'owl:versionInfo "0.1.0", "0.2.0"']) {
-    const result = generate(
-      ontology.replace('owl:versionInfo "0.1.0"', replacement || 'rdfs:comment "no version"')
-    );
+    const result = generate(ontology.replace(current, replacement || 'rdfs:comment "no version"'));
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /exactly one stable semantic version/);
   }
