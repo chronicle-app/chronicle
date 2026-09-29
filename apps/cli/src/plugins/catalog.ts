@@ -23,7 +23,7 @@ export interface CatalogEntry {
   sources?: Manifest;
 }
 
-/** One strategy (way in) for a source, as a plugin's `chronicle` manifest declares it. */
+/** One strategy for a source, as a plugin's `chronicle` manifest declares it. */
 export interface ManifestStrategy {
   delivery: Delivery;
   recordTypes: string[];

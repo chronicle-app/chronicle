@@ -72,7 +72,7 @@ test('bundled sources are discoverable from an unrelated cwd; JSON has no diagno
   // A bare `chronicle extract <source>` needs exactly one default strategy per source.
   for (const { source, strategies } of all.filter(x => x.installed)) {
     const defaults = strategies.filter(strategy => strategy.default);
-    assert.equal(defaults.length, 1, `${source} has ${defaults.length} default ways in`);
+    assert.equal(defaults.length, 1, `${source} has ${defaults.length} default strategies`);
   }
   // Legacy sources are listed only on request, and the table says so.
   assert.ok(sources.every(x => x.tier !== 'legacy'));

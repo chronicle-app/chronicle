@@ -79,14 +79,14 @@ same schema this extractor already reads.
 
 ## Acquisition modes
 
-The plugin offers two ways to pull the same messages, selected with `--via`:
+The plugin offers two strategies for the same messages, selected with `--strategy`:
 
 - **`app-db`** (default) — the live macOS `ChatStorage.sqlite`.
 - **`backup`** — an **unencrypted** iPhone backup (full history). `--input` is the
   backup directory:
 
   ```sh
-  chronicle extract whatsapp --via backup \
+  chronicle extract whatsapp --strategy backup \
     --input "~/Library/Application Support/MobileSync/Backup/<UDID>" \
     --self-number "+1…"
   ```

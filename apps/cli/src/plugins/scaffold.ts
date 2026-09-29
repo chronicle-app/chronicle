@@ -48,7 +48,7 @@ function statics(options: ScaffoldOptions, P: string, description: string): stri
   return `  static override source = '${options.name}';
   static override description = '${description}';
   static override delivery = '${delivery}' as const;
-  // The source's own name for this way in; \`--via\` picks it.
+  // How the source is read, in its own words; \`--strategy\` picks it.
   static override strategy = '${strategy}';
   static override recordTypes = ['${recordType}'];
   static override default = true;
@@ -429,7 +429,7 @@ ${START[kind](name, P)}
 ## Layout
 
 - \`src/${P}Extractor.ts\` reads records. Its static fields say what it reads:
-  \`source\`, \`strategy\` (the way in, picked with \`--via\`), \`delivery\`
+  \`source\`, \`strategy\` (how it's read, picked with \`--strategy\`), \`delivery\`
   (\`export\`, \`local\`, or \`api\`), and \`recordTypes\`.
 - \`src/${P}Transformer.ts\` turns each record into schema nodes.
 - \`package.json\`'s \`chronicle.sources\` repeats each source's strategies,

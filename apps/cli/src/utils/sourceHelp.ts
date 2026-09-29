@@ -44,7 +44,7 @@ export function sourceFlagInfos(candidates: ExtractorMetadata[]): SourceFlagInfo
   return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** What a way in needs from the person running it, for the help line. */
+/** What a strategy needs from the person running it, for the help line. */
 function needsNote(delivery: string): string {
   if (delivery === 'export') return 'export, needs --input';
   if (delivery === 'api') return 'live, needs auth';
@@ -53,7 +53,7 @@ function needsNote(delivery: string): string {
 }
 
 /**
- * Render a source as ways in × record kinds, plus the flags they accept. Shared
+ * Render a source as strategies × record kinds, plus the flags they accept. Shared
  * by the custom Help class (`extract <source> --help`) and the dispatcher's
  * `--list-types` / non-TTY selection error, so the surfaces never drift.
  */
@@ -67,7 +67,7 @@ export function renderSourceHelp(
   const lines: string[] = [];
   const strategies = strategiesOf(candidates);
 
-  lines.push(theme.textBold(source), '', theme.textDim('ways in:'));
+  lines.push(theme.textBold(source), '', theme.textDim('strategies:'));
   for (const s of strategies) {
     const def = s.extractors.some(e => e.default) ? theme.success(' (default)') : '';
     lines.push(
@@ -107,8 +107,8 @@ export function renderSourceHelp(
   lines.push(
     '',
     theme.textDim('usage:'),
-    `  chronicle ${verb} ${source} [--via <strategy>] [--type <kind[,kind]>] [flags]`,
-    theme.textDim('  no --type reads every kind the way in carries')
+    `  chronicle ${verb} ${source} [--strategy <name>] [--type <kind[,kind]>] [flags]`,
+    theme.textDim('  no --type reads every kind the strategy carries')
   );
   return lines.join('\n');
 }

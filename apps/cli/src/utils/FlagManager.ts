@@ -57,26 +57,18 @@ export class FlagManager {
     });
   }
 
-  /**
-   * `--via <strategy>`: the named way in, offered as the source's own words.
-   * `--strategy` is kept as an explicit alias — same axis, older spelling.
-   */
-  static viaFlags(candidates: Array<{ strategy: string; delivery: string }>) {
-    const ways = [...new Set(candidates.map(c => c.strategy))];
-    const summary =
-      ways.length > 0 ? `How to read this source: ${ways.join(', ')}` : 'How to read this source';
+  /** `--strategy <name>`: how to read the source, in the source's own words. */
+  static strategyFlag(candidates: Array<{ strategy: string; delivery: string }>) {
+    const strategies = [...new Set(candidates.map(c => c.strategy))];
     return {
-      via: Flags.string({
-        summary,
-        helpValue: '<strategy>',
-        helpGroup: 'EXTRACTION',
-        options: ways.length > 0 ? ways : undefined,
-      }),
       strategy: Flags.string({
-        summary: 'Alias for --via',
+        summary:
+          strategies.length > 0
+            ? `How to read this source: ${strategies.join(', ')}`
+            : 'How to read this source',
+        helpValue: '<name>',
         helpGroup: 'EXTRACTION',
-        options: ways.length > 0 ? ways : undefined,
-        hidden: true,
+        options: strategies.length > 0 ? strategies : undefined,
       }),
     };
   }
@@ -228,7 +220,7 @@ export class FlagManager {
       }),
       'list-types': Flags.boolean({
         helpGroup: 'EXTRACTION',
-        summary: 'List the ways in and the record kinds each carries, then exit',
+        summary: 'List the strategies and the record kinds each carries, then exit',
         char: 'L',
       }),
       ...this.getAllLoaderFlags(),

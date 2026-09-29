@@ -25,9 +25,9 @@ export abstract class Extractor<SelfClass extends typeof Extractor = typeof Extr
   static delivery: Delivery;
   /**
    * The named way history enters, in the source's own vocabulary — what a
-   * person picks with `--via` and what `sources info <source>` lists. YouTube
+   * person picks with `--strategy` and what `sources info <source>` lists. YouTube
    * declares `api` and `takeout`; email declares `mbox`. Unique per source, and
-   * shared by every extractor class reading that same way in (YouTube's four
+   * shared by every extractor class reading that same strategy (YouTube's four
    * API extractors are all `api`; `--type` selects within).
    *
    * Never a delivery word: `export`/`local`/`direct` say how a source reaches

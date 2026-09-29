@@ -12,7 +12,7 @@ const NEEDS = {
 } as const;
 
 export default class SourcesInfo extends BaseCommand<typeof SourcesInfo> {
-  static override description = 'Show a source: its ways in, record types, and how to run it';
+  static override description = 'Show a source: its strategies, record types, and how to run it';
 
   static override examples = ['chronicle sources info shell', 'chronicle sources info things-todo'];
 
@@ -23,6 +23,7 @@ export default class SourcesInfo extends BaseCommand<typeof SourcesInfo> {
   async run(): Promise<void> {
     const { args } = await this.parse(SourcesInfo);
     const theme = getTheme(this.flags.theme);
+    const label = (text: string) => theme.textDim(text.padEnd(11));
 
     const listing = (await listSources()).find(s => s.source === args.source);
 
@@ -34,12 +35,12 @@ export default class SourcesInfo extends BaseCommand<typeof SourcesInfo> {
 
     this.log(theme.textBold(args.source) + (listing.summary ? `  ${listing.summary}` : ''));
     this.log('');
-    this.log(`  ${theme.textDim('plugin: ')} ${listing.package}`);
-    this.log(`  ${theme.textDim('tier:   ')} ${listing.tier ?? 'not in catalog'}`);
+    this.log(`  ${label('plugin:')} ${listing.package}`);
+    this.log(`  ${label('tier:')} ${listing.tier ?? 'not in catalog'}`);
 
     const types = [...new Set(listing.strategies.flatMap(strategy => strategy.recordTypes))];
     this.log(
-      `  ${theme.textDim('ways in:')} ` +
+      `  ${label('strategies:')} ` +
         listing.strategies
           .map(
             strategy =>
@@ -47,15 +48,15 @@ export default class SourcesInfo extends BaseCommand<typeof SourcesInfo> {
           )
           .join(theme.textDim(' · '))
     );
-    this.log(`  ${theme.textDim('types:  ')} ${theme.textDim(types.join(', '))}`);
+    this.log(`  ${label('types:')} ${theme.textDim(types.join(', '))}`);
     if (listing.platforms.length > 0) {
       this.log(
-        `  ${theme.textDim('runs on:')} ${listing.platforms.join(', ')}` +
+        `  ${label('runs on:')} ${listing.platforms.join(', ')}` +
           (listing.supported ? '' : theme.warning(' (not this machine)'))
       );
     }
     if (listing.requires.length > 0) {
-      this.log(`  ${theme.textDim('needs:  ')} ${listing.requires.join(', ')}`);
+      this.log(`  ${label('needs:')} ${listing.requires.join(', ')}`);
     }
 
     this.log('');
@@ -66,12 +67,12 @@ export default class SourcesInfo extends BaseCommand<typeof SourcesInfo> {
     }
     this.log(theme.textDim('Run it:'));
     this.log(`  ${theme.text(`chronicle extract ${args.source}`)}  ${theme.textDim('→ stdout')}`);
-    // Point at a way in a bare run would not take.
+    // Point at a strategy a bare run would not take.
     const alternate = listing.strategies.find(strategy => !strategy.default);
     if (listing.strategies.length > 1 && alternate) {
       this.log(
-        `  ${theme.text(`chronicle extract ${args.source} --via ${alternate.name}`)}  ` +
-          theme.textDim('→ a different way in')
+        `  ${theme.text(`chronicle extract ${args.source} --strategy ${alternate.name}`)}  ` +
+          theme.textDim('→ a different strategy')
       );
     }
   }

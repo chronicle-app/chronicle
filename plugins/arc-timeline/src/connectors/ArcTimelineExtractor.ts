@@ -41,8 +41,8 @@ export class ArcTimelineExtractor extends Extractor<typeof ArcTimelineExtractor>
   static override description = 'Location timeline: visits and trips';
 
   static override delivery = 'local' as const;
-  // The way in, in Arc's own vocabulary: the app's iCloud backup (the daily
-  // YYYY-MM-DD.json.gz folder) — "timeline" named the product, not the way in.
+  // The strategy, in Arc's own vocabulary: the app's iCloud backup (the daily
+  // YYYY-MM-DD.json.gz folder) — "timeline" named the product, not the strategy.
   static override strategy = 'icloud-backup';
   static override recordTypes = ['visits', 'travels'];
   static override default = true;

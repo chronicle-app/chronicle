@@ -10,12 +10,12 @@ const START = '<!-- sources:start -->';
 const END = '<!-- sources:end -->';
 
 function rows(entries) {
-  const lines = ['| Source | Package | Ways in |', '| --- | --- | --- |'];
+  const lines = ['| Source | Package | Strategies |', '| --- | --- | --- |'];
   for (const entry of entries) {
     const { chronicle } = JSON.parse(read(`plugins/${entry.name}/package.json`));
     const strategies = Object.values(chronicle.sources)
       .flatMap(source => Object.entries(source.strategies))
-      // The default way in first; it's what a bare `chronicle extract` takes.
+      // The default strategy first; it's what a bare `chronicle extract` takes.
       .sort(([, a], [, b]) => Number(Boolean(b.default)) - Number(Boolean(a.default)))
       .map(([name, strategy]) =>
         name === strategy.delivery ? name : `${name} (${strategy.delivery})`

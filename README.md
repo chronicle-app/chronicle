@@ -43,7 +43,7 @@ other source by name, for example `chronicle plugins install lastfm`, or let
 
 <!-- Generated from catalog.json and plugin manifests: npm run readme:sources -->
 
-| Source                                                                | Package                                        | Ways in                         |
+| Source                                                                | Package                                        | Strategies                      |
 | --------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------- |
 | Claude Code transcripts                                               | [claude-code](plugins/claude-code/README.md)   | transcripts (local)             |
 | iMessage/SMS, with iCloud and contact enrichment                      | [imessage](plugins/imessage/README.md)         | app-db (local)                  |
@@ -74,7 +74,7 @@ other source by name, for example `chronicle plugins install lastfm`, or let
 
 For services that no longer exist, shown by `chronicle sources --all`:
 
-| Source                                 | Package                                          | Ways in               |
+| Source                                 | Package                                          | Strategies            |
 | -------------------------------------- | ------------------------------------------------ | --------------------- |
 | Google Reader archive actions          | [google-reader](plugins/google-reader/README.md) | takeout (export)      |
 | Marvin reading sessions and highlights | [marvin](plugins/marvin/README.md)               | csv (export)          |

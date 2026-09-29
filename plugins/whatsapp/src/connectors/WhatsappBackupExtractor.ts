@@ -14,7 +14,7 @@ const MOBILE_SYNC_BACKUPS = path.join(
 /**
  * The `backup` acquisition mode for WhatsApp: read the full message
  * history out of an unencrypted iPhone backup instead of the live macOS database.
- * Selected with `--via backup` (or by passing `--input`, the only way WhatsApp
+ * Selected with `--strategy backup` (or by passing `--input`, the only way WhatsApp
  * history arrives as an export); `input` is the backup directory.
  *
  * Everything downstream — the query, identity resolution, transformer — is shared
@@ -62,14 +62,14 @@ export class WhatsappBackupExtractor extends WhatsappExtractor {
    * The backup directory to read. Without `--input`, fall back to the standard
    * Finder/iTunes location: use the sole backup there, or list them. A given
    * `--input` is never silently replaced by that fallback — a path that isn't a
-   * backup is a mistake worth naming, and `--via app-db` is the live database.
+   * backup is a mistake worth naming, and `--strategy app-db` is the live database.
    */
   private resolveBackupDir(input: string | undefined): string {
     if (input) {
       if (fs.existsSync(path.join(input, 'Manifest.db'))) return input;
       throw new Error(
         `'${input}' is not an iOS backup directory (no Manifest.db). ` +
-          `Pass an unencrypted Finder/iTunes backup, or read the live database with --via app-db.`
+          `Pass an unencrypted Finder/iTunes backup, or read the live database with --strategy app-db.`
       );
     }
 

@@ -70,7 +70,6 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
       '-o',
       '--type',
       '-t',
-      '--via',
       '--strategy',
       '--sample',
       '--fields',
@@ -125,7 +124,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     }
 
     // Assemble the dynamic flag set: base (incl. --loader/--limit/--type)
-    // + --via + the UNION of every candidate's schema flags. The loader
+    // + --strategy + the UNION of every candidate's schema flags. The loader
     // default encodes the verb.
     // Exclude `input` from the base skip-set so an extractor that makes it
     // required (an export it must be handed) overrides the optional base
@@ -143,7 +142,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     const assembled = {
       ...EXTRACT_BASE_FLAGS,
       loader: FlagManager.loaderFlag(this.defaultLoaderName),
-      ...FlagManager.viaFlags(candidates),
+      ...FlagManager.strategyFlag(candidates),
       ...schemaFlags,
     };
 
@@ -176,7 +175,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
       if (metadata?.flags?.limit?.setFromDefault) (this.flags as any).limit = 5;
     }
 
-    // Resolve the run across the two axes: the way in (--via, else what
+    // Resolve the run across the two axes: the strategy (--strategy, else what
     // --input / credentials / the declared default imply) and the record kinds
     // (--type). Whatever surplus --type leaves is filtered by the Runner.
     const parsed = this.flags as any;
@@ -185,12 +184,12 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     const selector = new ExtractorSelector({
       source: positional,
       candidates,
-      via: parsed.via ?? parsed.strategy,
+      strategy: parsed.strategy,
       types: requestedRecordTypes(parsed.type),
       input: parsed.input,
       hasCredentials: await this.hasStoredCredentials(positional),
       // Interactive selection needs a TTY (Ink raw mode). In a pipe the
-      // selector throws with the ways in instead of crashing on raw mode.
+      // selector throws with the strategies instead of crashing on raw mode.
       interactive: process.stdin.isTTY,
       theme: parsed.theme,
     });
@@ -209,7 +208,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
 
   /**
    * Whether this source has credentials on file. Only consulted to pick the
-   * live way in for a source that declares no default — never to authenticate.
+   * live strategy for a source that declares no default — never to authenticate.
    */
   private async hasStoredCredentials(source: string): Promise<boolean> {
     try {

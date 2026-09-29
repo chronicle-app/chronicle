@@ -8,7 +8,7 @@ import { Delivery, Extractor } from '@chronicle.app/etl';
 
 export interface ExtractorMetadata {
   source: string;
-  /** The named way in, in the source's own vocabulary — what `--via` selects. */
+  /** How the source is read, in its own vocabulary — what `--strategy` selects. */
   strategy: string;
   /** Catalog classification of how this source reaches us — never user-typed. */
   delivery: Delivery;
@@ -21,7 +21,7 @@ export interface ExtractorMetadata {
   localOverride?: string;
 }
 
-/** One way into a source: its strategy name, delivery, and the extractors on it. */
+/** One strategy for a source: its name, delivery, and the extractors on it. */
 export interface StrategyInfo {
   name: string;
   delivery: Delivery;
@@ -403,11 +403,11 @@ export class PluginScanner {
   }
 
   /**
-   * A strategy name is the source's public handle for one way in, so within a
+   * A strategy name is the source's public handle for one way of reading it, so within a
    * source it must mean exactly one thing. Several extractor classes sharing it
    * is the norm (YouTube's four API extractors); two *packages* claiming it, or
    * one name arriving with two deliveries, is a collision a person could not
-   * resolve with `--via`. Local plugins already win over node_modules copies by
+   * resolve with `--strategy`. Local plugins already win over node_modules copies by
    * package name, so anything left here is a genuine conflict.
    */
   private static assertStrategiesAreCoherent(source: string, extractors: ExtractorMetadata[]) {
@@ -422,13 +422,13 @@ export class PluginScanner {
       if (packages.size > 1) {
         throw new Error(
           `Two plugins claim the "${strategy}" strategy for ${source}: ${[...packages].join(', ')}. ` +
-            'A strategy names one way in — rename one of them.'
+            'A strategy name must be unique within a source — rename one of them.'
         );
       }
       if (deliveries.size > 1) {
         throw new Error(
           `The "${strategy}" strategy for ${source} declares more than one delivery ` +
-            `(${[...deliveries].join(', ')}). One way in reaches us one way.`
+            `(${[...deliveries].join(', ')}). A strategy has one delivery.`
         );
       }
     }

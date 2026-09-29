@@ -149,7 +149,7 @@ export default abstract class ExtractCommand<T extends typeof Command> extends B
     }
 
     // A static-extractor command (`extract csv`) names its own extractor; every
-    // source with more than one way in goes through the dispatcher instead.
+    // source with more than one strategy goes through the dispatcher instead.
     const selected = Array.isArray(extractors)
       ? (extractors.find((e: any) => e.default) ?? extractors[0])?.extractor
       : extractors;

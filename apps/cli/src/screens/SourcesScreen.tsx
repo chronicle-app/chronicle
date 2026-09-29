@@ -44,8 +44,8 @@ export const SourcesScreen: React.FC<SourcesScreenProps> = ({ sources, theme }) 
     },
     {
       key: 'strategies',
-      title: 'Via',
-      // The default way in first; it's what a bare `extract` takes.
+      title: 'Strategy',
+      // The default strategy first; it's what a bare `extract` takes.
       text: (row: SourceListing) =>
         [...row.strategies]
           .sort((a, b) => Number(Boolean(b.default)) - Number(Boolean(a.default)))
