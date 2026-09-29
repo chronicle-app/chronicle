@@ -1,7 +1,9 @@
-import { CsvLoader, JsonLoader, TableLoader, YamlLoader, toKebabCase } from '@chronicle.app/etl';
+import { CsvLoader, JsonLoader, YamlLoader, toKebabCase } from '@chronicle.app/etl';
 import { Flags } from '@oclif/core';
 import { parseDuration } from './date.js';
 import { PreviewLoader } from '../loaders/PreviewLoader.js';
+import { TableLoader } from '../loaders/TableLoader.js';
+import { LOG_FORMATS } from '../output/index.js';
 
 const DEFAULT_LIMIT = 100;
 
@@ -140,6 +142,16 @@ export class FlagManager {
   static getBaseFlags(baseCommandFlags: any) {
     return {
       ...baseCommandFlags,
+      'log-format': Flags.option({
+        options: LOG_FORMATS,
+        helpGroup: 'GLOBAL',
+        summary:
+          'How stderr reports the run: pretty on a terminal, else plain; json for supervisors',
+      })(),
+      'log-personal': Flags.boolean({
+        helpGroup: 'GLOBAL',
+        summary: 'Keep personal values in --log-format json instead of redacting them',
+      }),
       delay: Flags.integer({
         helpGroup: 'TRANSFORMATION',
         hidden: true,

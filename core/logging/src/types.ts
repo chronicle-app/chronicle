@@ -1,19 +1,59 @@
-export interface LoggerTheme {
-  info: (message: string) => string;
-  warn: (message: string) => string;
-  error: (message: string) => string;
-  debug: (message: string) => string;
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+/** What an event is, apart from how loud it is. */
+export type EventKind = 'progress' | 'notice' | 'hint' | 'summary' | 'error' | 'diagnostic';
+
+/** The run an event belongs to; a daemon groups events by it, like a trace id. */
+export interface RunContext {
+  id: string;
+  source: string;
+  strategy: string;
+}
+
+/**
+ * One thing worth telling a person or a supervisor. Every line on stderr is
+ * the rendering of one of these; a sink decides how it looks.
+ */
+export interface OutputEvent {
+  time: Date;
+  level: LogLevel;
+  kind: EventKind;
+  /** Who spoke: `runner`, `shell.history`, `cli`. */
+  scope: string;
+  run?: RunContext;
+  /** Plain text, no styling, that reads on its own. */
+  message: string;
+  /** The source of truth: a JSON consumer reads `records: 1240`, not text. */
+  fields?: Record<string, unknown>;
+  error?: { code?: string; cause?: string; stack?: string; exitCode?: number };
+  /** A next move for a person. */
+  hint?: { action: string; when?: string };
+  /** Names of `fields` that carry personal data. */
+  sensitive?: string[];
+  /** Events sharing a key aggregate: the first few print, the rest are counted. */
+  key?: string;
+}
+
+/** Where events go. Level filtering, aggregation, and redaction happen here. */
+export interface Sink {
+  emit(event: OutputEvent): void;
+  /** Write anything held back (aggregated counts) and take down live views. */
+  flush?(): void;
 }
 
 export interface LoggerOptions {
+  /** `[ServiceName]` or a bare name; becomes the scope. */
   prefix?: string;
+  scope?: string;
   level?: LogLevel;
-  theme?: LoggerTheme;
   quiet?: boolean;
   verbose?: boolean;
+  /** The host's sink. Without one, the logger writes plain lines to stderr. */
+  sink?: Sink;
+  run?: RunContext;
+  /** Mark every field personal, as for plugin loggers. */
+  sensitive?: boolean;
 }
-
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 export interface LoggerContext {
   [key: string]: any;

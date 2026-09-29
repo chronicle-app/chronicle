@@ -1,6 +1,8 @@
 import {
   Base64TruncateTransformer,
   CsvLoader,
+  type RunContext,
+  type Sink,
   configForIo,
   DelayTransformer,
   DownloadAttachmentsTransformer,
@@ -10,12 +12,12 @@ import {
   NullTransformer,
   Runner,
   SamplingTransformer,
-  TableLoader,
   YamlLoader,
   toCamelCase,
 } from '@chronicle.app/etl';
 import { getTheme } from '../theme.js';
 import { PreviewLoader } from '../loaders/PreviewLoader.js';
+import { TableLoader } from '../loaders/TableLoader.js';
 
 // Loader registry mapping loader names to classes
 const loaderRegistry = {
@@ -178,7 +180,10 @@ export class RunnerBuilder {
   /**
    * Build and configure the complete runner
    */
-  async buildRunner(selectedExtractor: any): Promise<Runner> {
+  async buildRunner(
+    selectedExtractor: any,
+    output: { sink?: Sink; run?: RunContext } = {}
+  ): Promise<Runner> {
     const extractor = await this.initializeExtractor(selectedExtractor);
     const loader = await this.initializeLoader();
     this.loader = loader;
@@ -195,6 +200,8 @@ export class RunnerBuilder {
       // A typed --limit states the run's scope, so the frontier yields to it
       // (the Runner's own rule). The CLI's default cap is not a statement of
       // scope: underneath it the frontier stays the stopping rule.
+      sink: output.sink,
+      run: output.run,
     })
       .addExtractor(extractor)
       .addTransformer(transformer)

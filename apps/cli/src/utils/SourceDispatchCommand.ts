@@ -61,6 +61,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
   private firstPositional(): string | undefined {
     const valueFlags = new Set([
       '--theme',
+      '--log-format',
       '--preset',
       '-p',
       '--db',

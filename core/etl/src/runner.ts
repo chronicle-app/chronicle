@@ -2,7 +2,7 @@ import { Record, RunLog } from './types.js';
 import { Extractor } from './extractor.js';
 import { Transformer } from './transformer.js';
 import { Loader } from './loader.js';
-import { Logger, createLogger } from '@chronicle.app/logging';
+import { Logger, createLogger, type RunContext, type Sink } from '@chronicle.app/logging';
 import { ActionAndChildrenSchema } from '@chronicle.app/schema';
 
 export interface RunnerConfig {
@@ -22,6 +22,12 @@ export interface RunnerConfig {
    * limit of its own — otherwise it would stop counting discarded records.
    */
   limit?: number | null;
+  /**
+   * The host's sink. The runner hands it to the extractor and transformers,
+   * so their events render the host's way, tagged with `run`.
+   */
+  sink?: Sink;
+  run?: RunContext;
 }
 
 export class Runner {
@@ -45,9 +51,11 @@ export class Runner {
     this.config = config;
     this.validateSchema = config.validateSchema ?? true;
     this.logger = createLogger({
-      prefix: '[Runner]',
+      scope: 'runner',
       quiet: config.quiet,
       verbose: config.verbose,
+      sink: config.sink,
+      run: config.run,
     });
   }
 
@@ -78,6 +86,12 @@ export class Runner {
       throw new Error('Runner limit must be a nonnegative integer');
     }
     this.setupStarted = true;
+    const { sink, run } = this.config;
+    if (sink) {
+      // A plugin built against an older etl may not have the hook.
+      this.extractor.useOutput?.(sink, run);
+      for (const transformer of this.transformers) transformer.useOutput?.(sink, run);
+    }
     await this.extractor.setup();
 
     for (const loader of this.loaders) {

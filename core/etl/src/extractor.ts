@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { Delivery, Record } from './types.js';
 import { Transformer } from './transformer.js';
-import { Logger, createLogger } from '@chronicle.app/logging';
+import { Logger, createLogger, type RunContext, type Sink } from '@chronicle.app/logging';
 
 // type ExtractorConfig<T extends typeof Extractor> = z.infer<T['schema']>;
 type ExtractorConfigObjectInput<T extends typeof Extractor> = z.input<T['schema']>;
@@ -85,17 +85,20 @@ export abstract class Extractor<SelfClass extends typeof Extractor = typeof Extr
     const { schema } = cls;
     this.config = schema.parse(config);
 
-    // Parse CLI flags for logging control
+    // Until a host hands over its sink, log to stderr at the flags' level.
+    // Fields a plugin logs are personal unless it says otherwise.
     const configWithFlags = config as any;
-
-    // Initialize logger with config flags
-    // Force quiet mode when stdout is not a TTY to avoid contaminating data output
-    const forceQuiet = configWithFlags.quiet || !process.stdout.isTTY;
     this.logger = createLogger({
-      prefix: `[${cls.strategy || cls.name}]`,
-      quiet: forceQuiet,
+      scope: `${cls.source}.${cls.strategy}`,
+      quiet: configWithFlags.quiet,
       verbose: configWithFlags.verbose,
+      sensitive: true,
     });
+  }
+
+  /** Send this extractor's events to the host's sink, tagged with its run. */
+  useOutput(sink: Sink, run?: RunContext): void {
+    this.logger.use(sink, { run });
   }
 
   // Overridable method for setup tasks
