@@ -18,6 +18,8 @@ export const ConfigSchema = z.object({
   version: z.string().default('1.0'),
   global: z.record(z.any()).optional(),
   presets: z.record(PresetConfigSchema).optional(),
+  /** Absolute paths of plugins added with `chronicle plugins add`. */
+  plugins: z.array(z.string()).optional(),
 });
 
 export type PresetConfig = z.infer<typeof PresetConfigSchema>;

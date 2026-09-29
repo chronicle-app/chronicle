@@ -58,7 +58,35 @@
     }
   },
   "chronicle": {
-    "plugin": true
-  },
-  "oclif": {}
+    "plugin": true,
+    "sources": {
+      "youtube": {
+        "strategies": {
+          "api": {
+            "delivery": "api",
+            "recordTypes": [
+              "likes",
+              "playlists",
+              "playlist-items",
+              "subscriptions",
+              "uploads"
+            ],
+            "default": true
+          },
+          "takeout": {
+            "delivery": "export",
+            "recordTypes": [
+              "watches",
+              "searches",
+              "subscriptions",
+              "playlists",
+              "playlist-items",
+              "uploads",
+              "comments"
+            ]
+          }
+        }
+      }
+    }
+  }
 }

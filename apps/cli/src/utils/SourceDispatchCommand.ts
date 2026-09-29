@@ -112,6 +112,11 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
       return;
     }
 
+    const override = candidates[0].localOverride;
+    if (override) {
+      this.logToStderr(`Using the local plugin for ${positional} (${override})`);
+    }
+
     // Help / list-types render from the candidates alone — before flag parsing,
     // so they never trip over a source's own required flags.
     if (wantsHelp || this.argv.includes('--list-types') || this.argv.includes('-L')) {
@@ -165,6 +170,11 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     }
     this.args = args as typeof this.args;
     this.flags = await this.resolveCommandFlags(flags, metadata);
+    // --preview: a few records, readable. An explicit --limit still wins.
+    if ((this.flags as any).preview) {
+      (this.flags as any).loader = 'preview';
+      if (metadata?.flags?.limit?.setFromDefault) (this.flags as any).limit = 5;
+    }
 
     // Resolve the run across the two axes: the way in (--via, else what
     // --input / credentials / the declared default imply) and the record kinds
@@ -220,20 +230,43 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
   }
 
   /**
-   * Offer to install a plugin for a source we don't have installed. The catalog
-   * of known-but-uninstalled sources is a follow-up; for now this points the
-   * user at the convention and `chronicle sources`.
+   * A source that isn't installed: when the catalog has it, offer to install
+   * its plugin on a terminal and then run again, or else print the command.
    */
-  protected installPrompt(source: string): never {
+  protected async installPrompt(source: string): Promise<void> {
     const theme = getTheme((this.flags as any)?.theme);
-    this.logToStderr(`${theme.warning('No installed extractor for')} ${theme.textBold(source)}.`);
-    this.logToStderr(
-      theme.textDim(
-        `  If a plugin provides it:  chronicle plugins install @chronicle.app/${source}\n` +
-          '  See what is installed:    chronicle sources'
-      )
+    const { listSources } = await import('../plugins/catalog.js');
+    const listing = (await listSources()).find(s => s.source === source && !s.installed);
+    if (!listing) {
+      this.error(
+        `No source named "${source}". Run "chronicle sources --all" to see what's available.`
+      );
+    }
+
+    const command = `chronicle plugins install ${listing.plugin}`;
+    // The prompt draws on stdout, so only offer it when records aren't piped.
+    if (!process.stdin.isTTY || !process.stdout.isTTY) {
+      this.error(`${source} isn't installed. Install it with:\n  ${command}`);
+    }
+    const { inkConfirm } = await import('../components/InkConfirm.js');
+    const { confirmed } = await inkConfirm(
+      `${source} needs the ${listing.package} plugin. Install it now?`,
+      { defaultValue: true, theme: (this.flags as any)?.theme }
     );
-    this.exit(1);
+    if (!confirmed) {
+      this.logToStderr(theme.textDim(`Install it later with: ${command}`));
+      this.exit(1);
+    }
+
+    const { installPlugin, resolveInstallTarget } = await import('../plugins/install.js');
+    try {
+      await installPlugin(await resolveInstallTarget(listing.plugin, this.config.version));
+    } catch (error) {
+      this.error(error instanceof Error ? error.message : String(error));
+    }
+    this.logToStderr(theme.success(`Installed ${listing.package}.`));
+    const verb = (this.constructor as any).id || 'extract';
+    await this.config.runCommand(verb, this.argv);
   }
 
   /** Render the source's extractors + flags via the shared renderer. */

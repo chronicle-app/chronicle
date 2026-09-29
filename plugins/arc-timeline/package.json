@@ -56,7 +56,23 @@
     }
   },
   "chronicle": {
-    "plugin": true
-  },
-  "oclif": {}
+    "plugin": true,
+    "sources": {
+      "arc": {
+        "strategies": {
+          "icloud-backup": {
+            "delivery": "local",
+            "recordTypes": [
+              "visits",
+              "travels"
+            ],
+            "default": true
+          }
+        },
+        "platforms": [
+          "darwin"
+        ]
+      }
+    }
+  }
 }

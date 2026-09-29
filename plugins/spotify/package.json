@@ -57,7 +57,22 @@
     }
   },
   "chronicle": {
-    "plugin": true
-  },
-  "oclif": {}
+    "plugin": true,
+    "sources": {
+      "spotify": {
+        "strategies": {
+          "api": {
+            "delivery": "api",
+            "recordTypes": [
+              "playlist-tracks",
+              "listens",
+              "saved-albums",
+              "saved-tracks"
+            ],
+            "default": true
+          }
+        }
+      }
+    }
+  }
 }

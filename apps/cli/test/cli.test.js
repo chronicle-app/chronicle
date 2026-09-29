@@ -7,7 +7,9 @@ import {
   readdirSync,
   writeFileSync,
   readFileSync,
+  realpathSync,
   rmSync,
+  symlinkSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -25,13 +27,16 @@ function fixture(t) {
     CHRONICLE_SKIP_NEW_VERSION_CHECK: '1',
     NO_COLOR: '1',
   };
-  const run = (...args) =>
-    spawnSync(process.execPath, [bin, ...args], {
-      cwd: dir,
-      env,
-      encoding: 'utf8',
-      timeout: 15000,
-    });
+  const runWith =
+    extra =>
+    (...args) =>
+      spawnSync(process.execPath, [bin, ...args], {
+        cwd: dir,
+        env: { ...env, ...extra },
+        encoding: 'utf8',
+        timeout: 60000,
+      });
+  const run = Object.assign(runWith({}), { with: runWith });
   const input = join(dir, 'history');
   writeFileSync(input, ': 1700000000:0;echo synthetic\n: 1700000001:0;printf fixture\n');
   return { dir, env, input, run };
@@ -57,17 +62,25 @@ test('bundled sources are discoverable from an unrelated cwd; JSON has no diagno
     .filter(pkg => pkg.chronicle?.plugin === true && pkg.name in dependencies)
     .map(pkg => pkg.name);
   assert.ok(bundled.length > 0);
+  const all = JSON.parse(success(run('sources', '--all', '--format', 'json')));
   for (const name of bundled) {
     assert.ok(
-      sources.some(x => x.packageName === name),
-      `${name} is not listed`
+      all.some(x => x.package === name && x.installed),
+      `${name} is not listed as installed`
     );
   }
-  // A bare `chronicle extract <source>` needs exactly one default per source.
-  for (const source of new Set(sources.map(x => x.source))) {
-    const defaults = sources.filter(x => x.source === source && x.default);
-    assert.equal(defaults.length, 1, `${source} has ${defaults.length} default extractors`);
+  // A bare `chronicle extract <source>` needs exactly one default strategy per source.
+  for (const { source, strategies } of all.filter(x => x.installed)) {
+    const defaults = strategies.filter(strategy => strategy.default);
+    assert.equal(defaults.length, 1, `${source} has ${defaults.length} default ways in`);
   }
+  // Legacy sources are listed only on request, and the table says so.
+  assert.ok(sources.every(x => x.tier !== 'legacy'));
+  assert.match(success(run('sources')), /Not showing \d+ legacy sources.*chronicle sources --all/);
+  const legacy = all.filter(x => x.tier === 'legacy');
+  assert.ok(legacy.length > 0);
+  assert.match(success(run('sources', 'info', legacy[0].source)), /tier: +legacy/);
+  assert.match(success(run('sources', '--all')), new RegExp(`${legacy[0].source} .*legacy`));
   const help = success(run('extract', 'shell', '--help'));
   assert.match(help, /history/);
   assert.doesNotMatch(success(run('--help')), /archive|sync|serve/);
@@ -172,14 +185,17 @@ test('auth stores and removes synthetic credentials; missing token fails promptl
   assert.match(result.stderr, /--token/);
 });
 
-test('installed plugin discovery uses oclif data directory, including unscoped packages', t => {
+test('plugins install a local plugin that shares the CLI’s etl and auth, and uninstall it', t => {
   const { dir, run } = fixture(t);
-  const plugin = join(dir, 'data/node_modules/fixture-plugin');
-  mkdirSync(plugin, { recursive: true });
+  // Outside any node_modules, the plugin's imports resolve only through the
+  // CLI's shared modules.
+  const plugin = join(dir, 'fixture-plugin');
+  mkdirSync(plugin);
   writeFileSync(
     join(plugin, 'package.json'),
     JSON.stringify({
       name: 'fixture-plugin',
+      version: '1.0.0',
       type: 'module',
       exports: './index.js',
       chronicle: { plugin: true },
@@ -187,12 +203,137 @@ test('installed plugin discovery uses oclif data directory, including unscoped p
   );
   writeFileSync(
     join(plugin, 'index.js'),
-    `export class Fixture { static source = 'fixture'; static strategy = 'file'; static delivery = 'export'; static recordTypes = ['rows']; static schema = {}; }`
+    `import { OAuthProviderRegistry } from '@chronicle.app/auth';
+import { Extractor } from '@chronicle.app/etl';
+OAuthProviderRegistry.register(class { static providerId = 'fixture'; static getConfig() { return {}; } });
+export class Fixture extends Extractor {
+  static source = 'fixture'; static strategy = 'file'; static delivery = 'export';
+  static recordTypes = ['rows']; static default = true;
+  async *extract() { yield this.createRecord({ name: 'installed fixture' }); }
+}`
   );
-  assert.ok(
-    JSON.parse(success(run('sources', '--format', 'json'))).some(x => x.source === 'fixture')
+  success(run('plugins', 'install', './fixture-plugin'));
+  assert.match(success(run('plugins')), /fixture-plugin 1\.0\.0 +installed/);
+  const [listing] = JSON.parse(success(run('sources', '--source', 'fixture', '--format', 'json')));
+  assert.equal(listing.origin, 'installed');
+  assert.equal(listing.tier, null);
+  assert.match(success(run('auth', 'login', '--list')), /fixture/);
+  assert.equal(JSON.parse(success(run('extract', 'fixture', '--raw'))).name, 'installed fixture');
+
+  success(run('plugins', 'uninstall', 'fixture-plugin'));
+  assert.equal(
+    JSON.parse(success(run('sources', '--source', 'fixture', '--format', 'json'))).length,
+    0
   );
 });
+
+test('plugins add runs a file in place, taking over its source until removed', t => {
+  const { dir, input, run } = fixture(t);
+  writeFileSync(
+    join(dir, 'my-shell.js'),
+    `import { Extractor } from '@chronicle.app/etl';
+export class MyShell extends Extractor {
+  static source = 'shell'; static strategy = 'history'; static delivery = 'local';
+  static recordTypes = ['commands']; static default = true;
+  async *extract() { yield this.createRecord({ command: 'local fixture' }); }
+}`
+  );
+  writeFileSync(join(dir, 'empty.js'), 'export const nothing = 1;\n');
+
+  assert.match(success(run('plugins', 'add', './my-shell.js')), /chronicle extract shell/);
+  const refused = run('plugins', 'add', './empty.js');
+  assert.notEqual(refused.status, 0);
+  assert.match(refused.stderr, /No extractor found/);
+  assert.match(success(run('plugins')), /my-shell +local/);
+  const [listing] = JSON.parse(success(run('sources', '--source', 'shell', '--format', 'json')));
+  assert.equal(listing.origin, 'local');
+
+  const local = run('extract', 'shell', '--raw');
+  assert.equal(JSON.parse(success(local)).command, 'local fixture');
+  assert.match(local.stderr, /Using the local plugin for shell/);
+  assert.doesNotMatch(run('extract', 'csv', '--input', input).stderr, /local plugin/);
+
+  success(run('plugins', 'remove', 'my-shell'));
+  const bundled = run('extract', 'shell', '--input', input, '--raw', '--limit', '1');
+  assert.equal(JSON.parse(success(bundled)).command, 'printf fixture');
+  assert.doesNotMatch(bundled.stderr, /local plugin/);
+});
+
+test('plugins new scaffolds a plugin for the source kind that reads it and passes its smoke test', t => {
+  const { dir, run } = fixture(t);
+  writeFileSync(join(dir, 'export.csv'), 'Title,Date\nSynthetic row,2024-01-01\n');
+
+  // Without a terminal, how the data arrives must be given.
+  const unasked = run('plugins', 'new', 'my-rows');
+  assert.notEqual(unasked.status, 0);
+  assert.match(unasked.stderr, /--from/);
+
+  assert.match(success(run('plugins', 'new', 'my-rows', '--from', 'csv')), /AGENTS\.md/);
+  const plugin = join(dir, 'my-rows');
+  assert.match(readFileSync(join(plugin, 'AGENTS.md'), 'utf8'), /## Start here/);
+  assert.match(success(run('plugins')), /my-rows 0\.1\.0 +local/);
+
+  // Runs from its .ts source without a build, relaunching Node to strip types
+  // where it doesn't by default.
+  const rows = success(run('extract', 'my-rows', '--input', 'export.csv', '--raw', '--preview'));
+  assert.match(rows, /Title: Synthetic row/);
+
+  // Its smoke test passes against the Chronicle packages the CLI runs with.
+  let root = resolve(bin, '..');
+  while (!existsSync(join(root, 'node_modules/@chronicle.app/etl'))) root = resolve(root, '..');
+  mkdirSync(join(plugin, 'node_modules/@chronicle.app'), { recursive: true });
+  for (const name of ['etl', 'schema']) {
+    symlinkSync(
+      realpathSync(join(root, 'node_modules/@chronicle.app', name)),
+      join(plugin, 'node_modules/@chronicle.app', name)
+    );
+  }
+  const smoke = spawnSync(
+    process.execPath,
+    [
+      '--experimental-strip-types',
+      '--disable-warning=ExperimentalWarning',
+      '--test',
+      'src/my-rows.test.js',
+    ],
+    { cwd: plugin, encoding: 'utf8', timeout: 60000 }
+  );
+  assert.equal(smoke.status, 0, smoke.stdout + smoke.stderr);
+
+  assert.notEqual(run('plugins', 'new', 'my-rows', '--from', 'csv').status, 0);
+  assert.notEqual(run('plugins', 'new', 'lastfm', '--from', 'csv').status, 0);
+});
+
+test(
+  'a catalog source that is not installed points at plugins install',
+  // Beside the packed CLI, every plugin is installed.
+  { skip: process.env.CHRONICLE_TEST_BIN && 'every plugin is installed in the packed check' },
+  t => {
+    const { run } = fixture(t);
+    const env = { CHRONICLE_WORKSPACE_PLUGINS: '0' };
+    const all = JSON.parse(success(run.with(env)('sources', '--all', '--format', 'json')));
+    // Without the checkout's plugins, exactly the bundled ones are installed.
+    const { dependencies } = JSON.parse(
+      readFileSync(resolve(import.meta.dirname, '../package.json'), 'utf8')
+    );
+    for (const x of all) assert.equal(x.installed, x.package in dependencies, x.package);
+
+    const missing = all.find(x => x.source === 'google-reader');
+    assert.equal(missing.installed, false);
+    // Listed from the manifest the catalog carries, though not installed.
+    assert.deepEqual(
+      missing.strategies.map(strategy => strategy.name),
+      ['takeout']
+    );
+    const result = run.with(env)('extract', 'google-reader');
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /chronicle plugins install google-reader/);
+    assert.match(
+      success(run.with(env)('extract', 'google-reader', '--help')),
+      /chronicle plugins install google-reader/
+    );
+  }
+);
 
 test('unsupported loader and missing input file fail without success output, even when quiet', t => {
   const { run } = fixture(t);

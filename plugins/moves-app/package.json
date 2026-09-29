@@ -55,7 +55,20 @@
     }
   },
   "chronicle": {
-    "plugin": true
-  },
-  "oclif": {}
+    "plugin": true,
+    "sources": {
+      "moves-app": {
+        "strategies": {
+          "moves-export": {
+            "delivery": "export",
+            "recordTypes": [
+              "places",
+              "moves"
+            ],
+            "default": true
+          }
+        }
+      }
+    }
+  }
 }

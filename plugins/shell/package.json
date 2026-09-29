@@ -52,7 +52,19 @@
     }
   },
   "chronicle": {
-    "plugin": true
-  },
-  "oclif": {}
+    "plugin": true,
+    "sources": {
+      "shell": {
+        "strategies": {
+          "history": {
+            "delivery": "local",
+            "recordTypes": [
+              "commands"
+            ],
+            "default": true
+          }
+        }
+      }
+    }
+  }
 }

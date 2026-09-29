@@ -23,7 +23,7 @@ export default class Extract extends SourceDispatchCommand<typeof Extract> {
   protected readonly defaultLoaderName = 'json' as const;
 
   protected async handleNonSource(positional: string | undefined): Promise<void> {
-    if (positional) this.installPrompt(positional);
+    if (positional) return this.installPrompt(positional);
     this.error('Specify a source, e.g. `chronicle extract shell`. See `chronicle sources`.');
   }
 }

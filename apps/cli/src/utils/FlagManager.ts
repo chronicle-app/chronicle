@@ -1,6 +1,7 @@
 import { CsvLoader, JsonLoader, TableLoader, YamlLoader, toKebabCase } from '@chronicle.app/etl';
 import { Flags } from '@oclif/core';
 import { parseDuration } from './date.js';
+import { PreviewLoader } from '../loaders/PreviewLoader.js';
 
 const DEFAULT_LIMIT = 100;
 
@@ -15,6 +16,7 @@ export const dateFlag = Flags.custom<Date>({
 const loaderRegistry = {
   csv: CsvLoader,
   json: JsonLoader,
+  preview: PreviewLoader,
   table: TableLoader,
   yaml: YamlLoader,
 };
@@ -188,6 +190,10 @@ export class FlagManager {
           return Number.parseInt(input, 10);
         },
         summary: 'Limit the number of records extracted. Use 0 for no limit.',
+      }),
+      preview: Flags.boolean({
+        helpGroup: 'LOADING',
+        summary: 'Print the first few records as readable text (--loader preview --limit 5)',
       }),
       raw: Flags.boolean({
         helpGroup: 'TRANSFORMATION',

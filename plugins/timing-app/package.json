@@ -59,7 +59,24 @@
     }
   },
   "chronicle": {
-    "plugin": true
-  },
-  "oclif": {}
+    "plugin": true,
+    "sources": {
+      "timing-app": {
+        "strategies": {
+          "app-db": {
+            "delivery": "local",
+            "recordTypes": [
+              "app-activities",
+              "time-entries",
+              "calls"
+            ],
+            "default": true
+          }
+        },
+        "platforms": [
+          "darwin"
+        ]
+      }
+    }
+  }
 }

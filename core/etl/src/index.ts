@@ -5,6 +5,8 @@ export { NullTransformer } from './null-transformer.js';
 export { FlattenTransformer } from './flatten-transformer.js';
 export { DispatchingTransformer } from './DispatchingTransformer.js';
 export { Loader } from './loader.js';
+// Plugins extend Extractor.schema with the same zod, without depending on it.
+export { z } from 'zod';
 export { Runner, type RunnerConfig } from './runner.js';
 export { JsonLoader, colorizeJson, type JsonColorTheme } from './json-loader.js';
 export { CsvLoader } from './connectors/loaders/CsvLoader.js';

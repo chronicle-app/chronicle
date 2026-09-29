@@ -52,7 +52,19 @@
     }
   },
   "chronicle": {
-    "plugin": true
-  },
-  "oclif": {}
+    "plugin": true,
+    "sources": {
+      "claude-code": {
+        "strategies": {
+          "transcripts": {
+            "delivery": "local",
+            "recordTypes": [
+              "messages"
+            ],
+            "default": true
+          }
+        }
+      }
+    }
+  }
 }

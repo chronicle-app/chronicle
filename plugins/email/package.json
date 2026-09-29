@@ -57,7 +57,19 @@
     }
   },
   "chronicle": {
-    "plugin": true
-  },
-  "oclif": {}
+    "plugin": true,
+    "sources": {
+      "email": {
+        "strategies": {
+          "mbox": {
+            "delivery": "export",
+            "recordTypes": [
+              "emails"
+            ],
+            "default": true
+          }
+        }
+      }
+    }
+  }
 }

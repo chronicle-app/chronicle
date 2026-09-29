@@ -59,7 +59,25 @@
     }
   },
   "chronicle": {
-    "plugin": true
-  },
-  "oclif": {}
+    "plugin": true,
+    "sources": {
+      "apple-phone": {
+        "strategies": {
+          "app-db": {
+            "delivery": "local",
+            "recordTypes": [
+              "calls"
+            ],
+            "default": true
+          }
+        },
+        "platforms": [
+          "darwin"
+        ],
+        "requires": [
+          "full-disk-access"
+        ]
+      }
+    }
+  }
 }

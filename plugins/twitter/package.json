@@ -55,7 +55,22 @@
     }
   },
   "chronicle": {
-    "plugin": true
-  },
-  "oclif": {}
+    "plugin": true,
+    "sources": {
+      "twitter": {
+        "strategies": {
+          "archive": {
+            "delivery": "export",
+            "recordTypes": [
+              "direct-messages",
+              "group-direct-messages",
+              "likes",
+              "tweets"
+            ],
+            "default": true
+          }
+        }
+      }
+    }
+  }
 }

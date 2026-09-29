@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
+import { register } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Config } from '@oclif/core';
 import { glob } from 'glob';
@@ -16,6 +17,8 @@ export interface ExtractorMetadata {
   extractor: typeof Extractor;
   packageName: string;
   default?: boolean;
+  /** Set when a plugin added with `plugins add` takes over this source: where it is. */
+  localOverride?: string;
 }
 
 /** One way into a source: its strategy name, delivery, and the extractors on it. */
@@ -73,15 +76,92 @@ export async function isWorkspaceRoot(dir: string): Promise<boolean> {
   }
 }
 
+/** Where a plugin was found, in discovery order. */
+export type PluginOrigin = 'local' | 'workspace' | 'installed' | 'beside-cli' | 'bundled';
+
+export interface FoundPlugin {
+  name: string;
+  /** The plugin's directory. */
+  path: string;
+  origin: PluginOrigin;
+  /** A single-file plugin's file, imported in place of a package entry point. */
+  file?: string;
+}
+
+/** The CLI package's own directory. */
+export const cliRoot = fileURLToPath(new URL('../../', import.meta.url));
+
+/**
+ * A plugin at a path on disk: a single file, named after it, or a directory
+ * with a package.json, named by it.
+ */
+export async function localPlugin(
+  pluginPath: string
+): Promise<{ name: string; path: string; file?: string }> {
+  const absolute = path.resolve(pluginPath);
+  const stat = await fs.stat(absolute);
+  if (stat.isFile()) {
+    const name = path.basename(absolute).replace(/\.(?:[cm]?[jt]s)$/, '');
+    return { name, path: path.dirname(absolute), file: absolute };
+  }
+  const pkg = await readPackage(absolute);
+  if (!pkg) {
+    throw new Error(`${absolute} has no package.json. Add the plugin's file instead.`);
+  }
+  return { name: pkg.name ?? path.basename(absolute), path: absolute };
+}
+
+/** The paths added with `chronicle plugins add`, from the Chronicle config. */
+export async function localPluginPaths(): Promise<string[]> {
+  const { ConfigManager } = await import('../config/ConfigManager.js');
+  const config = await new ConfigManager((await Config.load(cliRoot)).configDir).loadConfig();
+  return config.plugins ?? [];
+}
+
+/** The data directory `chronicle plugins install` installs into. */
+export async function pluginDataDir(): Promise<string> {
+  return (await Config.load(cliRoot)).dataDir;
+}
+
+/**
+ * The node_modules the CLI is installed in, where `npm install -g` or a
+ * project's own install puts plugins beside it. Null when the CLI isn't in a
+ * node_modules, as when it runs from a checkout.
+ */
+function besideCli(): string | null {
+  let dir = path.dirname(path.resolve(cliRoot));
+  if (path.basename(dir).startsWith('@')) dir = path.dirname(dir);
+  return path.basename(dir) === 'node_modules' ? dir : null;
+}
+
+async function readPackage(dir: string): Promise<any | null> {
+  try {
+    return JSON.parse(await fs.readFile(path.join(dir, 'package.json'), 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+/** The Chronicle plugins among the packages directly inside a node_modules. */
+async function pluginsIn(nodeModules: string): Promise<Array<{ name: string; path: string }>> {
+  const plugins: Array<{ name: string; path: string }> = [];
+  for (const packageFile of await glob(['*/package.json', '@*/*/package.json'], {
+    cwd: nodeModules,
+  })) {
+    const dir = path.join(nodeModules, path.dirname(packageFile));
+    const pkg = await readPackage(dir);
+    if (pkg?.chronicle?.plugin === true) plugins.push({ name: pkg.name, path: dir });
+  }
+  return plugins;
+}
+
 /**
  * The plugins bundled with the CLI: its own dependencies that declare
  * `chronicle.plugin`. Resolved from the CLI's position, so they are found
  * from any cwd.
  */
 async function bundledPlugins(): Promise<Array<{ name: string; path: string }>> {
-  const cliPackage = JSON.parse(
-    await fs.readFile(new URL('../../package.json', import.meta.url), 'utf8')
-  );
+  const cliPackage = await readPackage(cliRoot);
   const plugins: Array<{ name: string; path: string }> = [];
   for (const name of Object.keys(cliPackage.dependencies ?? {})) {
     let dir: string;
@@ -92,14 +172,10 @@ async function bundledPlugins(): Promise<Array<{ name: string; path: string }>> 
     }
     // Walk up from the entry point to the package's own package.json.
     for (;;) {
-      try {
-        const pkg = JSON.parse(await fs.readFile(path.join(dir, 'package.json'), 'utf8'));
-        if (pkg.name === name) {
-          if (pkg.chronicle?.plugin === true) plugins.push({ name, path: dir });
-          break;
-        }
-      } catch {
-        // No package.json here; keep walking up.
+      const pkg = await readPackage(dir);
+      if (pkg?.name === name) {
+        if (pkg.chronicle?.plugin === true) plugins.push({ name, path: dir });
+        break;
       }
       const parent = path.dirname(dir);
       if (parent === dir) break;
@@ -109,104 +185,91 @@ async function bundledPlugins(): Promise<Array<{ name: string; path: string }>> 
   return plugins;
 }
 
+/**
+ * Packages the CLI shares with every plugin it loads. `@chronicle.app/auth`
+ * keeps the OAuth provider registry, so a plugin with its own copy would
+ * register providers the CLI never sees; `etl`, `etl-sqlite`, and `schema`
+ * keep extraction and validation on the CLI's version, and let a plugin run
+ * without installing them.
+ */
+let sharingModules = false;
+function shareModulesWithPlugins(): void {
+  if (sharingModules) return;
+  sharingModules = true;
+  register(new URL('sharedModules.js', import.meta.url), {
+    data: { parentURL: import.meta.url },
+  });
+}
+
 export class PluginScanner {
   /**
-   * Find all Chronicle plugins in local plugins directory and node_modules
+   * Find every Chronicle plugin. In order, the first package of each name wins:
+   *
+   * 0. plugins added with `chronicle plugins add`
+   * 1. the workspace `plugins/` directory, when running from a checkout
+   *    (skipped when CHRONICLE_WORKSPACE_PLUGINS=0)
+   * 2. the data directory, where `chronicle plugins install` puts them
+   * 3. the node_modules the CLI is installed in, for `npm install -g`
+   * 4. the plugins bundled with the CLI
    */
-  static async findChroniclePlugins(): Promise<Array<{ name: string; path: string }>> {
+  static async findChroniclePlugins(): Promise<FoundPlugin[]> {
     try {
-      const plugins: Array<{ name: string; path: string }> = [];
-      const foundPluginNames = new Set<string>();
+      const found = new Map<string, FoundPlugin>();
+      const add = (
+        plugins: Array<{ name: string; path: string; file?: string }>,
+        origin: PluginOrigin
+      ) => {
+        for (const plugin of plugins) {
+          if (!found.has(plugin.name)) found.set(plugin.name, { ...plugin, origin });
+        }
+      };
 
-      // First, look in the local plugins directory (preferred over node_modules).
-      // Locate it from this module's own position in the checkout
-      // (apps/cli/dist/plugins/) so the scan works from any cwd; only if the
-      // walk finds no workspace root fall back to probing the cwd.
-      const cwd = process.cwd();
-      const workspaceRoot = await findWorkspaceRoot(
-        path.dirname(fileURLToPath(import.meta.url)),
-        isWorkspaceRoot
-      );
-      const localPluginsPath = workspaceRoot
-        ? path.join(workspaceRoot, 'plugins')
-        : cwd.endsWith('/apps/cli')
-          ? path.join(cwd, '../../plugins')
-          : path.join(cwd, 'plugins');
-      try {
-        const localPlugins = await glob('*/', { cwd: localPluginsPath });
+      const local = [];
+      for (const pluginPath of await localPluginPaths()) {
+        try {
+          local.push(await localPlugin(pluginPath));
+        } catch {
+          console.warn(
+            `Skipping local plugin ${pluginPath}: it's gone. Remove it with ` +
+              `"chronicle plugins remove ${pluginPath}".`
+          );
+        }
+      }
+      add(local, 'local');
 
-        for (const pluginDir of localPlugins) {
-          const pluginPath = path.join(localPluginsPath, pluginDir);
-          const packageJsonPath = path.join(pluginPath, 'package.json');
-
-          try {
-            const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf-8'));
-
-            // Check if this package declares itself as a Chronicle plugin
-            if (packageJson.chronicle?.plugin === true) {
-              plugins.push({
-                name: packageJson.name,
-                path: pluginPath,
-              });
-              foundPluginNames.add(packageJson.name);
-            }
-          } catch {
-            // Skip directories that don't have readable package.json
-            continue;
+      // Located from this module's own position in the checkout
+      // (apps/cli/dist/plugins/), so the scan works from any cwd.
+      const workspaceRoot =
+        process.env.CHRONICLE_WORKSPACE_PLUGINS === '0'
+          ? null
+          : await findWorkspaceRoot(path.dirname(fileURLToPath(import.meta.url)), isWorkspaceRoot);
+      if (workspaceRoot) {
+        const pluginsDir = path.join(workspaceRoot, 'plugins');
+        const workspace: Array<{ name: string; path: string }> = [];
+        for (const dir of await glob('*/', { cwd: pluginsDir })) {
+          const pkg = await readPackage(path.join(pluginsDir, dir));
+          if (pkg?.chronicle?.plugin === true) {
+            workspace.push({ name: pkg.name, path: path.join(pluginsDir, dir) });
           }
         }
-      } catch {
-        // Local plugins directory might not exist, continue with node_modules
+        add(workspace, 'workspace');
       }
 
-      const config = await Config.load(fileURLToPath(new URL('../../', import.meta.url)));
-      const roots = [
-        path.join(fileURLToPath(new URL('../../', import.meta.url)), 'node_modules'),
-        path.join(config.dataDir, 'node_modules'),
-        path.join(cwd, 'node_modules'),
-      ];
-      for (const plugin of await bundledPlugins()) {
-        if (!foundPluginNames.has(plugin.name)) {
-          plugins.push(plugin);
-          foundPluginNames.add(plugin.name);
-        }
-      }
-      for (const plugin of config.plugins.values()) {
-        if (
-          (plugin.pjson as any).chronicle?.plugin === true &&
-          !foundPluginNames.has(plugin.name)
-        ) {
-          plugins.push({ name: plugin.name, path: plugin.root });
-          foundPluginNames.add(plugin.name);
-        }
-      }
-      for (const nodeModulesPath of roots) {
-        for (const packageFile of await glob(['*/package.json', '@*/*/package.json'], {
-          cwd: nodeModulesPath,
-        })) {
-          const packagePath = path.join(nodeModulesPath, packageFile);
-          const pkg = JSON.parse(await fs.readFile(packagePath, 'utf8'));
-          if (pkg.chronicle?.plugin === true && !foundPluginNames.has(pkg.name)) {
-            plugins.push({ name: pkg.name, path: path.dirname(packagePath) });
-            foundPluginNames.add(pkg.name);
-          }
-        }
-      }
+      add(await pluginsIn(path.join(await pluginDataDir(), 'node_modules')), 'installed');
+      const beside = besideCli();
+      if (beside) add(await pluginsIn(beside), 'beside-cli');
+      add(await bundledPlugins(), 'bundled');
 
-      if (plugins.length === 0) {
-        console.warn(
-          `No Chronicle plugins found (looked in ${localPluginsPath} and ${roots.join(', ')})`
-        );
-      }
-
-      return plugins;
+      return [...found.values()];
     } catch (error) {
       console.warn('Failed to scan for Chronicle plugins:', error);
       return [];
     }
   }
 
-  static async importPlugin(plugin: { name: string; path: string }): Promise<any> {
+  static async importPlugin(plugin: { name: string; path: string; file?: string }): Promise<any> {
+    shareModulesWithPlugins();
+    if (plugin.file) return import(pathToFileURL(plugin.file).href);
     const pkg = JSON.parse(await fs.readFile(path.join(plugin.path, 'package.json'), 'utf8'));
     const exported = pkg.exports?.['.'] ?? pkg.exports;
     const entry =
@@ -222,48 +285,52 @@ export class PluginScanner {
   static async scanPluginExtractors(plugin: {
     name: string;
     path: string;
+    file?: string;
   }): Promise<ExtractorMetadata[]> {
     try {
-      const pluginModule = await this.importPlugin(plugin);
-
-      // Find all exported classes that extend Extractor
-      const extractors: ExtractorMetadata[] = [];
-
-      for (const [exportName, exportValue] of Object.entries(pluginModule)) {
-        if (this.isExtractorClass(exportValue)) {
-          const ExtractorClass = exportValue as typeof Extractor;
-
-          // Validate required metadata
-          if (!ExtractorClass.source || !ExtractorClass.strategy) {
-            // Only log in verbose mode to reduce noise
-            if (process.argv.includes('--verbose')) {
-              console.warn(
-                `Skipping extractor ${exportName} from ${plugin.name}: missing source or strategy`
-              );
-            }
-            continue;
-          }
-
-          extractors.push({
-            source: ExtractorClass.source,
-            strategy: ExtractorClass.strategy,
-            delivery: ExtractorClass.delivery,
-            recordType: ExtractorClass.recordTypes || [],
-            description:
-              ExtractorClass.description ||
-              `${ExtractorClass.recordTypes?.join(', ')} from ${ExtractorClass.source}`,
-            extractor: ExtractorClass,
-            packageName: plugin.name,
-            default: ExtractorClass.default || false,
-          });
-        }
-      }
-
-      return extractors;
+      return this.extractorsOf(plugin, await this.importPlugin(plugin));
     } catch (error) {
       console.warn(`Failed to scan plugin ${plugin.name}:`, error);
       return [];
     }
+  }
+
+  /** The extractor classes a plugin module exports. */
+  static extractorsOf(plugin: { name: string }, pluginModule: any): ExtractorMetadata[] {
+    // Find all exported classes that extend Extractor
+    const extractors: ExtractorMetadata[] = [];
+
+    for (const [exportName, exportValue] of Object.entries(pluginModule)) {
+      if (this.isExtractorClass(exportValue)) {
+        const ExtractorClass = exportValue as typeof Extractor;
+
+        // Validate required metadata
+        if (!ExtractorClass.source || !ExtractorClass.strategy) {
+          // Only log in verbose mode to reduce noise
+          if (process.argv.includes('--verbose')) {
+            console.warn(
+              `Skipping extractor ${exportName} from ${plugin.name}: missing source or strategy`
+            );
+          }
+          continue;
+        }
+
+        extractors.push({
+          source: ExtractorClass.source,
+          strategy: ExtractorClass.strategy,
+          delivery: ExtractorClass.delivery,
+          recordType: ExtractorClass.recordTypes || [],
+          description:
+            ExtractorClass.description ||
+            `${ExtractorClass.recordTypes?.join(', ')} from ${ExtractorClass.source}`,
+          extractor: ExtractorClass,
+          packageName: plugin.name,
+          default: ExtractorClass.default || false,
+        });
+      }
+    }
+
+    return extractors;
   }
 
   /**
@@ -273,13 +340,32 @@ export class PluginScanner {
     const plugins = await this.findChroniclePlugins();
     const extractorsBySource = new Map<string, ExtractorMetadata[]>();
 
+    const localSources = new Map<string, FoundPlugin>();
     for (const plugin of plugins) {
       const extractors = await this.scanPluginExtractors(plugin);
 
       for (const extractor of extractors) {
+        if (plugin.origin === 'local') localSources.set(extractor.source, plugin);
         const existing = extractorsBySource.get(extractor.source) || [];
         existing.push(extractor);
         extractorsBySource.set(extractor.source, existing);
+      }
+    }
+
+    // A local plugin takes over each source it provides, so it can stand in
+    // for an official plugin while you work on it.
+    if (localSources.size > 0) {
+      const { loadCatalog } = await import('./catalog.js');
+      const catalogSources = new Set(
+        (await loadCatalog()).flatMap(entry => Object.keys(entry.sources ?? {}))
+      );
+      for (const [source, plugin] of localSources) {
+        const extractors = extractorsBySource.get(source)!;
+        const own = extractors.filter(e => e.packageName === plugin.name);
+        if (own.length < extractors.length || catalogSources.has(source)) {
+          for (const e of own) e.localOverride = plugin.file ?? plugin.path;
+        }
+        extractorsBySource.set(source, own);
       }
     }
 
