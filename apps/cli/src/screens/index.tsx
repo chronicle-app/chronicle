@@ -6,13 +6,11 @@ import { CredentialsScreen, type CredentialInfo } from './CredentialsScreen.js';
 import { ConfigScreen } from './ConfigScreen.js';
 import { SourcesScreen } from './SourcesScreen.js';
 import type { SourceListing } from '../plugins/catalog.js';
-import { ExtractionProgressScreen } from './ExtractionProgressScreen.js';
 
 // Screen components
 export { CredentialsScreen, type CredentialInfo } from './CredentialsScreen.js';
 export { ConfigScreen } from './ConfigScreen.js';
 export { SourcesScreen } from './SourcesScreen.js';
-export { ExtractionProgressScreen } from './ExtractionProgressScreen.js';
 export { Table, type TableColumn, type TableRow } from '../components/Table.js';
 
 // Screen render functions

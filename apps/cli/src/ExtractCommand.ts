@@ -207,11 +207,7 @@ export default abstract class ExtractCommand<T extends typeof Command> extends B
 
   public async run(): Promise<any> {
     const { runExtraction } = await import('./utils/runExtraction.js');
-    return runExtraction(
-      this.selectedExtractor,
-      this.flags,
-      (this.constructor as any).id || 'extract'
-    );
+    return runExtraction(this.selectedExtractor, this.flags, this.flagSources);
   }
 
   /**

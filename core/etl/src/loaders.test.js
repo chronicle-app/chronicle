@@ -30,6 +30,22 @@ async function fileOutput(LoaderClass, data, config = {}) {
   }
 }
 
+// A Chronicle node with the bookkeeping every node carries.
+const node = (extra = {}) => ({
+  '@type': 'ExecuteAction',
+  '@key': ['@type', 'source'],
+  source: 'shell',
+  agent: {
+    '@type': 'Person',
+    '@key': ['handle'],
+    source: 'shell',
+    handle: 'me',
+    sameAs: ['@me'],
+  },
+  object: { '@type': 'Command', body: 'echo hi' },
+  ...extra,
+});
+
 // The CLI test covers each loader end to end; this covers escaping it can't reach.
 test('JSON and CSV file output escape quotes, controls and delimiters and render dates', async () => {
   const data = { 'quoted"key': 'a\nb\t"c"\\', when: new Date('2020-01-01T00:00:00Z') };
@@ -42,7 +58,28 @@ test('JSON and CSV file output escape quotes, controls and delimiters and render
       { name: 'a,"b"', nested: { value: 2 }, list: ['x'], when: new Date('2020-01-01T00:00:00Z') },
       { name: 'next' },
     ]),
-    'name,nested.value,list.0,when\n"a,""b""",2,x,2020-01-01T00:00:00.000Z\nnext,,,\n'
+    'name,nested.value,list,when\n"a,""b""",2,x,2020-01-01T00:00:00.000Z\nnext,,,\n'
+  );
+  // Chronicle nodes: bookkeeping stays out, nested nodes show their label,
+  // lists join, and a column first seen on a later record still appears.
+  assert.equal(
+    await fileOutput(CsvLoader, [
+      node(),
+      node({
+        participant: [
+          { '@type': 'Person', name: 'A' },
+          { '@type': 'Person', name: 'B' },
+        ],
+      }),
+    ]),
+    '@type,agent,object,participant\nExecuteAction,me,echo hi,\nExecuteAction,me,echo hi,A; B\n'
+  );
+  // Schema columns: every schema property as a dotted path; only @key and
+  // other JSON-LD bookkeeping stay out.
+  assert.equal(
+    await fileOutput(CsvLoader, [node({ '@assertedAt': 'x' })], { columns: 'schema' }),
+    '@type,source,agent.@type,agent.source,agent.handle,agent.sameAs,object.@type,object.body\n' +
+      'ExecuteAction,shell,Person,shell,me,@me,Command,echo hi\n'
   );
   assert.equal(
     await fileOutput(CsvLoader, [{ a: 1, b: 2 }], { headers: false, delimiter: ';' }),
