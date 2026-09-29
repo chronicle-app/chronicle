@@ -1,6 +1,7 @@
 import { CsvLoader, JsonLoader, TableLoader, YamlLoader, toKebabCase } from '@chronicle.app/etl';
 import { Flags } from '@oclif/core';
 import { parseDuration } from './date.js';
+import { PreviewLoader } from '../loaders/PreviewLoader.js';
 
 const DEFAULT_LIMIT = 100;
 
@@ -15,6 +16,7 @@ export const dateFlag = Flags.custom<Date>({
 const loaderRegistry = {
   csv: CsvLoader,
   json: JsonLoader,
+  preview: PreviewLoader,
   table: TableLoader,
   yaml: YamlLoader,
 };
@@ -55,26 +57,18 @@ export class FlagManager {
     });
   }
 
-  /**
-   * `--via <strategy>`: the named way in, offered as the source's own words.
-   * `--strategy` is kept as an explicit alias — same axis, older spelling.
-   */
-  static viaFlags(candidates: Array<{ strategy: string; delivery: string }>) {
-    const ways = [...new Set(candidates.map(c => c.strategy))];
-    const summary =
-      ways.length > 0 ? `How to read this source: ${ways.join(', ')}` : 'How to read this source';
+  /** `--strategy <name>`: how to read the source, in the source's own words. */
+  static strategyFlag(candidates: Array<{ strategy: string; delivery: string }>) {
+    const strategies = [...new Set(candidates.map(c => c.strategy))];
     return {
-      via: Flags.string({
-        summary,
-        helpValue: '<strategy>',
-        helpGroup: 'EXTRACTION',
-        options: ways.length > 0 ? ways : undefined,
-      }),
       strategy: Flags.string({
-        summary: 'Alias for --via',
+        summary:
+          strategies.length > 0
+            ? `How to read this source: ${strategies.join(', ')}`
+            : 'How to read this source',
+        helpValue: '<name>',
         helpGroup: 'EXTRACTION',
-        options: ways.length > 0 ? ways : undefined,
-        hidden: true,
+        options: strategies.length > 0 ? strategies : undefined,
       }),
     };
   }
@@ -189,6 +183,10 @@ export class FlagManager {
         },
         summary: 'Limit the number of records extracted. Use 0 for no limit.',
       }),
+      preview: Flags.boolean({
+        helpGroup: 'LOADING',
+        summary: 'Print the first few records as readable text (--loader preview --limit 5)',
+      }),
       raw: Flags.boolean({
         helpGroup: 'TRANSFORMATION',
         summary: "Don't transform extracted data into Chronicle schema.",
@@ -222,7 +220,7 @@ export class FlagManager {
       }),
       'list-types': Flags.boolean({
         helpGroup: 'EXTRACTION',
-        summary: 'List the ways in and the record kinds each carries, then exit',
+        summary: 'List the strategies and the record kinds each carries, then exit',
         char: 'L',
       }),
       ...this.getAllLoaderFlags(),

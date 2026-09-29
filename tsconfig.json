@@ -32,7 +32,7 @@
       "path": "plugins/whatsapp/tsconfig.lib.json"
     },
     {
-      "path": "plugins/call-history/tsconfig.lib.json"
+      "path": "plugins/apple-call-history/tsconfig.lib.json"
     },
     {
       "path": "plugins/foodnoms/tsconfig.lib.json"

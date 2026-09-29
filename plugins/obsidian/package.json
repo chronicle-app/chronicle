@@ -58,11 +58,18 @@
   },
   "chronicle": {
     "plugin": true,
-    "deepLinks": {
+    "sources": {
       "obsidian": {
-        "*": "obsidian://open?vault={inRealm.handle}&file={handle}"
+        "strategies": {
+          "vault": {
+            "delivery": "local",
+            "recordTypes": [
+              "notes"
+            ],
+            "default": true
+          }
+        }
       }
     }
-  },
-  "oclif": {}
+  }
 }

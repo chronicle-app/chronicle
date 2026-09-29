@@ -55,7 +55,26 @@
     }
   },
   "chronicle": {
-    "plugin": true
-  },
-  "oclif": {}
+    "plugin": true,
+    "sources": {
+      "instagram": {
+        "strategies": {
+          "archive": {
+            "delivery": "export",
+            "recordTypes": [
+              "comments",
+              "follows",
+              "likes",
+              "messages",
+              "posts",
+              "saves",
+              "searches",
+              "stories"
+            ],
+            "default": true
+          }
+        }
+      }
+    }
+  }
 }

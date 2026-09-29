@@ -1,16 +1,21 @@
 import { Flags } from '@oclif/core';
 import { BaseCommand } from '../../baseCommand.js';
-import { PluginScanner } from '../../plugins/PluginScanner.js';
+import { listSources, type SourceListing } from '../../plugins/catalog.js';
 import { getTheme } from '../../theme.js';
-import { renderExtractorsScreen } from '../../screens/index.js';
+import { renderSourcesScreen } from '../../screens/index.js';
+
+const legacyNote = (count: number) =>
+  `Not showing ${count} legacy ${count === 1 ? 'source' : 'sources'} for services that no ` +
+  'longer exist. Run chronicle sources --all to include them.';
 
 export default class Sources extends BaseCommand<typeof Sources> {
-  static override description = 'List installed sources and the records they can pull';
+  static override description = 'List catalog and installed sources and the records they can pull';
 
   static override aliases = ['list'];
 
   static override examples = [
     'chronicle sources',
+    'chronicle sources --all',
     'chronicle sources --source shell',
     'chronicle sources --delivery local',
     'chronicle sources --record-type messages',
@@ -19,6 +24,10 @@ export default class Sources extends BaseCommand<typeof Sources> {
 
   static override flags = {
     ...BaseCommand.baseFlags,
+    all: Flags.boolean({
+      summary: 'Include legacy sources for services that no longer exist',
+      helpGroup: 'FILTER',
+    }),
     source: Flags.string({
       summary: 'Filter by source (e.g., shell, imessage)',
       helpGroup: 'FILTER',
@@ -44,30 +53,30 @@ export default class Sources extends BaseCommand<typeof Sources> {
     const theme = getTheme(this.flags.theme);
 
     try {
-      // Scan all plugins for extractors
-      this.logToStderr(theme.textDim('Scanning installed plugins for extractors...'));
-      const extractorsBySource = await PluginScanner.scanAllPlugins();
+      const matching = this.applyFilters(await listSources());
+      // Legacy sources are for services that no longer exist: listed on request.
+      const showLegacy = this.flags.all || Boolean(this.flags.source);
+      const sources = showLegacy ? matching : matching.filter(s => s.tier !== 'legacy');
+      const hiddenLegacy = matching.length - sources.length;
 
-      // Flatten to array and apply filters
-      const allExtractors = [...extractorsBySource.values()].flat();
-      const filteredExtractors = this.applyFilters(allExtractors);
-
-      if (filteredExtractors.length === 0 && this.flags.format === 'table') {
-        this.log(theme.warning('No extractors found matching the specified criteria.'));
+      if (sources.length === 0 && this.flags.format === 'table') {
+        this.log(theme.warning('No sources found matching the specified criteria.'));
+        if (hiddenLegacy > 0) this.log(theme.textDim(legacyNote(hiddenLegacy)));
         return;
       }
 
       // Display in requested format
       switch (this.flags.format) {
         case 'json':
-          this.displayAsJson(filteredExtractors);
+          this.log(JSON.stringify(sources, null, 2));
           break;
         case 'csv':
-          this.displayAsCsv(filteredExtractors);
+          this.displayAsCsv(sources);
           break;
         case 'table':
         default:
-          await this.displayAsTable(filteredExtractors);
+          await this.displayAsTable(sources);
+          if (hiddenLegacy > 0) this.log(theme.textDim(` ${legacyNote(hiddenLegacy)}`));
           break;
       }
     } catch (error) {
@@ -76,71 +85,51 @@ export default class Sources extends BaseCommand<typeof Sources> {
     }
   }
 
-  private applyFilters(extractors: any[]) {
-    let filtered = extractors;
+  private applyFilters(sources: SourceListing[]) {
+    let filtered = sources;
 
     if (this.flags.source) {
-      filtered = filtered.filter(ext => ext.source === this.flags.source);
+      filtered = filtered.filter(s => s.source === this.flags.source);
     }
 
     if (this.flags.delivery) {
-      filtered = filtered.filter(ext => ext.delivery === this.flags.delivery);
+      filtered = filtered.filter(s =>
+        s.strategies.some(strategy => strategy.delivery === this.flags.delivery)
+      );
     }
 
     if (this.flags['record-type']) {
-      filtered = filtered.filter(ext => ext.recordType.includes(this.flags['record-type']));
+      const type = this.flags['record-type'];
+      filtered = filtered.filter(s =>
+        s.strategies.some(strategy => strategy.recordTypes.includes(type))
+      );
     }
 
     return filtered;
   }
 
-  private displayAsTable(extractors: any[]): Promise<void> {
-    // Sort by source, then by strategy
-    const sortedExtractors = extractors.sort((a, b) => {
-      if (a.source !== b.source) {
-        return a.source.localeCompare(b.source);
-      }
-      return a.strategy.localeCompare(b.strategy);
-    });
-
-    // Use organized screen component; resolves once the Ink screen unmounts so
-    // anything printed after it lands below, not interleaved.
-    return renderExtractorsScreen(sortedExtractors, {
+  private displayAsTable(sources: SourceListing[]): Promise<void> {
+    // Resolves once the Ink screen unmounts so anything printed after it
+    // lands below, not interleaved.
+    return renderSourcesScreen(sources, {
       theme: this.flags.theme || 'default',
     });
   }
 
-  private displayAsJson(extractors: any[]) {
-    const output = extractors.map(ext => ({
-      source: ext.source,
-      strategy: ext.strategy,
-      delivery: ext.delivery,
-      default: Boolean(ext.default),
-      recordTypes: ext.recordType,
-      description: ext.description,
-      packageName: ext.packageName,
-    }));
+  private displayAsCsv(sources: SourceListing[]) {
+    this.log('source,plugin,package,tier,installed,supported,strategies,record_types,summary');
 
-    this.log(JSON.stringify(output, null, 2));
-  }
-
-  private displayAsCsv(extractors: any[]) {
-    // CSV header
-    this.log('source,strategy,delivery,record_types,description,package');
-
-    // CSV rows
-    for (const ext of extractors) {
-      const recordTypes = Array.isArray(ext.recordType)
-        ? ext.recordType.join(';')
-        : ext.recordType || '';
-
+    for (const s of sources) {
       const csvRow = [
-        ext.source,
-        ext.strategy,
-        ext.delivery,
-        recordTypes,
-        ext.description || '',
-        ext.packageName,
+        s.source,
+        s.plugin,
+        s.package,
+        s.tier ?? '',
+        s.installed,
+        s.supported,
+        s.strategies.map(strategy => `${strategy.name}:${strategy.delivery}`).join(';'),
+        [...new Set(s.strategies.flatMap(strategy => strategy.recordTypes))].join(';'),
+        s.summary,
       ]
         .map(value => `"${String(value ?? '').replaceAll('"', '""')}"`)
         .join(',');

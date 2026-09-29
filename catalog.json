@@ -1,0 +1,178 @@
+{
+  "plugins": [
+    {
+      "name": "apple-call-history",
+      "package": "@chronicle.app/apple-call-history",
+      "tier": "official",
+      "summary": "Phone and FaceTime calls (Apple Call History)"
+    },
+    {
+      "name": "arc-timeline",
+      "package": "@chronicle.app/arc-timeline",
+      "tier": "official",
+      "summary": "Arc Timeline visits and trips"
+    },
+    {
+      "name": "arena",
+      "package": "@chronicle.app/arena",
+      "tier": "official",
+      "summary": "Are.na channels, blocks, comments, and follows"
+    },
+    {
+      "name": "bluesky",
+      "package": "@chronicle.app/bluesky",
+      "tier": "official",
+      "summary": "Bluesky follows, followers, and likes"
+    },
+    {
+      "name": "claude-code",
+      "package": "@chronicle.app/claude-code",
+      "tier": "core",
+      "summary": "Claude Code transcripts"
+    },
+    {
+      "name": "email",
+      "package": "@chronicle.app/email",
+      "tier": "official",
+      "summary": "Email from mbox files"
+    },
+    {
+      "name": "facebook",
+      "package": "@chronicle.app/facebook",
+      "tier": "official",
+      "summary": "Facebook export"
+    },
+    {
+      "name": "foodnoms",
+      "package": "@chronicle.app/foodnoms",
+      "tier": "official",
+      "summary": "FoodNoms meal logs"
+    },
+    {
+      "name": "foursquare",
+      "package": "@chronicle.app/foursquare",
+      "tier": "official",
+      "summary": "Foursquare/Swarm check-ins"
+    },
+    {
+      "name": "goodreads",
+      "package": "@chronicle.app/goodreads",
+      "tier": "official",
+      "summary": "Goodreads shelves and reading history"
+    },
+    {
+      "name": "google-reader",
+      "package": "@chronicle.app/google-reader",
+      "tier": "legacy",
+      "summary": "Google Reader archive actions"
+    },
+    {
+      "name": "imessage",
+      "package": "@chronicle.app/imessage",
+      "tier": "core",
+      "summary": "iMessage/SMS, with iCloud and contact enrichment"
+    },
+    {
+      "name": "instagram",
+      "package": "@chronicle.app/instagram",
+      "tier": "official",
+      "summary": "Instagram data export"
+    },
+    {
+      "name": "lastfm",
+      "package": "@chronicle.app/lastfm",
+      "tier": "official",
+      "summary": "Last.fm listens, loved tracks, and friends"
+    },
+    {
+      "name": "linkedin",
+      "package": "@chronicle.app/linkedin",
+      "tier": "official",
+      "summary": "LinkedIn data export"
+    },
+    {
+      "name": "marvin",
+      "package": "@chronicle.app/marvin",
+      "tier": "legacy",
+      "summary": "Marvin reading sessions and highlights"
+    },
+    {
+      "name": "moves-app",
+      "package": "@chronicle.app/moves-app",
+      "tier": "legacy",
+      "summary": "Moves export places and moves"
+    },
+    {
+      "name": "obsidian",
+      "package": "@chronicle.app/obsidian",
+      "tier": "official",
+      "summary": "Obsidian notes and links"
+    },
+    {
+      "name": "pinboard",
+      "package": "@chronicle.app/pinboard",
+      "tier": "official",
+      "summary": "Pinboard bookmarks"
+    },
+    {
+      "name": "safari",
+      "package": "@chronicle.app/safari",
+      "tier": "core",
+      "summary": "Safari browsing history"
+    },
+    {
+      "name": "shell",
+      "package": "@chronicle.app/shell",
+      "tier": "core",
+      "summary": "Shell history (bash, zsh, fish)"
+    },
+    {
+      "name": "slack",
+      "package": "@chronicle.app/slack",
+      "tier": "official",
+      "summary": "Slack messages from a slackdump export"
+    },
+    {
+      "name": "spotify",
+      "package": "@chronicle.app/spotify",
+      "tier": "official",
+      "summary": "Spotify listens, saved tracks and albums, playlists"
+    },
+    {
+      "name": "things-todo",
+      "package": "@chronicle.app/things-todo",
+      "tier": "core",
+      "summary": "Things 3"
+    },
+    {
+      "name": "timing-app",
+      "package": "@chronicle.app/timing-app",
+      "tier": "official",
+      "summary": "Timing app usage, time entries, and calls"
+    },
+    {
+      "name": "twitter",
+      "package": "@chronicle.app/twitter",
+      "tier": "official",
+      "summary": "Twitter/X archive tweets, likes, and DMs"
+    },
+    {
+      "name": "whatsapp",
+      "package": "@chronicle.app/whatsapp",
+      "tier": "official",
+      "summary": "WhatsApp messages"
+    },
+    {
+      "name": "youtube",
+      "package": "@chronicle.app/youtube",
+      "tier": "official",
+      "summary": "YouTube likes, subscriptions, playlists, uploads, and Takeout history"
+    },
+    {
+      "name": "zotero",
+      "package": "@chronicle.app/zotero",
+      "tier": "official",
+      "summary": "Zotero works, highlights, notes, and reading"
+    }
+  ]
+}

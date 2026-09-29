@@ -249,6 +249,10 @@ try {
       assert.equal(result.status, 0, result.stderr || result.error?.message);
       return result.stdout;
     };
+    // Plugins installed beside the CLI, as `npm install -g` would, are found.
+    assert.ok(
+      JSON.parse(cli(['sources', '--all', '--format', 'json'])).every(source => source.installed)
+    );
     const fixturePlugin = join(consumer, 'fixture-plugin');
     mkdirSync(fixturePlugin);
     writeFileSync(
@@ -259,7 +263,6 @@ try {
         type: 'module',
         main: './index.js',
         chronicle: { plugin: true },
-        oclif: {},
       })
     );
     writeFileSync(

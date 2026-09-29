@@ -8,14 +8,14 @@ import {
 import { lookupContact, lookupContactByName, type Contact } from '@chronicle.app/icloud';
 
 // The call UUID is Apple's (relayed through Timing's Event.origin_id), so calls
-// key on `apple-phone` + UUID and fold with the Apple Call History plugin's calls.
-const SOURCE = 'apple-phone';
+// key on `apple-call-history` + UUID and fold with the Apple Call History plugin's calls.
+const SOURCE = 'apple-call-history';
 
 /**
  * Timing's relay of Apple Call History — the historical supplement for the long
  * tail Apple has pruned (82% of Timing calls predate Apple's retention). Same
  * shape as an Apple call. The party:
- *   - unnamed contact (a raw handle)  → an `apple-phone` party (folds via handle),
+ *   - unnamed contact (a raw handle)  → an `apple-call-history` party (folds via handle),
  *   - named contact, resolvable       → the `apple-contacts` party,
  *   - named contact, unresolvable     → no party; Timing's label rides on a
  *       `sameAs`'d `timing-app` CallSession (a sourced fact, not a fabricated
@@ -88,7 +88,7 @@ export default class TimingCallTransformer extends ChronicleTransformer {
 }
 
 /**
- * An `apple-phone` party from a calling handle (like the Apple plugin). Identity
+ * An `apple-call-history` party from a calling handle (like the Apple plugin). Identity
  * keys on the handle alone (`['source','handle']`); `@type` is an `Agent`
  * annotation — a bare number could be a person or an org.
  */
@@ -102,7 +102,7 @@ function partyFromHandle(handle: string): AgentAndChildren | null {
   const party: AgentAndChildren = {
     '@type': 'Agent',
     '@key': ['source', 'handle'],
-    source: 'apple-phone',
+    source: 'apple-call-history',
     handle: canonical,
   } as AgentAndChildren;
   if (contact?.fullName) party.name = contact.fullName;

@@ -33,6 +33,14 @@ export default class SourceHelp extends Help {
         process.stdout.write(`${renderSourceHelp(source, candidates, { verb })}\n`);
         return;
       }
+      const { listSources } = await import('../plugins/catalog.js');
+      const listing = (await listSources()).find(s => s.source === source && !s.installed);
+      if (listing) {
+        process.stdout.write(
+          `${source} isn't installed. Install it with:\n  chronicle plugins install ${listing.plugin}\n`
+        );
+        return;
+      }
     }
 
     await super.showHelp(argv);

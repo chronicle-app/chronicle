@@ -55,7 +55,22 @@
     }
   },
   "chronicle": {
-    "plugin": true
-  },
-  "oclif": {}
+    "plugin": true,
+    "sources": {
+      "facebook": {
+        "strategies": {
+          "archive": {
+            "delivery": "export",
+            "recordTypes": [
+              "messages",
+              "reactions",
+              "comments",
+              "searches"
+            ],
+            "default": true
+          }
+        }
+      }
+    }
+  }
 }

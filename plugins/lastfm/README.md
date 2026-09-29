@@ -33,8 +33,8 @@ The plugin automatically retrieves stored credentials from Chronicle's credentia
 # Short form (recommended)
 chronicle extract lastfm --type listens --limit 500
 
-# Full form (select the way in explicitly)
-chronicle extract lastfm --via api --type listens --limit 500
+# Full form (select the strategy explicitly)
+chronicle extract lastfm --strategy api --type listens --limit 500
 ```
 
 ### Extract friends

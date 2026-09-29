@@ -20,7 +20,7 @@ type ExtractorCtor = new (config: any) => Extractor;
  * Contract each child must honor: `extract()` yields records newest-first, and
  * the subclass's `sortKey(record)` returns a comparable occurrence value
  * (higher = more recent) for every record type the children emit. The subclass
- * also declares its own `delivery` — composition is not a way in, so a merge
+ * also declares its own `delivery` — composition is not a strategy, so a merge
  * inherits nothing here and states how its children reach us.
  */
 export abstract class MergingExtractor<

@@ -15,11 +15,13 @@ import {
   toCamelCase,
 } from '@chronicle.app/etl';
 import { getTheme } from '../theme.js';
+import { PreviewLoader } from '../loaders/PreviewLoader.js';
 
 // Loader registry mapping loader names to classes
 const loaderRegistry = {
   csv: CsvLoader,
   json: JsonLoader,
+  preview: PreviewLoader,
   table: TableLoader,
   yaml: YamlLoader,
 };

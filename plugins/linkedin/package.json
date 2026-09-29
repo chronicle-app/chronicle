@@ -56,7 +56,26 @@
     }
   },
   "chronicle": {
-    "plugin": true
-  },
-  "oclif": {}
+    "plugin": true,
+    "sources": {
+      "linkedin": {
+        "strategies": {
+          "archive": {
+            "delivery": "export",
+            "recordTypes": [
+              "connections",
+              "education",
+              "endorsements",
+              "follows",
+              "learning",
+              "messages",
+              "positions",
+              "profile"
+            ],
+            "default": true
+          }
+        }
+      }
+    }
+  }
 }

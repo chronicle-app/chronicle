@@ -55,7 +55,19 @@
     }
   },
   "chronicle": {
-    "plugin": true
-  },
-  "oclif": {}
+    "plugin": true,
+    "sources": {
+      "google-reader": {
+        "strategies": {
+          "takeout": {
+            "delivery": "export",
+            "recordTypes": [
+              "stream-contents"
+            ],
+            "default": true
+          }
+        }
+      }
+    }
+  }
 }

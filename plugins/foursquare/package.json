@@ -57,7 +57,19 @@
     }
   },
   "chronicle": {
-    "plugin": true
-  },
-  "oclif": {}
+    "plugin": true,
+    "sources": {
+      "foursquare": {
+        "strategies": {
+          "api": {
+            "delivery": "api",
+            "recordTypes": [
+              "checkins"
+            ],
+            "default": true
+          }
+        }
+      }
+    }
+  }
 }

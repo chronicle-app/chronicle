@@ -10,44 +10,20 @@
     "url": "https://github.com/chronicle-app/chronicle/issues/new?labels=cli&title=[cli]%20"
   },
   "dependencies": {
-    "@chronicle.app/arc-timeline": "0.2.0",
-    "@chronicle.app/arena": "0.2.0",
     "@chronicle.app/auth": "0.2.0",
-    "@chronicle.app/bluesky": "0.2.0",
-    "@chronicle.app/call-history": "0.2.0",
     "@chronicle.app/claude-code": "0.2.0",
-    "@chronicle.app/email": "0.2.0",
     "@chronicle.app/etl": "0.2.0",
-    "@chronicle.app/facebook": "0.2.0",
-    "@chronicle.app/foodnoms": "0.2.0",
-    "@chronicle.app/foursquare": "0.2.0",
-    "@chronicle.app/goodreads": "0.2.0",
-    "@chronicle.app/google-reader": "0.2.0",
+    "@chronicle.app/etl-sqlite": "0.2.0",
     "@chronicle.app/imessage": "0.2.0",
-    "@chronicle.app/instagram": "0.2.0",
-    "@chronicle.app/lastfm": "0.2.0",
-    "@chronicle.app/linkedin": "0.2.0",
-    "@chronicle.app/marvin": "0.2.0",
-    "@chronicle.app/moves-app": "0.2.0",
-    "@chronicle.app/obsidian": "0.2.0",
-    "@chronicle.app/pinboard": "0.2.0",
     "@chronicle.app/safari": "0.2.0",
     "@chronicle.app/schema": "0.2.0",
     "@chronicle.app/shell": "0.2.0",
-    "@chronicle.app/slack": "0.2.0",
-    "@chronicle.app/spotify": "0.2.0",
     "@chronicle.app/things-todo": "0.2.0",
-    "@chronicle.app/timing-app": "0.2.0",
-    "@chronicle.app/twitter": "0.2.0",
-    "@chronicle.app/whatsapp": "0.2.0",
-    "@chronicle.app/youtube": "0.2.0",
-    "@chronicle.app/zotero": "0.2.0",
     "@inkjs/ui": "^2.0.0",
     "@oclif/core": "^4.2",
     "@oclif/plugin-autocomplete": "^3.2.11",
     "@oclif/plugin-commands": "^4.1.11",
     "@oclif/plugin-help": "^6",
-    "@oclif/plugin-plugins": "^5",
     "@oclif/plugin-warn-if-update-available": "^4.0.0",
     "chalk": "^4.1.2",
     "glob": "^13.0.6",
@@ -71,6 +47,7 @@
     "bin/run.cmd",
     "dist/**/*.js",
     "dist/**/*.d.ts",
+    "catalog.json",
     "oclif.manifest.json"
   ],
   "homepage": "https://chronicle.app",
@@ -88,7 +65,6 @@
     "helpClass": "./dist/help/SourceHelp.js",
     "plugins": [
       "@oclif/plugin-help",
-      "@oclif/plugin-plugins",
       "@oclif/plugin-commands",
       "@oclif/plugin-autocomplete",
       "@oclif/plugin-warn-if-update-available"
@@ -99,13 +75,16 @@
         "description": "Pull records from a source to stdout (Chronicle JSON-LD)"
       },
       "sources": {
-        "description": "List installed extraction sources"
+        "description": "List catalog and installed sources"
       },
       "auth": {
         "description": "Authenticate sources and manage stored credentials"
       },
       "config": {
         "description": "Manage Chronicle configuration"
+      },
+      "plugins": {
+        "description": "Install and remove source plugins"
       }
     },
     "pjson": {
@@ -132,7 +111,7 @@
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint src --ext .ts,.tsx,.js",
     "test": "node --test test/*.test.js",
-    "prepack": "oclif manifest 1>&2",
-    "postpack": "node -e \"require('node:fs').rmSync('oclif.manifest.json', { force: true })\""
+    "prepack": "oclif manifest 1>&2 && node scripts/pack-catalog.js",
+    "postpack": "node -e \"for (const f of ['oclif.manifest.json', 'catalog.json']) require('node:fs').rmSync(f, { force: true })\""
   }
 }

@@ -55,7 +55,19 @@
     }
   },
   "chronicle": {
-    "plugin": true
-  },
-  "oclif": {}
+    "plugin": true,
+    "sources": {
+      "goodreads": {
+        "strategies": {
+          "csv": {
+            "delivery": "export",
+            "recordTypes": [
+              "shelves"
+            ],
+            "default": true
+          }
+        }
+      }
+    }
+  }
 }

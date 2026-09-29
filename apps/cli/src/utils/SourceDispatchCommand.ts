@@ -30,6 +30,13 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
   /** Handle a positional that isn't a discoverable source (file/stdin, or install-prompt). */
   protected abstract handleNonSource(positional: string | undefined): Promise<void>;
 
+  /**
+   * Whether a positional that isn't a source still has its flags parsed. A verb
+   * that only reports an unknown source turns this off, so a source's own flags
+   * (`extract old-name --limit 5`) don't fail before the real error.
+   */
+  protected readonly parsesFlagsForNonSource: boolean = true;
+
   static override args = {
     source: Args.string({ description: 'Source name (e.g. shell, imessage)', required: false }),
   };
@@ -70,7 +77,6 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
       '-o',
       '--type',
       '-t',
-      '--via',
       '--strategy',
       '--sample',
       '--fields',
@@ -108,8 +114,13 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     // (a file path / inline JSON for ingest, or an install-prompt for extract).
     if (candidates.length === 0) {
       this.nonSourceArg = positional;
-      await super.init();
+      if (this.parsesFlagsForNonSource) await super.init();
       return;
+    }
+
+    const override = candidates[0].localOverride;
+    if (override) {
+      this.logToStderr(`Using the local plugin for ${positional} (${override})`);
     }
 
     // Help / list-types render from the candidates alone — before flag parsing,
@@ -120,7 +131,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     }
 
     // Assemble the dynamic flag set: base (incl. --loader/--limit/--type)
-    // + --via + the UNION of every candidate's schema flags. The loader
+    // + --strategy + the UNION of every candidate's schema flags. The loader
     // default encodes the verb.
     // Exclude `input` from the base skip-set so an extractor that makes it
     // required (an export it must be handed) overrides the optional base
@@ -138,7 +149,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     const assembled = {
       ...EXTRACT_BASE_FLAGS,
       loader: FlagManager.loaderFlag(this.defaultLoaderName),
-      ...FlagManager.viaFlags(candidates),
+      ...FlagManager.strategyFlag(candidates),
       ...schemaFlags,
     };
 
@@ -165,8 +176,13 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     }
     this.args = args as typeof this.args;
     this.flags = await this.resolveCommandFlags(flags, metadata);
+    // --preview: a few records, readable. An explicit --limit still wins.
+    if ((this.flags as any).preview) {
+      (this.flags as any).loader = 'preview';
+      if (metadata?.flags?.limit?.setFromDefault) (this.flags as any).limit = 5;
+    }
 
-    // Resolve the run across the two axes: the way in (--via, else what
+    // Resolve the run across the two axes: the strategy (--strategy, else what
     // --input / credentials / the declared default imply) and the record kinds
     // (--type). Whatever surplus --type leaves is filtered by the Runner.
     const parsed = this.flags as any;
@@ -175,12 +191,14 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     const selector = new ExtractorSelector({
       source: positional,
       candidates,
-      via: parsed.via ?? parsed.strategy,
+      strategy: parsed.strategy,
       types: requestedRecordTypes(parsed.type),
-      input: parsed.input,
+      // Only a path you gave picks a strategy: an extractor's default input
+      // (WhatsApp's Mac database) is not an export you handed it.
+      input: metadata?.flags?.input?.setFromDefault ? undefined : parsed.input,
       hasCredentials: await this.hasStoredCredentials(positional),
       // Interactive selection needs a TTY (Ink raw mode). In a pipe the
-      // selector throws with the ways in instead of crashing on raw mode.
+      // selector throws with the strategies instead of crashing on raw mode.
       interactive: process.stdin.isTTY,
       theme: parsed.theme,
     });
@@ -199,7 +217,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
 
   /**
    * Whether this source has credentials on file. Only consulted to pick the
-   * live way in for a source that declares no default — never to authenticate.
+   * live strategy for a source that declares no default — never to authenticate.
    */
   private async hasStoredCredentials(source: string): Promise<boolean> {
     try {
@@ -220,20 +238,43 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
   }
 
   /**
-   * Offer to install a plugin for a source we don't have installed. The catalog
-   * of known-but-uninstalled sources is a follow-up; for now this points the
-   * user at the convention and `chronicle sources`.
+   * A source that isn't installed: when the catalog has it, offer to install
+   * its plugin on a terminal and then run again, or else print the command.
    */
-  protected installPrompt(source: string): never {
+  protected async installPrompt(source: string): Promise<void> {
     const theme = getTheme((this.flags as any)?.theme);
-    this.logToStderr(`${theme.warning('No installed extractor for')} ${theme.textBold(source)}.`);
-    this.logToStderr(
-      theme.textDim(
-        `  If a plugin provides it:  chronicle plugins install @chronicle.app/${source}\n` +
-          '  See what is installed:    chronicle sources'
-      )
+    const { listSources } = await import('../plugins/catalog.js');
+    const listing = (await listSources()).find(s => s.source === source && !s.installed);
+    if (!listing) {
+      this.error(
+        `No source named "${source}". Run "chronicle sources --all" to see what's available.`
+      );
+    }
+
+    const command = `chronicle plugins install ${listing.plugin}`;
+    // The prompt draws on stdout, so only offer it when records aren't piped.
+    if (!process.stdin.isTTY || !process.stdout.isTTY) {
+      this.error(`${source} isn't installed. Install it with:\n  ${command}`);
+    }
+    const { inkConfirm } = await import('../components/InkConfirm.js');
+    const { confirmed } = await inkConfirm(
+      `${source} needs the ${listing.package} plugin. Install it now?`,
+      { defaultValue: true, theme: (this.flags as any)?.theme }
     );
-    this.exit(1);
+    if (!confirmed) {
+      this.logToStderr(theme.textDim(`Install it later with: ${command}`));
+      this.exit(1);
+    }
+
+    const { installPlugin, resolveInstallTarget } = await import('../plugins/install.js');
+    try {
+      await installPlugin(await resolveInstallTarget(listing.plugin, this.config.version));
+    } catch (error) {
+      this.error(error instanceof Error ? error.message : String(error));
+    }
+    this.logToStderr(theme.success(`Installed ${listing.package}.`));
+    const verb = (this.constructor as any).id || 'extract';
+    await this.config.runCommand(verb, this.argv);
   }
 
   /** Render the source's extractors + flags via the shared renderer. */

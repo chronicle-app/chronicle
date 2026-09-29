@@ -10,13 +10,13 @@ export interface SelectionInput {
   source: string;
   /** Every extractor discovered for the source. */
   candidates: ExtractorMetadata[];
-  /** `--via` / `--strategy`: the named way in. */
-  via?: string;
+  /** `--strategy`: the named strategy. */
+  strategy?: string;
   /** `--type`: the record kinds asked for. */
   types?: string[];
   /** `--input`: a path, which points at an export when the source has one. */
   input?: string;
-  /** Whether the source has stored credentials — decides the live way in. */
+  /** Whether the source has stored credentials — decides the live strategy. */
   hasCredentials?: boolean;
   /** Interactive selection is possible (a TTY for Ink's raw mode). */
   interactive?: boolean;
@@ -24,13 +24,13 @@ export interface SelectionInput {
 }
 
 /**
- * Resolve a run to one extractor across the two axes: `strategy` (the named way
- * in, picked with `--via`) and `--type` (record kinds, the same vocabulary on
- * every way in).
+ * Resolve a run to one extractor across the two axes: `--strategy` (how the
+ * source is read) and `--type` (record kinds, the same vocabulary on every
+ * strategy).
  *
- * The way in resolves first — explicit `--via`, else the export a path implies,
- * else the live API when credentials exist, else the source's declared default.
- * Only then does `--type` choose among the extractors on that way in, preferring
+ * The strategy resolves first — explicit `--strategy`, else the export a path
+ * implies, else the live API when credentials exist, else the source's declared
+ * default. Only then does `--type` choose among the extractors on that strategy, preferring
  * the one that emits least of what wasn't asked for; whatever surplus remains is
  * the Runner's post-yield filter to drop.
  */
@@ -38,7 +38,7 @@ export class ExtractorSelector {
   constructor(private readonly input: SelectionInput) {}
 
   async select(): Promise<any> {
-    const pool = await this.resolveWayIn();
+    const pool = await this.resolveStrategy();
     return this.resolveExtractor(pool);
   }
 
@@ -47,15 +47,15 @@ export class ExtractorSelector {
     return strategiesOf(candidates);
   }
 
-  private async resolveWayIn(): Promise<ExtractorMetadata[]> {
-    const { candidates, via, input, hasCredentials } = this.input;
+  private async resolveStrategy(): Promise<ExtractorMetadata[]> {
+    const { candidates, strategy, input, hasCredentials } = this.input;
     const strategies = this.strategies();
 
-    if (via) {
-      const chosen = strategies.find(s => s.name === via);
+    if (strategy) {
+      const chosen = strategies.find(s => s.name === strategy);
       if (!chosen) {
         throw new Error(
-          `No "${via}" way into ${this.input.source}. ${this.waysInSentence(strategies)}`
+          `${this.input.source} has no "${strategy}" strategy. ${this.strategiesSentence(strategies)}`
         );
       }
       return chosen.extractors;
@@ -68,13 +68,13 @@ export class ExtractorSelector {
       if (exports.length === 1) return exports[0].extractors;
       if (exports.length > 1) {
         throw new Error(
-          `${exports.length} ways into ${this.input.source} read files: ` +
-            `${exports.map(s => s.name).join(', ')} — pick one with --via.`
+          `${exports.length} strategies for ${this.input.source} read files: ` +
+            `${exports.map(s => s.name).join(', ')} — pick one with --strategy.`
         );
       }
     }
 
-    // No path and credentials on file: the live way in, unless the source
+    // No path and credentials on file: the live strategy, unless the source
     // already declares which extractor a bare run means.
     const api = strategies.find(s => s.delivery === 'api');
     if (!input && hasCredentials && api && !candidates.some(c => c.default)) {
@@ -127,11 +127,11 @@ export class ExtractorSelector {
 
     throw new Error(
       `${types.join(', ')} is ambiguous for ${this.input.source} — ` +
-        `${[...new Set(best.map(e => e.strategy))].join(', ')} all read it. Pick one with --via.`
+        `${[...new Set(best.map(e => e.strategy))].join(', ')} all read it. Pick one with --strategy.`
     );
   }
 
-  /** Ask for the way in, then (only if it holds several) for the record kinds. */
+  /** Ask for the strategy, then (only if it holds several) for the record kinds. */
   private async prompt(pool: ExtractorMetadata[]): Promise<any> {
     const strategies = this.strategies(pool);
 
@@ -139,7 +139,7 @@ export class ExtractorSelector {
     if (!this.input.interactive) {
       throw new Error(
         strategies.length > 1
-          ? `${this.input.source} needs a way in — pick one with --via. ${this.waysInSentence(strategies)}`
+          ? `${this.input.source} needs a strategy — pick one with --strategy. ${this.strategiesSentence(strategies)}`
           : `${this.input.source} needs a --type. Types: ${strategies[0].recordTypes.join(', ')}.`
       );
     }
@@ -178,7 +178,7 @@ export class ExtractorSelector {
     return chosen[Number(byType.value)].extractor;
   }
 
-  private waysInSentence(strategies: StrategyInfo[]): string {
-    return `Ways in: ${strategies.map(s => `${s.name} (${s.delivery})`).join(' · ')}.`;
+  private strategiesSentence(strategies: StrategyInfo[]): string {
+    return `Strategies: ${strategies.map(s => `${s.name} (${s.delivery})`).join(' · ')}.`;
   }
 }

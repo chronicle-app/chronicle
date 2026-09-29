@@ -57,7 +57,19 @@
     }
   },
   "chronicle": {
-    "plugin": true
-  },
-  "oclif": {}
+    "plugin": true,
+    "sources": {
+      "pinboard": {
+        "strategies": {
+          "api": {
+            "delivery": "api",
+            "recordTypes": [
+              "bookmarks"
+            ],
+            "default": true
+          }
+        }
+      }
+    }
+  }
 }

@@ -16,3 +16,6 @@ artifacts/
 CLAUDE.local.md
 .plans/
 .claude/settings.local.json
+
+# Copied from the root when the CLI is packed
+apps/cli/catalog.json

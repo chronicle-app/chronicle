@@ -4,13 +4,14 @@ import { ThemeProvider } from '@inkjs/ui';
 import { getTheme } from '../theme.js';
 import { CredentialsScreen, type CredentialInfo } from './CredentialsScreen.js';
 import { ConfigScreen } from './ConfigScreen.js';
-import { ExtractorsScreen, type ExtractorInfo } from './ExtractorsScreen.js';
+import { SourcesScreen } from './SourcesScreen.js';
+import type { SourceListing } from '../plugins/catalog.js';
 import { ExtractionProgressScreen } from './ExtractionProgressScreen.js';
 
 // Screen components
 export { CredentialsScreen, type CredentialInfo } from './CredentialsScreen.js';
 export { ConfigScreen } from './ConfigScreen.js';
-export { ExtractorsScreen, type ExtractorInfo } from './ExtractorsScreen.js';
+export { SourcesScreen } from './SourcesScreen.js';
 export { ExtractionProgressScreen } from './ExtractionProgressScreen.js';
 export { Table, type TableColumn, type TableRow } from '../components/Table.js';
 
@@ -32,12 +33,12 @@ export function renderConfigScreen(
   renderScreen(<ConfigScreen config={config} configPath={configPath} theme={theme} />, options);
 }
 
-export function renderExtractorsScreen(
-  extractors: ExtractorInfo[],
+export function renderSourcesScreen(
+  sources: SourceListing[],
   options: { theme?: string } = {}
 ): Promise<void> {
   const theme = getTheme(options.theme || 'default');
-  return renderScreen(<ExtractorsScreen extractors={extractors} theme={theme} />, options);
+  return renderScreen(<SourcesScreen sources={sources} theme={theme} />, options);
 }
 
 // Utility function to render any screen with theme. Resolves once the screen

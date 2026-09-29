@@ -57,7 +57,21 @@
     }
   },
   "chronicle": {
-    "plugin": true
-  },
-  "oclif": {}
+    "plugin": true,
+    "sources": {
+      "lastfm": {
+        "strategies": {
+          "api": {
+            "delivery": "api",
+            "recordTypes": [
+              "friends",
+              "loved-tracks",
+              "listens"
+            ],
+            "default": true
+          }
+        }
+      }
+    }
+  }
 }

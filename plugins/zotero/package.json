@@ -57,12 +57,21 @@
   },
   "chronicle": {
     "plugin": true,
-    "deepLinks": {
+    "sources": {
       "zotero": {
-        "*": "zotero://select/library/items/{sourceId}",
-        "DocumentObject": "zotero://open-pdf/library/items/{sourceId}"
+        "strategies": {
+          "app-db": {
+            "delivery": "local",
+            "recordTypes": [
+              "works",
+              "annotations",
+              "attachments",
+              "notes"
+            ],
+            "default": true
+          }
+        }
       }
     }
-  },
-  "oclif": {}
+  }
 }

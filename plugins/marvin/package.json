@@ -55,7 +55,20 @@
     }
   },
   "chronicle": {
-    "plugin": true
-  },
-  "oclif": {}
+    "plugin": true,
+    "sources": {
+      "marvin": {
+        "strategies": {
+          "csv": {
+            "delivery": "export",
+            "recordTypes": [
+              "annotations",
+              "reading-sessions"
+            ],
+            "default": true
+          }
+        }
+      }
+    }
+  }
 }

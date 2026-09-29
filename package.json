@@ -33,6 +33,7 @@
     "format:fix": "prettier --write .",
     "quality": "npm run versions:check && npm run schema:check && npm run build && npm run lint && npm run typecheck && npm run test && npm run format:check",
     "packages:check": "node scripts/check-packages.js",
+    "readme:sources": "node scripts/sources-table.js",
     "schema:generate": "npm run generate -w @chronicle.app/schema",
     "schema:check": "npm run generate:check -w @chronicle.app/schema",
     "schema:docs": "npm run dev -w @chronicle.app/schema-site",

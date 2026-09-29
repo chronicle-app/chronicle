@@ -53,7 +53,23 @@
     }
   },
   "chronicle": {
-    "plugin": true
-  },
-  "oclif": {}
+    "plugin": true,
+    "sources": {
+      "things-todo": {
+        "strategies": {
+          "app-db": {
+            "delivery": "local",
+            "recordTypes": [
+              "tasks",
+              "projects"
+            ],
+            "default": true
+          }
+        },
+        "platforms": [
+          "darwin"
+        ]
+      }
+    }
+  }
 }

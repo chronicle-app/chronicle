@@ -11,7 +11,7 @@ import { buildICloudPersonSchema, lookupContact, type Contact } from '@chronicle
 
 // The call UUID is issued by Apple's phone/call subsystem and shared with Timing's
 // relay (see the timing-app plugin), so both key on it here and fold.
-const SOURCE = 'apple-phone';
+const SOURCE = 'apple-call-history';
 
 /**
  * Modeled like a message (produced artifact → `result`, receiver → `recipient`):
@@ -118,11 +118,11 @@ export default class CallHistoryTransformer extends ChronicleTransformer {
 }
 
 /**
- * A call party as an `apple-phone` identity (Apple's calling namespace — which
+ * A call party as an `apple-call-history` identity (Apple's call history, which
  * covers FaceTime/VoIP that never touch the phone network), with `sameAs` edges to
  * the underlying handle (`phone` or `email`, kept nameless — a number has no
  * canonical name) and, when in Contacts, the `apple-contacts` entry (its stable
- * ZEXTERNALUUID carries the name). The `apple-phone` name is Apple's ZNAME, falling
+ * ZEXTERNALUUID carries the name). The party's name is Apple's ZNAME, falling
  * back to the contact's name.
  *
  * Identity keys on the stable identifier alone (`['source','handle']` /
@@ -146,7 +146,7 @@ function buildCallParty(
   const party: AgentAndChildren = {
     '@type': 'Agent',
     '@key': ['source', 'handle'],
-    source: 'apple-phone',
+    source: 'apple-call-history',
     handle: canonical,
   } as AgentAndChildren;
   const name = znameFallback ?? contact?.fullName;

@@ -57,7 +57,23 @@
     }
   },
   "chronicle": {
-    "plugin": true
-  },
-  "oclif": {}
+    "plugin": true,
+    "sources": {
+      "arena": {
+        "strategies": {
+          "api": {
+            "delivery": "api",
+            "recordTypes": [
+              "channels",
+              "connections",
+              "blocks",
+              "comments",
+              "follows"
+            ],
+            "default": true
+          }
+        }
+      }
+    }
+  }
 }

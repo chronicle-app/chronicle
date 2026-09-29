@@ -29,7 +29,7 @@ also pass a token directly with `--access-token`.
 chronicle extract foursquare
 
 # With a token and date/size filters
-chronicle extract foursquare --via api \
+chronicle extract foursquare --strategy api \
   --access-token YOUR_TOKEN \
   --since 2024-01-01 \
   --limit 1000

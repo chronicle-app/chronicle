@@ -21,7 +21,7 @@ export class MovesExtractor extends Extractor<typeof MovesExtractor> {
   static override description = 'Location storyline: places and moves';
 
   static override delivery = 'export' as const;
-  // The way in, in Moves' own vocabulary: the archive the moves-export.com
+  // The strategy, in Moves' own vocabulary: the archive the moves-export.com
   // service handed you, which is the only way this data ever left the app.
   static override strategy = 'moves-export';
   static override recordTypes = ['places', 'moves'];

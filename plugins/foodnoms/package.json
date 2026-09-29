@@ -57,7 +57,22 @@
     }
   },
   "chronicle": {
-    "plugin": true
-  },
-  "oclif": {}
+    "plugin": true,
+    "sources": {
+      "foodnoms": {
+        "strategies": {
+          "app-db": {
+            "delivery": "local",
+            "recordTypes": [
+              "meals"
+            ],
+            "default": true
+          }
+        },
+        "platforms": [
+          "darwin"
+        ]
+      }
+    }
+  }
 }
