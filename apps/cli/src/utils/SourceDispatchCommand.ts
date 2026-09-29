@@ -30,6 +30,13 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
   /** Handle a positional that isn't a discoverable source (file/stdin, or install-prompt). */
   protected abstract handleNonSource(positional: string | undefined): Promise<void>;
 
+  /**
+   * Whether a positional that isn't a source still has its flags parsed. A verb
+   * that only reports an unknown source turns this off, so a source's own flags
+   * (`extract old-name --limit 5`) don't fail before the real error.
+   */
+  protected readonly parsesFlagsForNonSource: boolean = true;
+
   static override args = {
     source: Args.string({ description: 'Source name (e.g. shell, imessage)', required: false }),
   };
@@ -107,7 +114,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     // (a file path / inline JSON for ingest, or an install-prompt for extract).
     if (candidates.length === 0) {
       this.nonSourceArg = positional;
-      await super.init();
+      if (this.parsesFlagsForNonSource) await super.init();
       return;
     }
 

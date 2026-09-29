@@ -22,6 +22,9 @@ export default class Extract extends SourceDispatchCommand<typeof Extract> {
 
   protected readonly defaultLoaderName = 'json' as const;
 
+  // An unknown source only gets "no source named …" or the install offer.
+  protected override readonly parsesFlagsForNonSource = false;
+
   protected async handleNonSource(positional: string | undefined): Promise<void> {
     if (positional) return this.installPrompt(positional);
     this.error('Specify a source, e.g. `chronicle extract shell`. See `chronicle sources`.');

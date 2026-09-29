@@ -83,6 +83,11 @@ test('bundled sources are discoverable from an unrelated cwd; JSON has no diagno
   assert.ok(legacy.length > 0);
   assert.match(success(run('sources', 'info', legacy[0].source)), /tier: +legacy/);
   assert.match(success(run('sources', '--all')), new RegExp(`${legacy[0].source} .*legacy`));
+  // An unknown source is reported as one, even with a source's own flags.
+  const unknown = run('extract', 'no-such-source', '--limit', '1');
+  assert.notEqual(unknown.status, 0);
+  assert.match(unknown.stderr, /No source named "no-such-source"/);
+
   const help = success(run('extract', 'shell', '--help'));
   assert.match(help, /history/);
   assert.doesNotMatch(success(run('--help')), /archive|sync|serve/);
@@ -412,7 +417,7 @@ test(
       missing.strategies.map(strategy => strategy.name),
       ['takeout']
     );
-    const result = run.with(env)('extract', 'google-reader');
+    const result = run.with(env)('extract', 'google-reader', '--limit', '1');
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /chronicle plugins install google-reader/);
     assert.match(
