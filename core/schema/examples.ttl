@@ -1180,14 +1180,14 @@ You called Alex from your iPhone. The :CallAction spans the call from
 :agent, and the :result is the :CallSession, which carries Alex as its
 :recipient. Both are keyed by Apple's ID for the call.
 
-Alex is keyed by the number in the `apple-phone` namespace and linked through
+Alex is keyed by the number in the `apple-call-history` namespace and linked through
 :sameAs to the same number in the `phone` namespace, which other sources can
 share, and to Alex's card in Contacts.
 """;
   rdf:value [
     a :CallAction;
     doc:key ("@type" "source" "sourceId");
-    :source "apple-phone";
+    :source "apple-call-history";
     :sourceId "4E7C2A91-3B5D-4F08-9A6E-1D2C3B4A5F60";
     :startTime "2026-05-09T17:02:00.000Z"^^xsd:dateTime;
     :endTime "2026-05-09T17:06:41.000Z"^^xsd:dateTime;
@@ -1202,12 +1202,12 @@ share, and to Alex's card in Contacts.
     :result [
       a :CallSession;
       doc:key ("@type" "source" "sourceId");
-      :source "apple-phone";
+      :source "apple-call-history";
       :sourceId "4E7C2A91-3B5D-4F08-9A6E-1D2C3B4A5F60";
       :recipient [
         a :Agent;
         doc:key ("source" "handle");
-        :source "apple-phone";
+        :source "apple-call-history";
         :handle "+15555550142";
         :name "Alex Chen";
         :sameAs [
@@ -1237,14 +1237,14 @@ edges list the other people on the call.
   rdf:value [
     a :CallAction;
     doc:key ("@type" "source" "sourceId");
-    :source "apple-phone";
+    :source "apple-call-history";
     :sourceId "B21F6D3E-8C4A-4E59-A7D0-6F1E2C3B4A59";
     :startTime "2026-05-10T19:30:00.000Z"^^xsd:dateTime;
     :endTime "2026-05-10T20:12:15.000Z"^^xsd:dateTime;
     :result [
       a :CallSession;
       doc:key ("@type" "source" "sourceId");
-      :source "apple-phone";
+      :source "apple-call-history";
       :sourceId "B21F6D3E-8C4A-4E59-A7D0-6F1E2C3B4A59";
       :recipient [
         a :Person;
@@ -1257,12 +1257,12 @@ edges list the other people on the call.
       :isPartOf [
         a :Channel;
         doc:key ("@type" "source" "sourceId");
-        :source "apple-phone";
+        :source "apple-call-history";
         :sourceId "9C8B7A6F5E4D3C2B1A0F9E8D7C6B5A49";
         :member [
           a :Agent;
           doc:key ("source" "handle");
-          :source "apple-phone";
+          :source "apple-call-history";
           :handle "+15555550142";
           :sameAs [
             a :Agent;
@@ -1273,7 +1273,7 @@ edges list the other people on the call.
         ], [
           a :Agent;
           doc:key ("source" "handle");
-          :source "apple-phone";
+          :source "apple-call-history";
           :handle "riley@example.com";
           :sameAs [
             a :Agent;
@@ -2122,7 +2122,7 @@ example:relayed-call
   rdfs:label "A call relayed through Timing";
   rdfs:comment """
 A :CallAction from the Apple call history that Timing keeps. It is keyed by
-Apple's call ID in the `apple-phone` source, so it folds with the same call
+Apple's call ID in the `apple-call-history` source, so it folds with the same call
 read from the phone. Timing records no direction, so there is no :agent. The
 :CallSession carries the other party as its :recipient, keyed by the phone
 number.
@@ -2130,19 +2130,19 @@ number.
   rdf:value [
     a :CallAction;
     doc:key ("@type" "source" "sourceId");
-    :source "apple-phone";
+    :source "apple-call-history";
     :sourceId "5B1E2C3D-4F50-4A61-8B72-9C83D4E5F607";
     :startTime "2026-03-14T12:02:30.000Z"^^xsd:dateTime;
     :endTime "2026-03-14T12:03:03.000Z"^^xsd:dateTime;
     :result [
       a :CallSession;
       doc:key ("@type" "source" "sourceId");
-      :source "apple-phone";
+      :source "apple-call-history";
       :sourceId "5B1E2C3D-4F50-4A61-8B72-9C83D4E5F607";
       :recipient [
         a :Agent;
         doc:key ("source" "handle");
-        :source "apple-phone";
+        :source "apple-call-history";
         :handle "+15555550123";
         :sameAs [
           a :Agent;

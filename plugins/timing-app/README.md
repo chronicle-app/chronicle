@@ -49,8 +49,8 @@ selectable on its own:
 - **Project ancestry** is nested via `isPartOf` on the session (leaf → parent →
   …), not emitted as standalone records.
 - **Call relay (`--type calls`).** Timing relays Apple Call History; this plugin
-  reads that DB. It emits `CallAction`/`CallSession` under `source: apple-phone`
-  - the shared call UUID, so it folds with the `call-history` plugin's richer
+  reads that DB. It emits `CallAction`/`CallSession` under `source: apple-call-history`
+  - the shared call UUID, so it folds with the Apple Call History plugin's richer
     Apple records — supplying the long tail Apple prunes. Direction is lost and
     named contacts carry no number, so these are thin (a name, no participant).
 

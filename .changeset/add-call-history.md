@@ -1,5 +1,5 @@
 ---
-'@chronicle.app/call-history': minor
+'@chronicle.app/apple-call-history': minor
 '@chronicle.app/schema': minor
 '@chronicle.app/cli': minor
 ---

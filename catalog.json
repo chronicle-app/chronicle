@@ -1,6 +1,12 @@
 {
   "plugins": [
     {
+      "name": "apple-call-history",
+      "package": "@chronicle.app/apple-call-history",
+      "tier": "official",
+      "summary": "Phone and FaceTime calls (Apple Call History)"
+    },
+    {
       "name": "arc-timeline",
       "package": "@chronicle.app/arc-timeline",
       "tier": "official",
@@ -17,12 +23,6 @@
       "package": "@chronicle.app/bluesky",
       "tier": "official",
       "summary": "Bluesky follows, followers, and likes"
-    },
-    {
-      "name": "call-history",
-      "package": "@chronicle.app/call-history",
-      "tier": "official",
-      "summary": "Phone and FaceTime calls (Apple Call History)"
     },
     {
       "name": "claude-code",

@@ -3,7 +3,7 @@
 '@chronicle.app/arc-timeline': patch
 '@chronicle.app/arena': patch
 '@chronicle.app/bluesky': patch
-'@chronicle.app/call-history': patch
+'@chronicle.app/apple-call-history': patch
 '@chronicle.app/claude-code': patch
 '@chronicle.app/email': patch
 '@chronicle.app/facebook': patch

@@ -43,34 +43,34 @@ other source by name, for example `chronicle plugins install lastfm`, or let
 
 <!-- Generated from catalog.json and plugin manifests: npm run readme:sources -->
 
-| Source                                                                | Package                                        | Strategies                      |
-| --------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------- |
-| Claude Code transcripts                                               | [claude-code](plugins/claude-code/README.md)   | transcripts (local)             |
-| iMessage/SMS, with iCloud and contact enrichment                      | [imessage](plugins/imessage/README.md)         | app-db (local)                  |
-| Safari browsing history                                               | [safari](plugins/safari/README.md)             | app-db (local)                  |
-| Shell history (bash, zsh, fish)                                       | [shell](plugins/shell/README.md)               | history (local)                 |
-| Things 3                                                              | [things-todo](plugins/things-todo/README.md)   | app-db (local)                  |
-| Arc Timeline visits and trips                                         | [arc-timeline](plugins/arc-timeline/README.md) | icloud-backup (local)           |
-| Are.na channels, blocks, comments, and follows                        | [arena](plugins/arena/README.md)               | api                             |
-| Bluesky follows, followers, and likes                                 | [bluesky](plugins/bluesky/README.md)           | api                             |
-| Phone and FaceTime calls (Apple Call History)                         | [call-history](plugins/call-history/README.md) | app-db (local)                  |
-| Email from mbox files                                                 | [email](plugins/email/README.md)               | mbox (export)                   |
-| Facebook export                                                       | [facebook](plugins/facebook/README.md)         | archive (export)                |
-| FoodNoms meal logs                                                    | [foodnoms](plugins/foodnoms/README.md)         | app-db (local)                  |
-| Foursquare/Swarm check-ins                                            | [foursquare](plugins/foursquare/README.md)     | api                             |
-| Goodreads shelves and reading history                                 | [goodreads](plugins/goodreads/README.md)       | csv (export)                    |
-| Instagram data export                                                 | [instagram](plugins/instagram/README.md)       | archive (export)                |
-| Last.fm listens, loved tracks, and friends                            | [lastfm](plugins/lastfm/README.md)             | api                             |
-| LinkedIn data export                                                  | [linkedin](plugins/linkedin/README.md)         | archive (export)                |
-| Obsidian notes and links                                              | [obsidian](plugins/obsidian/README.md)         | vault (local)                   |
-| Pinboard bookmarks                                                    | [pinboard](plugins/pinboard/README.md)         | api                             |
-| Slack messages from a slackdump export                                | [slack](plugins/slack/README.md)               | archive (export)                |
-| Spotify listens, saved tracks and albums, playlists                   | [spotify](plugins/spotify/README.md)           | api                             |
-| Timing app usage, time entries, and calls                             | [timing-app](plugins/timing-app/README.md)     | app-db (local)                  |
-| Twitter/X archive tweets, likes, and DMs                              | [twitter](plugins/twitter/README.md)           | archive (export)                |
-| WhatsApp messages                                                     | [whatsapp](plugins/whatsapp/README.md)         | app-db (local), backup (export) |
-| YouTube likes, subscriptions, playlists, uploads, and Takeout history | [youtube](plugins/youtube/README.md)           | api, takeout (export)           |
-| Zotero works, highlights, notes, and reading                          | [zotero](plugins/zotero/README.md)             | app-db (local)                  |
+| Source                                                                | Package                                                    | Strategies                      |
+| --------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------- |
+| Claude Code transcripts                                               | [claude-code](plugins/claude-code/README.md)               | transcripts (local)             |
+| iMessage/SMS, with iCloud and contact enrichment                      | [imessage](plugins/imessage/README.md)                     | app-db (local)                  |
+| Safari browsing history                                               | [safari](plugins/safari/README.md)                         | app-db (local)                  |
+| Shell history (bash, zsh, fish)                                       | [shell](plugins/shell/README.md)                           | history (local)                 |
+| Things 3                                                              | [things-todo](plugins/things-todo/README.md)               | app-db (local)                  |
+| Phone and FaceTime calls (Apple Call History)                         | [apple-call-history](plugins/apple-call-history/README.md) | app-db (local)                  |
+| Arc Timeline visits and trips                                         | [arc-timeline](plugins/arc-timeline/README.md)             | icloud-backup (local)           |
+| Are.na channels, blocks, comments, and follows                        | [arena](plugins/arena/README.md)                           | api                             |
+| Bluesky follows, followers, and likes                                 | [bluesky](plugins/bluesky/README.md)                       | api                             |
+| Email from mbox files                                                 | [email](plugins/email/README.md)                           | mbox (export)                   |
+| Facebook export                                                       | [facebook](plugins/facebook/README.md)                     | archive (export)                |
+| FoodNoms meal logs                                                    | [foodnoms](plugins/foodnoms/README.md)                     | app-db (local)                  |
+| Foursquare/Swarm check-ins                                            | [foursquare](plugins/foursquare/README.md)                 | api                             |
+| Goodreads shelves and reading history                                 | [goodreads](plugins/goodreads/README.md)                   | csv (export)                    |
+| Instagram data export                                                 | [instagram](plugins/instagram/README.md)                   | archive (export)                |
+| Last.fm listens, loved tracks, and friends                            | [lastfm](plugins/lastfm/README.md)                         | api                             |
+| LinkedIn data export                                                  | [linkedin](plugins/linkedin/README.md)                     | archive (export)                |
+| Obsidian notes and links                                              | [obsidian](plugins/obsidian/README.md)                     | vault (local)                   |
+| Pinboard bookmarks                                                    | [pinboard](plugins/pinboard/README.md)                     | api                             |
+| Slack messages from a slackdump export                                | [slack](plugins/slack/README.md)                           | archive (export)                |
+| Spotify listens, saved tracks and albums, playlists                   | [spotify](plugins/spotify/README.md)                       | api                             |
+| Timing app usage, time entries, and calls                             | [timing-app](plugins/timing-app/README.md)                 | app-db (local)                  |
+| Twitter/X archive tweets, likes, and DMs                              | [twitter](plugins/twitter/README.md)                       | archive (export)                |
+| WhatsApp messages                                                     | [whatsapp](plugins/whatsapp/README.md)                     | app-db (local), backup (export) |
+| YouTube likes, subscriptions, playlists, uploads, and Takeout history | [youtube](plugins/youtube/README.md)                       | api, takeout (export)           |
+| Zotero works, highlights, notes, and reading                          | [zotero](plugins/zotero/README.md)                         | app-db (local)                  |
 
 For services that no longer exist, shown by `chronicle sources --all`:
 

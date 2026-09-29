@@ -109,14 +109,14 @@ const execute = (id, start, end, result, object, instrument = mac) => ({
 const call = (id, start, end, result) => ({
   '@type': 'CallAction',
   '@key': ['@type', 'source', 'sourceId'],
-  source: 'apple-phone',
+  source: 'apple-call-history',
   sourceId: id,
   startTime: iso(start),
   endTime: iso(end),
   result: {
     '@type': 'CallSession',
     '@key': ['@type', 'source', 'sourceId'],
-    source: 'apple-phone',
+    source: 'apple-call-history',
     sourceId: id,
     ...result,
   },
@@ -232,13 +232,13 @@ test('the default run merges app usage, time entries, and calls, newest first', 
     '@assertedAt': iso(200),
   });
 
-  // A raw handle becomes an apple-phone party, named from the contact card.
+  // A raw handle becomes an apple-call-history party, named from the contact card.
   assert.deepEqual(
     get('CALL-0001'),
     call('CALL-0001', 150, 183, {
       recipient: [
         {
-          ...handleAgent('apple-phone', '+14165550123'),
+          ...handleAgent('apple-call-history', '+14165550123'),
           name: 'Alex Chen',
           sameAs: [handleAgent('phone', '+14165550123'), contact('contact-alex', 'Alex Chen')],
         },

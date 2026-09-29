@@ -1,6 +1,6 @@
 ---
 '@chronicle.app/etl-sqlite': patch
-'@chronicle.app/call-history': patch
+'@chronicle.app/apple-call-history': patch
 '@chronicle.app/safari': patch
 '@chronicle.app/timing-app': patch
 '@chronicle.app/whatsapp': patch

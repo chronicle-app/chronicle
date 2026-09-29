@@ -1,5 +1,5 @@
 {
-  "name": "@chronicle.app/call-history",
+  "name": "@chronicle.app/apple-call-history",
   "version": "0.2.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -15,7 +15,7 @@
   },
   "keywords": [
     "chronicle",
-    "call-history",
+    "apple-call-history",
     "phone",
     "facetime"
   ],
@@ -34,7 +34,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/chronicle-app/chronicle.git",
-    "directory": "plugins/call-history"
+    "directory": "plugins/apple-call-history"
   },
   "publishConfig": {
     "access": "public",
@@ -61,7 +61,7 @@
   "chronicle": {
     "plugin": true,
     "sources": {
-      "call-history": {
+      "apple-call-history": {
         "strategies": {
           "app-db": {
             "delivery": "local",

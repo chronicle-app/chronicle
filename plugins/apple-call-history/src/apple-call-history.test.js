@@ -17,7 +17,7 @@ const account = {
 };
 
 function tempDir(t) {
-  const dir = mkdtempSync(join(tmpdir(), 'call-history-fixture-'));
+  const dir = mkdtempSync(join(tmpdir(), 'apple-call-history-fixture-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   return dir;
 }
@@ -69,7 +69,7 @@ const alexContact = {
 const party = (source, handle, extra = {}) => ({
   '@type': 'Agent',
   '@key': partyKey,
-  source: 'apple-phone',
+  source: 'apple-call-history',
   handle,
   ...(extra.name && { name: extra.name }),
   sameAs: [{ '@type': 'Agent', '@key': partyKey, source, handle }, ...(extra.sameAs ?? [])],
@@ -77,7 +77,7 @@ const party = (source, handle, extra = {}) => ({
 const call = (sourceId, start, end, fields) => ({
   '@type': 'CallAction',
   '@key': key,
-  source: 'apple-phone',
+  source: 'apple-call-history',
   sourceId,
   startTime: start,
   endTime: end,
@@ -87,7 +87,7 @@ const call = (sourceId, start, end, fields) => ({
 const session = (sourceId, fields) => ({
   '@type': 'CallSession',
   '@key': key,
-  source: 'apple-phone',
+  source: 'apple-call-history',
   sourceId,
   ...fields,
 });
@@ -151,7 +151,7 @@ test('calls become schema-valid CallActions, newest first', async t => {
           {
             '@type': 'Channel',
             '@key': key,
-            source: 'apple-phone',
+            source: 'apple-call-history',
             sourceId: 'ABCDEF01',
             member: [
               party('phone', '+14165551234', { name: 'Alex Contact', sameAs: [alexContact] }),

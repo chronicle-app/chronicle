@@ -1,4 +1,4 @@
-# @chronicle.app/call-history
+# @chronicle.app/apple-call-history
 
 Chronicle plugin that extracts phone & FaceTime calls from **Apple Call History**
 and folds them into the existing comms identity graph (iMessage/WhatsApp via
@@ -9,10 +9,10 @@ and folds them into the existing comms identity graph (iMessage/WhatsApp via
 `~/Library/Application Support/CallHistoryDB/CallHistory.storedata` (read-only) —
 the rich, per-record source (direction, number, duration, participants).
 
-Calls emit `source: apple-phone`, `sourceId = <call UUID>` (`ZUNIQUE_ID`). Apple's
+Calls emit `source: apple-call-history`, `sourceId = <call UUID>` (`ZUNIQUE_ID`). Apple's
 store has a rolling retention (~recent calls); the **longer history that Apple
 prunes is relayed through Timing.app and lives in the `timing-app` plugin**
-(`-t calls`), which emits the same `apple-phone` + UUID identity so the two
+(`-t calls`), which emits the same `apple-call-history` + UUID identity so the two
 fold into one call.
 
 The service (phone / FaceTime / VoIP) is not modeled yet (it needs
@@ -38,8 +38,8 @@ CallAction   agent = initiator (when known)   object = CallSession   startTime/e
 ## Usage
 
 ```bash
-chronicle extract call-history                          # Apple Call History (rich; type: calls)
-chronicle extract call-history --input /path/to/CallHistory.storedata --since 2025-01-01
+chronicle extract apple-call-history                          # Apple Call History (rich; type: calls)
+chronicle extract apple-call-history --input /path/to/CallHistory.storedata --since 2025-01-01
 ```
 
 ## Tests

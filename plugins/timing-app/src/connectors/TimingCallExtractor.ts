@@ -9,7 +9,7 @@ const DEFAULT_DB = `${process.env.HOME}/Library/Application Support/info.eurocom
  * Timing.app's relay of Apple Call History — the historical supplement for the
  * long tail Apple has pruned. Grouped under the `timing-app` source (it reads
  * Timing's DB → `chronicle extract timing-app --type calls`), but its
- * *records* emit `source: apple-phone` keyed on the shared call UUID
+ * *records* emit `source: apple-call-history` keyed on the shared call UUID
  * (`Event.origin_id`), so they fold with the Apple Call History plugin's
  * calls. Direction is lost here, and named contacts carry no number (only the
  * name).
