@@ -1,6 +1,6 @@
 {
   "name": "@chronicle.app/youtube",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
@@ -22,9 +22,9 @@
   "type": "module",
   "description": "Chronicle plugin for extracting data from YouTube",
   "devDependencies": {
-    "@chronicle.app/etl": "0.2.0",
-    "@chronicle.app/schema": "0.2.0",
-    "@chronicle.app/tsconfig": "0.2.0",
+    "@chronicle.app/etl": "0.3.0",
+    "@chronicle.app/schema": "0.3.0",
+    "@chronicle.app/tsconfig": "0.3.0",
     "@types/node": "^22.10.1",
     "typescript": "^5.7.2"
   },
@@ -39,7 +39,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "dependencies": {
-    "@chronicle.app/auth": "0.2.0",
+    "@chronicle.app/auth": "0.3.0",
     "axios": "^1.7.9",
     "csv-parse": "^5.6.0",
     "zod": "^3.24.1"

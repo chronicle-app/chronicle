@@ -1,6 +1,6 @@
 {
   "name": "@chronicle.app/logging",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
@@ -43,7 +43,7 @@
     }
   },
   "devDependencies": {
-    "@chronicle.app/tsconfig": "0.2.0",
+    "@chronicle.app/tsconfig": "0.3.0",
     "@types/node": "^22.10.1",
     "typescript": "^5.7.2"
   }
