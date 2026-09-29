@@ -39,7 +39,8 @@ function fixture(t) {
     CREATE TABLE mealTypeRecord (mealTypeID TEXT PRIMARY KEY, name TEXT, timeRangeStart TEXT,
       timeRangeEnd TEXT, sortIndex INTEGER);
     INSERT INTO mealTypeRecord VALUES ('6', 'Second breakfast', '10:00', '11:00', 5),
-      ('7', '  ', NULL, NULL, 6);
+      ('7', '  ', NULL, NULL, 6),
+      ('2', NULL, NULL, NULL, -9223372036854775806);
   `);
   const insert = db.prepare(`
     INSERT INTO foodEntryRecord (id, entryID, date, dateCreated, dateLastUpdated, tzID, quantity,
@@ -141,6 +142,8 @@ test('food entries become schema-valid EatActions and DrankActions, newest first
     timeRangeEnd: '11:00',
     sortIndex: 5,
   });
+  // A built-in slot's sortIndex near Int64.min is past Number's safe range.
+  assert.equal(soup.context.mealType.sortIndex, '-9223372036854775806');
 
   const transformer = new FoodNomsTransformer();
   // The timestamp is the extractor's date string, passed through as is.
