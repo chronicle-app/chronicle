@@ -186,7 +186,9 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
       candidates,
       strategy: parsed.strategy,
       types: requestedRecordTypes(parsed.type),
-      input: parsed.input,
+      // Only a path you gave picks a strategy: an extractor's default input
+      // (WhatsApp's Mac database) is not an export you handed it.
+      input: metadata?.flags?.input?.setFromDefault ? undefined : parsed.input,
       hasCredentials: await this.hasStoredCredentials(positional),
       // Interactive selection needs a TTY (Ink raw mode). In a pipe the
       // selector throws with the strategies instead of crashing on raw mode.

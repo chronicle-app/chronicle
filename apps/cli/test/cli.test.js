@@ -229,6 +229,41 @@ export class Fixture extends Extractor {
   );
 });
 
+test('a default input picks no strategy; an --input you give picks the export', t => {
+  const { dir, run } = fixture(t);
+  // Shaped like WhatsApp: a local default that knows its database's path, and
+  // an export strategy that requires a file you hand it. (Export names sort
+  // alphabetically, and the later class's --input wins, as WhatsApp's does.)
+  mkdirSync(join(dir, 'two-strategies'));
+  writeFileSync(
+    join(dir, 'two-strategies/package.json'),
+    JSON.stringify({ name: 'two-strategies', type: 'module', exports: './index.js' })
+  );
+  writeFileSync(
+    join(dir, 'two-strategies/index.js'),
+    `import { Extractor, z } from '@chronicle.app/etl';
+export class LocalDb extends Extractor {
+  static source = 'two'; static strategy = 'app-db'; static delivery = 'local';
+  static recordTypes = ['rows']; static default = true;
+  static schema = Extractor.schema.extend({ input: z.string().default('/nowhere/app.db') });
+  async *extract() { yield this.createRecord({ from: 'app-db' }); }
+}
+export class Backup extends Extractor {
+  static source = 'two'; static strategy = 'dump'; static delivery = 'export';
+  static recordTypes = ['rows'];
+  static schema = Extractor.schema.extend({ input: z.string() });
+  async *extract() { yield this.createRecord({ from: 'dump' }); }
+}`
+  );
+  success(run('plugins', 'add', './two-strategies'));
+  assert.equal(JSON.parse(success(run('extract', 'two', '--raw'))).from, 'app-db');
+  assert.equal(JSON.parse(success(run('extract', 'two', '--raw', '--input', 'x'))).from, 'dump');
+  assert.equal(
+    JSON.parse(success(run('extract', 'two', '--raw', '--strategy', 'dump', '--input', 'x'))).from,
+    'dump'
+  );
+});
+
 test('plugins add runs a file in place, taking over its source until removed', t => {
   const { dir, input, run } = fixture(t);
   writeFileSync(
