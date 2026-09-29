@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { existsSync, promises as fs } from 'node:fs';
+import { existsSync, promises as fs, realpathSync } from 'node:fs';
 import { findEntry, loadCatalog, type CatalogEntry } from './catalog.js';
 import { pluginDataDir } from './PluginScanner.js';
 
@@ -41,6 +41,10 @@ async function installedIn(dataDir: string): Promise<Record<string, string>> {
   }
 }
 
+function realpathOrSelf(file: string): string {
+  return existsSync(file) ? realpathSync(file) : file;
+}
+
 /**
  * Run the user's npm against the data directory. Its output goes to stderr,
  * so `extract` can install and still keep stdout for records.
@@ -78,10 +82,19 @@ export async function installPlugin(target: InstallTarget): Promise<string> {
   const before = await installedIn(dataDir);
   npm(dataDir, ['install', target.spec]);
   const after = await installedIn(dataDir);
+  const realSpec = existsSync(target.spec) ? realpathSync(target.spec) : undefined;
   const name =
     target.entry?.package ??
     Object.keys(after).find(dep => before[dep] !== after[dep]) ??
-    Object.keys(after).find(dep => target.spec === dep || target.spec.startsWith(`${dep}@`));
+    // A reinstall leaves the dependency unchanged: match it by spec instead.
+    Object.keys(after).find(
+      dep =>
+        target.spec === dep ||
+        target.spec.startsWith(`${dep}@`) ||
+        (realSpec !== undefined &&
+          after[dep].startsWith('file:') &&
+          realpathOrSelf(path.resolve(dataDir, after[dep].slice('file:'.length))) === realSpec)
+    );
   if (!name) throw new Error(`npm installed ${target.spec}, but its package name is unclear.`);
 
   const pkg = JSON.parse(

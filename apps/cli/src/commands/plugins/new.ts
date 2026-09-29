@@ -44,8 +44,13 @@ export default class PluginsNew extends BaseCommand<typeof PluginsNew> {
       );
     }
     const dir = path.resolve(flags.dir ?? name);
-    if (existsSync(dir) && (await fs.readdir(dir)).length > 0) {
-      this.error(`${dir} already exists and isn't empty.`);
+    if (existsSync(dir)) {
+      if (!(await fs.stat(dir)).isDirectory()) {
+        this.error(`${dir} already exists and isn't a folder.`);
+      }
+      if ((await fs.readdir(dir)).length > 0) {
+        this.error(`${dir} already exists and isn't empty.`);
+      }
     }
 
     const interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY);

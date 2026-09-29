@@ -32,6 +32,22 @@ export async function addLocalPlugin(
 
   const configManager = new ConfigManager(configDir);
   const config = await configManager.loadConfig();
+  // Plugins are keyed by name, so a second one of the same name would never load.
+  for (const other of config.plugins ?? []) {
+    if (other === absolute) continue;
+    let otherName;
+    try {
+      otherName = (await localPlugin(other)).name;
+    } catch {
+      continue;
+    }
+    if (otherName === plugin.name) {
+      throw new Error(
+        `Another local plugin is already named ${plugin.name}: ${other}. Rename one, or ` +
+          `remove that one with "chronicle plugins remove ${other}".`
+      );
+    }
+  }
   config.plugins = [...new Set([...(config.plugins ?? []), absolute])];
   await configManager.saveConfig(config);
   return { name: plugin.name, path: absolute, extractors };

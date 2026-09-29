@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { promises as fs } from 'node:fs';
+import { existsSync, promises as fs } from 'node:fs';
 import { register } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Config } from '@oclif/core';
@@ -118,6 +118,15 @@ export async function localPluginPaths(): Promise<string[]> {
   return config.plugins ?? [];
 }
 
+/** Take paths off the local list, as `chronicle plugins remove` would. */
+async function forgetLocalPlugins(paths: string[]): Promise<void> {
+  const { ConfigManager } = await import('../config/ConfigManager.js');
+  const configManager = new ConfigManager((await Config.load(cliRoot)).configDir);
+  const config = await configManager.loadConfig();
+  config.plugins = (config.plugins ?? []).filter(p => !paths.includes(p));
+  await configManager.saveConfig(config);
+}
+
 /** The data directory `chronicle plugins install` installs into. */
 export async function pluginDataDir(): Promise<string> {
   return (await Config.load(cliRoot)).dataDir;
@@ -225,14 +234,25 @@ export class PluginScanner {
       };
 
       const local = [];
+      const gone: string[] = [];
       for (const pluginPath of await localPluginPaths()) {
+        // A deleted plugin comes off the list; anything else wrong stays, with a warning.
+        if (!existsSync(pluginPath)) {
+          gone.push(pluginPath);
+          continue;
+        }
         try {
           local.push(await localPlugin(pluginPath));
-        } catch {
+        } catch (error) {
           console.warn(
-            `Skipping local plugin ${pluginPath}: it's gone. Remove it with ` +
-              `"chronicle plugins remove ${pluginPath}".`
+            `Skipping local plugin ${pluginPath}: ${error instanceof Error ? error.message : error}`
           );
+        }
+      }
+      if (gone.length > 0) {
+        await forgetLocalPlugins(gone);
+        for (const pluginPath of gone) {
+          console.warn(`Removed ${pluginPath} from your local plugins: it no longer exists.`);
         }
       }
       add(local, 'local');
@@ -340,30 +360,36 @@ export class PluginScanner {
     const plugins = await this.findChroniclePlugins();
     const extractorsBySource = new Map<string, ExtractorMetadata[]>();
 
-    const localSources = new Map<string, FoundPlugin>();
+    const localSources = new Map<string, FoundPlugin[]>();
     for (const plugin of plugins) {
       const extractors = await this.scanPluginExtractors(plugin);
 
       for (const extractor of extractors) {
-        if (plugin.origin === 'local') localSources.set(extractor.source, plugin);
+        if (plugin.origin === 'local') {
+          const providers = localSources.get(extractor.source) ?? [];
+          if (!providers.includes(plugin)) providers.push(plugin);
+          localSources.set(extractor.source, providers);
+        }
         const existing = extractorsBySource.get(extractor.source) || [];
         existing.push(extractor);
         extractorsBySource.set(extractor.source, existing);
       }
     }
 
-    // A local plugin takes over each source it provides, so it can stand in
-    // for an official plugin while you work on it.
+    // Local plugins take over each source they provide, so one can stand in
+    // for an official plugin while you work on it. Several local plugins for
+    // one source all stay; a shared strategy between them fails below.
     if (localSources.size > 0) {
       const { loadCatalog } = await import('./catalog.js');
       const catalogSources = new Set(
         (await loadCatalog()).flatMap(entry => Object.keys(entry.sources ?? {}))
       );
-      for (const [source, plugin] of localSources) {
+      for (const [source, providers] of localSources) {
         const extractors = extractorsBySource.get(source)!;
-        const own = extractors.filter(e => e.packageName === plugin.name);
+        const where = new Map(providers.map(p => [p.name, p.file ?? p.path]));
+        const own = extractors.filter(e => where.has(e.packageName));
         if (own.length < extractors.length || catalogSources.has(source)) {
-          for (const e of own) e.localOverride = plugin.file ?? plugin.path;
+          for (const e of own) e.localOverride = where.get(e.packageName);
         }
         extractorsBySource.set(source, own);
       }

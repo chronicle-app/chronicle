@@ -15,8 +15,10 @@ if (index !== -1 && current[index] < required[index]) {
 // TypeScript plugin may run, relaunch once with it.
 if (!process.features.typescript && !process.env.CHRONICLE_TYPESCRIPT_RELAUNCH) {
   const args = process.argv.slice(2);
+  // `plugins add` may load a folder whose package.json points at a .ts entry.
   let mayRunTypeScript =
-    args.some(arg => /\.[cm]?ts$/.test(arg)) || (args[0] === 'plugins' && args[1] === 'new');
+    args.some(arg => /\.[cm]?ts$/.test(arg)) ||
+    (args[0] === 'plugins' && (args[1] === 'new' || args[1] === 'add'));
   if (!mayRunTypeScript) {
     // Plugins added with `chronicle plugins add` may be TypeScript.
     const { chronicleConfigDir } = await import('@chronicle.app/auth');

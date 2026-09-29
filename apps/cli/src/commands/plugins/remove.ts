@@ -30,7 +30,8 @@ export default class PluginsRemove extends BaseCommand<typeof PluginsRemove> {
       try {
         return (await localPlugin(pluginPath)).name === args.plugin;
       } catch {
-        return false;
+        // Gone or unreadable: match on its folder or file name instead.
+        return path.basename(pluginPath).replace(/\.[cm]?[jt]s$/, '') === args.plugin;
       }
     };
     const kept: string[] = [];
