@@ -29,11 +29,11 @@ Every line on stderr is the rendering of an `OutputEvent` from
 `error`, `diagnostic`), a `level`, a `scope`, the `run` it belongs to, a plain
 `message`, and `fields` that hold the facts. `--log-format` picks the sink:
 
-| sink     | time                  | progress                    | personal fields |
-| -------- | --------------------- | --------------------------- | --------------- |
-| `pretty` | hidden (elapsed only) | live line, redrawn in place | shown           |
-| `plain`  | `HH:MM:SS` prefix     | not shown                   | shown           |
-| `json`   | ISO                   | heartbeat every 10 seconds  | redacted        |
+| sink     | time                                                      | progress                    | personal fields |
+| -------- | --------------------------------------------------------- | --------------------------- | --------------- |
+| `pretty` | right-aligned, muted, on notices and errors when they fit | live line, redrawn in place | shown           |
+| `plain`  | `HH:MM:SS` prefix                                         | not shown                   | shown           |
+| `json`   | ISO                                                       | heartbeat every 10 seconds  | redacted        |
 
 `pretty` is the default on a terminal, `plain` otherwise. Sinks filter by
 level (`--verbose` shows debug, `--quiet` only errors), aggregate events that

@@ -28,11 +28,21 @@ const isSummary = (fields: unknown): fields is SummaryFields =>
   typeof (fields as SummaryFields).title === 'string' &&
   typeof (fields as SummaryFields).counts === 'object';
 
+/** Space between a line and the time at its right edge. */
+const TIME_GAP = 2;
+
 /**
  * An event as lines for a person, each at most `width` wide: the pretty and
- * plain sinks' shared look. Progress is left to the live view.
+ * plain sinks' shared look. Progress is left to the live view. With `time`,
+ * notices, errors, and diagnostics end with the time of day, right-aligned
+ * and muted, when the width is known and the line has room for it.
  */
-export function render(event: OutputEvent, t: Tokens, width: number): string | undefined {
+export function render(
+  event: OutputEvent,
+  t: Tokens,
+  width: number,
+  { time = false }: { time?: boolean } = {}
+): string | undefined {
   switch (event.kind) {
     case 'progress':
       return undefined;
@@ -61,18 +71,22 @@ export function render(event: OutputEvent, t: Tokens, width: number): string | u
   // An aggregate's count is already in its message.
   const { suppressed: _, ...shown } = event.fields ?? {};
   const fields = formatFields(event.key ? shown : event.fields);
+  const segments: Segment[] = [
+    [glyph, glyphStyle],
+    [' '],
+    [HOST.has(event.scope) || !event.scope ? '' : `${event.scope}  `, t.muted],
+    [first, textStyle],
+    [fields ? `  ${fields}` : '', t.muted],
+    [event.hint ? `  ${glyphs.bullet} ${event.hint.action}` : '', t.muted],
+  ];
+  const length = segments.reduce((sum, [text]) => sum + text.length, 0);
+  const stamp = timeOfDay(event.time);
+  // The message comes first: the time is dropped, never the text cut for it.
+  const stamped = time && Number.isFinite(width) && length + TIME_GAP + stamp.length <= width;
   const lines = [
-    line(
-      [
-        [glyph, glyphStyle],
-        [' '],
-        [HOST.has(event.scope) || !event.scope ? '' : `${event.scope}  `, t.muted],
-        [first, textStyle],
-        [fields ? `  ${fields}` : '', t.muted],
-        [event.hint ? `  ${glyphs.bullet} ${event.hint.action}` : '', t.muted],
-      ] as Segment[],
-      width
-    ),
+    stamped
+      ? line(segments, width) + ' '.repeat(width - length - stamp.length) + t.muted(stamp)
+      : line(segments, width),
     ...rest.map(text => line([[`  ${text}`, textStyle]], width)),
   ];
   return lines.join('\n');
@@ -93,8 +107,9 @@ const terminalWidth = () =>
   process.stderr.isTTY ? (process.stderr.columns || 80) - 1 : Number.POSITIVE_INFINITY;
 
 /**
- * For a person at a terminal: color, no timestamps, and a live progress
- * line redrawn in place while a run goes.
+ * For a person at a terminal: color, the time of day at the right edge of
+ * notices and errors, and a live progress line redrawn in place while a run
+ * goes.
  */
 export class PrettySink extends TextSink {
   private readonly view?: LiveView;
@@ -104,7 +119,7 @@ export class PrettySink extends TextSink {
     super({
       level: options.level,
       write: options.write,
-      format: event => render(event, t, options.width ?? terminalWidth()),
+      format: event => render(event, t, options.width ?? terminalWidth(), { time: true }),
     });
     if (options.live) this.view = new LiveView(t);
   }

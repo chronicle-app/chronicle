@@ -25,6 +25,15 @@ test('the gallery renders every block and event within its width, in every sink 
       for (const line of lines) assert.doesNotMatch(line, ANSI, `${title} has color`);
       assert.match(lines[0], /^\d{2}:\d{2}:\d{2} /);
     }
+    if (format === 'pretty') {
+      // The time sits at the right edge of notices when there's room, and gives way when not.
+      const warning = lines
+        .map(line => line.replaceAll(ANSI, ''))
+        .find(line => line.startsWith('! '));
+      if (width === 120) assert.ok(warning.endsWith(' 09:30:05') && warning.length === width);
+      if (width === 40) assert.doesNotMatch(warning, /09:30:05/);
+      assert.ok(lines.every(line => !/✓.*09:30:05/.test(line.replaceAll(ANSI, ''))));
+    }
     for (const line of lines) {
       const visible = line.replaceAll(ANSI, '');
       assert.ok(visible.length <= width, `${title}: ${visible.length} > ${width}: ${visible}`);
