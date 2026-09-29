@@ -114,7 +114,13 @@ export class FoodNomsExtractor extends SqliteExtractor<typeof FoodNomsExtractor>
         m.name as mealTypeName,
         m.timeRangeStart as mealTimeRangeStart,
         m.timeRangeEnd as mealTimeRangeEnd,
-        m.sortIndex as mealSortIndex
+        -- FoodNoms can store sortIndex near Int64.min (e.g. -9223372036854775805),
+        -- which node:sqlite refuses to read as a number, so out-of-range values
+        -- come through as text.
+        CASE
+          WHEN m.sortIndex BETWEEN -9007199254740991 AND 9007199254740991 THEN m.sortIndex
+          ELSE CAST(m.sortIndex AS TEXT)
+        END as mealSortIndex
       FROM foodEntryRecord f
       LEFT JOIN mealTypeRecord m ON f.mealTypeID = m.mealTypeID
       WHERE ${conditions.join(' AND ')}
