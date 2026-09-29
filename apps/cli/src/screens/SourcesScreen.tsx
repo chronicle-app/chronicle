@@ -16,13 +16,20 @@ export function statusOf(row: SourceListing): string {
   return row.tier === 'legacy' ? `legacy, ${status}` : status;
 }
 
+/**
+ * The plugin is named only where it matters: the one to install when its name
+ * isn't the source's, which of your local plugins is running, or which package
+ * outside the catalog provides it.
+ */
 function availabilityOf(row: SourceListing): string {
-  if (!row.installed) return 'not installed';
+  if (!row.installed) {
+    return row.plugin === row.source ? 'not installed' : `not installed · install ${row.plugin}`;
+  }
   if (!row.supported) {
     return `${row.platforms.map(p => PLATFORM_NAMES[p] ?? p).join(', ')} only`;
   }
-  if (row.origin === 'local') return 'local';
-  if (!row.tier) return 'not in catalog';
+  if (row.origin === 'local') return `local · ${row.plugin}`;
+  if (!row.tier) return `not in catalog · ${row.package}`;
   return 'installed';
 }
 

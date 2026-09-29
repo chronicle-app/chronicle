@@ -61,7 +61,7 @@
   "chronicle": {
     "plugin": true,
     "sources": {
-      "apple-phone": {
+      "call-history": {
         "strategies": {
           "app-db": {
             "delivery": "local",

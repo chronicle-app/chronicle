@@ -38,8 +38,8 @@ CallAction   agent = initiator (when known)   object = CallSession   startTime/e
 ## Usage
 
 ```bash
-chronicle extract apple-phone                          # Apple Call History (rich; type: calls)
-chronicle extract apple-phone --input /path/to/CallHistory.storedata --since 2025-01-01
+chronicle extract call-history                          # Apple Call History (rich; type: calls)
+chronicle extract call-history --input /path/to/CallHistory.storedata --since 2025-01-01
 ```
 
 ## Tests

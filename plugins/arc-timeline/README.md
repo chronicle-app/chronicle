@@ -25,13 +25,13 @@ extractor resolves the right subdirectory.
 ### Basic extraction
 
 ```bash
-chronicle extract arc --input /path/to/Exports
+chronicle extract arc-timeline --input /path/to/Exports
 ```
 
 ### With date filtering
 
 ```bash
-chronicle extract arc \
+chronicle extract arc-timeline \
   --input /path/to/Exports \
   --since 2024-01-01 \
   --until 2024-12-31 \

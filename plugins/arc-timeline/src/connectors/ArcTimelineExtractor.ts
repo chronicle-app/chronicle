@@ -37,7 +37,8 @@ function coveringDayKeys(startDate: string, endDate: string): string[] {
 }
 
 export class ArcTimelineExtractor extends Extractor<typeof ArcTimelineExtractor> {
-  static override source = 'arc';
+  // The CLI name matches the plugin's; records keep the `arc` namespace.
+  static override source = 'arc-timeline';
   static override description = 'Location timeline: visits and trips';
 
   static override delivery = 'local' as const;

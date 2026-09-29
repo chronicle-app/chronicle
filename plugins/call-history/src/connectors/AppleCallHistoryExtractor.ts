@@ -17,7 +17,9 @@ const DEFAULT_DB = `${process.env.HOME}/Library/Application Support/CallHistoryD
  * join table. Records key on the call UUID so they fold with the Timing relay.
  */
 export class AppleCallHistoryExtractor extends SqliteExtractor<typeof AppleCallHistoryExtractor> {
-  static override source = 'apple-phone';
+  // The CLI name matches the plugin's. Records use the `apple-phone` namespace,
+  // shared with Timing's calls so the two fold together.
+  static override source = 'call-history';
   static override description = 'Phone and FaceTime calls';
 
   static override delivery = 'local' as const;

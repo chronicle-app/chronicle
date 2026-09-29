@@ -58,7 +58,7 @@
   "chronicle": {
     "plugin": true,
     "sources": {
-      "arc": {
+      "arc-timeline": {
         "strategies": {
           "icloud-backup": {
             "delivery": "local",

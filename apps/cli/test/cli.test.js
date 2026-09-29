@@ -221,6 +221,7 @@ export class Fixture extends Extractor {
   const [listing] = JSON.parse(success(run('sources', '--source', 'fixture', '--format', 'json')));
   assert.equal(listing.origin, 'installed');
   assert.equal(listing.tier, null);
+  assert.match(success(run('sources', '--source', 'fixture')), /not in catalog · fixture-plugin/);
   assert.match(success(run('auth', 'login', '--list')), /fixture/);
   assert.equal(JSON.parse(success(run('extract', 'fixture', '--raw'))).name, 'installed fixture');
 
@@ -291,6 +292,7 @@ export class MyShell extends Extractor {
   assert.match(success(run('plugins')), /my-shell +local/);
   const [listing] = JSON.parse(success(run('sources', '--source', 'shell', '--format', 'json')));
   assert.equal(listing.origin, 'local');
+  assert.match(success(run('sources', '--source', 'shell')), /local · my-shell/);
 
   // A second local plugin for the source keeps the first one's extractors.
   writeFileSync(
