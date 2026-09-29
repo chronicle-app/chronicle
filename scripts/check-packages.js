@@ -253,6 +253,15 @@ try {
     assert.ok(
       JSON.parse(cli(['sources', '--all', '--format', 'json'])).every(source => source.installed)
     );
+    // The CLI's own dependencies are bundled even though a flat install puts
+    // them beside it; the other plugins were installed beside it.
+    const { dependencies: cliDependencies } = JSON.parse(
+      readFileSync(join(consumer, 'node_modules/@chronicle.app/cli/package.json'), 'utf8')
+    );
+    for (const line of cli(['plugins']).trim().split('\n')) {
+      const [name, , origin] = line.trim().split(/\s+/);
+      assert.equal(origin, name in cliDependencies ? 'bundled' : 'beside-cli', line);
+    }
     const fixturePlugin = join(consumer, 'fixture-plugin');
     mkdirSync(fixturePlugin);
     writeFileSync(

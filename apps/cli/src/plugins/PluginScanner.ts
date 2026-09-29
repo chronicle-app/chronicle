@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { existsSync, promises as fs } from 'node:fs';
+import { existsSync, promises as fs, realpathSync } from 'node:fs';
 import { register } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Config } from '@oclif/core';
@@ -276,9 +276,19 @@ export class PluginScanner {
       }
 
       add(await pluginsIn(path.join(await pluginDataDir(), 'node_modules')), 'installed');
+      // Under npx or a flat install, the CLI's own dependencies sit beside it:
+      // those copies are bundled, while a separately installed copy stays beside-cli.
+      const bundled = await bundledPlugins();
+      const bundledPaths = new Set(bundled.map(p => realpathSync(p.path)));
       const beside = besideCli();
-      if (beside) add(await pluginsIn(beside), 'beside-cli');
-      add(await bundledPlugins(), 'bundled');
+      if (beside) {
+        const plugins = await pluginsIn(beside);
+        add(
+          plugins.filter(p => !bundledPaths.has(realpathSync(p.path))),
+          'beside-cli'
+        );
+      }
+      add(bundled, 'bundled');
 
       return [...found.values()];
     } catch (error) {
