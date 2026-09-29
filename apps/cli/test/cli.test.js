@@ -147,7 +147,8 @@ test('raw extraction, four output loaders, file output and stream mode', t => {
   assert.equal(JSON.parse(success(result)).command, 'printf fixture');
   // Unless quiet, the run ends with its summary on stderr, and the default
   // --limit says when it cut the run short.
-  assert.match(result.stderr, /^✓ shell · \S+ {2}1 command {2}in \S+\n$/);
+  // Anchored to the end only: some Node versions warn on stderr first.
+  assert.match(result.stderr, /(^|\n)✓ shell · \S+ {2}1 command {2}in \S+\n$/);
   const long = join(dir, 'long-history');
   writeFileSync(
     long,
