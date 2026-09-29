@@ -1,6 +1,6 @@
 {
   "name": "@chronicle.app/eslint-config",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Shared ESLint configuration for Chronicle packages",
   "main": "index.js",
   "files": [
