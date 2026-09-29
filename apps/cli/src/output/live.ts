@@ -14,6 +14,11 @@ export type ProgressFields = {
   processed: number;
   /** Records expected, when the source knows; 0 when it doesn't. */
   total: number;
+  /**
+   * `reading` while the source is read in ahead of the run (`processed`
+   * counts records read), `loading` once records go through to the output.
+   */
+  phase?: 'reading' | 'loading';
   /** Records by type so far. */
   counts: Record<string, number>;
   /** The record in hand, as a one-line label. Personal. */
@@ -49,9 +54,11 @@ export function progress(fields: ProgressFields, t: Tokens, width: number, frame
   const types = Object.keys(fields.counts);
   const unit = types.length === 1 ? plural(types[0], processed) : plural('records', processed);
   const counted: Segment[] =
-    total > 0
-      ? [[count(processed)], ['/', t.muted], [`${count(total)} ${unit}`]]
-      : [[`${count(processed)} ${unit}`]];
+    fields.phase === 'reading'
+      ? [[processed === 0 ? 'reading' : `${count(processed)} ${unit} read`]]
+      : total > 0
+        ? [[count(processed)], ['/', t.muted], [`${count(total)} ${unit}`]]
+        : [[`${count(processed)} ${unit}`]];
   const rate = elapsedMs >= 1000 ? `${count(Math.round(processed / (elapsedMs / 1000)))}/s` : '';
   const lines = [
     line(

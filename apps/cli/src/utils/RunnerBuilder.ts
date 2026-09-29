@@ -11,6 +11,7 @@ import {
   JsonLoader,
   NullTransformer,
   Runner,
+  type RunnerConfig,
   SamplingTransformer,
   YamlLoader,
   toCamelCase,
@@ -182,7 +183,11 @@ export class RunnerBuilder {
    */
   async buildRunner(
     selectedExtractor: any,
-    output: { sink?: Sink; run?: RunContext } = {}
+    output: {
+      sink?: Sink;
+      run?: RunContext;
+      onRead?: RunnerConfig['onRead'];
+    } = {}
   ): Promise<Runner> {
     const extractor = await this.initializeExtractor(selectedExtractor);
     const loader = await this.initializeLoader();
@@ -202,6 +207,7 @@ export class RunnerBuilder {
       // scope: underneath it the frontier stays the stopping rule.
       sink: output.sink,
       run: output.run,
+      onRead: output.onRead,
     })
       .addExtractor(extractor)
       .addTransformer(transformer)

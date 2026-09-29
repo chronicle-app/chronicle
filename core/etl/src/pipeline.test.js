@@ -169,10 +169,19 @@ test('preserves streaming and buffered extraction, post-filter limits, and itera
   for (const streamExtraction of [true, false]) {
     const extractor = new FixtureExtractor([{ kind: 'skip' }, { kind: 'keep' }, { kind: 'keep' }]);
     const loader = new MemoryLoader();
-    const runner = new Runner({ streamExtraction, recordTypes: ['keep'], limit: 1, quiet: true })
+    const read = [];
+    const runner = new Runner({
+      streamExtraction,
+      recordTypes: ['keep'],
+      limit: 1,
+      quiet: true,
+      onRead: (record, count) => read.push(count),
+    })
       .addExtractor(extractor)
       .addLoader(loader);
     assert.equal((await collect(runner)).length, 1);
+    // Only a buffered run reads ahead, and it reports each kept record as it does.
+    assert.deepEqual(read, streamExtraction ? [] : [1]);
     assert.equal(loader.records[0].extraction.recordType, 'keep');
     assert.equal(extractor.closed, true);
   }

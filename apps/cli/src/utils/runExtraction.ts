@@ -1,6 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { createLogger, thresholdFor, type Logger } from '@chronicle.app/logging';
-import { nodeLabel, type Runner, type RunLog } from '@chronicle.app/etl';
+import {
+  nodeLabel,
+  type Record as ExtractedRecord,
+  type Runner,
+  type RunLog,
+} from '@chronicle.app/etl';
 import type { FlagSource } from '../config/index.js';
 import {
   createSink,
@@ -81,12 +86,32 @@ class Tally {
   counts: Record<string, number> = {};
   current = '';
   readonly startedAt = Date.now();
+  private total = 0;
+  private phase: 'reading' | 'loading' = 'reading';
+  private read = 0;
+  private readCounts: Record<string, number> = {};
 
   constructor(
     private readonly logger: Logger,
-    private readonly title: string,
-    private readonly total: number
+    private readonly title: string
   ) {}
+
+  /** A record read in ahead of the run, before any reach the output. */
+  readAhead(record: ExtractedRecord): void {
+    this.read++;
+    const type = record.extraction.recordType ?? 'records';
+    this.readCounts[type] = (this.readCounts[type] ?? 0) + 1;
+    this.current = label(record.data) || this.current;
+    this.progress();
+  }
+
+  /** Setup is done: records now go through to the output, `total` of them if known. */
+  loading(total: number): void {
+    this.phase = 'loading';
+    this.total = total;
+    this.current = '';
+    this.progress();
+  }
 
   /** Count a record, and report its failures, keyed so a flood aggregates. */
   record(log: RunLog): void {
@@ -119,18 +144,22 @@ class Tally {
   }
 
   progress(): void {
+    const reading = this.phase === 'reading';
     const fields: ProgressFields = {
       title: this.title,
-      processed: this.processed,
+      phase: this.phase,
+      processed: reading ? this.read : this.processed,
       total: this.total,
-      counts: { ...this.counts },
+      counts: { ...(reading ? this.readCounts : this.counts) },
       elapsedMs: Date.now() - this.startedAt,
       ...(this.current && { current: this.current }),
     };
     this.logger.emit({
       level: 'debug',
       kind: 'progress',
-      message: `${this.processed.toLocaleString('en-US')} records`,
+      message: reading
+        ? `${this.read.toLocaleString('en-US')} records read`
+        : `${this.processed.toLocaleString('en-US')} records`,
       fields,
       sensitive: ['current'],
     });
@@ -172,13 +201,17 @@ export async function runExtraction(
   });
   const run = { id: randomUUID(), source: String(source), strategy: String(strategy ?? '') };
   const logger = createLogger({ scope: 'runner', sink, run });
+  const title = strategy && strategy !== source ? `${source} · ${strategy}` : String(source);
+  const tally = new Tally(logger, title);
   const builder = new RunnerBuilder(flags);
-  const runner: Runner = await builder.buildRunner(extractor, { sink, run });
+  const runner: Runner = await builder.buildRunner(extractor, {
+    sink,
+    run,
+    onRead: record => tally.readAhead(record),
+  });
   const originalLog = console.log;
   // Plugins sometimes log; stdout carries the records.
   console.log = console.error.bind(console);
-  const title = strategy && strategy !== source ? `${source} · ${strategy}` : String(source);
-  let tally: Tally | undefined;
   let failure: unknown;
   let interrupted = false;
   let interrupt!: (error: Error) => void;
@@ -196,10 +229,11 @@ export async function runExtraction(
     await Promise.race([
       interruption,
       (async () => {
+        // The view starts before setup: a buffered run reads its source there.
+        tally.progress();
         await runner.setup();
         if (interrupted) return;
-        tally = new Tally(logger, title, runner.numRecords || 0);
-        tally.progress();
+        tally.loading(runner.numRecords || 0);
         for await (const log of runner.run()) {
           if (interrupted) break;
           tally.record(log);
@@ -226,7 +260,6 @@ export async function runExtraction(
     }
   }
   if (failure) throw failure;
-  tally ??= new Tally(logger, title, 0);
   const hasRecords = tally.processed > 0;
   // Records on this same screen get a line of air before the summary.
   const shared = !destination(flags.output) && process.stdout.isTTY && process.stderr.isTTY;

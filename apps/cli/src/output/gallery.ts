@@ -138,6 +138,7 @@ function blocks(theme: string, width: number): string[] {
     hint('stopped at --limit 100', 'pass --limit 0 to extract everything', t, width),
     ...progress(running, t, width, 3),
     ...progress({ ...running, total: 0 }, t, width, 7),
+    ...progress({ ...running, phase: 'reading', total: 0 }, t, width, 11),
     ...caption(
       [
         ['', 'ExecuteAction'],

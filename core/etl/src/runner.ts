@@ -28,6 +28,11 @@ export interface RunnerConfig {
    */
   sink?: Sink;
   run?: RunContext;
+  /**
+   * Called for each record `setup()` reads in ahead of the run (buffered
+   * mode only), with the count so far: how a host shows a slow read.
+   */
+  onRead?: (record: Record, read: number) => void;
 }
 
 export class Runner {
@@ -108,6 +113,7 @@ export class Runner {
       this.logVerboseStep('Pre-extracting all records');
       for await (const record of this.extractRecords()) {
         this.extractedRecords.push(record);
+        this.config.onRead?.(record, this.extractedRecords.length);
       }
 
       this.numRecords = this.extractedRecords.length;
