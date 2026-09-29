@@ -12,6 +12,7 @@ export { JsonLoader, colorizeJson, type JsonColorTheme } from './json-loader.js'
 export { CsvLoader } from './connectors/loaders/CsvLoader.js';
 export { YamlLoader } from './connectors/loaders/YamlLoader.js';
 export { TableLoader } from './connectors/loaders/TableLoader.js';
+export { nodeLabel, recordRow } from './connectors/loaders/columns.js';
 export type { Delivery, Extraction, Transformation, Record, LoadResult, RunLog } from './types.js';
 export {
   Logger,

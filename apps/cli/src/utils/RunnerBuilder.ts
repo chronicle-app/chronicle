@@ -39,6 +39,8 @@ export function requestedRecordTypes(type: unknown): string[] | undefined {
 export class RunnerBuilder {
   private flags: any;
   private flagSources: any;
+  /** The run's loader, once built: the CLI reads what it reports after teardown. */
+  loader?: any;
 
   constructor(flags: any, flagSources?: any) {
     this.flags = flags;
@@ -179,6 +181,7 @@ export class RunnerBuilder {
   async buildRunner(selectedExtractor: any): Promise<Runner> {
     const extractor = await this.initializeExtractor(selectedExtractor);
     const loader = await this.initializeLoader();
+    this.loader = loader;
     const transformer = this.initializeTransformer(extractor);
 
     const filtering = this.needsTypeFilter(selectedExtractor);

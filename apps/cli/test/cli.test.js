@@ -133,10 +133,47 @@ test('raw extraction, four output loaders, file output and stream mode', t => {
     assert.equal(stdout, '');
     assert.match(readFileSync(file, 'utf8'), /printf fixture/);
   }
-  const output = success(
-    run('extract', 'shell', '--input', input, '--raw', '--limit', '1', '--output', 'stdout')
+  const result = run(
+    'extract',
+    'shell',
+    '--input',
+    input,
+    '--raw',
+    '--limit',
+    '1',
+    '--output',
+    'stdout'
   );
-  assert.equal(JSON.parse(output).command, 'printf fixture');
+  assert.equal(JSON.parse(success(result)).command, 'printf fixture');
+  // Unless quiet, the run ends with its summary on stderr, and the default
+  // --limit says when it cut the run short.
+  assert.match(result.stderr, /^✓ shell · \S+ {2}1 command {2}in \S+\n$/);
+  const long = join(dir, 'long-history');
+  writeFileSync(
+    long,
+    Array.from({ length: 101 }, (_, i) => `: ${1700000000 + i}:0;echo ${i}\n`).join('')
+  );
+  const capped = run('extract', 'shell', '--input', long, '--raw', '--output', 'stdout');
+  assert.match(capped.stderr, /100 commands.*\n.*stopped at --limit 100/);
+  const chosen = run('extract', 'shell', '--input', long, '--raw', '--limit', '100');
+  assert.doesNotMatch(chosen.stderr, /stopped/);
+  // Tabular output hints at the other column mode, but only when it would show more.
+  const labelled = run('extract', 'shell', '--input', input, '--loader', 'csv');
+  assert.match(labelled.stderr, /--columns schema/);
+  const flat = run('extract', 'shell', '--input', input, '--raw', '--loader', 'csv');
+  assert.doesNotMatch(flat.stderr, /--columns/);
+  const schema = run(
+    'extract',
+    'shell',
+    '--input',
+    input,
+    '--loader',
+    'csv',
+    '--columns',
+    'schema'
+  );
+  assert.match(success(schema), /^@type,.*agent\.handle.*object\.body/);
+  assert.doesNotMatch(schema.stderr, /--columns/);
 });
 
 test('CSV static command accepts piped input and file input', t => {

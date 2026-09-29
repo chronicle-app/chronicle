@@ -5,8 +5,8 @@ import { FlagManager } from './FlagManager.js';
 import { renderSourceHelp } from './sourceHelp.js';
 import { getTheme } from '../theme.js';
 
-// NOTE: nothing here may statically import `ink` (InkProgressManager,
-// ExtractorSelector/InkSelect, ExtractCommand). Importing ink resumes
+// NOTE: nothing here may statically import `ink` (ExtractorSelector/InkSelect,
+// ExtractCommand). Importing ink resumes
 // process.stdin at load time, which would drain piped input before the
 // file/stdin (non-source) path reads it. Those are dynamic-imported below,
 // only on the dispatch path — which never touches stdin.
@@ -234,7 +234,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     }
 
     const { runExtraction } = await import('./runExtraction.js');
-    return runExtraction(this.selectedExtractor, this.flags, 'extract');
+    return runExtraction(this.selectedExtractor, this.flags, this.flagSources);
   }
 
   /**
