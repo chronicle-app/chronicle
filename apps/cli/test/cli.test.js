@@ -26,6 +26,8 @@ function fixture(t) {
     CHRONICLE_CACHE_DIR: join(dir, 'cache'),
     CHRONICLE_SKIP_NEW_VERSION_CHECK: '1',
     NO_COLOR: '1',
+    // Keep oclif from wrapping error messages, so assertions don't depend on path length.
+    OCLIF_COLUMNS: '1000',
   };
   const runWith =
     extra =>
