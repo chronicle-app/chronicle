@@ -44,12 +44,13 @@ async function extract(Extractor, config = {}) {
 
 const source = 'github';
 const key = ['@type', 'source', 'sourceId'];
+const repositoryKey = ['@type', 'source', 'creator.sourceId', 'name'];
 const date = iso => new Date(iso);
 
 const sam = {
   '@type': 'Person',
   source,
-  sourceId: 'U_sam',
+  sourceId: '1001',
   handle: 'sam',
   name: 'Sam Rivera',
   '@key': key,
@@ -59,7 +60,7 @@ const sam = {
 const agent = actor => ({
   '@type': { User: 'Person', Organization: 'Organization', Bot: 'SoftwareAgent' }[actor.__typename],
   '@key': key,
-  sourceId: actor.id,
+  sourceId: String(actor.databaseId),
   source,
   handle: actor.login,
   ...(actor.name && { name: actor.name }),
@@ -70,11 +71,10 @@ const person = actor => (actor === ACTORS.sam ? sam : agent(actor));
 
 const bakery = {
   '@type': 'Repository',
-  '@key': key,
+  '@key': repositoryKey,
   source,
-  sourceId: 'R_bakery',
   url: 'https://github.com/sam/bakery',
-  name: 'sam/bakery',
+  name: 'bakery',
   description: 'Bread recipes',
   references: [{ '@type': 'Entity', '@key': ['url'], url: 'https://bakery.example.com' }],
   programmingLanguage: ['Rust'],
@@ -84,21 +84,19 @@ const bakery = {
 };
 const trails = {
   '@type': 'Repository',
-  '@key': key,
+  '@key': repositoryKey,
   source,
-  sourceId: 'R_trails',
   url: 'https://github.com/trailco/trails',
-  name: 'trailco/trails',
+  name: 'trails',
   creator: [agent(ACTORS.trailco)],
   visibility: 'private',
 };
 const kiln = {
   '@type': 'Repository',
-  '@key': key,
+  '@key': repositoryKey,
   source,
-  sourceId: 'R_kiln',
   url: 'https://github.com/alex/kiln',
-  name: 'alex/kiln',
+  name: 'kiln',
   programmingLanguage: ['Python'],
   creator: [alex],
   visibility: 'public',
@@ -185,9 +183,8 @@ const verdict = (r, on) => ({
 
 const like = (starredAt, object) => ({
   '@type': 'LikeAction',
-  '@key': key,
+  '@key': ['@type', 'source', 'object.creator.sourceId', 'object.name'],
   source,
-  sourceId: object.sourceId,
   timestamp: date(starredAt),
   '@assertedAt': date(starredAt),
   agent: sam,
@@ -331,7 +328,7 @@ test('stars are LikeActions on the repository, dated when you starred it', async
   await fakeGitHub(t);
   const { keys, actions } = await extract(GitHubStarsExtractor);
 
-  assert.deepEqual(keys, ['R_kiln', 'R_trails']);
+  assert.deepEqual(keys, ['alex/kiln', 'trailco/trails']);
   assert.deepEqual(actions, [
     like('2025-03-20T10:00:00Z', kiln),
     like('2024-06-01T10:00:00Z', trails),
@@ -363,7 +360,7 @@ test('a bare run reads every record type newest first, signing in once', async t
   const { requests } = await fakeGitHub(t);
   const { keys, notices } = await extract(GitHubDefaultExtractor, { since: date('2025-03-01') });
 
-  assert.deepEqual(keys, ['R_kiln', 'IC_s3', 'PRR_s1', 'PRR_r1', 'IC_r1', 'PR_oven']);
+  assert.deepEqual(keys, ['alex/kiln', 'IC_s3', 'PRR_s1', 'PRR_r1', 'IC_r1', 'PR_oven']);
   assert.deepEqual(notices, ['Using GitHub credentials from gh CLI']);
   assert.equal(requests.filter(r => r.operation === 'Viewer').length, 1);
 });

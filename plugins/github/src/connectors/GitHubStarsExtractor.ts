@@ -12,7 +12,7 @@ export default class GitHubStarsExtractor extends GitHubExtractor {
       if (this.isBeforeSince(star.starredAt)) return;
       if (!this.inRange(star.starredAt)) continue;
       // You star a repository once, so the repository identifies the star.
-      yield this.record('stars', star.node.id, star.starredAt, star);
+      yield this.record('stars', star.node.nameWithOwner, star.starredAt, star);
     }
   }
 }

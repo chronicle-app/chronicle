@@ -21,8 +21,8 @@ export type ReplyRecord =
     }
   | { kind: 'review-comment'; comment: GitHubReviewComment; pullRequest: GitHubThread };
 
-function isBy(actor: { id?: string } | null, id: string): boolean {
-  return actor?.id === id;
+function isBy(actor: { databaseId?: number } | null, id: number): boolean {
+  return actor?.databaseId === id;
 }
 
 export default class GitHubRepliesExtractor extends GitHubExtractor {
@@ -83,7 +83,7 @@ export default class GitHubRepliesExtractor extends GitHubExtractor {
   ): Promise<{ id: string; time: string; data: ReplyRecord }[]> {
     const { comments: firstComments, reviews: firstReviews, reviewThreads, ...ref } = thread;
     const parent = { type: thread.__typename, id: thread.id };
-    const me = this.viewer.id;
+    const me = this.viewer.databaseId;
     const replies: { id: string; time: string; data: ReplyRecord }[] = [];
 
     // The conversation: everything others said on your own thread, and
