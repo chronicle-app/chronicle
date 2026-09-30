@@ -1,11 +1,12 @@
 import path from 'node:path';
 import { existsSync, promises as fs, realpathSync } from 'node:fs';
-import { register } from 'node:module';
+import * as nodeModule from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Config } from '@oclif/core';
 import { glob } from 'glob';
 import { Delivery, Extractor } from '@chronicle.app/etl';
 import { createLogger } from '@chronicle.app/logging';
+import { isShared } from './sharedModules.js';
 
 const logger = createLogger({ scope: 'plugins' });
 
@@ -200,17 +201,36 @@ async function bundledPlugins(): Promise<Array<{ name: string; path: string }>> 
 /**
  * Packages the CLI shares with every plugin it loads. `@chronicle.app/auth`
  * keeps the OAuth provider registry, so a plugin with its own copy would
- * register providers the CLI never sees; `etl`, `etl-sqlite`, and `schema`
- * keep extraction and validation on the CLI's version, and let a plugin run
+ * register providers the CLI never sees; `logging` keeps the host's sink,
+ * which plugin loggers follow; `etl`, `etl-sqlite`, and `schema` keep
+ * extraction and validation on the CLI's version, and let a plugin run
  * without installing them.
+ *
+ * `module.registerHooks` (Node 22.15+) resolves them in-thread; older Node
+ * falls back to `module.register`, which Node 25 deprecates (DEP0205).
  */
 let sharingModules = false;
 function shareModulesWithPlugins(): void {
   if (sharingModules) return;
   sharingModules = true;
-  register(new URL('sharedModules.js', import.meta.url), {
-    data: { parentURL: import.meta.url },
-  });
+  const parentURL = import.meta.url;
+  const { registerHooks } = nodeModule as unknown as {
+    registerHooks?: (hooks: {
+      resolve: (
+        specifier: string,
+        context: { parentURL?: string },
+        nextResolve: (specifier: string, context: { parentURL?: string }) => unknown
+      ) => unknown;
+    }) => unknown;
+  };
+  if (registerHooks) {
+    registerHooks({
+      resolve: (specifier, context, nextResolve) =>
+        nextResolve(specifier, isShared(specifier) ? { ...context, parentURL } : context),
+    });
+    return;
+  }
+  nodeModule.register(new URL('sharedModules.js', import.meta.url), { data: { parentURL } });
 }
 
 export class PluginScanner {
