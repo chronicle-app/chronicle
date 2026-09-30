@@ -8,8 +8,8 @@ styled. Commands, loaders, and sinks build their text from this module.
 - **stdout carries only data.** Everything for people goes to stderr.
 - **A command ends with one summary line**: status glyph, subject, counts,
   time, destination. `✓ shell · history  1,240 commands  in 1.7s  → out.json`
-- **Hints** are dim, indented two spaces, under the summary, and appear only
-  for defaults the person didn't choose (the default `--limit` cutting a run
+- **Hints** are dim, marked `↳`, under the line they follow (the summary, or
+  an error), and under a summary appear only for defaults the person didn't choose (the default `--limit` cutting a run
   short, readable columns hiding schema properties, columns that didn't fit).
 - **No boxes, no `====` underlines, no emoji.** One glyph set (`glyphs`):
   `✓ ✗ ! · → ↳ ━ ─ …` and braille spinner frames.
@@ -20,8 +20,9 @@ styled. Commands, loaders, and sinks build their text from this module.
   grouped (`1,240`). **Durations** as spoken (`40ms`, `4.2s`, `3m 07s`).
 - **`--quiet`** prints nothing on success; errors always print.
 - **Every block renders without a TTY and under `NO_COLOR`**, and no line
-  exceeds the width it was given, except a `url` field: it prints whole on a
-  line of its own, since a cut URL can't be opened.
+  exceeds the width it was given, except a `url` field or a `` `command` `` in a
+  hint: each prints whole on a line of its own, since a cut URL can't be
+  opened and a split command can't be copied.
 - **No `console.*`.** Say things through a logger (`this.logger` in a
   command, `createLogger({ scope })` in a module); the command's sink decides
   where they go. Command output on stdout uses `this.log`.

@@ -1,4 +1,4 @@
-import { Record } from '@chronicle.app/etl';
+import { Record, fileError } from '@chronicle.app/etl';
 import { SqliteExtractor, timeRangeConditions } from '@chronicle.app/etl-sqlite';
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -14,12 +14,21 @@ import ThingsTodoTransformer from './ThingsTodoTransformer.js';
  * cannot be hardcoded. Glob the Group Containers directory for the
  * `ThingsData-*` folder and return the database inside it.
  */
+const containerDir = `${process.env.HOME}/Library/Group Containers/JLMPQHK86H.com.culturedcode.ThingsMac`;
+
 function resolveThingsDbPath(): string {
-  const containerDir = `${process.env.HOME}/Library/Group Containers/JLMPQHK86H.com.culturedcode.ThingsMac`;
   const dbSuffix = 'Things Database.thingsdatabase/main.sqlite';
 
+  // Listing the container needs Full Disk Access; without it, fall through to
+  // the conventional path and let setup() say what's wrong.
   if (existsSync(containerDir)) {
-    const thingsDataDirs = readdirSync(containerDir).filter(name => name.startsWith('ThingsData-'));
+    let entries: string[] = [];
+    try {
+      entries = readdirSync(containerDir);
+    } catch {
+      // Reported by setup().
+    }
+    const thingsDataDirs = entries.filter(name => name.startsWith('ThingsData-'));
     for (const dir of thingsDataDirs) {
       const dbPath = join(containerDir, dir, dbSuffix);
       if (existsSync(dbPath)) {
@@ -75,6 +84,22 @@ export class ThingsTodoExtractor extends SqliteExtractor<typeof ThingsTodoExtrac
   }) as any;
 
   static override defaultTransformer = ThingsTodoTransformer;
+
+  /**
+   * The default database lives in a folder macOS guards: say whether it's
+   * missing or refused before SQLite reports "unable to open database file".
+   */
+  override async setup(): Promise<void> {
+    const { input } = this.config as { input: string };
+    if (input.startsWith(containerDir)) {
+      try {
+        readdirSync(containerDir);
+      } catch (error) {
+        throw fileError(error, containerDir, 'Things library');
+      }
+    }
+    await super.setup();
+  }
 
   /** The owner's name from the local machine, used when `agentName` isn't set. */
   protected resolveAgentName(): string | undefined {
