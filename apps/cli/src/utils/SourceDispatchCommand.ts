@@ -2,7 +2,7 @@ import { Args, Command } from '@oclif/core';
 import { BaseCommand } from '../baseCommand.js';
 import { PluginScanner, type ExtractorMetadata } from '../plugins/PluginScanner.js';
 import { FlagManager } from './FlagManager.js';
-import { renderRecordTypes, renderSourceHelp } from './sourceHelp.js';
+import { recordTypesHint, renderRecordTypes, renderSourceHelp } from './sourceHelp.js';
 import { getTheme } from '../theme.js';
 import { outputFlagsIn } from '../output/index.js';
 
@@ -145,6 +145,12 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     }
     if (this.argv.includes('--list-types') || this.argv.includes('-L')) {
       this.log(renderRecordTypes(candidates));
+      const { message, action } = recordTypesHint(
+        positional,
+        candidates,
+        (this.constructor as any).id || 'extract'
+      );
+      this.logger.emit({ level: 'info', kind: 'hint', message, hint: { action } });
       this.exit(0);
     }
 

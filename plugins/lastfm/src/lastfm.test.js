@@ -318,7 +318,11 @@ test('friends become FollowActions and account CreateActions, read as a snapshot
 test('extraction without credentials fails with the auth instructions', async t => {
   isolateCredentials(t);
   const extractor = new LastfmRecentTracksExtractor({});
-  await assert.rejects(extractor.setup(), /Authentication required/);
+  // Last.fm is an OAuth source, so the next step is `auth login`.
+  await assert.rejects(extractor.setup(), {
+    message: /Authentication required/,
+    hint: 'run `chronicle auth login lastfm`',
+  });
   const noUser = new LastfmRecentTracksExtractor({ apiKey: 'test-api-key' });
   await assert.rejects(noUser.setup(), /Last\.fm username is required/);
 });
