@@ -1,13 +1,11 @@
 # @chronicle.app/hacker-news
 
-Read your Hacker News submissions, comments, and the replies to them through the public [Firebase API](https://github.com/HackerNews/API). No login is needed.
+Read your Hacker News submissions, comments, and the replies to them through the public [Firebase API](https://github.com/HackerNews/API). No login is needed; `--username` is the only required flag, and the CLI asks for it when it's missing.
 
 ```sh
 chronicle extract hacker-news --username you
 chronicle extract hacker-news --type comments,replies --username you --since 2025-01-01
 ```
-
-`--username` falls back to the `username`/`handle` field of the stored `hacker-news` credentials.
 
 Each kind is one record type:
 
@@ -23,4 +21,4 @@ Your items are read newest first, so `--since` ends the `submissions` and `comme
 
 Upvotes, favorites, and hidden items aren't read: Hacker News records no time for them.
 
-Tests run the extractors against a fake Firebase API on 127.0.0.1 with an empty credential directory. They never reach the network or read the host's stored credentials.
+Tests run the extractors against a fake Firebase API on 127.0.0.1. They never reach the network.

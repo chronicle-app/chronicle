@@ -1,7 +1,4 @@
 import { createServer } from 'node:http';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import HackerNewsProxy from '../dist/utils/HackerNewsProxy.js';
 
 // A fake Hacker News Firebase API on 127.0.0.1, so no test reaches the network.
@@ -73,8 +70,8 @@ function respond(path) {
 }
 
 /**
- * Start the fake API, point every proxy at it, and isolate the credential
- * store in an empty directory. Returns the request paths, in order.
+ * Start the fake API and point every proxy at it. Returns the request paths,
+ * in order.
  */
 export async function fakeHackerNews(t) {
   const requests = [];
@@ -96,15 +93,8 @@ export async function fakeHackerNews(t) {
     return request.call(this, config);
   };
 
-  const configDir = mkdtempSync(join(tmpdir(), 'hacker-news-config-'));
-  const previousConfigDir = process.env.CHRONICLE_CONFIG_DIR;
-  process.env.CHRONICLE_CONFIG_DIR = configDir;
-
   t.after(async () => {
     HackerNewsProxy.prototype.request = request;
-    if (previousConfigDir === undefined) delete process.env.CHRONICLE_CONFIG_DIR;
-    else process.env.CHRONICLE_CONFIG_DIR = previousConfigDir;
-    rmSync(configDir, { recursive: true, force: true });
     await new Promise(resolve => {
       server.close(resolve);
     });

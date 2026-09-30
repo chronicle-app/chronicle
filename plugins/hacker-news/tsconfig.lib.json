@@ -12,9 +12,6 @@
     },
     {
       "path": "../../core/schema/tsconfig.lib.json"
-    },
-    {
-      "path": "../../core/auth/tsconfig.lib.json"
     }
   ]
 }
