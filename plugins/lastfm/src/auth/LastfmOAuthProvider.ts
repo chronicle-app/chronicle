@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { createHash } from 'node:crypto';
 import { OAuthProvider, TokenResponse } from '@chronicle.app/auth';
+import { AuthRequired } from '@chronicle.app/etl';
 
 export class LastfmOAuthProvider extends OAuthProvider {
   static override providerId = 'lastfm';
@@ -52,11 +53,16 @@ export class LastfmOAuthProvider extends OAuthProvider {
       const sessionData = sessionResponse.data;
 
       if (sessionData.error) {
-        throw new Error(`Last.fm API error: ${sessionData.message || sessionData.error}`);
+        throw new AuthRequired(
+          `Last.fm refused the session: ${sessionData.message || sessionData.error}`,
+          {
+            source: 'lastfm',
+          }
+        );
       }
 
       if (!sessionData.session || !sessionData.session.key) {
-        throw new Error('No session key received from Last.fm');
+        throw new AuthRequired('Last.fm sent no session key', { source: 'lastfm' });
       }
 
       // Last.fm returns a session key instead of access/refresh tokens
@@ -73,7 +79,10 @@ export class LastfmOAuthProvider extends OAuthProvider {
     } catch (error) {
       if (axios.isAxiosError(error)) {
         const message = error.response?.data?.message || error.message;
-        throw new Error(`Failed to get Last.fm session: ${message}`);
+        throw new AuthRequired(`Couldn't get a Last.fm session: ${message}`, {
+          source: 'lastfm',
+          cause: error,
+        });
       }
       throw error;
     }

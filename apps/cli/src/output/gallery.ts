@@ -147,7 +147,7 @@ function blocks(theme: string, width: number): string[] {
     ...list(['shell · history', 'claude-code · sessions', 'imessage · chat-db'], t, width),
     summary(done, t, width),
     summary(failed, t, width),
-    hint('stopped at --limit 100', 'pass --limit 0 to extract everything', t, width),
+    ...hint('stopped at --limit 100', 'pass --limit 0 to extract everything', t, width).split('\n'),
     ...progress(running, t, width, 3),
     ...progress({ ...running, total: 0 }, t, width, 7),
     ...progress({ ...running, phase: 'reading', total: 0 }, t, width, 11),

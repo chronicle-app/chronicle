@@ -1,3 +1,4 @@
+import { AuthRequired } from '@chronicle.app/logging';
 import { CredentialManager, StoredCredentials } from './CredentialManager.js';
 
 /**
@@ -58,9 +59,9 @@ export function pickCredentialFields<F extends string>(
   }
 
   if (missing.length > 0) {
-    throw new Error(
-      options.errorMessage ??
-        `${provider} credentials are missing ${missing.join(', ')}. Authenticate with: chronicle auth ${provider}`
+    throw new AuthRequired(
+      options.errorMessage ?? `${provider} credentials are missing ${missing.join(', ')}`,
+      { source: provider }
     );
   }
 

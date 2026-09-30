@@ -2,7 +2,15 @@ import { Record, RunLog } from './types.js';
 import { Extractor } from './extractor.js';
 import { Transformer } from './transformer.js';
 import { Loader } from './loader.js';
-import { Logger, createLogger, type RunContext, type Sink } from '@chronicle.app/logging';
+import {
+  Logger,
+  createLogger,
+  describeError,
+  isReported,
+  markReported,
+  type RunContext,
+  type Sink,
+} from '@chronicle.app/logging';
 import { ActionAndChildrenSchema } from '@chronicle.app/schema';
 import { RunReport, type RunStats } from './report.js';
 
@@ -111,6 +119,36 @@ export class Runner {
   }
 
   async setup(): Promise<void> {
+    try {
+      await this.prepare();
+    } catch (error) {
+      this.fail(error);
+    }
+  }
+
+  /**
+   * Report an error that ends the run as an `error` event, with its code,
+   * exit code, and hint (see ExtractorError), then rethrow it marked as
+   * reported, so a host doesn't print it again.
+   */
+  private fail(error: unknown): never {
+    if (!isReported(error)) {
+      const { message, code, exitCode, hint, fields, stack } = describeError(error);
+      this.logger.emit({
+        level: 'error',
+        kind: 'error',
+        message,
+        // A typed error says what it is; only an unexpected one needs its stack.
+        error: { code, exitCode, ...(code === 'internal' && stack && { stack }) },
+        ...(hint && { hint: { action: hint } }),
+        ...(fields && { fields, sensitive: Object.keys(fields) }),
+      });
+      markReported(error);
+    }
+    throw error;
+  }
+
+  private async prepare(): Promise<void> {
     if (!this.extractor) throw new Error('Runner requires an extractor');
     if (this.setupStarted) throw new Error('Runner instances can only be set up once');
     if (
@@ -207,10 +245,14 @@ export class Runner {
   }
 
   async *run(): AsyncGenerator<RunLog> {
-    for await (const extractedRecord of this.runExtraction()) {
-      const log = await this.processRecord(extractedRecord);
-      this.report?.record(log);
-      yield log;
+    try {
+      for await (const extractedRecord of this.runExtraction()) {
+        const log = await this.processRecord(extractedRecord);
+        this.report?.record(log);
+        yield log;
+      }
+    } catch (error) {
+      this.fail(error);
     }
     this.completed = true;
   }

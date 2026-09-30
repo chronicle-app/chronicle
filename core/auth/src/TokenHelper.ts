@@ -1,3 +1,4 @@
+import { AuthRequired } from '@chronicle.app/logging';
 import { CredentialManager } from './CredentialManager.js';
 
 export const TokenHelper = {
@@ -11,15 +12,13 @@ export const TokenHelper = {
       const hasCredentials = await CredentialManager.hasCredentials(provider);
 
       if (hasCredentials) {
-        throw new Error(
-          `${provider} credentials are expired and could not be refreshed. Please re-authenticate:\n` +
-            `  chronicle auth ${provider} --client-id YOUR_CLIENT_ID --client-secret YOUR_CLIENT_SECRET`
-        );
+        throw new AuthRequired(`${provider} credentials expired and couldn't be refreshed`, {
+          hint: `run \`chronicle auth login ${provider} --client-id <id> --client-secret <secret>\``,
+        });
       } else {
-        throw new Error(
-          `No ${provider} credentials found. Please authenticate first:\n` +
-            `  chronicle auth ${provider} --client-id YOUR_CLIENT_ID --client-secret YOUR_CLIENT_SECRET`
-        );
+        throw new AuthRequired(`No ${provider} credentials`, {
+          hint: `run \`chronicle auth login ${provider} --client-id <id> --client-secret <secret>\``,
+        });
       }
     }
 

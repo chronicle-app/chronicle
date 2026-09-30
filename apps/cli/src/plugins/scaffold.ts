@@ -472,6 +472,15 @@ ${START[kind](name, P)}
   \`console\`: stdout carries the records. Put personal values (paths, names,
   addresses) in the second argument's fields, not the message, so a log can
   redact them. Don't log once per record; the run already counts them.
+- When a run can't go on, throw a typed error from \`@chronicle.app/etl\`, not a
+  plain \`Error\`: \`AuthRequired\` (sign in again), \`InputNotFound\`,
+  \`PermissionDenied\`, \`RateLimited\` (with \`retryAfter\`), or \`ExtractorError\`
+  with a \`code\`. Give it a \`hint\` with the next step. Chronicle prints the
+  hint and exits with the error's code, which a supervisor can act on.
+  \`fileError(error, path)\` and \`assertReadable(path)\` turn file-system
+  failures into the right one.
+- When a run succeeds but leaves something out, say what to do with
+  \`this.hint(message, { action })\`. It prints under the run's summary.
 
 ## Tests
 

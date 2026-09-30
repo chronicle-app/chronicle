@@ -1,16 +1,20 @@
 import axios, { AxiosAdapter, AxiosInstance, AxiosRequestConfig, isAxiosError } from 'axios';
+import { AuthRequired, RateLimited } from '@chronicle.app/logging';
 import { delay, paginateByPage, paginateCursor, paginateOffset } from './pagination.js';
 
 /** Authentication was rejected (HTTP 401) — the token is missing or stale. */
-export class ApiAuthError extends Error {
+export class ApiAuthError extends AuthRequired {
   readonly status = 401;
 }
 
 /** The API asked us to back off (HTTP 429). */
-export class ApiRateLimitError extends Error {
+export class ApiRateLimitError extends RateLimited {
   readonly status = 429;
+
   /** Parsed Retry-After header, when the API provided one. */
-  retryAfterSeconds?: number;
+  get retryAfterSeconds(): number | undefined {
+    return this.retryAfter;
+  }
 }
 
 export interface ApiProxyOptions {
@@ -83,12 +87,10 @@ export abstract class ApiProxy {
         );
       }
       if (status === 429) {
-        const rateLimited = new ApiRateLimitError(`${this.constructor.name}: rate limited (429)`);
         const retryAfter = Number(error.response?.headers?.['retry-after']);
-        if (Number.isFinite(retryAfter)) {
-          rateLimited.retryAfterSeconds = retryAfter;
-        }
-        return rateLimited;
+        return new ApiRateLimitError(`${this.constructor.name}: rate limited (429)`, {
+          ...(Number.isFinite(retryAfter) && { retryAfter }),
+        });
       }
     }
     return error;

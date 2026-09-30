@@ -104,7 +104,39 @@ export function summary(
 
 /** A next move, dim and indented under the summary: `  stopped at --limit 100 · pass …`. */
 export function hint(message: string, action: string | undefined, t: Tokens, width: number) {
-  return line([[`  ${message}${action ? ` ${glyphs.bullet} ${action}` : ''}`, t.muted]], width);
+  const text = action ? (message ? `${message} ${glyphs.bullet} ${action}` : action) : message;
+  // A next move is worth reading whole: wrapped at spaces, not cut, and
+  // continued under its text rather than its arrow.
+  return wrap(text, width - 4)
+    .map((part, i) => {
+      const text = `${i === 0 ? `  ${glyphs.child} ` : '    '}${part}`;
+      // A command on a line of its own prints whole; the terminal wraps it.
+      return part.startsWith('`') ? t.muted(text) : line([[text, t.muted]], width);
+    })
+    .join('\n');
+}
+
+/**
+ * Text in lines of at most `width`, broken at spaces. A `code span` is never
+ * broken or cut, since a command split across lines can't be copied: it gets
+ * a line of its own, even one wider than `width`. Any other word longer than
+ * the width is cut.
+ */
+export function wrap(text: string, width: number): string[] {
+  if (!Number.isFinite(width) || text.length <= width) return [text];
+  const words = text.match(/`[^`]*`\S*|\S+/g) ?? [];
+  const lines: string[] = [];
+  let current = '';
+  for (const word of words) {
+    if (current && current.length + 1 + word.length > width) {
+      lines.push(current);
+      current = '';
+    }
+    const whole = word.startsWith('`') ? word : truncate(word, Math.max(1, width));
+    current = current ? `${current} ${word}` : whole;
+  }
+  if (current) lines.push(current);
+  return lines;
 }
 
 /** A section title. Emphasis only: no rules, no boxes. */
