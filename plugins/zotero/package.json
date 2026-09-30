@@ -72,6 +72,14 @@
           }
         }
       }
+    },
+    "deepLinks": {
+      "zotero": {
+        "*": "zotero://select/library/items/{sourceId}",
+        "DocumentObject": "zotero://open-pdf/library/items/{sourceId}",
+        "Collection": "",
+        "Person": ""
+      }
     }
   }
 }

@@ -91,6 +91,20 @@ try {
     [npm, 'install', '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false'],
     consumer
   );
+  // Hosts read these templates from installed plugins to link records into apps.
+  for (const [name, source] of [
+    ['@chronicle.app/zotero', 'zotero'],
+    ['@chronicle.app/obsidian', 'obsidian'],
+  ]) {
+    const installed = JSON.parse(
+      readFileSync(join(consumer, 'node_modules', name, 'package.json'), 'utf8')
+    );
+    assert.equal(
+      typeof installed.chronicle?.deepLinks?.[source]?.['*'],
+      'string',
+      `${name}: missing chronicle.deepLinks`
+    );
+  }
   if (dependencies['@chronicle.app/schema']) {
     const ontology = run(
       [
