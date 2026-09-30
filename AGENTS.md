@@ -25,3 +25,4 @@ Chronicle extracts personal history into a shared vocabulary.
 - Run `npm run quality` for code changes. Run `npm run packages:check` after
   package or dependency changes to verify installed tarballs.
 - Do not co-author commits as coding agent
+- Do not put a Claude session link in pull request descriptions.
