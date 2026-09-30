@@ -126,6 +126,15 @@ test('`since` ends the walk at the first older submission', async t => {
   assert.deepEqual(keys, ['105']);
 });
 
+test('a removed submission, with no time, is skipped without ending the walk', async t => {
+  await fakeHackerNews(t);
+  const { keys } = await extract(HackerNewsSubmissionsExtractor, {
+    username: USERNAME,
+    since: date(100),
+  });
+  assert.deepEqual(keys, ['105', '103', '100']);
+});
+
 test('comments answer their parent and are about the thread’s submission', async t => {
   const { requests } = await fakeHackerNews(t);
   const { keys, actions } = await extract(HackerNewsCommentsExtractor);
