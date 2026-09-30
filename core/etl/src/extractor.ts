@@ -157,6 +157,11 @@ export abstract class Extractor<SelfClass extends typeof Extractor = typeof Extr
     return this.config.limit === 0 ? null : (this.config.limit ?? null);
   }
 
+  /** The most records this extractor will yield, or null for no limit. */
+  recordLimit(): number | null {
+    return this.getEffectiveLimit();
+  }
+
   /**
    * Check if extraction should stop based on current record count and configured limit
    * @param currentCount The current number of records extracted

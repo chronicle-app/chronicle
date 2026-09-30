@@ -143,29 +143,40 @@ const terminalWidth = () =>
  */
 export class PrettySink extends TextSink {
   private view?: LiveView;
-  private readonly liveUntilLoading: boolean;
+  private readonly live: Live;
+  private readonly air: boolean;
 
-  constructor(options: SinkOptions & { live?: Live }) {
+  constructor(options: SinkOptions & { live?: Live; air?: boolean }) {
     const t = tokens({ stream: 'stderr', theme: options.theme, color: options.color });
     super({
       level: options.level,
       write: options.write,
       format: event => render(event, t, options.width ?? terminalWidth(), { time: true }),
     });
-    if (options.live) this.view = new LiveView(t);
-    this.liveUntilLoading = options.live === 'until-loading';
+    this.live = options.live ?? false;
+    if (this.live) this.view = new LiveView(t);
+    this.air = options.air ?? false;
   }
 
   override emit(event: OutputEvent): void {
     if (event.kind === 'progress') {
       const fields = event.fields as unknown as ProgressFields;
-      if (this.liveUntilLoading && fields.phase === 'loading') {
+      if (
+        (this.live === 'until-loading' && fields.phase === 'loading') ||
+        (this.live === 'until-writing' && fields.phase === 'writing')
+      ) {
         // Records are about to share the terminal: the view steps aside for good.
         this.view?.stop();
         this.view = undefined;
       }
       if (this.view && allows(this.level, 'info')) this.view.update(fields);
       return;
+    }
+    // Records on this same screen get a line of air before the summary.
+    const records = (event.fields as { records?: number } | undefined)?.records ?? 0;
+    if (this.air && event.kind === 'summary' && records > 0 && allows(this.level, event.level)) {
+      this.flush();
+      this.write('\n');
     }
     super.emit(event);
   }
@@ -199,9 +210,10 @@ export class PlainSink extends TextSink {
 
 /**
  * Whether the pretty sink draws live progress: throughout the run, or only
- * until records start loading, when they print to the same terminal.
+ * until records start loading or the output starts writing, when they print
+ * to the same terminal.
  */
-export type Live = boolean | 'until-loading';
+export type Live = boolean | 'until-loading' | 'until-writing';
 
 export interface OutputOptions extends SinkOptions {
   format?: LogFormat;
@@ -209,6 +221,8 @@ export interface OutputOptions extends SinkOptions {
   live?: Live;
   /** Keep personal fields in JSON (`--log-personal`). */
   personal?: boolean;
+  /** A blank line before a summary, when records shared the terminal (pretty only). */
+  air?: boolean;
 }
 
 /** The sink `--log-format` asks for. */

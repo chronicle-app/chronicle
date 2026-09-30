@@ -10,7 +10,6 @@ import {
   JsonLoader,
   NullTransformer,
   Runner,
-  type RunnerConfig,
   SamplingTransformer,
   YamlLoader,
   toCamelCase,
@@ -199,7 +198,8 @@ export class RunnerBuilder {
     output: {
       sink?: Sink;
       run?: RunContext;
-      onRead?: RunnerConfig['onRead'];
+      /** Where the records go, when that's a file, for the summary. */
+      output?: string;
     } = {}
   ): Promise<Runner> {
     const extractor = await this.initializeExtractor(selectedExtractor);
@@ -222,7 +222,7 @@ export class RunnerBuilder {
       // scope: underneath it the frontier stays the stopping rule.
       sink: output.sink,
       run: output.run,
-      onRead: output.onRead,
+      output: output.output,
       delay: this.flags.delay,
     })
       .addExtractor(extractor)

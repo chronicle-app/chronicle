@@ -1,3 +1,4 @@
+import type { ProgressFields } from '@chronicle.app/logging';
 import { line, type Segment } from './blocks.js';
 import { clock, count, plural } from './format.js';
 import { glyphs } from './glyphs.js';
@@ -6,27 +7,7 @@ import type { Tokens } from './tokens.js';
 const BAR = 24;
 const TICK = 80;
 
-/** What a `progress` event carries in its fields. */
-export type ProgressFields = {
-  /** `shell · history`: what the run reads. */
-  title: string;
-  processed: number;
-  /** Records expected, when the source knows; 0 when it doesn't. */
-  total: number;
-  /**
-   * `reading` while the source is read in ahead of the run (`processed`
-   * counts records read), `loading` once records go through to the output,
-   * `writing` while the output flushes at the end.
-   */
-  phase?: 'reading' | 'loading' | 'writing';
-  /** Where a `writing` run's output goes. */
-  target?: string;
-  /** Records by type so far. */
-  counts: Record<string, number>;
-  /** The record in hand, as a one-line label. Personal. */
-  current?: string;
-  elapsedMs: number;
-};
+export type { ProgressFields } from '@chronicle.app/logging';
 
 /** A bar filled in proportion to the total; nothing when there's no total to measure against. */
 function bar(fields: ProgressFields, t: Tokens): Segment[] {

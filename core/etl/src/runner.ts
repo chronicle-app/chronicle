@@ -4,6 +4,7 @@ import { Transformer } from './transformer.js';
 import { Loader } from './loader.js';
 import { Logger, createLogger, type RunContext, type Sink } from '@chronicle.app/logging';
 import { ActionAndChildrenSchema } from '@chronicle.app/schema';
+import { RunReport, type RunStats } from './report.js';
 
 export interface RunnerConfig {
   streamExtraction?: boolean;
@@ -39,6 +40,10 @@ export interface RunnerConfig {
    * mode only), with the count so far: how a host shows a slow read.
    */
   onRead?: (record: Record, read: number) => void;
+  /** What the run reads, for its progress and summary. Default `<source> · <strategy>`. */
+  title?: string;
+  /** Where the records go, when that's a file, for the summary. */
+  output?: string;
   /**
    * Wait this many milliseconds before each extracted record: a slow source,
    * on demand, for watching progress and output while debugging.
@@ -50,6 +55,9 @@ export class Runner {
   public numRecords: null | number = null;
   /** Whether `limit` left records unread: known once extraction ends, with `peek` set. */
   public truncated?: boolean;
+  private report?: RunReport;
+  /** Set when `run()` went through every record, so the run gets a summary. */
+  private completed = false;
 
   private extractor!: Extractor;
   private transformers: Transformer[] = [];
@@ -75,6 +83,15 @@ export class Runner {
       sink: config.sink,
       run: config.run,
     });
+  }
+
+  /**
+   * The run's totals so far. The runner reports them itself: `progress` while
+   * it reads and processes records, a keyed `error` for each failed record
+   * operation, and a `summary` once a completed run is torn down.
+   */
+  get stats(): RunStats {
+    return this.report?.stats ?? { counts: {}, processed: 0, written: 0, skipped: 0, failed: 0 };
   }
 
   // chainable
@@ -110,6 +127,14 @@ export class Runner {
       this.extractor.useOutput?.(sink, run);
       for (const transformer of this.transformers) transformer.useOutput?.(sink, run);
     }
+    const cls = this.extractor.constructor as typeof Extractor;
+    const title =
+      this.config.title ??
+      (cls.strategy && cls.strategy !== cls.source
+        ? `${cls.source} · ${cls.strategy}`
+        : cls.source);
+    this.report = new RunReport(this.logger, String(title), this.config.output);
+    this.report.progress();
     await this.extractor.setup();
 
     for (const loader of this.loaders) {
@@ -126,6 +151,7 @@ export class Runner {
       this.logVerboseStep('Pre-extracting all records');
       for await (const record of this.extractRecords()) {
         this.extractedRecords.push(record);
+        this.report.readAhead(record);
         this.config.onRead?.(record, this.extractedRecords.length);
       }
 
@@ -133,6 +159,17 @@ export class Runner {
       this.logVerboseStep(`Pre-extracted ${this.numRecords} records`);
     }
     this.ready = true;
+    this.report.loading(this.expected());
+  }
+
+  /**
+   * Records this run will load, when the source said how many it has: its
+   * count, capped by the limits the runner and the extractor keep.
+   */
+  private expected(): number {
+    const total = this.numRecords ?? 0;
+    const limits = [this.config.limit ?? 0, this.extractor.recordLimit?.() ?? 0].filter(n => n > 0);
+    return total > 0 && limits.length > 0 ? Math.min(total, ...limits) : total;
   }
 
   /** Narrow by record kind, then apply the runner's post-filter limit. */
@@ -172,8 +209,10 @@ export class Runner {
   async *run(): AsyncGenerator<RunLog> {
     for await (const extractedRecord of this.runExtraction()) {
       const log = await this.processRecord(extractedRecord);
+      this.report?.record(log);
       yield log;
     }
+    this.completed = true;
   }
 
   /** Flush loaders before releasing transformer and extractor resources.
@@ -183,6 +222,7 @@ export class Runner {
     if (this.tornDown) return;
     this.tornDown = true;
     const errors: unknown[] = [];
+    if (this.completed) this.report?.writing();
     try {
       await this.teardownLoaders();
     } catch (error) {
@@ -203,6 +243,7 @@ export class Runner {
       }
     }
     if (errors.length > 0) throw new AggregateError(errors, 'Pipeline teardown failed');
+    if (this.completed) this.report?.summary();
   }
 
   async teardownLoaders(): Promise<void> {
