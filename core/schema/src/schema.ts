@@ -1784,14 +1784,12 @@ export const RelationshipSchema: z.ZodType<Relationship> = z
 // SoftwareSourceCode, child of https://schema.chronicle.app/CreativeWork
 export interface SoftwareSourceCode extends Omit<CreativeWork, '@type'> {
   '@type': 'SoftwareSourceCode';
-  programmingLanguage?: string[];
 }
 
 export type SoftwareSourceCodeAndChildren = SoftwareSourceCode | RepositoryAndChildren;
 
 const SoftwareSourceCodeProperties = {
   ...CreativeWorkProperties,
-  programmingLanguage: z.lazy(() => z.array(z.string())).optional(),
 };
 
 export const SoftwareSourceCodeSchema: z.ZodType<SoftwareSourceCode> = z

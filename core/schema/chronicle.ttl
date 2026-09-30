@@ -694,7 +694,7 @@
   :domainIncludes :ImageObject;
   :rangeIncludes :Text .
 :SoftwareSourceCode a rdfs:Class;
-  rdfs:comment "Computer source code as a work — a snippet, a script, a program's code. Its :programmingLanguage names the language it is written in.";
+  rdfs:comment "Computer source code as a work — a snippet, a script, a program's code.";
   rdfs:subClassOf :CreativeWork;
   owl:equivalentClass schemaorg:SoftwareSourceCode .
 :Repository a rdfs:Class;
@@ -706,11 +706,6 @@
 :PullRequest a rdfs:Class;
   rdfs:comment "A proposed change to a :Repository, discussed and reviewed like an :Issue before it is merged or closed.";
   rdfs:subClassOf :Issue .
-:programmingLanguage a rdf:Property;
-  rdfs:comment "The programming language the source code is written in, by name, such as Rust or TypeScript.";
-  owl:equivalentProperty schemaorg:programmingLanguage;
-  :domainIncludes :SoftwareSourceCode;
-  :rangeIncludes :Text .
 :ratingValue a rdf:Property;
   rdfs:comment "The rating or verdict a :Response gives, kept verbatim in the source's own vocabulary: a star count, a score, a reviewer's APPROVED.";
   owl:maxCardinality 1;

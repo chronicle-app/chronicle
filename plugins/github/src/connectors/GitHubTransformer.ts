@@ -182,7 +182,6 @@ export default class GitHubTransformer extends ChronicleTransformer {
 
   private buildGist(gist: GitHubGist): PublishAction {
     const files = gist.files ?? [];
-    const languages = [...new Set(files.flatMap(file => file.language?.name ?? []))];
     const name = gist.description || files[0]?.name;
     const code: SoftwareSourceCode = {
       '@type': 'SoftwareSourceCode',
@@ -193,7 +192,6 @@ export default class GitHubTransformer extends ChronicleTransformer {
       ...(name && { name }),
       datePublished: new Date(gist.createdAt),
       ...(this.viewer && { author: [this.buildSelf()] }),
-      ...(languages.length > 0 && { programmingLanguage: languages }),
       // A secret gist is hidden from listings but open to anyone with its URL.
       visibility: gist.isPublic ? 'public' : 'unlisted',
     };
@@ -263,9 +261,6 @@ export default class GitHubTransformer extends ChronicleTransformer {
       name: repository.name,
       ...(repository.description && { description: repository.description }),
       ...(repository.homepageUrl && { references: [this.buildLink(repository.homepageUrl)] }),
-      ...(repository.primaryLanguage && {
-        programmingLanguage: [repository.primaryLanguage.name],
-      }),
       ...(topics.length > 0 && { tags: topics }),
       creator: [this.buildActor(repository.owner)],
       visibility: VISIBILITY[repository.visibility],

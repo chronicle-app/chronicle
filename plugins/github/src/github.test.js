@@ -77,7 +77,6 @@ const bakery = {
   name: 'bakery',
   description: 'Bread recipes',
   references: [{ '@type': 'Entity', '@key': ['url'], url: 'https://bakery.example.com' }],
-  programmingLanguage: ['Rust'],
   tags: ['bread', 'recipes'],
   creator: [sam],
   visibility: 'public',
@@ -97,7 +96,6 @@ const kiln = {
   source,
   url: 'https://github.com/alex/kiln',
   name: 'kiln',
-  programmingLanguage: ['Python'],
   creator: [alex],
   visibility: 'public',
 };
@@ -343,14 +341,12 @@ test('gists are published source code; a secret gist is unlisted', async t => {
     gist('G_hydration', '2025-02-14T10:00:00Z', {
       url: 'https://gist.github.com/a1b2',
       name: 'Dough hydration calculator',
-      programmingLanguage: ['Python', 'Markdown'],
       visibility: 'public',
     }),
     // No description: named after its first file.
     gist('G_notes', '2024-12-01T10:00:00Z', {
       url: 'https://gist.github.com/c3d4',
       name: 'notes.txt',
-      programmingLanguage: ['Text'],
       visibility: 'unlisted',
     }),
   ]);

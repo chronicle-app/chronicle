@@ -58,7 +58,6 @@ const repository = (id, nameWithOwner, owner, fields = {}) => ({
   description: null,
   homepageUrl: null,
   visibility: 'PUBLIC',
-  primaryLanguage: null,
   repositoryTopics: { nodes: [] },
   owner,
   ...fields,
@@ -67,11 +66,10 @@ export const REPOSITORIES = {
   bakery: repository('R_bakery', 'sam/bakery', sam, {
     description: 'Bread recipes',
     homepageUrl: 'https://bakery.example.com',
-    primaryLanguage: { name: 'Rust' },
     repositoryTopics: { nodes: [{ topic: { name: 'bread' } }, { topic: { name: 'recipes' } }] },
   }),
   trails: repository('R_trails', 'trailco/trails', trailco, { visibility: 'PRIVATE' }),
-  kiln: repository('R_kiln', 'alex/kiln', alex, { primaryLanguage: { name: 'Python' } }),
+  kiln: repository('R_kiln', 'alex/kiln', alex),
 };
 const { bakery, trails, kiln } = REPOSITORIES;
 
@@ -285,11 +283,7 @@ export const GISTS = [
     url: 'https://gist.github.com/a1b2',
     createdAt: '2025-02-14T10:00:00Z',
     isPublic: true,
-    files: [
-      { name: 'hydration.py', language: { name: 'Python' } },
-      { name: 'README.md', language: { name: 'Markdown' } },
-      { name: 'test.py', language: { name: 'Python' } },
-    ],
+    files: [{ name: 'hydration.py' }],
   },
   {
     id: 'G_notes',
@@ -298,7 +292,7 @@ export const GISTS = [
     url: 'https://gist.github.com/c3d4',
     createdAt: '2024-12-01T10:00:00Z',
     isPublic: false,
-    files: [{ name: 'notes.txt', language: { name: 'Text' } }],
+    files: [{ name: 'notes.txt' }],
   },
 ];
 

@@ -46,14 +46,14 @@ gh's default scopes (`repo`, `read:org`, `gist`) cover everything. For a persona
 | You starred a repository           | `LikeAction`     | `Repository`                 |                                       |
 | You created a gist                 | `PublishAction`  | `SoftwareSourceCode`         |                                       |
 
-| GitHub thing            | Chronicle entity                          | Key                                           | Properties                                                                                                                                         |
-| ----------------------- | ----------------------------------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Repository              | `Repository`                              | `@type`, `source`, `creator.sourceId`, `name` | `name` (without the owner), `url`, `description`, `references` (homepage), `programmingLanguage`, `tags` (topics), `creator` (owner), `visibility` |
-| Pull request, issue     | `PullRequest`, `Issue`                    | `@type`, `source`, `sourceId`                 | `name` (title), `body`, `url`, `datePublished`, `author`, `isPartOf` (repository), `visibility`                                                    |
-| Comment                 | `Comment`                                 | `@type`, `source`, `sourceId`                 | `body`, `url`, `author`, `about` (its issue or pull request), `visibility`; inline: `isPartOf` (review), `inReplyTo`                               |
-| Review                  | `Response`                                | `@type`, `source`, `sourceId`                 | `ratingValue`, `body`, `url`, `author`, `about` (its pull request), `visibility`                                                                   |
-| Gist                    | `SoftwareSourceCode`                      | `@type`, `source`, `sourceId`                 | `name`, `url`, `datePublished`, `author`, `programmingLanguage`, `visibility`                                                                      |
-| User, organization, bot | `Person`, `Organization`, `SoftwareAgent` | `@type`, `source`, `sourceId`                 | `sourceId` (numeric id), `handle` (login), `name`, `url`                                                                                           |
+| GitHub thing            | Chronicle entity                          | Key                                           | Properties                                                                                                                  |
+| ----------------------- | ----------------------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Repository              | `Repository`                              | `@type`, `source`, `creator.sourceId`, `name` | `name` (without the owner), `url`, `description`, `references` (homepage), `tags` (topics), `creator` (owner), `visibility` |
+| Pull request, issue     | `PullRequest`, `Issue`                    | `@type`, `source`, `sourceId`                 | `name` (title), `body`, `url`, `datePublished`, `author`, `isPartOf` (repository), `visibility`                             |
+| Comment                 | `Comment`                                 | `@type`, `source`, `sourceId`                 | `body`, `url`, `author`, `about` (its issue or pull request), `visibility`; inline: `isPartOf` (review), `inReplyTo`        |
+| Review                  | `Response`                                | `@type`, `source`, `sourceId`                 | `ratingValue`, `body`, `url`, `author`, `about` (its pull request), `visibility`                                            |
+| Gist                    | `SoftwareSourceCode`                      | `@type`, `source`, `sourceId`                 | `name`, `url`, `datePublished`, `author`, `visibility`                                                                      |
+| User, organization, bot | `Person`, `Organization`, `SoftwareAgent` | `@type`, `source`, `sourceId`                 | `sourceId` (numeric id), `handle` (login), `name`, `url`                                                                    |
 
 ### Decisions
 
