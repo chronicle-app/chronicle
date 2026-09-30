@@ -68,6 +68,45 @@ export function renderRecordTypes(candidates: ExtractorMetadata[]): string {
 }
 
 /**
+ * What a run without `--type` reads, mirroring ExtractorSelector: the only
+ * extractor, else the declared default. Undefined when the run would ask.
+ */
+function bareRunKinds(candidates: ExtractorMetadata[]): string[] | undefined {
+  const chosen = candidates.length === 1 ? candidates[0] : candidates.find(e => e.default);
+  return chosen?.recordType;
+}
+
+/** What a run without `--type` reads: `only submissions`, `every kind`, or undefined when it asks. */
+function bareRunSummary(candidates: ExtractorMetadata[]): string | undefined {
+  const kinds = bareRunKinds(candidates);
+  if (!kinds) return undefined;
+  const all = new Set(candidates.flatMap(e => e.recordType));
+  return kinds.length === all.size ? 'every kind' : `only ${kinds.join(', ')}`;
+}
+
+/**
+ * How to pick from `--list-types`, as a runnable example: kinds a bare run
+ * leaves out when there are some, with `--strategy` only when there is a
+ * choice. Printed as a hint on stderr, so the list on stdout still pipes.
+ */
+export function recordTypesHint(
+  source: string,
+  candidates: ExtractorMetadata[],
+  verb = 'extract'
+): { message: string; action: string } {
+  const strategies = strategiesOf(candidates);
+  const chosen = strategies.find(s => s.extractors.some(e => e.default)) ?? strategies[0];
+  const strategy = strategies.length > 1 ? ` --strategy ${chosen.name}` : '';
+  const bare = bareRunKinds(candidates) ?? [];
+  const others = chosen.recordTypes.filter(kind => !bare.includes(kind));
+  const kinds = (others.length > 0 ? others : chosen.recordTypes).slice(0, 2).join(',');
+  return {
+    message: `pick kinds with --type; without it, ${bareRunSummary(candidates) ?? 'you’re asked which'}`,
+    action: `\`chronicle ${verb} ${source}${strategy} --type ${kinds}\``,
+  };
+}
+
+/**
  * Render a source as strategies × record kinds, plus the flags they accept. Shared
  * by the custom Help class (`extract <source> --help`) and the dispatcher's
  * `--list-types` / non-TTY selection error, so the surfaces never drift.
@@ -123,7 +162,9 @@ export function renderSourceHelp(
     '',
     theme.textDim('usage:'),
     `  chronicle ${verb} ${source} [--strategy <name>] [--type <kind[,kind]>] [flags]`,
-    theme.textDim('  no --type reads every kind the strategy carries')
+    theme.textDim(
+      `  no --type reads ${bareRunSummary(candidates) ?? 'the kinds you pick when asked'}`
+    )
   );
   return lines.join('\n');
 }
