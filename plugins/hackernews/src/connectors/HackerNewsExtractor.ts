@@ -60,13 +60,19 @@ export default abstract class HackerNewsExtractor extends Extractor<typeof Hacke
     }
   }
 
-  /** The items in order, a batch at a time, without the missing and deleted. */
+  /**
+   * The items in order, a batch at a time, without the missing and deleted.
+   * A removed item can also come back as just its id and type, with no time,
+   * author, or text; it is skipped too.
+   */
   protected async *fetchEach(ids: number[]): AsyncGenerator<HackerNewsItem> {
     for (let start = 0; start < ids.length; start += CONCURRENCY) {
       const batch = await Promise.all(
         ids.slice(start, start + CONCURRENCY).map(id => this.proxy.getItem(id))
       );
-      for (const item of batch) if (item && !item.deleted) yield item;
+      for (const item of batch) {
+        if (item && !item.deleted && item.time !== undefined) yield item;
+      }
     }
   }
 

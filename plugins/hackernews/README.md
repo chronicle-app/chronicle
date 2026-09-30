@@ -15,7 +15,7 @@ Each kind is one record type:
 - `comments`: comments you wrote.
 - `replies`: other people's direct replies to your submissions and comments. Your own replies are under `comments`.
 
-Your items are read newest first, so `--since` ends the `submissions` and `comments` walks at the first older item. `replies` reads every item you posted, since an old item can get a new reply, and applies `--since` to the reply's own time. Deleted items are skipped; dead (killed) items are kept, since they were still posted.
+Your items are read newest first, so `--since` ends the `submissions` and `comments` walks at the first older item. `replies` reads every item you posted, since an old item can get a new reply, and applies `--since` to the reply's own time. Deleted items are skipped, as are removed ones the API returns with no time or text; dead (killed) items are kept, since they were still posted.
 
 Upvotes, favorites, and hidden items aren't read: Hacker News records no time for them, and upvotes also need a login and page scraping.
 
