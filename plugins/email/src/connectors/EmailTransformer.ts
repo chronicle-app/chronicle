@@ -102,7 +102,7 @@ export default class EmailTransformer extends ChronicleTransformer {
       };
     } catch {
       // Log and skip malformed addresses
-      console.warn(`Failed to parse email address: ${emailString}`);
+      this.logger.warn('Failed to parse email address', { address: emailString });
       return null;
     }
   }

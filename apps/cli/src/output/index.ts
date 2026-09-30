@@ -23,10 +23,13 @@ export { progress, LiveView, type ProgressFields } from './live.js';
 export {
   render,
   createSink,
+  sinkFor,
+  outputFlagsIn,
   defaultLogFormat,
   PrettySink,
   PlainSink,
   LOG_FORMATS,
   type LogFormat,
   type OutputOptions,
+  type OutputFlags,
 } from './sinks.js';

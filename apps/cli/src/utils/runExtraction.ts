@@ -1,5 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { createLogger, thresholdFor, type Logger } from '@chronicle.app/logging';
+import {
+  captureConsole,
+  createLogger,
+  setDefaultSink,
+  thresholdFor,
+  type Logger,
+} from '@chronicle.app/logging';
 import {
   nodeLabel,
   type Record as ExtractedRecord,
@@ -209,9 +215,13 @@ export async function runExtraction(
     run,
     onRead: record => tally.readAhead(record),
   });
-  const originalLog = console.log;
-  // Plugins sometimes log; stdout carries the records.
-  console.log = console.error.bind(console);
+  // For the run, everything goes to its sink: loggers without one of their
+  // own, and anything a plugin or dependency writes to the console, as its
+  // diagnostics. Stdout carries only the records.
+  const previousSink = setDefaultSink(sink);
+  const restoreConsole = captureConsole(
+    createLogger({ scope: `${run.source}.${run.strategy}`, sink, run })
+  );
   let failure: unknown;
   let interrupted = false;
   let interrupt!: (error: Error) => void;
@@ -255,7 +265,8 @@ export async function runExtraction(
         message: `Extraction cleanup failed: ${error instanceof Error ? error.message : error}`,
       });
     } finally {
-      console.log = originalLog;
+      restoreConsole();
+      setDefaultSink(previousSink);
       process.removeListener('SIGINT', onInterrupt);
     }
   }

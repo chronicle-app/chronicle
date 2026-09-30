@@ -5,7 +5,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { homedir } from 'node:os';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { normalizePhoneNumber } from '@chronicle.app/etl';
+import { createLogger, normalizePhoneNumber } from '@chronicle.app/etl';
 
 export interface Contact {
   /** Stable, portable contact id (AddressBook ZEXTERNALUUID — the CardDAV/iCloud id). */
@@ -21,6 +21,8 @@ export interface Contact {
 /**
  * Cached AddressBook contact lookup
  */
+const logger = createLogger({ scope: 'icloud.addressbook' });
+
 export class ContactCache {
   constructor(private readonly databasePaths?: string[]) {}
 
@@ -161,12 +163,13 @@ export class ContactCache {
           this.nameIndex.set(key, list);
         }
 
-        // Optional: log cache initialization stats
-        // console.log(
-        //   `Loaded ${contactMap.size} contacts (${this.emailIndex.size} emails, ${this.phoneIndex.size} phones)`
-        // );
+        logger.debug('Loaded the AddressBook cache', {
+          contacts: contactMap.size,
+          emails: this.emailIndex.size,
+          phones: this.phoneIndex.size,
+        });
       } catch (error) {
-        console.warn('Error loading AddressBook cache:', error);
+        logger.warn('Could not load the AddressBook cache', { error: String(error) });
       } finally {
         db?.close();
       }

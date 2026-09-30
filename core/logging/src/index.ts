@@ -1,5 +1,7 @@
 export { Logger } from './Logger.js';
 export { Aggregator } from './aggregate.js';
+export { captureConsole } from './console.js';
+export { defaultSink, setDefaultSink } from './defaultSink.js';
 export { allows, thresholdFor } from './levels.js';
 export {
   JsonSink,

@@ -395,7 +395,7 @@ export class OtherShell extends Extractor {
   assert.doesNotMatch(localList().join(), /gone-first/);
   const pruned = run('sources', '--format', 'json');
   assert.match(success(pruned), /^\[/);
-  assert.match(pruned.stderr, /Removed .*gone-second from your local plugins: it no longer exists/);
+  assert.match(pruned.stderr, /Removed a local plugin that no longer exists {2}path=.*gone-second/);
   assert.deepEqual(localList(), []);
   assert.doesNotMatch(run('sources', '--format', 'json').stderr, /gone-second/);
 });
@@ -533,7 +533,7 @@ test('failed setup and transformation release extractor resources and exit nonze
       export class Fixture extends Extractor {
         static source = 'fixture'; static strategy = 'file'; static delivery = 'export'; static recordTypes = ['rows'];
         static defaultTransformer = FailingTransformer;
-        async setup() { this.logger.warn('synthetic warning'); ${phase === 'setup' ? "throw new Error('synthetic setup failure');" : ''} }
+        async setup() { this.logger.warn('synthetic warning'); console.log('synthetic console output'); ${phase === 'setup' ? "throw new Error('synthetic setup failure');" : ''} }
         async teardown() { writeFileSync(${JSON.stringify(marker)}, 'closed'); }
         async *extract() { yield this.createRecord({ name: 'fixture' }); }
       }`
@@ -543,6 +543,8 @@ test('failed setup and transformation release extractor resources and exit nonze
     assert.match(result.stderr, new RegExp(`synthetic ${phase} failure`));
     // Plugin warnings reach stderr even when stdout is piped.
     assert.match(result.stderr, /! fixture\.file {2}synthetic warning/);
+    // A plugin's console output becomes its diagnostics on stderr, never records on stdout.
+    assert.match(result.stderr, /· fixture\.file {2}synthetic console output/);
     assert.equal(readFileSync(marker, 'utf8'), 'closed');
     assert.equal(result.stdout, '');
   }

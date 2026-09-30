@@ -2,6 +2,9 @@ import { promises as fs } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { ConfigSchema, DEFAULT_CONFIG } from './schema.js';
 import type { Config, PresetConfig } from './schema.js';
+import { createLogger } from '@chronicle.app/logging';
+
+const logger = createLogger({ scope: 'config' });
 
 /**
  * Manages Chronicle configuration files and presets
@@ -28,7 +31,7 @@ export class ConfigManager {
         return DEFAULT_CONFIG;
       }
       // If config is invalid, return default and log warning
-      console.warn('Invalid configuration file, using defaults:', error);
+      logger.warn('Invalid configuration file; using defaults', { error: String(error) });
       return DEFAULT_CONFIG;
     }
   }

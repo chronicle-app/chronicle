@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { render, Box, Text } from 'ink';
 import { Spinner } from '@inkjs/ui';
 import { getTheme, type ChronicleTheme } from '../theme.js';
+import { createLogger } from '@chronicle.app/logging';
+
+const logger = createLogger({ scope: 'cli' });
 
 interface InkLoaderProps {
   message: string;
@@ -68,7 +71,7 @@ export class InkLoader {
   succeed(message?: string): InkLoader {
     this.stop();
     if (message) {
-      console.log(`✓ ${message}`);
+      logger.emit({ level: 'info', kind: 'summary', message });
     }
     return this;
   }
@@ -76,20 +79,20 @@ export class InkLoader {
   fail(message?: string): InkLoader {
     this.stop();
     if (message) {
-      console.error(`✗ ${message}`);
+      logger.error(message);
     }
     return this;
   }
 
   info(message: string): InkLoader {
     this.stop();
-    console.log(`ℹ ${message}`);
+    logger.info(message);
     return this;
   }
 
   warn(message: string): InkLoader {
     this.stop();
-    console.warn(`⚠ ${message}`);
+    logger.warn(message);
     return this;
   }
 

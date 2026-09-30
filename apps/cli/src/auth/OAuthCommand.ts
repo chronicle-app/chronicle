@@ -5,6 +5,9 @@ import { OAuthProviderRegistry } from './ProviderRegistry.js';
 import { BrowserLauncher } from './BrowserLauncher.js';
 import { CredentialManager } from './CredentialManager.js';
 import { OAuthParams, TokenResponse } from './types.js';
+import { createLogger } from '@chronicle.app/logging';
+
+const logger = createLogger({ scope: 'auth' });
 
 export interface OAuthCommandOptions {
   clientId?: string;
@@ -69,7 +72,6 @@ export class OAuthCommand {
     const onInterrupt = () =>
       server.stop(Object.assign(new Error('Authorization cancelled'), { exitCode: 130 }));
     // Start OAuth server
-    console.error('⏳ Starting OAuth server...');
     const port = await this.server.start(
       this.options.port || 0,
       this.options.timeout === undefined ? undefined : this.options.timeout * 1000
@@ -78,7 +80,7 @@ export class OAuthCommand {
     try {
       const callbackUrl = this.server.getCallbackUrl();
 
-      console.error(`📡 OAuth server running on port ${port}`);
+      logger.debug('OAuth server listening', { port });
 
       // Create provider instance
       const oauthParams: OAuthParams = {
@@ -93,27 +95,21 @@ export class OAuthCommand {
       const authUrl = provider.buildAuthUrl();
 
       // Open browser or provide manual URL
-      if (this.options.noBrowser) {
-        console.error('📋 Please open this URL in your browser:');
-        console.error(`   ${authUrl}`);
+      // The URL is the one thing a person must act on, so it isn't cut to fit.
+      const openManually = () => logger.info('Open this URL in your browser', { url: authUrl });
+      if (this.options.noBrowser || !(await BrowserLauncher.canOpenBrowser())) {
+        openManually();
       } else {
-        const canOpen = await BrowserLauncher.canOpenBrowser();
-        if (canOpen) {
-          console.error('🌐 Opening authorization URL in browser...');
-          try {
-            await BrowserLauncher.openUrl(authUrl);
-          } catch (error) {
-            console.error(`⚠️  Failed to open browser automatically: ${error}`);
-            console.error('📋 Please open this URL manually:');
-            console.error(`   ${authUrl}`);
-          }
-        } else {
-          console.error('📋 Please open this URL in your browser:');
-          console.error(`   ${authUrl}`);
+        try {
+          await BrowserLauncher.openUrl(authUrl);
+          logger.info('Opened the authorization page in your browser', { url: authUrl });
+        } catch (error) {
+          logger.warn("Couldn't open a browser", { error: String(error) });
+          openManually();
         }
       }
 
-      console.error('⏳ Waiting for authorization...');
+      logger.info('Waiting for authorization…');
 
       // Wait for callback
       const result = await this.server.waitForCallback();
@@ -129,12 +125,10 @@ export class OAuthCommand {
         throw new Error('No authorization code or token received');
       }
 
-      console.error('✅ Authorization received, exchanging for tokens...');
+      logger.debug('Authorization received; exchanging it for tokens');
 
       // Exchange code/token for tokens
       const tokens = await provider.exchangeCodeForToken(authCode);
-
-      console.error('💾 Storing credentials...');
 
       // Store credentials in local file for future use
       try {
@@ -145,13 +139,16 @@ export class OAuthCommand {
           this.options.clientSecret
         );
         const credentialsPath = CredentialManager.getCredentialsPath();
-        console.error(`✅ Credentials saved to ${credentialsPath}`);
+        logger.emit({
+          level: 'info',
+          kind: 'summary',
+          message: `Signed in to ${this.providerId}`,
+          fields: { credentials: credentialsPath },
+        });
       } catch (error) {
-        console.error('⚠️  Warning: Failed to save credentials:', error);
         // Continue anyway - user still gets the tokens
+        logger.warn("Signed in, but couldn't save the credentials", { error: String(error) });
       }
-
-      console.error('🎉 OAuth flow completed successfully!');
 
       return tokens;
     } finally {

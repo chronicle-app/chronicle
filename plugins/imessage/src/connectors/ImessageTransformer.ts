@@ -258,7 +258,7 @@ export default class ImessageTransformer extends ChronicleTransformer {
 
         // Check if file exists
         if (!fs.existsSync(filePath)) {
-          console.warn(`Attachment file not found: ${filePath}`);
+          this.logger.warn('Attachment file not found', { file: filePath });
           continue;
         }
 
@@ -286,7 +286,10 @@ export default class ImessageTransformer extends ChronicleTransformer {
 
         mediaObjects.push(mediaObject);
       } catch (error) {
-        console.warn(`Failed to process attachment ${attachment.filename}:`, error);
+        this.logger.warn('Failed to process attachment', {
+          file: attachment.filename,
+          error: String(error),
+        });
       }
     }
 

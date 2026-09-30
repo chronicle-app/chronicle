@@ -3,6 +3,7 @@ import {
   TextSink,
   allows,
   formatFields,
+  thresholdFor,
   timeOfDay,
   type LogLevel,
   type OutputEvent,
@@ -68,9 +69,14 @@ export function render(
           ? [glyphs.bullet, t.muted, t.muted]
           : [glyphs.bullet, t.muted, undefined];
   const [first, ...rest] = event.message.split('\n');
-  // An aggregate's count is already in its message.
-  const { suppressed: _, ...shown } = event.fields ?? {};
-  const fields = formatFields(event.key ? shown : event.fields);
+  // An aggregate's count is already in its message, and a URL gets a line of its own.
+  const { suppressed, url, ...others } = event.fields ?? {};
+  const shown = {
+    ...others,
+    ...(!event.key && suppressed !== undefined && { suppressed }),
+    ...(typeof url !== 'string' && url !== undefined && { url }),
+  };
+  const fields = formatFields(shown);
   const segments: Segment[] = [
     [glyph, glyphStyle],
     [' '],
@@ -88,6 +94,8 @@ export function render(
       ? line(segments, width) + ' '.repeat(width - length - stamp.length) + t.muted(stamp)
       : line(segments, width),
     ...rest.map(text => line([[`  ${text}`, textStyle]], width)),
+    // Never cut: a URL is for opening, and the terminal wraps it whole.
+    ...(typeof url === 'string' ? [`  ${url}`] : []),
   ];
   return lines.join('\n');
 }
@@ -182,4 +190,43 @@ export function createSink(options: OutputOptions): Sink {
     default:
       return new PrettySink(options);
   }
+}
+
+/** The flags that shape output, as a command has them. */
+export interface OutputFlags {
+  quiet?: boolean;
+  verbose?: boolean;
+  theme?: string;
+  'log-format'?: LogFormat;
+  'log-personal'?: boolean;
+}
+
+/** The sink a command's flags ask for. */
+export const sinkFor = (flags: OutputFlags, extra: { live?: boolean } = {}): Sink =>
+  createSink({
+    format: flags['log-format'],
+    level: thresholdFor(flags),
+    theme: flags.theme,
+    personal: flags['log-personal'],
+    ...extra,
+  });
+
+/**
+ * The output flags in raw argv, for output before oclif has parsed them
+ * (plugin discovery runs first).
+ */
+export function outputFlagsIn(argv: string[]): OutputFlags {
+  const value = (name: string) => {
+    const i = argv.findIndex(arg => arg === name || arg.startsWith(`${name}=`));
+    if (i < 0) return;
+    return argv[i].includes('=') ? argv[i].slice(name.length + 1) : argv[i + 1];
+  };
+  const format = value('--log-format');
+  return {
+    quiet: argv.includes('--quiet') || argv.includes('-q'),
+    verbose: argv.includes('--verbose') || argv.includes('-v'),
+    theme: value('--theme'),
+    ...(LOG_FORMATS.includes(format as LogFormat) && { 'log-format': format as LogFormat }),
+    'log-personal': argv.includes('--log-personal'),
+  };
 }

@@ -62,7 +62,7 @@ export class TwitterArchiveTweetsExtractor extends TwitterArchiveExtractor<
         }
       }
     } catch (error) {
-      console.warn(`Could not process tweets: ${error}`);
+      this.logger.warn('Could not process tweets', { error: String(error) });
     }
   }
 

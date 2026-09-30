@@ -20,7 +20,11 @@ styled. Commands, loaders, and sinks build their text from this module.
   grouped (`1,240`). **Durations** as spoken (`40ms`, `4.2s`, `3m 07s`).
 - **`--quiet`** prints nothing on success; errors always print.
 - **Every block renders without a TTY and under `NO_COLOR`**, and no line
-  exceeds the width it was given.
+  exceeds the width it was given, except a `url` field: it prints whole on a
+  line of its own, since a cut URL can't be opened.
+- **No `console.*`.** Say things through a logger (`this.logger` in a
+  command, `createLogger({ scope })` in a module); the command's sink decides
+  where they go. Command output on stdout uses `this.log`.
 
 ## Events and sinks
 

@@ -1,5 +1,7 @@
 import { Command, Flags, Interfaces } from '@oclif/core';
+import { createLogger, setDefaultSink, type Logger } from '@chronicle.app/logging';
 import { ConfigManager, FlagResolver, FlagSource } from './config/index.js';
+import { outputFlagsIn, sinkFor, type OutputFlags } from './output/index.js';
 
 /**
  * Reading stdin drains it to EOF, so a parent that spawns the CLI with a pipe
@@ -65,6 +67,25 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
   protected flags!: Flags<T>;
   protected flagSources?: Record<string, FlagSource>;
 
+  /**
+   * Everything a command tells a person goes through here, never `console`:
+   * events on the process-wide sink its output flags ask for.
+   */
+  protected logger: Logger = createLogger({ scope: 'cli' });
+
+  /** Point every logger without a sink of its own at the sink these flags ask for. */
+  protected installOutput(flags: OutputFlags): void {
+    setDefaultSink(sinkFor(flags));
+  }
+
+  /** An error for a person: the message, and its stack under --verbose. */
+  protected logError(message: string, error: unknown): void {
+    this.logger.error(message, {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    if (error instanceof Error && error.stack) this.logger.debug(error.stack);
+  }
+
   protected override async catch(err: { exitCode?: number } & Error): Promise<any> {
     // add any custom logic to handle errors from the command
     // or simply return the parent class error handling
@@ -77,6 +98,8 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
   }
 
   public override async init(): Promise<any> {
+    // Output first, from raw argv: anything said while parsing follows it.
+    this.installOutput(outputFlagsIn(this.argv));
     await super.init();
     const { args, flags, metadata } = await this.parse({
       args: this.ctor.args,
@@ -88,6 +111,7 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
 
     this.flags = await this.resolveCommandFlags(flags, metadata);
     this.args = args as Args<T>;
+    this.installOutput(this.flags as OutputFlags);
 
     if (shouldReadStdin({ isTTY: process.stdin.isTTY, acceptsStdin: this.acceptsPipedStdin() })) {
       BaseCommand.stdin = await read(process.stdin);

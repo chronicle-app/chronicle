@@ -30,8 +30,15 @@ maps the common flags), and both aggregate events sharing a `key`: the first
 three show, and `flush()` reports the rest as `…and N more like this`. A
 `summary` event flushes first.
 
-Without a sink, a logger writes plain lines to stderr at the level its
-`quiet`, `verbose`, and `level` options ask for; errors always print. With
-`sensitive: true` every field it logs is marked personal.
+A logger without a sink of its own uses the process-wide one a host sets
+with `setDefaultSink`, so a host can redirect every logger, including
+module-level ones in shared packages. Without either, it writes plain lines
+to stderr at the level its `quiet`, `verbose`, and `level` options ask for;
+errors always print. With `sensitive: true` every field it logs is marked
+personal.
+
+`captureConsole(logger)` routes `console.*` through a logger as diagnostics
+until the function it returns restores the console, for code the host doesn't
+control. Chronicle's own code never calls `console`; lint enforces it.
 
 MIT. See [LICENSE](LICENSE).
