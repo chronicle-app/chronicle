@@ -94,7 +94,13 @@ test('bundled sources are discoverable from an unrelated cwd; JSON has no diagno
   // `extract help [source]` reads like `git help`, and --list-types lists only the kinds.
   assert.equal(success(run('extract', 'help', 'shell')), help);
   assert.match(success(run('extract', 'help')), /chronicle extract <source> --help/);
-  assert.equal(success(run('extract', 'shell', '--list-types')), 'commands  history\n');
+  const listed = run('extract', 'shell', '--list-types');
+  assert.equal(success(listed), 'commands  history\n');
+  // How to use them goes to stderr, so the list still pipes.
+  assert.match(
+    listed.stderr,
+    /↳ pick kinds with --type; without it, every kind · `chronicle extract shell --type commands`/
+  );
   assert.doesNotMatch(success(run('--help')), /archive|sync|serve/);
 });
 
