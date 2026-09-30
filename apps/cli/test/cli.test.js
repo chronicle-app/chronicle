@@ -174,9 +174,19 @@ test('raw extraction, four output loaders, file output and stream mode', t => {
     Array.from({ length: 101 }, (_, i) => `: ${1700000000 + i}:0;echo ${i}\n`).join('')
   );
   const capped = run('extract', 'shell', '--input', long, '--raw', '--output', 'stdout');
-  assert.match(capped.stderr, /100 commands.*\n.*stopped at --limit 100/);
+  assert.match(capped.stderr, /100 commands.*\n.*first 100 · use --limit 0 for all/);
+  // With a count from the source (a streamed run asks), the hint says how many there are.
+  const counted = run('extract', 'shell', '--input', long, '--raw', '--stream');
+  assert.match(counted.stderr, /first 100 of 101 · use --limit 0 for all/);
+  // The default limit that didn't cut anything short gets no hint.
+  const exact = join(dir, 'exact-history');
+  writeFileSync(
+    exact,
+    Array.from({ length: 100 }, (_, i) => `: ${1700000000 + i}:0;echo ${i}\n`).join('')
+  );
+  assert.doesNotMatch(run('extract', 'shell', '--input', exact, '--raw').stderr, /first 100/);
   const chosen = run('extract', 'shell', '--input', long, '--raw', '--limit', '100');
-  assert.doesNotMatch(chosen.stderr, /stopped/);
+  assert.doesNotMatch(chosen.stderr, /first 100/);
   // Tabular output hints at the other column mode, but only when it would show more.
   const labelled = run('extract', 'shell', '--input', input, '--loader', 'csv');
   assert.match(labelled.stderr, /--columns schema/);

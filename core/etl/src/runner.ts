@@ -23,6 +23,12 @@ export interface RunnerConfig {
    */
   limit?: number | null;
   /**
+   * With a `limit`, read one record past it to learn whether the limit cut the
+   * run short ({@link Runner.truncated}). The extra record is never yielded.
+   * The extractor must be allowed at least `limit + 1`.
+   */
+  peek?: boolean;
+  /**
    * The host's sink. The runner hands it to the extractor and transformers,
    * so their events render the host's way, tagged with `run`.
    */
@@ -42,6 +48,8 @@ export interface RunnerConfig {
 
 export class Runner {
   public numRecords: null | number = null;
+  /** Whether `limit` left records unread: known once extraction ends, with `peek` set. */
+  public truncated?: boolean;
 
   private extractor!: Extractor;
   private transformers: Transformer[] = [];
@@ -133,13 +141,20 @@ export class Runner {
     const limit = this.config.limit ?? null;
     let kept = 0;
 
+    const capped = limit !== null && limit > 0;
     for await (const record of this.extractor.performExtract()) {
       if (this.config.delay) await new Promise(resolve => setTimeout(resolve, this.config.delay));
       if (wanted && !wanted.includes(record.extraction.recordType ?? '')) continue;
+      if (capped && kept >= limit) {
+        // Only a peek gets here: one record past the limit, read and dropped.
+        this.truncated = true;
+        return;
+      }
       yield record;
       kept += 1;
-      if (limit !== null && limit > 0 && kept >= limit) break;
+      if (capped && kept >= limit && !this.config.peek) return;
     }
+    if (this.config.peek) this.truncated = false;
   }
 
   async *runExtraction(): AsyncGenerator<Record> {

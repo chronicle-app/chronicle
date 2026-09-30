@@ -63,6 +63,16 @@ export class RunnerBuilder {
   }
 
   /**
+   * Whether the run is capped by the default `--limit`, which the CLI hints
+   * at only when it cut the run short, so the Runner peeks past it. A limit
+   * you set is the scope you asked for: no peek, no hint.
+   */
+  peeking(): boolean {
+    const chosen = (this.flagSources?.limit?.source ?? 'default') !== 'default';
+    return !chosen && Number.isInteger(this.flags.limit) && this.flags.limit > 0;
+  }
+
+  /**
    * Build extractor configuration from flags
    */
   buildExtractorConfig(selectedExtractor: any): any {
@@ -74,8 +84,12 @@ export class RunnerBuilder {
 
     // With a type filter in play the Runner owns `--limit`, so the extractor
     // reads unbounded rather than stopping on records that get discarded.
+    // Under the default limit it reads one past it, so the Runner can tell
+    // whether the limit cut the run short.
     if (this.needsTypeFilter(selectedExtractor)) {
       config.limit = 0;
+    } else if (this.peeking()) {
+      config.limit = this.flags.limit + 1;
     }
 
     // Convert kebab-case flags back to camelCase for extractor schema
@@ -194,13 +208,15 @@ export class RunnerBuilder {
     const transformer = this.initializeTransformer(extractor);
 
     const filtering = this.needsTypeFilter(selectedExtractor);
+    const peek = this.peeking();
     const runner = new Runner({
       streamExtraction: this.flags.stream,
       quiet: this.flags.quiet,
       verbose: this.flags.verbose,
       validateSchema: this.flags.validate,
       recordTypes: filtering ? requestedRecordTypes(this.flags.type) : undefined,
-      limit: filtering ? this.flags.limit : undefined,
+      limit: filtering || peek ? this.flags.limit : undefined,
+      peek,
       // A typed --limit states the run's scope, so the frontier yields to it
       // (the Runner's own rule). The CLI's default cap is not a statement of
       // scope: underneath it the frontier stays the stopping rule.

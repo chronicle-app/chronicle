@@ -14,6 +14,7 @@ import {
 } from '@chronicle.app/etl';
 import type { FlagSource } from '../config/index.js';
 import {
+  count,
   createSink,
   defaultLogFormat,
   plainTokens,
@@ -23,7 +24,7 @@ import {
   type ProgressFields,
   type SummaryFields,
 } from '../output/index.js';
-import { RunnerBuilder } from './RunnerBuilder.js';
+import { RunnerBuilder, requestedRecordTypes } from './RunnerBuilder.js';
 
 /** Where the records land, when it's a file: relative to here unless that climbs out. */
 function destination(output: unknown): string | undefined {
@@ -226,7 +227,7 @@ export async function runExtraction(
   const logger = createLogger({ scope: 'runner', sink, run });
   const title = strategy && strategy !== source ? `${source} · ${strategy}` : String(source);
   const tally = new Tally(logger, title);
-  const builder = new RunnerBuilder(flags);
+  const builder = new RunnerBuilder(flags, flagSources);
   const runner: Runner = await builder.buildRunner(extractor, {
     sink,
     run,
@@ -239,6 +240,9 @@ export async function runExtraction(
   const restoreConsole = captureConsole(
     createLogger({ scope: `${run.source}.${run.strategy}`, sink, run })
   );
+  // The source's own count, when it gave one (a streamed run asks): the whole
+  // source, before any limit, and only meaningful when no --type narrows it.
+  let sourceTotal: number | null = null;
   let failure: unknown;
   let interrupted = false;
   let interrupt!: (error: Error) => void;
@@ -260,7 +264,10 @@ export async function runExtraction(
         tally.progress();
         await runner.setup();
         if (interrupted) return;
-        tally.loading(runner.numRecords || 0);
+        const total = runner.numRecords ?? 0;
+        if (flags.stream && !requestedRecordTypes(flags.type)) sourceTotal = runner.numRecords;
+        // The bar measures what this run will load, not the whole source.
+        tally.loading(flags.limit > 0 && total > 0 ? Math.min(total, flags.limit) : total);
         for await (const log of runner.run()) {
           if (interrupted) break;
           tally.record(log);
@@ -298,14 +305,16 @@ export async function runExtraction(
   const shared = !destination(flags.output) && process.stdout.isTTY && process.stderr.isTTY;
   if (format === 'pretty' && shared && hasRecords && !flags.quiet) process.stderr.write('\n');
   tally.summary(destination(flags.output));
-  // Only the default cap earns a hint; a limit you set is the scope you asked for.
-  const limit = (flagSources.limit?.source ?? 'default') === 'default' ? flags.limit : undefined;
+  // Only the default cap earns a hint, and only when it left records unread
+  // (the runner peeked one past it); a limit you set is the scope you asked for.
   const hints: Hint[] = [];
-  if (limit && limit > 0 && tally.processed >= limit) {
+  if (builder.peeking() && runner.truncated) {
+    const { limit } = flags;
+    const of = sourceTotal && sourceTotal > limit ? ` of ${count(sourceTotal)}` : '';
     hints.push({
-      message: `stopped at --limit ${limit.toLocaleString('en-US')}`,
-      action: 'pass --limit 0 to extract everything',
-      fields: { limit },
+      message: `first ${count(limit)}${of}`,
+      action: 'use --limit 0 for all',
+      fields: { limit, ...(of && { total: sourceTotal }) },
     });
   }
   if (hasRecords) hints.push(...columnHints(flags, builder.loader, flagSources));
