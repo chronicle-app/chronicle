@@ -179,9 +179,13 @@ test('date range, tag blacklist, and limit filter the posts', async () => {
   );
 });
 
-test('a missing token fails before any request', async () => {
+test('a missing token fails before any request, pointing at `auth set`', async () => {
   requests.length = 0;
   const extractor = new LocalPinboardExtractor({});
-  await assert.rejects(extractor.setup(), /Pinboard API key is required/);
+  // Pinboard takes a static token, not OAuth, so the next step is `auth set`.
+  await assert.rejects(extractor.setup(), {
+    message: /Pinboard API key is required/,
+    hint: 'run `chronicle auth set pinboard`',
+  });
   assert.equal(requests.length, 0);
 });

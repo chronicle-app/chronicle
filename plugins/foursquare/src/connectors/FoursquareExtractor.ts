@@ -36,6 +36,7 @@ export class FoursquareExtractor extends Extractor<typeof FoursquareExtractor> {
         overrides: { accessToken: config['access-token'] },
         errorMessage:
           'Foursquare access token is required. Either pass --access-token or authenticate with: chronicle auth login foursquare --client-id YOUR_ID --client-secret YOUR_SECRET',
+        hint: 'run `chronicle auth login foursquare`',
       }
     );
 
