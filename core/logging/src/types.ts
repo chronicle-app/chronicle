@@ -58,3 +58,41 @@ export interface LoggerOptions {
 export interface LoggerContext {
   [key: string]: any;
 }
+
+/** What a `progress` event carries in its fields: a run as it goes. */
+export type ProgressFields = {
+  /** `shell · history`: what the run reads. */
+  title: string;
+  /**
+   * `reading` while the source is read in ahead of the run (`processed`
+   * counts records read), `loading` once records go through to the output,
+   * `writing` while the output flushes at the end.
+   */
+  phase?: 'reading' | 'loading' | 'writing';
+  processed: number;
+  /** Records expected, when the source knows; 0 when it doesn't. */
+  total: number;
+  /** Records by type so far. */
+  counts: Record<string, number>;
+  /** The record in hand, as a one-line label. Personal. */
+  current?: string;
+  /** Where a `writing` run's output goes. */
+  target?: string;
+  elapsedMs: number;
+};
+
+/** What a `summary` event carries in its fields: a finished run's totals. */
+export type SummaryFields = {
+  /** `shell · history`: what the run read. */
+  title: string;
+  /** Records read, by type, in the order first seen. */
+  counts: Record<string, number>;
+  records: number;
+  /** What reached the output, when that differs from records read less skipped: a fan-out, or failures. */
+  written?: number;
+  skipped?: number;
+  failed?: number;
+  durationMs: number;
+  /** Where the records went, when that's a file. */
+  output?: string;
+};

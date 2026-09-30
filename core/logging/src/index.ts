@@ -20,7 +20,9 @@ export type {
   LoggerOptions,
   LogLevel,
   OutputEvent,
+  ProgressFields,
   RunContext,
+  SummaryFields,
   Sink,
 } from './types.js';
 

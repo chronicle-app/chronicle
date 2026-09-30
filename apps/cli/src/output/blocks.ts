@@ -1,3 +1,4 @@
+import type { SummaryFields } from '@chronicle.app/logging';
 import { count, duration, plural, truncate } from './format.js';
 import { glyphs } from './glyphs.js';
 import type { Style, Tokens } from './tokens.js';
@@ -19,20 +20,7 @@ export function line(segments: Segment[], width: number): string {
 }
 
 /** A finished run's totals: what a `summary` event carries in its fields. */
-export type SummaryFields = {
-  /** `shell · history`: what the run read. */
-  title: string;
-  /** Records read, by type, in the order first seen. */
-  counts: Record<string, number>;
-  records: number;
-  /** What reached the output, when that differs from records read: a transformer can fan out or drop. */
-  written?: number;
-  skipped?: number;
-  failed?: number;
-  durationMs: number;
-  /** Where the records went, when that's a file. */
-  output?: string;
-};
+export type { SummaryFields } from '@chronicle.app/logging';
 
 const measure = (segments: Segment[]) => segments.reduce((n, [text]) => n + text.length, 0);
 
