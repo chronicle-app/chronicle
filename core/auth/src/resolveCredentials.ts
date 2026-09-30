@@ -28,6 +28,12 @@ export interface ResolveCredentialsOptions {
    * exact user-facing message (auth command, credential-creation URL, …).
    */
   errorMessage?: string;
+  /**
+   * The next step printed under the error. Defaults to `chronicle auth set`,
+   * which stores the static secrets this path reads; an OAuth source whose
+   * token comes from `chronicle auth login` says so here.
+   */
+  hint?: string;
 }
 
 /** Pure resolution core, separated for testing. */
@@ -61,7 +67,7 @@ export function pickCredentialFields<F extends string>(
   if (missing.length > 0) {
     throw new AuthRequired(
       options.errorMessage ?? `${provider} credentials are missing ${missing.join(', ')}`,
-      { source: provider }
+      { hint: options.hint ?? `run \`chronicle auth set ${provider}\`` }
     );
   }
 

@@ -67,6 +67,12 @@
       "summary": "Google Reader archive actions"
     },
     {
+      "name": "hackernews",
+      "package": "@chronicle.app/hackernews",
+      "tier": "official",
+      "summary": "Hacker News submissions, comments, and replies"
+    },
+    {
       "name": "imessage",
       "package": "@chronicle.app/imessage",
       "tier": "core",
