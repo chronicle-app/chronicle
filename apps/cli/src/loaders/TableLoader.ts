@@ -31,8 +31,9 @@ const heading = (column: string) => column.replace(/^@/, '');
 /**
  * `--loader table`: rows for reading in a terminal. Columns come from
  * `recordRow`, so bookkeeping stays out and nested nodes show their labels.
- * Columns that hold one value across every row move up into a caption, the
- * table fits the terminal, and a single record prints as a card instead.
+ * Columns that hold one value across every row move up into a caption (a
+ * shared `@type` is dropped), the table fits the terminal, and a single
+ * record prints as a card instead.
  */
 export class TableLoader extends Loader<typeof TableLoader> {
   static override source = 'table';
@@ -88,8 +89,11 @@ export class TableLoader extends Loader<typeof TableLoader> {
     });
     const shown = columns.filter(column => !constant.includes(column));
 
+    // A type every row shares says nothing the command didn't ask for.
     const lines = caption(
-      constant.map(column => [column === '@type' ? '' : heading(column), texts.get(column)![0]]),
+      constant
+        .filter(column => column !== '@type')
+        .map(column => [heading(column), texts.get(column)![0]]),
       t,
       width
     );

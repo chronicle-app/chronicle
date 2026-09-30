@@ -38,6 +38,8 @@ export const ITEMS = {
     title: 'Ask HN: What do you bake?',
     text: 'Weekends only.<p>See <a href="https://example.com/starter">my starter</a>.',
   }),
+  // Removed: the API keeps only the id and type.
+  102: { id: 102, type: 'story' },
   104: item(104, {
     type: 'comment',
     by: 'alex',
@@ -59,7 +61,7 @@ export const USER = {
   created: 1_600_000_000,
   karma: 42,
   about: 'Bread <i>and</i> bikes.',
-  submitted: [110, 109, 107, 106, 105, 103, 100],
+  submitted: [110, 109, 107, 106, 105, 103, 102, 100],
 };
 
 function respond(path) {
