@@ -37,6 +37,7 @@ const failed: SummaryFields = {
   title: 'claude-code · sessions',
   counts: { messages: 3120, sessions: 48 },
   records: 3168,
+  written: 3400,
   skipped: 12,
   failed: 5,
   durationMs: 187_000,

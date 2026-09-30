@@ -41,9 +41,31 @@ test('the gallery renders every block and event within its width, in every sink 
       if (width === 40) assert.doesNotMatch(warning, /09:30:05/);
       assert.ok(lines.every(line => !/✓.*09:30:05/.test(line.replaceAll(ANSI, ''))));
     }
+    // However narrow, a failed run's summary keeps its failure count.
+    const failedSummary = lines.find(line => line.includes('✗') && line.includes('sessions'));
+    if (failedSummary) assert.match(failedSummary.replaceAll(ANSI, ''), /5 failed/, title);
     for (const line of lines) {
       const visible = line.replaceAll(ANSI, '');
       assert.ok(visible.length <= width, `${title}: ${visible.length} > ${width}: ${visible}`);
     }
   }
+});
+
+test('a group that goes quiet still gets its roll-up on time', async () => {
+  const { JsonSink } = await import('@chronicle.app/logging');
+  const lines = [];
+  const sink = new JsonSink({
+    level: 'debug',
+    write: line => lines.push(JSON.parse(line)),
+    aggregate: { examples: 1, windowMs: 100 },
+  });
+  for (let i = 0; i < 4; i++) {
+    sink.emit({ time: new Date(), level: 'info', kind: 'notice', scope: 'x', message: 'tick' });
+  }
+  assert.equal(lines.length, 1);
+  // Nothing else arrives; the sink's own timer reports the three held back.
+  await new Promise(resolve => setTimeout(resolve, 1300));
+  assert.equal(lines.length, 2);
+  assert.equal(lines[1].fields.suppressed, 3);
+  sink.flush();
 });

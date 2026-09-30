@@ -89,13 +89,16 @@ function label(data: unknown): string {
 /** A run's counts as it goes: what progress and the summary report. */
 class Tally {
   processed = 0;
+  /** Payloads loaders took: a transformer can fan a record out, or drop it. */
+  written = 0;
   failed = 0;
   skipped = 0;
   counts: Record<string, number> = {};
   current = '';
   readonly startedAt = Date.now();
   private total = 0;
-  private phase: 'reading' | 'loading' = 'reading';
+  private phase: 'reading' | 'loading' | 'writing' = 'reading';
+  private target?: string;
   private read = 0;
   private readCounts: Record<string, number> = {};
 
@@ -117,6 +120,14 @@ class Tally {
   loading(total: number): void {
     this.phase = 'loading';
     this.total = total;
+    this.current = '';
+    this.progress();
+  }
+
+  /** Records are in; the loaders flush their output to `target`. */
+  writing(target: string): void {
+    this.phase = 'writing';
+    this.target = target;
     this.current = '';
     this.progress();
   }
@@ -145,6 +156,7 @@ class Tally {
         key,
       });
     }
+    this.written += log.results.filter(result => result.success).length;
     if (log.filtered) this.skipped++;
     const loaded = log.results.at(-1)?.record?.data;
     this.current = label(loaded ?? log.record.data) || this.current;
@@ -161,6 +173,7 @@ class Tally {
       counts: { ...(reading ? this.readCounts : this.counts) },
       elapsedMs: Date.now() - this.startedAt,
       ...(this.current && { current: this.current }),
+      ...(this.target && { target: this.target }),
     };
     this.logger.emit({
       level: 'debug',
@@ -178,6 +191,8 @@ class Tally {
       title: this.title,
       counts: this.counts,
       records: this.processed,
+      // Only when it says something the counts don't: a fan-out, or failures.
+      ...(this.written !== this.processed - this.skipped && { written: this.written }),
       ...(this.skipped > 0 && { skipped: this.skipped }),
       ...(this.failed > 0 && { failed: this.failed }),
       durationMs: Date.now() - this.startedAt,
@@ -255,8 +270,12 @@ export async function runExtraction(
   } catch (error) {
     failure = error;
   } finally {
-    // Off the screen before the loaders flush: the table prints on teardown.
-    logger.flush();
+    // Loaders that buffer write everything at teardown. When that's to the
+    // terminal (the table), the live view comes off the screen first;
+    // otherwise it stays up, saying where the output is going.
+    const toTerminal = !destination(flags.output) && process.stdout.isTTY;
+    if (toTerminal || failure) logger.flush();
+    else tally.writing(destination(flags.output) ?? 'stdout');
     try {
       await runner.teardown();
     } catch (error) {
@@ -267,6 +286,7 @@ export async function runExtraction(
         message: `Extraction cleanup failed: ${error instanceof Error ? error.message : error}`,
       });
     } finally {
+      logger.flush();
       restoreConsole();
       setDefaultSink(previousSink);
       process.removeListener('SIGINT', onInterrupt);

@@ -30,6 +30,36 @@ export function formatPlain(event: OutputEvent): string {
   return `${timeOfDay(event.time)} ${level}${event.scope}: ${event.message}${hint}${fields ? ` ${fields}` : ''}`;
 }
 
+/** How often a sink checks for roll-ups that came due while nothing else arrived. */
+const TICK_MS = 1000;
+
+/**
+ * Prints roll-ups on time even when a group goes quiet: while events are held
+ * back, a timer checks once a second. It never keeps the process alive.
+ */
+class RollupTimer {
+  private timer?: NodeJS.Timeout;
+
+  constructor(
+    private readonly aggregator: Aggregator,
+    private readonly print: (event: OutputEvent) => void
+  ) {}
+
+  arm(): void {
+    if (this.timer || !this.aggregator.pending) return;
+    this.timer = setInterval(() => {
+      for (const event of this.aggregator.due(Date.now())) this.print(event);
+      if (!this.aggregator.pending) this.stop();
+    }, TICK_MS);
+    this.timer.unref();
+  }
+
+  stop(): void {
+    clearInterval(this.timer);
+    this.timer = undefined;
+  }
+}
+
 export interface TextSinkOptions {
   /** The quietest level shown. Default `info`. */
   level?: LogLevel;
@@ -49,21 +79,25 @@ export class TextSink implements Sink {
   protected readonly write: (text: string) => void;
   private readonly format: (event: OutputEvent) => string | undefined;
   private readonly aggregator: Aggregator;
+  private readonly rollups: RollupTimer;
 
   constructor(options: TextSinkOptions = {}) {
     this.level = options.level ?? 'info';
     this.write = options.write ?? stderr;
     this.format = options.format ?? formatPlain;
     this.aggregator = new Aggregator(options.aggregate);
+    this.rollups = new RollupTimer(this.aggregator, event => this.print(event));
   }
 
   emit(event: OutputEvent): void {
     if (!allows(this.level, event.level) || event.kind === 'progress') return;
     if (event.kind === 'summary') this.flush();
     for (const shown of this.aggregator.admit(event)) this.print(shown);
+    this.rollups.arm();
   }
 
   flush(): void {
+    this.rollups.stop();
     for (const event of this.aggregator.drain()) {
       if (allows(this.level, event.level)) this.print(event);
     }
@@ -123,6 +157,7 @@ export class JsonSink implements Sink {
   private readonly personal: boolean;
   private readonly heartbeatMs: number;
   private readonly aggregator: Aggregator;
+  private readonly rollups: RollupTimer;
   private lastBeat = new Map<string, number>();
 
   constructor(options: JsonSinkOptions = {}) {
@@ -131,6 +166,7 @@ export class JsonSink implements Sink {
     this.personal = options.personal ?? false;
     this.heartbeatMs = options.heartbeatMs ?? 10_000;
     this.aggregator = new Aggregator(options.aggregate);
+    this.rollups = new RollupTimer(this.aggregator, event => this.print(event));
   }
 
   emit(event: OutputEvent): void {
@@ -148,9 +184,11 @@ export class JsonSink implements Sink {
     if (!allows(this.level, event.level)) return;
     if (event.kind === 'summary') this.flush();
     for (const shown of this.aggregator.admit(event)) this.print(shown);
+    this.rollups.arm();
   }
 
   flush(): void {
+    this.rollups.stop();
     for (const event of this.aggregator.drain()) {
       if (allows(this.level, event.level)) this.print(event);
     }

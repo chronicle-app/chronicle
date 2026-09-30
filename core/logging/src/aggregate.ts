@@ -110,7 +110,14 @@ export class Aggregator {
     return out;
   }
 
-  private due(now: number): OutputEvent[] {
+  /** Whether any group is holding events back. */
+  get pending(): boolean {
+    for (const group of this.groups.values()) if (group.pending > 0) return true;
+    return false;
+  }
+
+  /** Roll-ups whose window has passed by `now`. */
+  due(now: number): OutputEvent[] {
     const out: OutputEvent[] = [];
     for (const group of this.groups.values()) {
       const urgent = group.last.level === 'warn' || group.last.level === 'error';

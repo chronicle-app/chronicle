@@ -15,9 +15,12 @@ export type ProgressFields = {
   total: number;
   /**
    * `reading` while the source is read in ahead of the run (`processed`
-   * counts records read), `loading` once records go through to the output.
+   * counts records read), `loading` once records go through to the output,
+   * `writing` while the output flushes at the end.
    */
-  phase?: 'reading' | 'loading';
+  phase?: 'reading' | 'loading' | 'writing';
+  /** Where a `writing` run's output goes. */
+  target?: string;
   /** Records by type so far. */
   counts: Record<string, number>;
   /** The record in hand, as a one-line label. Personal. */
@@ -27,7 +30,7 @@ export type ProgressFields = {
 
 /** A bar filled in proportion to the total; nothing when there's no total to measure against. */
 function bar(fields: ProgressFields, t: Tokens): Segment[] {
-  if (fields.total <= 0) return [];
+  if (fields.total <= 0 || fields.phase === 'writing') return [];
   const filled = Math.round(Math.min(1, fields.processed / fields.total) * BAR);
   return [
     [glyphs.bar.repeat(filled), t.accent],
@@ -46,12 +49,17 @@ export function progress(fields: ProgressFields, t: Tokens, width: number, frame
   const types = Object.keys(fields.counts);
   const unit = types.length === 1 ? plural(types[0], processed) : plural('records', processed);
   const counted: Segment[] =
-    fields.phase === 'reading'
-      ? [[processed === 0 ? 'starting' : `${count(processed)} ${unit} read`]]
-      : total > 0
-        ? [[count(processed)], ['/', t.muted], [`${count(total)} ${unit}`]]
-        : [[`${count(processed)} ${unit}`]];
-  const rate = elapsedMs >= 1000 ? `${count(Math.round(processed / (elapsedMs / 1000)))}/s` : '';
+    fields.phase === 'writing'
+      ? [[`writing ${fields.target ?? 'output'}`], [`  ${count(processed)} ${unit}`, t.muted]]
+      : fields.phase === 'reading'
+        ? [[processed === 0 ? 'starting' : `${count(processed)} ${unit} read`]]
+        : total > 0
+          ? [[count(processed)], ['/', t.muted], [`${count(total)} ${unit}`]]
+          : [[`${count(processed)} ${unit}`]];
+  const rate =
+    fields.phase !== 'writing' && elapsedMs >= 1000
+      ? `${count(Math.round(processed / (elapsedMs / 1000)))}/s`
+      : '';
   const lines = [
     line(
       [
@@ -100,9 +108,15 @@ export class LiveView {
   }
 
   update(fields: ProgressFields): void {
+    const moved = this.fields?.phase !== fields.phase;
     this.fields = fields;
     this.startedAt = Date.now() - fields.elapsedMs;
     if (!this.timer) this.start();
+    else if (moved) {
+      // A new phase shows now, not on the next tick: writing may take less.
+      this.erase();
+      this.draw();
+    }
   }
 
   private start(): void {

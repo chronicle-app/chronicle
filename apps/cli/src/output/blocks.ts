@@ -22,9 +22,11 @@ export function line(segments: Segment[], width: number): string {
 export type SummaryFields = {
   /** `shell · history`: what the run read. */
   title: string;
-  /** Records by type, in the order first seen. */
+  /** Records read, by type, in the order first seen. */
   counts: Record<string, number>;
   records: number;
+  /** What reached the output, when that differs from records read: a transformer can fan out or drop. */
+  written?: number;
   skipped?: number;
   failed?: number;
   durationMs: number;
@@ -32,9 +34,15 @@ export type SummaryFields = {
   output?: string;
 };
 
+const measure = (segments: Segment[]) => segments.reduce((n, [text]) => n + text.length, 0);
+
 /**
  * The line a command ends with: status, subject, counts, time, destination.
  * `✓ shell · history  1,240 commands  in 1.7s  → out.json`
+ *
+ * When it doesn't fit, the least useful parts go first (destination,
+ * written, skipped, then time), then the counts are cut; a failure count
+ * always stays.
  */
 export function summary(
   fields: SummaryFields,
@@ -43,34 +51,66 @@ export function summary(
   { status = true }: { status?: boolean } = {}
 ): string {
   const failed = (fields.failed ?? 0) > 0;
+  const head: Segment[] = [
+    ...(status
+      ? ([
+          [failed ? glyphs.failure : glyphs.success, failed ? t.danger : t.success],
+          [' '],
+        ] as Segment[])
+      : []),
+    [fields.title, t.strong],
+    ['  '],
+  ];
   const counts: Segment[] = [];
   if (fields.records === 0) counts.push(['no records', t.muted]);
   for (const [type, n] of Object.entries(fields.counts)) {
     if (counts.length > 0) counts.push([` ${glyphs.bullet} `, t.muted]);
     counts.push([count(n), t.strong], [` ${plural(type, n)}`]);
   }
-  return line(
-    [
-      ...(status
-        ? ([
-            [failed ? glyphs.failure : glyphs.success, failed ? t.danger : t.success],
-            [' '],
-          ] as Segment[])
-        : []),
-      [fields.title, t.strong],
-      ['  '],
-      ...counts,
-      [fields.skipped ? ` ${glyphs.bullet} ${count(fields.skipped)} skipped` : '', t.muted],
-      [failed ? ` ${glyphs.bullet} ${count(fields.failed!)} failed` : '', t.danger],
-      [`  in ${duration(fields.durationMs)}`, t.muted],
-      ...(fields.output
-        ? ([
-            [`  ${glyphs.arrow} `, t.muted],
-            [fields.output, undefined],
-          ] as Segment[])
-        : []),
-    ],
-    width
+  const kept: Segment[] = failed
+    ? [[` ${glyphs.bullet} ${count(fields.failed!)} failed`, t.danger]]
+    : [];
+  const parts: { [part: string]: Segment[] } = {
+    skipped: fields.skipped
+      ? [[` ${glyphs.bullet} ${count(fields.skipped)} skipped`, t.muted]]
+      : [],
+    written:
+      fields.written === undefined
+        ? []
+        : [[` ${glyphs.bullet} ${count(fields.written)} written`, t.muted]],
+    duration: [[`  in ${duration(fields.durationMs)}`, t.muted]],
+    output: fields.output
+      ? [
+          [`  ${glyphs.arrow} `, t.muted],
+          [fields.output, undefined],
+        ]
+      : [],
+  };
+  const fixed = measure(head) + measure(counts) + measure(kept);
+  const total = () => fixed + Object.values(parts).reduce((n, part) => n + measure(part), 0);
+  for (const part of ['output', 'written', 'skipped', 'duration']) {
+    if (total() <= width) break;
+    parts[part] = [];
+  }
+  if (fixed <= width) {
+    return line(
+      [
+        ...head,
+        ...counts,
+        ...parts.skipped,
+        ...kept,
+        ...parts.written,
+        ...parts.duration,
+        ...parts.output,
+      ],
+      width
+    );
+  }
+  // Still too long: cut the counts, keep the failures.
+  const room = Math.max(0, width - measure(kept));
+  return (
+    line([...head, ...counts], room) +
+    line(kept, width - Math.min(room, measure(head) + measure(counts)))
   );
 }
 
