@@ -3277,7 +3277,7 @@ what: its :source, :agent, and :object.
     ]
   ] .
 
-example:hacker-news-reply
+example:hackernews-reply
   rdfs:label "Replying in a Hacker News thread";
   rdfs:comment """
 You replied to Riley's comment on Alex's story. The :RespondAction's :object is
@@ -3289,35 +3289,35 @@ News id.
   rdf:value [
     a :RespondAction;
     doc:key ("@type" "source" "sourceId");
-    :source "hacker-news";
+    :source "hackernews";
     :sourceId "40000110";
     :timestamp "2024-05-06T12:53:20.000Z"^^xsd:dateTime;
     :agent [
       a :Agent;
-      doc:key ("@type" "source" "sourceId");
-      :source "hacker-news";
-      :sourceId "sam";
+      doc:key ("@type" "source" "handle");
+      :source "hackernews";
       :handle "sam";
+      :url "https://news.ycombinator.com/user?id=sam";
       :sameAs "@me"
     ];
     :object [
       a :Comment;
       doc:key ("@type" "source" "sourceId");
-      :source "hacker-news";
+      :source "hackernews";
       :sourceId "40000108";
       :url "https://news.ycombinator.com/item?id=40000108";
       :body "And patience.";
       :author [
         a :Agent;
-        doc:key ("@type" "source" "sourceId");
-        :source "hacker-news";
-        :sourceId "riley";
-        :handle "riley"
+        doc:key ("@type" "source" "handle");
+        :source "hackernews";
+        :handle "riley";
+        :url "https://news.ycombinator.com/user?id=riley"
       ];
       :about [
         a :Post;
         doc:key ("@type" "source" "sourceId");
-        :source "hacker-news";
+        :source "hackernews";
         :sourceId "40000100";
         :url "https://news.ycombinator.com/item?id=40000100";
         :name "Sourdough at altitude"
@@ -3326,14 +3326,14 @@ News id.
     :result [
       a :Comment;
       doc:key ("@type" "source" "sourceId");
-      :source "hacker-news";
+      :source "hackernews";
       :sourceId "40000110";
       :url "https://news.ycombinator.com/item?id=40000110";
       :body "So much patience.";
       :about [
         a :Post;
         doc:key ("@type" "source" "sourceId");
-        :source "hacker-news";
+        :source "hackernews";
         :sourceId "40000100";
         :url "https://news.ycombinator.com/item?id=40000100";
         :name "Sourdough at altitude"
@@ -3938,6 +3938,6 @@ a sentence of prose, so the action has no :object.
 :target skos:example example:arena-block-connected .
 :references skos:example example:arena-block-connected .
 
-:RespondAction skos:example example:hacker-news-reply .
-:Comment skos:example example:hacker-news-reply .
-:about skos:example example:hacker-news-reply .
+:RespondAction skos:example example:hackernews-reply .
+:Comment skos:example example:hackernews-reply .
+:about skos:example example:hackernews-reply .

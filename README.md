@@ -59,7 +59,7 @@ other source by name, for example `chronicle plugins install lastfm`, or let
 | FoodNoms meal logs                                                    | [foodnoms](plugins/foodnoms/README.md)                     | app-db (local)                  |
 | Foursquare/Swarm check-ins                                            | [foursquare](plugins/foursquare/README.md)                 | api                             |
 | Goodreads shelves and reading history                                 | [goodreads](plugins/goodreads/README.md)                   | csv (export)                    |
-| Hacker News submissions, comments, and replies                        | [hacker-news](plugins/hacker-news/README.md)               | api                             |
+| Hacker News submissions, comments, and replies                        | [hackernews](plugins/hackernews/README.md)                 | api                             |
 | Instagram data export                                                 | [instagram](plugins/instagram/README.md)                   | archive (export)                |
 | Last.fm listens, loved tracks, and friends                            | [lastfm](plugins/lastfm/README.md)                         | api                             |
 | LinkedIn data export                                                  | [linkedin](plugins/linkedin/README.md)                     | archive (export)                |

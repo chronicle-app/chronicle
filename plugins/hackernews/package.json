@@ -1,5 +1,5 @@
 {
-  "name": "@chronicle.app/hacker-news",
+  "name": "@chronicle.app/hackernews",
   "version": "0.3.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -15,7 +15,7 @@
   },
   "keywords": [
     "chronicle",
-    "hacker-news"
+    "hackernews"
   ],
   "author": "Andrew Louis",
   "license": "MIT",
@@ -32,7 +32,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/chronicle-app/chronicle.git",
-    "directory": "plugins/hacker-news"
+    "directory": "plugins/hackernews"
   },
   "publishConfig": {
     "access": "public",
@@ -54,7 +54,7 @@
   "chronicle": {
     "plugin": true,
     "sources": {
-      "hacker-news": {
+      "hackernews": {
         "strategies": {
           "api": {
             "delivery": "api",

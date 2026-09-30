@@ -92,7 +92,7 @@
       "path": "plugins/pinboard/tsconfig.lib.json"
     },
     {
-      "path": "plugins/hacker-news/tsconfig.lib.json"
+      "path": "plugins/hackernews/tsconfig.lib.json"
     },
     {
       "path": "plugins/google-reader/tsconfig.lib.json"
