@@ -1,5 +1,14 @@
 import { randomUUID } from 'node:crypto';
-import { captureConsole, createLogger, setDefaultSink, thresholdFor } from '@chronicle.app/logging';
+import { Errors } from '@oclif/core';
+import {
+  captureConsole,
+  createLogger,
+  describeError,
+  isReported,
+  markReported,
+  setDefaultSink,
+  thresholdFor,
+} from '@chronicle.app/logging';
 import type { Runner } from '@chronicle.app/etl';
 import type { FlagSource } from '../config/index.js';
 import { count, createSink, defaultLogFormat, relativePath, type Live } from '../output/index.js';
@@ -77,7 +86,25 @@ export async function runExtraction(
   const logger = createLogger({ scope: 'runner', sink, run });
   const builder = new RunnerBuilder(flags, flagSources);
   // The runner reports the run itself: progress, record errors, the summary.
-  const runner: Runner = await builder.buildRunner(extractor, { sink, run, output });
+  let runner: Runner;
+  try {
+    runner = await builder.buildRunner(extractor, { sink, run, output });
+  } catch (error) {
+    // Building the run constructs the extractor; a typed failure there is
+    // reported like one from the run, and exits with its code.
+    const { message, code, exitCode, hint, fields } = describeError(error);
+    if (code === 'internal') throw error;
+    logger.emit({
+      level: 'error',
+      kind: 'error',
+      message,
+      error: { code, exitCode },
+      ...(hint && { hint: { action: hint } }),
+      ...(fields && { fields, sensitive: Object.keys(fields) }),
+    });
+    logger.flush();
+    throw new Errors.ExitError(exitCode);
+  }
   // For the run, everything goes to its sink: loggers without one of their
   // own, and anything a plugin or dependency writes to the console, as its
   // diagnostics. Stdout carries only the records.
@@ -127,14 +154,20 @@ export async function runExtraction(
         kind: 'error',
         message: `Extraction cleanup failed: ${error instanceof Error ? error.message : error}`,
       });
+      markReported(error);
     } finally {
-      logger.flush();
+      // A failed run gets no summary, so what it held back prints now.
+      if (failure) logger.flush();
       restoreConsole();
       setDefaultSink(previousSink);
       process.removeListener('SIGINT', onInterrupt);
     }
   }
-  if (failure) throw failure;
+  if (failure) {
+    // Already on stderr as an event, with its hint: exit with its code, quietly.
+    if (isReported(failure)) throw new Errors.ExitError(describeError(failure).exitCode);
+    throw failure;
+  }
   const { processed, failed } = runner.stats;
   // Only the default cap earns a hint, and only when it left records unread
   // (the runner peeked one past it); a limit you set is the scope you asked for.

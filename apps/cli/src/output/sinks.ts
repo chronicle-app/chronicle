@@ -105,7 +105,6 @@ export function render(
     [HOST.has(event.scope) || !event.scope ? '' : `${event.scope}  `, t.muted],
     [first, textStyle],
     [fields ? `  ${fields}` : '', t.muted],
-    [event.hint ? `  ${glyphs.bullet} ${event.hint.action}` : '', t.muted],
   ];
   const length = segments.reduce((sum, [text]) => sum + text.length, 0);
   const stamp = timeOfDay(event.time);
@@ -118,6 +117,8 @@ export function render(
     ...rest.map(text => line([[`  ${text}`, textStyle]], width)),
     // Never cut: a URL is for opening, and the terminal wraps it whole.
     ...(typeof event.fields?.url === 'string' ? [`  ${event.fields.url}`] : []),
+    // What to do about it, on its own lines, like any hint.
+    ...(event.hint ? [hint('', event.hint.action, t, width)] : []),
   ];
   return lines.join('\n');
 }
@@ -172,10 +173,12 @@ export class PrettySink extends TextSink {
       if (this.view && allows(this.level, 'info')) this.view.update(fields);
       return;
     }
+    // The run is over: its live view comes down before the summary prints.
+    if (event.kind === 'summary') this.view?.stop();
     // Records on this same screen get a line of air before the summary.
     const records = (event.fields as { records?: number } | undefined)?.records ?? 0;
     if (this.air && event.kind === 'summary' && records > 0 && allows(this.level, event.level)) {
-      this.flush();
+      this.drain();
       this.write('\n');
     }
     super.emit(event);

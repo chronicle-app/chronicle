@@ -80,6 +80,9 @@ export class TextSink implements Sink {
   private readonly format: (event: OutputEvent) => string | undefined;
   private readonly aggregator: Aggregator;
   private readonly rollups: RollupTimer;
+  /** Hints from a run, printed under its summary rather than mid-run. */
+  private held: OutputEvent[] = [];
+  private summarized = new Set<string>();
 
   constructor(options: TextSinkOptions = {}) {
     this.level = options.level ?? 'info';
@@ -91,16 +94,39 @@ export class TextSink implements Sink {
 
   emit(event: OutputEvent): void {
     if (!allows(this.level, event.level) || event.kind === 'progress') return;
-    if (event.kind === 'summary') this.flush();
+    // Hints go under the summary: a run's hints wait for it (or for a flush,
+    // if the run fails). Hints outside a run print as they come.
+    if (event.kind === 'hint' && event.run && !this.summarized.has(event.run.id)) {
+      this.held.push(event);
+      return;
+    }
+    if (event.kind === 'summary') this.drain();
     for (const shown of this.aggregator.admit(event)) this.print(shown);
+    if (event.kind === 'summary') {
+      if (event.run) this.summarized.add(event.run.id);
+      this.release(event.run?.id);
+    }
     this.rollups.arm();
   }
 
   flush(): void {
+    this.drain();
+    this.release();
+  }
+
+  /** Report what the groups held back. */
+  protected drain(): void {
     this.rollups.stop();
     for (const event of this.aggregator.drain()) {
       if (allows(this.level, event.level)) this.print(event);
     }
+  }
+
+  /** Print held hints: a run's, or all of them. */
+  private release(run?: string): void {
+    const now = this.held.filter(event => run === undefined || event.run?.id === run);
+    this.held = this.held.filter(event => !now.includes(event));
+    for (const event of now) this.print(event);
   }
 
   protected print(event: OutputEvent): void {

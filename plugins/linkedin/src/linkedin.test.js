@@ -420,7 +420,7 @@ test('a missing file reads as empty, and since/until bound the dated records', a
 
   await assert.rejects(
     records(LinkedInArchiveFollowsExtractor, { input: join(empty, 'missing') }),
-    /Could not read the LinkedIn export directory/
+    { code: 'input-not-found', message: 'No LinkedIn export found' }
   );
 });
 

@@ -191,8 +191,10 @@ test('playlist entries become AddActions targeting the playlist', async t => {
 
 test('a rejected token asks the user to sign in again', async t => {
   await serveSpotify(t, { status: { '/v1/me/player/recently-played': 401 } });
-  await assert.rejects(actions(SpotifyRecentlyPlayedExtractor), {
-    message: /Spotify authentication failed[\s\S]*chronicle auth login spotify/,
+  await assert.rejects(actions(SpotifyRecentlyPlayedExtractor), error => {
+    assert.equal(error.exitCode, 3);
+    assert.match(error.hint, /chronicle auth login spotify/);
+    return true;
   });
 });
 

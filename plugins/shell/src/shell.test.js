@@ -68,5 +68,9 @@ test('missing input fails explicitly', async () => {
     input: '/missing/chronicle-fixture-history',
     shell: 'bash',
   });
-  await assert.rejects(Array.fromAsync(extractor.extract()), /Failed to read/);
+  await assert.rejects(Array.fromAsync(extractor.extract()), {
+    code: 'input-not-found',
+    exitCode: 4,
+    fields: { path: '/missing/chronicle-fixture-history' },
+  });
 });

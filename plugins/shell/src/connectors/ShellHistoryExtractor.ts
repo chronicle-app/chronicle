@@ -1,4 +1,4 @@
-import { Extractor, Record } from '@chronicle.app/etl';
+import { Extractor, Record, fileError } from '@chronicle.app/etl';
 import { readFile, access } from 'node:fs/promises';
 import { z } from 'zod';
 import os from 'node:os';
@@ -47,7 +47,9 @@ export class ShellHistoryExtractor extends Extractor<typeof ShellHistoryExtracto
 
   private async detectShellType(): Promise<'zsh' | 'bash' | 'fish'> {
     if (this.config.input) {
-      const content = await readFile(this.config.input, 'utf8');
+      const content = await readFile(this.config.input, 'utf8').catch(error => {
+        throw fileError(error, this.config.input!, 'shell history');
+      });
       if (/^: \d+:\d+;/m.test(content)) return 'zsh';
       if (/^- cmd: /m.test(content)) return 'fish';
       if (/^#\d+$/m.test(content)) return 'bash';
@@ -125,6 +127,8 @@ export class ShellHistoryExtractor extends Extractor<typeof ShellHistoryExtracto
           throw new Error(`Unsupported shell type: ${shellType}`);
       }
     } catch (error) {
+      const typed = fileError(error, inputPath, `${shellType} history`);
+      if (typed !== error) throw typed;
       throw new Error(`Failed to read ${shellType} history file from ${inputPath}: ${error}`);
     }
   }

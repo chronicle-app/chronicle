@@ -101,6 +101,16 @@ export abstract class Extractor<SelfClass extends typeof Extractor = typeof Extr
     this.logger.use(sink, { run });
   }
 
+  /**
+   * A next step for a person, printed under the run's summary, for a run
+   * that succeeded with something missing: `hint('attachments skipped',
+   * { action: 'grant Full Disk Access to your terminal to include them' })`.
+   * For a failure, throw a typed error with a hint instead.
+   */
+  protected hint(message: string, { action }: { action: string }): void {
+    this.logger.emit({ level: 'info', kind: 'hint', message, hint: { action } });
+  }
+
   // Overridable method for setup tasks
   async setup(): Promise<void> {
     this.logVerboseStep('Initializing extraction');
