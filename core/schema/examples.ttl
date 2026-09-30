@@ -3277,6 +3277,70 @@ what: its :source, :agent, and :object.
     ]
   ] .
 
+example:hacker-news-reply
+  rdfs:label "Replying in a Hacker News thread";
+  rdfs:comment """
+You replied to Riley's comment on Alex's story. The :RespondAction's :object is
+what the reply answers, Riley's :Comment; its :result is your :Comment. Both
+comments are :about the story at the top of the thread, so a reply deep in a
+discussion still links to the submission. Every item is keyed by its Hacker
+News id.
+""";
+  rdf:value [
+    a :RespondAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "hacker-news";
+    :sourceId "40000110";
+    :timestamp "2024-05-06T12:53:20.000Z"^^xsd:dateTime;
+    :agent [
+      a :Agent;
+      doc:key ("@type" "source" "sourceId");
+      :source "hacker-news";
+      :sourceId "sam";
+      :handle "sam";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Comment;
+      doc:key ("@type" "source" "sourceId");
+      :source "hacker-news";
+      :sourceId "40000108";
+      :url "https://news.ycombinator.com/item?id=40000108";
+      :body "And patience.";
+      :author [
+        a :Agent;
+        doc:key ("@type" "source" "sourceId");
+        :source "hacker-news";
+        :sourceId "riley";
+        :handle "riley"
+      ];
+      :about [
+        a :Post;
+        doc:key ("@type" "source" "sourceId");
+        :source "hacker-news";
+        :sourceId "40000100";
+        :url "https://news.ycombinator.com/item?id=40000100";
+        :name "Sourdough at altitude"
+      ]
+    ];
+    :result [
+      a :Comment;
+      doc:key ("@type" "source" "sourceId");
+      :source "hacker-news";
+      :sourceId "40000110";
+      :url "https://news.ycombinator.com/item?id=40000110";
+      :body "So much patience.";
+      :about [
+        a :Post;
+        doc:key ("@type" "source" "sourceId");
+        :source "hacker-news";
+        :sourceId "40000100";
+        :url "https://news.ycombinator.com/item?id=40000100";
+        :name "Sourdough at altitude"
+      ]
+    ]
+  ] .
+
 : skos:example example:message-from-alex, example:shell-command, example:task-completed .
 
 :Base skos:example example:entity-with-url .
@@ -3873,3 +3937,7 @@ a sentence of prose, so the action has no :object.
 :caption skos:example example:arena-block-connected .
 :target skos:example example:arena-block-connected .
 :references skos:example example:arena-block-connected .
+
+:RespondAction skos:example example:hacker-news-reply .
+:Comment skos:example example:hacker-news-reply .
+:about skos:example example:hacker-news-reply .
