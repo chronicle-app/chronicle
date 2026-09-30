@@ -37,6 +37,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "dependencies": {
+    "@chronicle.app/logging": "0.3.0",
     "axios": "^1.7.9"
   },
   "engines": {

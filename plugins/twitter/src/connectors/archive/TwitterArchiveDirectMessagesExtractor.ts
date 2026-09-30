@@ -97,7 +97,7 @@ export class TwitterArchiveDirectMessagesExtractor extends TwitterArchiveExtract
         }
       }
     } catch (error) {
-      console.warn(`Could not process 1:1 direct messages: ${error}`);
+      this.logger.warn('Could not process 1:1 direct messages', { error: String(error) });
     }
 
     return messages;
@@ -125,7 +125,7 @@ export class TwitterArchiveDirectMessagesExtractor extends TwitterArchiveExtract
         }
       }
     } catch (error) {
-      console.warn(`Could not load group headers: ${error}`);
+      this.logger.warn('Could not load group headers', { error: String(error) });
     }
 
     return groupHeaders;
@@ -177,7 +177,7 @@ export class TwitterArchiveDirectMessagesExtractor extends TwitterArchiveExtract
         }
       }
     } catch (error) {
-      console.warn(`Could not process group direct messages: ${error}`);
+      this.logger.warn('Could not process group direct messages', { error: String(error) });
     }
 
     return messages;

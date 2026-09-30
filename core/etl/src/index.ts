@@ -11,16 +11,24 @@ export { Runner, type RunnerConfig } from './runner.js';
 export { JsonLoader, colorizeJson, type JsonColorTheme } from './json-loader.js';
 export { CsvLoader } from './connectors/loaders/CsvLoader.js';
 export { YamlLoader } from './connectors/loaders/YamlLoader.js';
-export { TableLoader } from './connectors/loaders/TableLoader.js';
-export { nodeLabel, recordRow } from './connectors/loaders/columns.js';
+export {
+  LABELS,
+  Rows,
+  columnsOption,
+  nodeLabel,
+  recordRow,
+  type Cell,
+} from './connectors/loaders/columns.js';
 export type { Delivery, Extraction, Transformation, Record, LoadResult, RunLog } from './types.js';
 export {
   Logger,
   createLogger,
   type LoggerOptions,
-  type LoggerTheme,
   type LogLevel,
   type LoggerContext,
+  type OutputEvent,
+  type RunContext,
+  type Sink,
 } from '@chronicle.app/logging';
 export * from './selfAgent.js';
 export * from './phone.js';

@@ -17,6 +17,8 @@ Chronicle extracts personal history into a shared vocabulary.
   parsing edge cases or retry loops. Don't test what a nearby integration test
   already covers, or what Node or a library already guarantees.
 - When changing behavior, extend an existing test before adding a new one.
+- Style terminal output with `apps/cli/src/output/`, and follow its
+  [style guide](apps/cli/src/output/README.md). Don't import `chalk` elsewhere.
 - Add a changeset (`npx changeset`) to pull requests that should ship in a release.
 - Never check in planning or design docs. Keep plans in `.plans/`, which is
   git-ignored.

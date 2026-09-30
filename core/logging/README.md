@@ -1,22 +1,52 @@
 # @chronicle.app/logging
 
-Shared stderr logger for Chronicle. Node.js 22.13+; ESM with TypeScript declarations.
+Chronicle's output events and the sinks that render them. Node.js 22.13+; ESM
+with TypeScript declarations.
 
 ```js
-import { createLogger } from '@chronicle.app/logging';
+import { createLogger, JsonSink } from '@chronicle.app/logging';
 
-const logger = createLogger({ prefix: '[extract]', verbose: true });
+const logger = createLogger({ scope: 'example', verbose: true });
 logger.info('Extracted records', { count: 3 });
 logger.debug('Source cursor', { position: 3 });
+
+// A host hands its own sink over; events then render its way.
+logger.use(new JsonSink(), { run: { id: 'run-1', source: 'example', strategy: 'file' } });
+logger.warn('Line skipped', { line: 42 });
 ```
 
-All output goes to stderr so stdout stays available for extracted data. `quiet`
-suppresses everything except errors. Debug messages require `verbose`; `level`
-filters info/warn output. `verboseInfo` requires verbose and non-quiet mode. Errors
-always print. Context can be rendered inline or with `debugMultiline`. A custom
-`theme` supplies functions for each level; default colors are disabled for pipes.
+Each logger call becomes an `OutputEvent`: a `kind`, a `level`, the logger's
+`scope` and `run`, a plain `message`, and the second argument as `fields`.
+`debug` and `verboseInfo` are debug-level diagnostics, `info` and `warn` are
+notices, and `error` is an error. `emit` sends any event, including the host's
+`progress`, `hint`, and `summary`.
 
-`npm run build -w @chronicle.app/logging` builds the package; `npm test -w
-@chronicle.app/logging` exercises its public API after a build.
+A sink decides what to show and how. `TextSink` writes lines to stderr; by
+default each is `HH:MM:SS level scope: message key=value`, and a host passes
+its own `format`. `JsonSink` writes one JSON object per line, turns progress
+into a heartbeat, and redacts the fields an event marks `sensitive` unless
+`personal` is set. Both filter by `level` (`thresholdFor({ quiet, verbose })`
+maps the common flags), and both keep repeated events from flooding.
+
+Events group by their `key`, or without one by scope and message with the
+numbers taken out (`Generated 1 actions` and `Generated 3 actions` are one
+group). Each group shows its first three events, then counts the rest and
+reports them as a roll-up (`…412 more like this in 5s`) at most every five
+seconds, or every second for warnings and errors. A roll-up's fields hold
+the count and how often each field value came up; personal values go under
+`personal`, which JSON redacts. `flush()` reports what's left as `…and N more
+like this`, and a `summary` event flushes first. Pass `aggregate: { examples,
+windowMs, urgentWindowMs }` to a sink to change the numbers.
+
+A logger without a sink of its own uses the process-wide one a host sets
+with `setDefaultSink`, so a host can redirect every logger, including
+module-level ones in shared packages. Without either, it writes plain lines
+to stderr at the level its `quiet`, `verbose`, and `level` options ask for;
+errors always print. With `sensitive: true` every field it logs is marked
+personal.
+
+`captureConsole(logger)` routes `console.*` through a logger as diagnostics
+until the function it returns restores the console, for code the host doesn't
+control. Chronicle's own code never calls `console`; lint enforces it.
 
 MIT. See [LICENSE](LICENSE).

@@ -20,8 +20,6 @@ export default class BlueskyTransformer extends ChronicleTransformer {
     // Safe as a per-record field: transform builds synchronously below, with no
     // await between this assignment and the buildUser calls.
     this.meDid = record.context.agent?.did;
-    this.logger.debug('Transforming Bluesky record', { recordType: type });
-
     const actions: ActionAndChildren[] = [];
 
     switch (type) {
@@ -71,7 +69,6 @@ export default class BlueskyTransformer extends ChronicleTransformer {
       }
     }
 
-    this.logger.verboseInfo(`Generated ${actions.length} actions from Bluesky ${type} record`);
     return actions;
   }
 

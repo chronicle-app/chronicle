@@ -2,7 +2,7 @@ import { Record, RunLog } from './types.js';
 import { Extractor } from './extractor.js';
 import { Transformer } from './transformer.js';
 import { Loader } from './loader.js';
-import { Logger, createLogger } from '@chronicle.app/logging';
+import { Logger, createLogger, type RunContext, type Sink } from '@chronicle.app/logging';
 import { ActionAndChildrenSchema } from '@chronicle.app/schema';
 
 export interface RunnerConfig {
@@ -22,10 +22,34 @@ export interface RunnerConfig {
    * limit of its own — otherwise it would stop counting discarded records.
    */
   limit?: number | null;
+  /**
+   * With a `limit`, read one record past it to learn whether the limit cut the
+   * run short ({@link Runner.truncated}). The extra record is never yielded.
+   * The extractor must be allowed at least `limit + 1`.
+   */
+  peek?: boolean;
+  /**
+   * The host's sink. The runner hands it to the extractor and transformers,
+   * so their events render the host's way, tagged with `run`.
+   */
+  sink?: Sink;
+  run?: RunContext;
+  /**
+   * Called for each record `setup()` reads in ahead of the run (buffered
+   * mode only), with the count so far: how a host shows a slow read.
+   */
+  onRead?: (record: Record, read: number) => void;
+  /**
+   * Wait this many milliseconds before each extracted record: a slow source,
+   * on demand, for watching progress and output while debugging.
+   */
+  delay?: number;
 }
 
 export class Runner {
   public numRecords: null | number = null;
+  /** Whether `limit` left records unread: known once extraction ends, with `peek` set. */
+  public truncated?: boolean;
 
   private extractor!: Extractor;
   private transformers: Transformer[] = [];
@@ -45,9 +69,11 @@ export class Runner {
     this.config = config;
     this.validateSchema = config.validateSchema ?? true;
     this.logger = createLogger({
-      prefix: '[Runner]',
+      scope: 'runner',
       quiet: config.quiet,
       verbose: config.verbose,
+      sink: config.sink,
+      run: config.run,
     });
   }
 
@@ -78,6 +104,12 @@ export class Runner {
       throw new Error('Runner limit must be a nonnegative integer');
     }
     this.setupStarted = true;
+    const { sink, run } = this.config;
+    if (sink) {
+      // A plugin built against an older etl may not have the hook.
+      this.extractor.useOutput?.(sink, run);
+      for (const transformer of this.transformers) transformer.useOutput?.(sink, run);
+    }
     await this.extractor.setup();
 
     for (const loader of this.loaders) {
@@ -94,6 +126,7 @@ export class Runner {
       this.logVerboseStep('Pre-extracting all records');
       for await (const record of this.extractRecords()) {
         this.extractedRecords.push(record);
+        this.config.onRead?.(record, this.extractedRecords.length);
       }
 
       this.numRecords = this.extractedRecords.length;
@@ -108,12 +141,20 @@ export class Runner {
     const limit = this.config.limit ?? null;
     let kept = 0;
 
+    const capped = limit !== null && limit > 0;
     for await (const record of this.extractor.performExtract()) {
+      if (this.config.delay) await new Promise(resolve => setTimeout(resolve, this.config.delay));
       if (wanted && !wanted.includes(record.extraction.recordType ?? '')) continue;
+      if (capped && kept >= limit) {
+        // Only a peek gets here: one record past the limit, read and dropped.
+        this.truncated = true;
+        return;
+      }
       yield record;
       kept += 1;
-      if (limit !== null && limit > 0 && kept >= limit) break;
+      if (capped && kept >= limit && !this.config.peek) return;
     }
+    if (this.config.peek) this.truncated = false;
   }
 
   async *runExtraction(): AsyncGenerator<Record> {

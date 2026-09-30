@@ -15,6 +15,7 @@
     "@chronicle.app/etl": "0.3.0",
     "@chronicle.app/etl-sqlite": "0.3.0",
     "@chronicle.app/imessage": "0.3.0",
+    "@chronicle.app/logging": "0.3.0",
     "@chronicle.app/safari": "0.3.0",
     "@chronicle.app/schema": "0.3.0",
     "@chronicle.app/shell": "0.3.0",
@@ -112,6 +113,7 @@
     "lint": "eslint src --ext .ts,.tsx,.js",
     "test": "node --test test/*.test.js",
     "prepack": "oclif manifest 1>&2 && node scripts/pack-catalog.js",
-    "postpack": "node -e \"for (const f of ['oclif.manifest.json', 'catalog.json']) require('node:fs').rmSync(f, { force: true })\""
+    "postpack": "node -e \"for (const f of ['oclif.manifest.json', 'catalog.json']) require('node:fs').rmSync(f, { force: true })\"",
+    "gallery": "tsc -b tsconfig.lib.json && node dist/output/gallery.js"
   }
 }

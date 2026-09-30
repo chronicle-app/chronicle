@@ -30,8 +30,10 @@ module.exports = {
     '*.tsbuildinfo',
   ],
   rules: {
+    // Say things through a logger from @chronicle.app/logging, so the host's
+    // sink decides where they go. Scripts and tests are exempt below.
+    'no-console': 'error',
     // Relaxed rules for gradual adoption
-    'no-console': 'warn',
     'no-unused-vars': 'off', // Disable base rule in favor of TypeScript version
     '@typescript-eslint/no-unused-vars': [
       'warn',

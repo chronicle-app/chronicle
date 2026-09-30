@@ -85,20 +85,28 @@ There is no known-record lookup, resume state, or implicit database access.
 
 ## Included output and transform helpers
 
-| Export                   | Behavior                                                                                                                                                                                                                                                                          |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `JsonLoader`             | Writes successive pretty-printed JSON documents, overwriting a file on the first record and appending afterward; supports terminal coloring. This is not a single JSON array or JSONL stream.                                                                                     |
-| `CsvLoader`              | Buffers readable rows (see `recordRow`): bookkeeping dropped, nested nodes as their labels, lists joined; columns are the union across records. `columns: 'schema'` keeps every schema property as a dotted column instead. Supports delimiter/quote/escape and optional headers. |
-| `YamlLoader`             | Buffers payloads; emits one object for one record or a sequence for several.                                                                                                                                                                                                      |
-| `TableLoader`            | The same rows as `CsvLoader`, fitted to the terminal: constant columns move into a caption, and a single record prints as a key/value card.                                                                                                                                       |
-| `recordRow`, `nodeLabel` | One record as readable columns, and a node's one-line label; what the CSV and table loaders use.                                                                                                                                                                                  |
-| `NullTransformer`        | Passes payloads through.                                                                                                                                                                                                                                                          |
-| `FlattenTransformer`     | Flattens nested fields for presentation and marks output as raw.                                                                                                                                                                                                                  |
-| `DispatchingTransformer` | Routes by extraction record type; unknown routes filter the record.                                                                                                                                                                                                               |
+| Export                           | Behavior                                                                                                                                                                                                                                                                          |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `JsonLoader`                     | Writes successive pretty-printed JSON documents, overwriting a file on the first record and appending afterward; supports terminal coloring. This is not a single JSON array or JSONL stream.                                                                                     |
+| `CsvLoader`                      | Buffers readable rows (see `recordRow`): bookkeeping dropped, nested nodes as their labels, lists joined; columns are the union across records. `columns: 'schema'` keeps every schema property as a dotted column instead. Supports delimiter/quote/escape and optional headers. |
+| `YamlLoader`                     | Buffers payloads; emits one object for one record or a sequence for several.                                                                                                                                                                                                      |
+| `recordRow`, `Rows`, `nodeLabel` | One record as readable columns, rows collected across records, and a node's one-line label; what the CSV loader and the CLI's table use.                                                                                                                                          |
+| `NullTransformer`                | Passes payloads through.                                                                                                                                                                                                                                                          |
+| `FlattenTransformer`             | Flattens nested fields for presentation and marks output as raw.                                                                                                                                                                                                                  |
+| `DispatchingTransformer`         | Routes by extraction record type; unknown routes filter the record.                                                                                                                                                                                                               |
 
-All loaders accept an optional `output` path, otherwise write to stdout. CSV,
-YAML, and table output is flushed at teardown; an empty input writes nothing.
-Logging goes to stderr. Dates in JSON/CSV/table output use ISO strings.
+All loaders accept an optional `output` path, otherwise write to stdout. CSV and
+YAML output is flushed at teardown; an empty input writes nothing. Dates in
+JSON/CSV output use ISO strings.
+
+## Logging
+
+Extractors, transformers, and the runner log through `this.logger` from
+`@chronicle.app/logging`. Each call becomes an event on a sink. Pass the host's
+`sink` (and the `run` it belongs to) in the `Runner` config; at setup the runner
+hands it to the extractor and transformers, so their events render the host's
+way. Without one, each logs plain lines to stderr at the `quiet`/`verbose` level
+of its config. Fields a plugin logs are marked personal.
 
 ## Scope
 
