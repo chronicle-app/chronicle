@@ -1,5 +1,14 @@
 import { randomUUID } from 'node:crypto';
-import { captureConsole, createLogger, setDefaultSink, thresholdFor } from '@chronicle.app/logging';
+import { Errors } from '@oclif/core';
+import {
+  captureConsole,
+  createLogger,
+  describeError,
+  isReported,
+  markReported,
+  setDefaultSink,
+  thresholdFor,
+} from '@chronicle.app/logging';
 import type { Runner } from '@chronicle.app/etl';
 import type { FlagSource } from '../config/index.js';
 import { count, createSink, defaultLogFormat, relativePath, type Live } from '../output/index.js';
@@ -127,14 +136,20 @@ export async function runExtraction(
         kind: 'error',
         message: `Extraction cleanup failed: ${error instanceof Error ? error.message : error}`,
       });
+      markReported(error);
     } finally {
-      logger.flush();
+      // A failed run gets no summary, so what it held back prints now.
+      if (failure) logger.flush();
       restoreConsole();
       setDefaultSink(previousSink);
       process.removeListener('SIGINT', onInterrupt);
     }
   }
-  if (failure) throw failure;
+  if (failure) {
+    // Already on stderr as an event, with its hint: exit with its code, quietly.
+    if (isReported(failure)) throw new Errors.ExitError(describeError(failure).exitCode);
+    throw failure;
+  }
   const { processed, failed } = runner.stats;
   // Only the default cap earns a hint, and only when it left records unread
   // (the runner peeked one past it); a limit you set is the scope you asked for.

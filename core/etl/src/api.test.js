@@ -99,11 +99,16 @@ test('ApiProxy maps 401 and 429 to typed errors and passes other failures throug
   assert.ok(auth instanceof ApiAuthError);
   assert.equal(auth.status, 401);
   assert.match(auth.message, /FixtureProxy.*re-authorize/);
+  // The API errors are the typed ones: a supervisor reads the exit code, not the text.
+  assert.equal(auth.code, 'auth-required');
+  assert.equal(auth.exitCode, 3);
 
   const limited = await proxy.get('/busy', { retry: 1 }).catch(error => error);
   assert.ok(limited instanceof ApiRateLimitError);
   assert.equal(limited.status, 429);
   assert.equal(limited.retryAfterSeconds, 42);
+  assert.equal(limited.exitCode, 5);
+  assert.equal(limited.hint, 'try again in 42s');
 
   const unhinted = await proxy.get('/busy').catch(error => error);
   assert.ok(unhinted instanceof ApiRateLimitError);

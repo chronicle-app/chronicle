@@ -104,7 +104,27 @@ export function summary(
 
 /** A next move, dim and indented under the summary: `  stopped at --limit 100 · pass …`. */
 export function hint(message: string, action: string | undefined, t: Tokens, width: number) {
-  return line([[`  ${message}${action ? ` ${glyphs.bullet} ${action}` : ''}`, t.muted]], width);
+  const text = action ? (message ? `${message} ${glyphs.bullet} ${action}` : action) : message;
+  // A next move is worth reading whole: wrapped at spaces, not cut.
+  return wrap(text, width - 2)
+    .map(part => line([[`  ${part}`, t.muted]], width))
+    .join('\n');
+}
+
+/** Text in lines of at most `width`, broken at spaces; a word longer than that is cut. */
+export function wrap(text: string, width: number): string[] {
+  if (!Number.isFinite(width) || text.length <= width) return [text];
+  const lines: string[] = [];
+  let current = '';
+  for (const word of text.split(' ')) {
+    if (current && current.length + 1 + word.length > width) {
+      lines.push(current);
+      current = '';
+    }
+    current = current ? `${current} ${word}` : truncate(word, Math.max(1, width));
+  }
+  if (current) lines.push(current);
+  return lines;
 }
 
 /** A section title. Emphasis only: no rules, no boxes. */

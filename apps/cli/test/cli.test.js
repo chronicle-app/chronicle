@@ -9,6 +9,7 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  chmodSync,
   symlinkSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -495,7 +496,7 @@ test(
 );
 
 test('unsupported loader and missing input file fail without success output, even when quiet', t => {
-  const { run } = fixture(t);
+  const { dir, run } = fixture(t);
   for (const args of [
     ['--loader', 'store'],
     ['--input', '/nonexistent-synthetic-history'],
@@ -505,6 +506,19 @@ test('unsupported loader and missing input file fail without success output, eve
     assert.equal(result.stdout, '');
     assert.notEqual(result.stderr, '');
     assert.doesNotMatch(result.stderr, /re-run to resume/);
+  }
+  // A missing or unreadable input is a typed failure: a clear message, a next
+  // step, and exit code 4, which a supervisor reads as "needs attention".
+  const missing = run('extract', 'shell', '--input', '/nonexistent-synthetic-history');
+  assert.equal(missing.status, 4);
+  assert.match(missing.stderr, /No shell history found {2}path=\/nonexistent-synthetic-history/);
+  if (process.getuid?.() !== 0) {
+    const locked = join(dir, 'locked-history');
+    writeFileSync(locked, ': 1700000000:0;echo synthetic\n');
+    chmodSync(locked, 0o000);
+    const refused = run('extract', 'shell', '--input', locked);
+    assert.equal(refused.status, 4);
+    assert.match(refused.stderr, /Can't read the shell history.*\n.*check the file's permissions/);
   }
 });
 
@@ -568,8 +582,8 @@ test('failed setup and transformation release extractor resources and exit nonze
 test('missing CSV input reports a normal command error instead of an unhandled stream error', t => {
   const { dir, run } = fixture(t);
   const result = run('extract', 'csv', '--input', join(dir, 'missing.csv'));
-  assert.equal(result.status, 1);
-  assert.match(result.stderr, /ENOENT/);
+  assert.equal(result.status, 4);
+  assert.match(result.stderr, /No CSV file found/);
   assert.doesNotMatch(result.stderr, /Unhandled 'error' event/);
 });
 
@@ -594,4 +608,61 @@ test('table columns fit their content, and grow columns share the width that is 
 
   assert.equal(truncate('channels, connections', 10), 'channels,…');
   assert.equal(truncate('calls', 10), 'calls');
+});
+
+test('a plugin fails with a typed error and exit code, and hints under the summary', async t => {
+  const { createRequire } = await import('node:module');
+  const { pathToFileURL } = await import('node:url');
+  const etlPath = createRequire(bin)
+    .resolve.paths('@chronicle.app/etl')
+    .map(root => join(root, '@chronicle.app/etl/dist/index.js'))
+    .find(path => existsSync(path));
+  const etl = pathToFileURL(etlPath).href;
+  const { dir, run } = fixture(t);
+  const plugin = join(dir, 'data/node_modules/typed-fixture');
+  mkdirSync(plugin, { recursive: true });
+  writeFileSync(
+    join(plugin, 'package.json'),
+    JSON.stringify({
+      name: 'typed-fixture',
+      type: 'module',
+      main: './index.js',
+      chronicle: { plugin: true },
+    })
+  );
+  writeFileSync(
+    join(plugin, 'index.js'),
+    `
+    import { AuthRequired, Extractor } from ${JSON.stringify(etl)};
+    export class Fixture extends Extractor {
+      static source = 'typed'; static strategy = 'api'; static delivery = 'api'; static recordTypes = ['rows'];
+      async setup() {
+        if (process.env.FIXTURE_MODE === 'auth') throw new AuthRequired('No typed credentials', { source: 'typed' });
+      }
+      async *extract() {
+        this.hint('attachments skipped', { action: 'grant access to include them' });
+        yield this.createRecord({ name: 'fixture' });
+      }
+    }`
+  );
+  // Auth: exit code 3, the sign-in command as the next step, and in JSON as data.
+  const auth = run.with({ FIXTURE_MODE: 'auth' })('extract', 'typed', '--raw');
+  assert.equal(auth.status, 3);
+  assert.match(auth.stderr, /No typed credentials\n.*run `chronicle auth login typed`/);
+  assert.equal(auth.stdout, '');
+  const events = run
+    .with({ FIXTURE_MODE: 'auth' })('extract', 'typed', '--raw', '--log-format', 'json')
+    .stderr.split('\n')
+    .filter(line => line.startsWith('{'))
+    .map(line => JSON.parse(line));
+  const failure = events.find(event => event.kind === 'error');
+  assert.deepEqual(failure.error, { code: 'auth-required', exitCode: 3 });
+  assert.equal(failure.hint.action, 'run `chronicle auth login typed`');
+  // A plugin's hint on a successful run prints under the summary.
+  const hinted = run('extract', 'typed', '--raw');
+  assert.equal(hinted.status, 0, hinted.stderr);
+  assert.match(
+    hinted.stderr,
+    /✓ typed · api {2}1 row.*\n.*attachments skipped · grant access to include them\n/
+  );
 });

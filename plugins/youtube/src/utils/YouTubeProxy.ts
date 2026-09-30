@@ -126,11 +126,10 @@ export default class YouTubeProxy extends ApiProxy {
   protected override mapError(error: unknown): unknown {
     const mapped = super.mapError(error);
     if (mapped instanceof ApiAuthError) {
-      return new ApiAuthError(
-        'YouTube authentication failed. Please re-authenticate:\n' +
-          '  chronicle auth login youtube --client-id YOUR_CLIENT_ID --client-secret YOUR_CLIENT_SECRET\n\n' +
-          'Create OAuth credentials at: https://console.cloud.google.com/apis/credentials'
-      );
+      return new ApiAuthError('YouTube rejected the stored credentials', {
+        hint: 'run `chronicle auth login youtube --client-id <id> --client-secret <secret>`; create OAuth credentials at https://console.cloud.google.com/apis/credentials',
+        cause: mapped,
+      });
     }
     return mapped;
   }

@@ -49,4 +49,17 @@ personal.
 until the function it returns restores the console, for code the host doesn't
 control. Chronicle's own code never calls `console`; lint enforces it.
 
+## Errors
+
+`ExtractorError` and its subclasses name a failure so hosts can act on it
+without reading the message: `AuthRequired` (exit code 3), `PermissionDenied`
+and `InputNotFound` (4), `RateLimited` with `retryAfter` (5), and
+`ExtractorError` itself with any `code` (1 unless given). Each carries a
+`hint`, the next step for a person, and `fields`, which are personal.
+`EXIT_CODES` lists the codes: 1 internal, 2 usage, 3 auth, 4 input, 5
+transient. `describeError` reads the code, exit code, and hint of any thrown
+value, duck-typed so an error from another copy of this package still reads
+as what it is. `markReported` and `isReported` let a host that already
+reported an error as an event avoid printing it twice.
+
 MIT. See [LICENSE](LICENSE).

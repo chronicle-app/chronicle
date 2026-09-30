@@ -1,6 +1,6 @@
 import { DatabaseSync } from 'node:sqlite';
 import { z } from 'zod';
-import { type Delivery, Extractor } from '@chronicle.app/etl';
+import { type Delivery, Extractor, assertReadable } from '@chronicle.app/etl';
 
 /** Read an existing source database without changing its journal mode. */
 export abstract class SqliteExtractor<
@@ -26,6 +26,9 @@ export abstract class SqliteExtractor<
    * as a copy of a locked database, after closing and clearing `this.db`.
    */
   protected openDatabase(path: string): DatabaseSync {
+    // SQLite says only "unable to open database file"; say whether the file
+    // is missing or macOS privacy controls refused it.
+    assertReadable(path, 'database');
     return new DatabaseSync(path, { readOnly: true });
   }
 

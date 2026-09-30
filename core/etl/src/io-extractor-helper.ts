@@ -1,6 +1,10 @@
 import fs from 'node:fs';
 import { z } from 'zod';
 import { Readable } from 'node:stream';
+import { InputNotFound } from '@chronicle.app/logging';
+
+const NO_INPUT = () =>
+  new InputNotFound('No input provided', { hint: 'pass --input <file>, or pipe the data in' });
 
 export const ioFlags = {
   // Note: input flag removed to avoid conflict with ExtractCommand.baseFlags
@@ -26,7 +30,7 @@ export const createReadStream = (config: z.infer<typeof IoSchema>): Readable => 
     return fs.createReadStream(config.filename, 'utf8');
   }
 
-  throw new Error('No input provided');
+  throw NO_INPUT();
 };
 
 export const configForIo = (flags: any) => {
@@ -47,7 +51,7 @@ export const configForIo = (flags: any) => {
     // TODO: figure out best practices about stdin without input flags
     config.inputStream = process.stdin;
   } else {
-    throw new Error('No input provided');
+    throw NO_INPUT();
   }
 
   return config;

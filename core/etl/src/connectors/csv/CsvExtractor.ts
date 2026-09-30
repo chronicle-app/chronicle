@@ -3,6 +3,7 @@ import { parse, Options } from 'csv-parse';
 import { Extractor } from '../../extractor.js';
 import { Record } from '../../types.js';
 import { IoSchema, createReadStream } from '../../io-extractor-helper.js';
+import { fileError } from '../../fileErrors.js';
 import { z } from 'zod';
 
 export type CsvExtractorConfig = z.infer<typeof CsvExtractor.schema>;
@@ -96,7 +97,9 @@ export class CsvExtractor extends Extractor<typeof CsvExtractor> {
     const parseOptions = this.getParseOptions();
     const parser = stream.pipe(parse(parseOptions));
 
-    const forwardError = (error: Error) => parser.destroy(error);
+    const { filename } = this.config;
+    const forwardError = (error: Error) =>
+      parser.destroy((filename ? fileError(error, filename, 'CSV file') : error) as Error);
     stream.on('error', forwardError);
     try {
       let count = 0;

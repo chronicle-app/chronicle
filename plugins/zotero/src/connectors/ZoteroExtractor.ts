@@ -1,4 +1,4 @@
-import { Record, SystemInfo } from '@chronicle.app/etl';
+import { Record, SystemInfo, assertReadable } from '@chronicle.app/etl';
 import { SqliteExtractor, timeRangeConditions, iterateRows } from '@chronicle.app/etl-sqlite';
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 import { createHash, randomUUID } from 'node:crypto';
@@ -153,6 +153,7 @@ export class ZoteroExtractor extends SqliteExtractor<typeof ZoteroExtractor> {
     // From the ORIGINAL file, even when the busy fallback below reads a
     // freshly-made copy instead — the copy's mtime is just "now" and would
     // defeat the byte-identical-on-unchanged-library property of asOfTime().
+    assertReadable(dbPath, 'Zotero database');
     this.dbMtime = statSync(dbPath).mtime;
 
     // Zotero uses journal_mode=delete, so a plain readonly open reads a
