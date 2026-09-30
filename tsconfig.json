@@ -95,6 +95,9 @@
       "path": "plugins/hackernews/tsconfig.lib.json"
     },
     {
+      "path": "plugins/github/tsconfig.lib.json"
+    },
+    {
       "path": "plugins/google-reader/tsconfig.lib.json"
     },
     {
