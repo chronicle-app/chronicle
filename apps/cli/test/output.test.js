@@ -18,7 +18,14 @@ test('the gallery renders every block and event within its width, in every sink 
         events.some(e => e.message === '…and 2 more like this' && e.fields.suppressed === 2)
       );
       assert.equal(events.filter(e => e.kind === 'progress').length, 1);
-      assert.equal(events.length, EVENTS.length - 2 + 1);
+      // Repeated chatter groups by its message without a key: three examples, then roll-ups
+      // with how often each value came up, and every event is accounted for.
+      const chatter = events.filter(e => e.scope === 'arena.api');
+      assert.equal(chatter.filter(e => !e.fields.suppressed).length, 3);
+      assert.ok(chatter.some(e => /^…\d+ more like this in \d+s$/.test(e.message)));
+      const rolled = chatter.reduce((sum, e) => sum + (e.fields.suppressed ?? 0), 0);
+      assert.equal(rolled, 27);
+      assert.ok(chatter.some(e => e.fields.values?.recordType?.blocks > 0));
       continue;
     }
     if (format === 'plain') {

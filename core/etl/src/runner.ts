@@ -33,6 +33,11 @@ export interface RunnerConfig {
    * mode only), with the count so far: how a host shows a slow read.
    */
   onRead?: (record: Record, read: number) => void;
+  /**
+   * Wait this many milliseconds before each extracted record: a slow source,
+   * on demand, for watching progress and output while debugging.
+   */
+  delay?: number;
 }
 
 export class Runner {
@@ -129,6 +134,7 @@ export class Runner {
     let kept = 0;
 
     for await (const record of this.extractor.performExtract()) {
+      if (this.config.delay) await new Promise(resolve => setTimeout(resolve, this.config.delay));
       if (wanted && !wanted.includes(record.extraction.recordType ?? '')) continue;
       yield record;
       kept += 1;

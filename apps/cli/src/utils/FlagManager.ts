@@ -153,9 +153,9 @@ export class FlagManager {
         summary: 'Keep personal values in --log-format json instead of redacting them',
       }),
       delay: Flags.integer({
-        helpGroup: 'TRANSFORMATION',
+        helpGroup: 'EXTRACTION',
         hidden: true,
-        summary: 'Delay the transformation of records by this many milliseconds',
+        summary: 'Wait this many milliseconds before each extracted record (for debugging)',
       }),
       fields: Flags.string({
         helpGroup: 'TRANSFORMATION',

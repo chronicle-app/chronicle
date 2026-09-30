@@ -4,7 +4,6 @@ import {
   type RunContext,
   type Sink,
   configForIo,
-  DelayTransformer,
   DownloadAttachmentsTransformer,
   FilterFieldsTransformer,
   FlattenTransformer,
@@ -208,6 +207,7 @@ export class RunnerBuilder {
       sink: output.sink,
       run: output.run,
       onRead: output.onRead,
+      delay: this.flags.delay,
     })
       .addExtractor(extractor)
       .addTransformer(transformer)
@@ -245,10 +245,6 @@ export class RunnerBuilder {
         throw new Error('Sample rate must be a number between 0 and 1');
       }
       runner.addTransformer(new SamplingTransformer({ rate }));
-    }
-
-    if (this.flags.delay) {
-      runner.addTransformer(new DelayTransformer({ delay: this.flags.delay }));
     }
 
     if (this.flags['truncate-base64']) {

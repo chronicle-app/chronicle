@@ -26,9 +26,17 @@ default each is `HH:MM:SS level scope: message key=value`, and a host passes
 its own `format`. `JsonSink` writes one JSON object per line, turns progress
 into a heartbeat, and redacts the fields an event marks `sensitive` unless
 `personal` is set. Both filter by `level` (`thresholdFor({ quiet, verbose })`
-maps the common flags), and both aggregate events sharing a `key`: the first
-three show, and `flush()` reports the rest as `…and N more like this`. A
-`summary` event flushes first.
+maps the common flags), and both keep repeated events from flooding.
+
+Events group by their `key`, or without one by scope and message with the
+numbers taken out (`Generated 1 actions` and `Generated 3 actions` are one
+group). Each group shows its first three events, then counts the rest and
+reports them as a roll-up (`…412 more like this in 5s`) at most every five
+seconds, or every second for warnings and errors. A roll-up's fields hold
+the count and how often each field value came up; personal values go under
+`personal`, which JSON redacts. `flush()` reports what's left as `…and N more
+like this`, and a `summary` event flushes first. Pass `aggregate: { examples,
+windowMs, urgentWindowMs }` to a sink to change the numbers.
 
 A logger without a sink of its own uses the process-wide one a host sets
 with `setDefaultSink`, so a host can redirect every logger, including

@@ -85,6 +85,17 @@ export const EVENTS: OutputEvent[] = [
     fields: { file: 'session-0001.jsonl', line: 42 },
     sensitive: ['file', 'line'],
   }),
+  // Chatter once per record for 15 seconds: three examples, then roll-ups.
+  ...Array.from({ length: 30 }, (_, i) => ({
+    ...event({
+      level: 'debug',
+      kind: 'diagnostic',
+      scope: 'arena.api',
+      message: `Generated ${1 + (i % 2)} actions from arena record`,
+      fields: { recordType: i % 3 === 0 ? 'connections' : 'blocks' },
+    }),
+    time: new Date(time.getTime() + i * 500),
+  })),
   ...Array.from({ length: 5 }, (_, i) =>
     event({
       level: 'error',

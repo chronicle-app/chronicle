@@ -10,6 +10,7 @@ import {
   type Sink,
 } from '@chronicle.app/logging';
 import { hint, line, summary, type Segment, type SummaryFields } from './blocks.js';
+import { count } from './format.js';
 import { glyphs } from './glyphs.js';
 import { LiveView, type ProgressFields } from './live.js';
 import { plainTokens, tokens, type Tokens } from './tokens.js';
@@ -31,6 +32,34 @@ const isSummary = (fields: unknown): fields is SummaryFields =>
 
 /** Space between a line and the time at its right edge. */
 const TIME_GAP = 2;
+
+/** A roll-up's fields: how many it held back, and how often each value came up. */
+type Rollup = {
+  suppressed: number;
+  values?: Record<string, Record<string, number>>;
+  personal?: Record<string, Record<string, number>>;
+};
+
+const isRollup = (fields: unknown): fields is Rollup =>
+  typeof (fields as Rollup | undefined)?.suppressed === 'number';
+
+/** `recordType: blocks 300 · connections 112 · +3 more`, per field, most common first. */
+function tally({ values, personal }: Rollup): string {
+  return Object.entries({ ...values, ...personal })
+    .map(([field, counts]) => {
+      const ranked = Object.entries(counts).sort(([, a], [, b]) => b - a);
+      const top = ranked.slice(0, 3).map(([value, n]) => `${value} ${count(n)}`);
+      if (ranked.length > 3) top.push(`+${ranked.length - 3} more`);
+      return `${field}: ${top.join(` ${glyphs.bullet} `)}`;
+    })
+    .join('  ');
+}
+
+/** An event's fields as `key=value`, less a URL, which gets a line of its own. */
+function fieldText(event: OutputEvent): string {
+  const { url, ...others } = event.fields ?? {};
+  return formatFields(typeof url === 'string' ? others : event.fields);
+}
 
 /**
  * An event as lines for a person, each at most `width` wide: the pretty and
@@ -69,14 +98,7 @@ export function render(
           ? [glyphs.bullet, t.muted, t.muted]
           : [glyphs.bullet, t.muted, undefined];
   const [first, ...rest] = event.message.split('\n');
-  // An aggregate's count is already in its message, and a URL gets a line of its own.
-  const { suppressed, url, ...others } = event.fields ?? {};
-  const shown = {
-    ...others,
-    ...(!event.key && suppressed !== undefined && { suppressed }),
-    ...(typeof url !== 'string' && url !== undefined && { url }),
-  };
-  const fields = formatFields(shown);
+  const fields = event.key && isRollup(event.fields) ? tally(event.fields) : fieldText(event);
   const segments: Segment[] = [
     [glyph, glyphStyle],
     [' '],
@@ -95,7 +117,7 @@ export function render(
       : line(segments, width),
     ...rest.map(text => line([[`  ${text}`, textStyle]], width)),
     // Never cut: a URL is for opening, and the terminal wraps it whole.
-    ...(typeof url === 'string' ? [`  ${url}`] : []),
+    ...(typeof event.fields?.url === 'string' ? [`  ${event.fields.url}`] : []),
   ];
   return lines.join('\n');
 }

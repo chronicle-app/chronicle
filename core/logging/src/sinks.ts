@@ -1,4 +1,4 @@
-import { Aggregator } from './aggregate.js';
+import { Aggregator, type AggregatorOptions } from './aggregate.js';
 import { allows } from './levels.js';
 import type { LogLevel, OutputEvent, Sink } from './types.js';
 
@@ -36,8 +36,8 @@ export interface TextSinkOptions {
   write?: (text: string) => void;
   /** An event as text, or undefined to say nothing. Default {@link formatPlain}. */
   format?: (event: OutputEvent) => string | undefined;
-  /** Keyed events shown before the rest are counted. Default 3. */
-  examples?: number;
+  /** How repeated events group: examples shown, then roll-ups per window. */
+  aggregate?: AggregatorOptions;
 }
 
 /**
@@ -54,13 +54,13 @@ export class TextSink implements Sink {
     this.level = options.level ?? 'info';
     this.write = options.write ?? stderr;
     this.format = options.format ?? formatPlain;
-    this.aggregator = new Aggregator(options.examples);
+    this.aggregator = new Aggregator(options.aggregate);
   }
 
   emit(event: OutputEvent): void {
     if (!allows(this.level, event.level) || event.kind === 'progress') return;
     if (event.kind === 'summary') this.flush();
-    if (this.aggregator.admit(event)) this.print(event);
+    for (const shown of this.aggregator.admit(event)) this.print(shown);
   }
 
   flush(): void {
@@ -110,7 +110,7 @@ export interface JsonSinkOptions {
   personal?: boolean;
   /** At most one progress event per run in this many milliseconds. Default 10s. */
   heartbeatMs?: number;
-  examples?: number;
+  aggregate?: AggregatorOptions;
 }
 
 /**
@@ -130,7 +130,7 @@ export class JsonSink implements Sink {
     this.write = options.write ?? stderr;
     this.personal = options.personal ?? false;
     this.heartbeatMs = options.heartbeatMs ?? 10_000;
-    this.aggregator = new Aggregator(options.examples);
+    this.aggregator = new Aggregator(options.aggregate);
   }
 
   emit(event: OutputEvent): void {
@@ -147,7 +147,7 @@ export class JsonSink implements Sink {
     }
     if (!allows(this.level, event.level)) return;
     if (event.kind === 'summary') this.flush();
-    if (this.aggregator.admit(event)) this.print(event);
+    for (const shown of this.aggregator.admit(event)) this.print(shown);
   }
 
   flush(): void {

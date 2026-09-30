@@ -150,11 +150,11 @@ test('raw extraction, four output loaders, file output and stream mode', t => {
   // cut the run short.
   // Anchored to the end only: some Node versions warn on stderr first.
   assert.match(result.stderr, /(^|\n)\d\d:\d\d:\d\d ✓ shell · \S+ {2}1 command {2}in \S+\n$/);
-  // A supervisor reads the same run as JSON events on stderr.
+  // A supervisor reads the same run as JSON events on stderr. --delay slows
+  // each extracted record, for watching a run while debugging.
   const events = run(
     ...['extract', 'shell', '--input', input, '--raw', '--limit', '1'],
-    '--log-format',
-    'json'
+    ...['--log-format', 'json', '--delay', '150']
   )
     .stderr.split('\n')
     .filter(line => line.startsWith('{'))
@@ -163,6 +163,7 @@ test('raw extraction, four output loaders, file output and stream mode', t => {
   assert.deepEqual(done.fields.counts, { commands: 1 });
   assert.deepEqual(done.run.source, 'shell');
   assert.ok(events.every(event => event.run.id === done.run.id));
+  assert.ok(done.fields.durationMs >= 150);
   const long = join(dir, 'long-history');
   writeFileSync(
     long,

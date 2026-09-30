@@ -40,9 +40,12 @@ Every line on stderr is the rendering of an `OutputEvent` from
 | `json`   | ISO                                                       | heartbeat every 10 seconds  | redacted        |
 
 `pretty` is the default on a terminal, `plain` otherwise. Sinks filter by
-level (`--verbose` shows debug, `--quiet` only errors), aggregate events that
-share a `key` (three examples, then `…and N more like this`), and in `json`
-redact the fields an event marks `sensitive` unless `--log-personal` is set.
+level (`--verbose` shows debug, `--quiet` only errors), and in `json` redact
+the fields an event marks `sensitive` unless `--log-personal` is set. They
+keep repeats from flooding: events with the same `key`, or else the same
+scope and message give or take numbers, show three examples, then a roll-up
+at most every five seconds with how often each value came up
+(`…412 more like this in 5s  recordType: blocks 300 · connections 112`).
 Put personal values in `fields`, never in the message: a message can't be
 redacted.
 
@@ -67,3 +70,7 @@ events through all three sinks, in every theme, at 40, 80, and 120 columns.
 Change a token or a block, run it, and see the change everywhere. The output
 test renders the same gallery and checks that nothing throws, no line exceeds
 its width, `plain` has no color, and every `json` line parses.
+
+To watch the live view on a real source, slow it down: `--delay <ms>` waits
+before each extracted record, as in `chronicle extract shell --delay 50
+--output /tmp/shell.json`.
