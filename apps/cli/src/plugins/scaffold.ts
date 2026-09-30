@@ -435,6 +435,10 @@ ${START[kind](name, P)}
 - \`package.json\`'s \`chronicle.sources\` repeats each source's strategies,
   deliveries, record types, and default, so Chronicle can list the plugin
   without loading it. Change it whenever the extractor's static fields change.
+- \`package.json\`'s optional \`chronicle.deepLinks\` maps a source and \`@type\`
+  (or \`*\`) to a URI template, such as \`myapp://open/{sourceId}\`, that opens a
+  record in the source app. See
+  https://github.com/chronicle-app/chronicle/tree/main/apps/cli#deep-links.
 
 ## Run it
 

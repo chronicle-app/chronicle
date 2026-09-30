@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { at, extract, transform, vault } from './fixture.test-helper.js';
 
@@ -158,6 +159,53 @@ test('a limited subfolder import keeps the enclosing vault identity', async t =>
   const [fromSubset] = await transform(subset.records);
   assert.deepEqual(fromSubset, fromAll);
   assert.deepEqual(fromSubset.object.references, [document('Welcome.md', 'Welcome')]);
+});
+
+/**
+ * Expands the package's `chronicle.deepLinks` template for a node the way a
+ * host does: the node's `@type` over `*`, each `{var}` from `sourceId`,
+ * `handle`, or an `@key` path, and no link when a variable is missing.
+ */
+function deepLink(node) {
+  const { deepLinks } = JSON.parse(
+    readFileSync(new URL('../package.json', import.meta.url))
+  ).chronicle;
+  const template = deepLinks[node.source]?.[node['@type']] ?? deepLinks[node.source]?.['*'];
+  if (!template) return;
+  let missing = false;
+  const url = template.replaceAll(/\{([^{}]+)\}/g, (_, name) => {
+    let value;
+    if (name === 'sourceId' || name === 'handle') value = node[name];
+    else if (node['@key']?.includes(name)) {
+      const [head, rest, ...deeper] = name.split('.');
+      value = name in node ? node[name] : deeper.length > 0 ? undefined : node[head]?.[rest];
+    }
+    if (typeof value === 'string' || typeof value === 'number') {
+      return encodeURIComponent(value);
+    }
+    missing = true;
+    return '';
+  });
+  return missing ? undefined : url;
+}
+
+test('notes link into their vault in Obsidian; the vault does not', async t => {
+  const root = vault(
+    t,
+    { 'Garden/Planting schedule.md': 'See [[Welcome]].', 'Welcome.md': '' },
+    { name: 'Field Notes' }
+  );
+  const [update] = await transform((await extract(root)).records.slice(0, 1));
+  const note = update.object;
+  assert.equal(note.handle, 'Garden/Planting schedule.md');
+  assert.equal(
+    deepLink(note),
+    'obsidian://open?vault=Field%20Notes&file=Garden%2FPlanting%20schedule.md'
+  );
+  assert.equal(deepLink(note.references[0]), 'obsidian://open?vault=Field%20Notes&file=Welcome.md');
+  assert.equal(deepLink(note.inRealm), undefined);
+  assert.equal(deepLink(update), undefined);
+  assert.equal(deepLink(update.agent), undefined);
 });
 
 test('without .obsidian the input folder is the vault; an empty vault yields nothing', async t => {
