@@ -29,6 +29,11 @@ import type { ReviewRecord } from './GitHubReviewsExtractor.js';
 
 const SOURCE = 'github';
 const KEY: ['@type', 'source', 'sourceId'] = ['@type', 'source', 'sourceId'];
+const HANDLE_KEY: ['@type', 'source', 'handle'] = ['@type', 'source', 'handle'];
+/** A repository is its owner's, by name: the owner's id survives a change of login. */
+const REPOSITORY_KEY = ['@type', 'source', 'creator.sourceId', 'name'];
+/** You star a repository once, so the repository identifies the star. */
+const STAR_KEY = ['@type', 'source', 'object.creator.sourceId', 'object.name'];
 
 /** GitHub's visibilities, in the schema's buckets. An enterprise's internal repository is private. */
 const VISIBILITY = { PUBLIC: 'public', PRIVATE: 'private', INTERNAL: 'private' } as const;
@@ -167,9 +172,8 @@ export default class GitHubTransformer extends ChronicleTransformer {
   private buildStar({ starredAt, node }: GitHubStar): LikeAction {
     return {
       '@type': 'LikeAction',
-      '@key': KEY,
+      '@key': STAR_KEY,
       source: SOURCE,
-      sourceId: node.id,
       timestamp: new Date(starredAt),
       ...(this.viewer && { agent: this.buildSelf() }),
       object: this.buildRepository(node),
@@ -253,11 +257,10 @@ export default class GitHubTransformer extends ChronicleTransformer {
     const topics = repository.repositoryTopics.nodes.map(({ topic }) => topic.name);
     return {
       '@type': 'Repository',
-      '@key': KEY,
+      '@key': REPOSITORY_KEY,
       source: SOURCE,
-      sourceId: repository.id,
       url: repository.url,
-      name: repository.nameWithOwner,
+      name: repository.name,
       ...(repository.description && { description: repository.description }),
       ...(repository.homepageUrl && { references: [this.buildLink(repository.homepageUrl)] }),
       ...(repository.primaryLanguage && {
@@ -280,7 +283,9 @@ export default class GitHubTransformer extends ChronicleTransformer {
   }
 
   private buildActor(actor: GitHubActor): AgentAndChildren {
-    if (actor.id && actor.id === this.viewer?.id) return this.buildSelf();
+    if (actor.databaseId !== undefined && actor.databaseId === this.viewer?.databaseId) {
+      return this.buildSelf();
+    }
     const type =
       actor.__typename === 'Organization'
         ? 'Organization'
@@ -290,9 +295,9 @@ export default class GitHubTransformer extends ChronicleTransformer {
     return {
       '@type': type,
       // An account without an id (rare: enterprise accounts) falls back to its login.
-      ...(actor.id
-        ? { '@key': KEY, sourceId: actor.id }
-        : { '@key': ['@type', 'source', 'handle'] as ['@type', 'source', 'handle'] }),
+      ...(actor.databaseId === undefined
+        ? { '@key': HANDLE_KEY }
+        : { '@key': KEY, sourceId: String(actor.databaseId) }),
       source: SOURCE,
       handle: actor.login,
       ...(actor.name && { name: actor.name }),
@@ -306,7 +311,7 @@ export default class GitHubTransformer extends ChronicleTransformer {
       ...selfAgent({
         type: 'Person',
         source: SOURCE,
-        sourceId: viewer.id,
+        sourceId: String(viewer.databaseId),
         handle: viewer.login,
         ...(viewer.name && { name: viewer.name }),
       }),

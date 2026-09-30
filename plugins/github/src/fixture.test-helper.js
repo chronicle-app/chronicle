@@ -15,21 +15,26 @@ const CONFIG_DIR = mkdtempSync(join(tmpdir(), 'chronicle-github-config-'));
 process.env.CHRONICLE_CONFIG_DIR = CONFIG_DIR;
 process.on('exit', () => rmSync(CONFIG_DIR, { recursive: true, force: true }));
 
-const user = (login, name) => ({
+const user = (databaseId, login, name) => ({
   __typename: 'User',
-  id: `U_${login}`,
+  databaseId,
   login,
   url: `https://github.com/${login}`,
   name,
 });
 export const ACTORS = {
-  sam: user('sam', 'Sam Rivera'),
-  riley: user('riley', 'Riley Chen'),
-  alex: user('alex', null),
-  bot: { __typename: 'Bot', id: 'BOT_ci', login: 'ci-bot', url: 'https://github.com/apps/ci-bot' },
+  sam: user(1001, 'sam', 'Sam Rivera'),
+  riley: user(1002, 'riley', 'Riley Chen'),
+  alex: user(1003, 'alex', null),
+  bot: {
+    __typename: 'Bot',
+    databaseId: 2001,
+    login: 'ci-bot',
+    url: 'https://github.com/apps/ci-bot',
+  },
   trailco: {
     __typename: 'Organization',
-    id: 'O_trailco',
+    databaseId: 3001,
     login: 'trailco',
     url: 'https://github.com/trailco',
     name: 'Trail Co',
@@ -38,7 +43,7 @@ export const ACTORS = {
 const { sam, riley, alex, bot, trailco } = ACTORS;
 
 export const VIEWER = {
-  id: sam.id,
+  databaseId: sam.databaseId,
   login: 'sam',
   name: 'Sam Rivera',
   url: 'https://github.com/sam',
@@ -47,6 +52,7 @@ export const VIEWER = {
 
 const repository = (id, nameWithOwner, owner, fields = {}) => ({
   id,
+  name: nameWithOwner.split('/')[1],
   nameWithOwner,
   url: `https://github.com/${nameWithOwner}`,
   description: null,

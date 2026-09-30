@@ -12,7 +12,8 @@ import { CREDENTIAL_LABELS, CredentialSource, GitHubCredential } from './credent
 
 export interface GitHubActor {
   __typename: 'User' | 'Organization' | 'Bot' | 'Mannequin' | 'EnterpriseUserAccount';
-  id?: string;
+  /** GitHub's numeric account id, as in `api.github.com/user/<id>`. */
+  databaseId?: number;
   login: string;
   url: string;
   name?: string | null;
@@ -20,6 +21,8 @@ export interface GitHubActor {
 
 export interface GitHubRepository {
   id: string;
+  /** The repository's own name, without its owner. */
+  name: string;
   nameWithOwner: string;
   url: string;
   description: string | null;
@@ -84,7 +87,7 @@ export interface GitHubGist {
 }
 
 export interface GitHubViewer {
-  id: string;
+  databaseId: number;
   login: string;
   name: string | null;
   url: string;
@@ -106,13 +109,13 @@ interface GraphQLError {
 // Selections.
 
 const ACTOR = `__typename login url
-  ... on User { id name } ... on Organization { id name }
-  ... on Bot { id } ... on Mannequin { id }`;
+  ... on User { databaseId name } ... on Organization { databaseId name }
+  ... on Bot { databaseId } ... on Mannequin { databaseId }`;
 
-const REPOSITORY = `id nameWithOwner url description homepageUrl visibility
+const REPOSITORY = `id name nameWithOwner url description homepageUrl visibility
   primaryLanguage { name }
   repositoryTopics(first: 20) { nodes { topic { name } } }
-  owner { __typename login url ... on User { id name } ... on Organization { id name } }`;
+  owner { __typename login url ... on User { databaseId name } ... on Organization { databaseId name } }`;
 
 const THREAD_FIELDS = `id number title url createdAt updatedAt
   author { ${ACTOR} } repository { ${REPOSITORY} }`;
@@ -232,7 +235,7 @@ export default class GitHubProxy extends ApiProxy {
   public async viewer(): Promise<GitHubViewer> {
     const data = await this.graphql<{ viewer: GitHubViewer }>(
       'Viewer',
-      'query Viewer { viewer { id login name url createdAt } }'
+      'query Viewer { viewer { databaseId login name url createdAt } }'
     );
     return data.viewer;
   }

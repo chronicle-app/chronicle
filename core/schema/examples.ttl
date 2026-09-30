@@ -3346,8 +3346,9 @@ example:github-review
   rdfs:comment """
 You approved Riley's pull request. The :RespondAction's :object is the
 :PullRequest, which :isPartOf its :Repository; its :result is your review, a
-:Response whose :ratingValue is GitHub's verdict, kept verbatim. Every node is
-keyed by its GitHub node id.
+:Response whose :ratingValue is GitHub's verdict, kept verbatim. Accounts are
+keyed by their numeric id, the repository by its owner (its :creator) and its
+:name, and the rest by GitHub node id.
 """;
   rdf:value [
     a :RespondAction;
@@ -3359,7 +3360,7 @@ keyed by its GitHub node id.
       a :Person;
       doc:key ("@type" "source" "sourceId");
       :source "github";
-      :sourceId "U_kgDOsam";
+      :sourceId "6300";
       :handle "sam";
       :url "https://github.com/sam";
       :sameAs "@me"
@@ -3375,17 +3376,24 @@ keyed by its GitHub node id.
         a :Person;
         doc:key ("@type" "source" "sourceId");
         :source "github";
-        :sourceId "U_kgDOriley";
+        :sourceId "6301";
         :handle "riley";
         :url "https://github.com/riley"
       ];
       :isPartOf [
         a :Repository;
-        doc:key ("@type" "source" "sourceId");
+        doc:key ("@type" "source" "creator.sourceId" "name");
         :source "github";
-        :sourceId "R_kgDOtrails";
         :url "https://github.com/trailco/trails";
-        :name "trailco/trails";
+        :name "trails";
+        :creator [
+          a :Organization;
+          doc:key ("@type" "source" "sourceId");
+          :source "github";
+          :sourceId "6302";
+          :handle "trailco";
+          :url "https://github.com/trailco"
+        ];
         :programmingLanguage "TypeScript"
       ]
     ];
