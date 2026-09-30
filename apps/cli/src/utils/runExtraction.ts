@@ -19,6 +19,7 @@ import {
   plainTokens,
   relativePath,
   summary,
+  type Live,
   type ProgressFields,
   type SummaryFields,
 } from '../output/index.js';
@@ -31,14 +32,15 @@ function destination(output: unknown): string | undefined {
 }
 
 /**
- * The live view goes on stderr when that's a terminal, except when records
- * stream to the same terminal. The table loader prints only after the run,
- * so it keeps the view.
+ * The live view goes on stderr when that's a terminal. When records print to
+ * the same terminal it shows only while the run starts and reads, and steps
+ * aside before the first record; the table loader prints only after the run,
+ * so it keeps the view throughout.
  */
-function wantsLiveView(flags: any): boolean {
+function wantsLiveView(flags: any): Live {
   if (flags.quiet || !process.stderr.isTTY) return false;
   const toTerminal = !destination(flags.output) && process.stdout.isTTY;
-  return !toTerminal || flags.loader === 'table';
+  return toTerminal && flags.loader !== 'table' ? 'until-loading' : true;
 }
 
 const list = (names: string[]) =>

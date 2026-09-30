@@ -32,4 +32,5 @@ export {
   type LogFormat,
   type OutputOptions,
   type OutputFlags,
+  type Live,
 } from './sinks.js';

@@ -142,9 +142,10 @@ const terminalWidth = () =>
  * goes.
  */
 export class PrettySink extends TextSink {
-  private readonly view?: LiveView;
+  private view?: LiveView;
+  private readonly liveUntilLoading: boolean;
 
-  constructor(options: SinkOptions & { live?: boolean }) {
+  constructor(options: SinkOptions & { live?: Live }) {
     const t = tokens({ stream: 'stderr', theme: options.theme, color: options.color });
     super({
       level: options.level,
@@ -152,12 +153,18 @@ export class PrettySink extends TextSink {
       format: event => render(event, t, options.width ?? terminalWidth(), { time: true }),
     });
     if (options.live) this.view = new LiveView(t);
+    this.liveUntilLoading = options.live === 'until-loading';
   }
 
   override emit(event: OutputEvent): void {
     if (event.kind === 'progress') {
-      if (this.view && allows(this.level, 'info'))
-        this.view.update(event.fields as unknown as ProgressFields);
+      const fields = event.fields as unknown as ProgressFields;
+      if (this.liveUntilLoading && fields.phase === 'loading') {
+        // Records are about to share the terminal: the view steps aside for good.
+        this.view?.stop();
+        this.view = undefined;
+      }
+      if (this.view && allows(this.level, 'info')) this.view.update(fields);
       return;
     }
     super.emit(event);
@@ -190,10 +197,16 @@ export class PlainSink extends TextSink {
   }
 }
 
+/**
+ * Whether the pretty sink draws live progress: throughout the run, or only
+ * until records start loading, when they print to the same terminal.
+ */
+export type Live = boolean | 'until-loading';
+
 export interface OutputOptions extends SinkOptions {
   format?: LogFormat;
   /** Draw live progress (pretty only). */
-  live?: boolean;
+  live?: Live;
   /** Keep personal fields in JSON (`--log-personal`). */
   personal?: boolean;
 }
@@ -224,7 +237,7 @@ export interface OutputFlags {
 }
 
 /** The sink a command's flags ask for. */
-export const sinkFor = (flags: OutputFlags, extra: { live?: boolean } = {}): Sink =>
+export const sinkFor = (flags: OutputFlags, extra: { live?: Live } = {}): Sink =>
   createSink({
     format: flags['log-format'],
     level: thresholdFor(flags),

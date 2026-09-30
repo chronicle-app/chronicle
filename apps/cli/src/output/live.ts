@@ -47,7 +47,7 @@ export function progress(fields: ProgressFields, t: Tokens, width: number, frame
   const unit = types.length === 1 ? plural(types[0], processed) : plural('records', processed);
   const counted: Segment[] =
     fields.phase === 'reading'
-      ? [[processed === 0 ? 'reading' : `${count(processed)} ${unit} read`]]
+      ? [[processed === 0 ? 'starting' : `${count(processed)} ${unit} read`]]
       : total > 0
         ? [[count(processed)], ['/', t.muted], [`${count(total)} ${unit}`]]
         : [[`${count(processed)} ${unit}`]];
