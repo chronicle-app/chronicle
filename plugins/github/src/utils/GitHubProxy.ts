@@ -28,7 +28,6 @@ export interface GitHubRepository {
   description: string | null;
   homepageUrl: string | null;
   visibility: 'PUBLIC' | 'PRIVATE' | 'INTERNAL';
-  primaryLanguage: { name: string } | null;
   repositoryTopics: { nodes: { topic: { name: string } }[] };
   owner: GitHubActor;
 }
@@ -83,7 +82,7 @@ export interface GitHubGist {
   url: string;
   createdAt: string;
   isPublic: boolean;
-  files: { name: string; language: { name: string } | null }[] | null;
+  files: { name: string }[] | null;
 }
 
 export interface GitHubViewer {
@@ -113,7 +112,6 @@ const ACTOR = `__typename login url
   ... on Bot { databaseId } ... on Mannequin { databaseId }`;
 
 const REPOSITORY = `id name nameWithOwner url description homepageUrl visibility
-  primaryLanguage { name }
   repositoryTopics(first: 20) { nodes { topic { name } } }
   owner { __typename login url ... on User { databaseId name } ... on Organization { databaseId name } }`;
 
@@ -186,7 +184,7 @@ const VIEWER_CONNECTIONS = {
   gists: {
     args: 'privacy: ALL, orderBy: {field: CREATED_AT, direction: DESC}',
     selection: `nodes { id name description url createdAt isPublic
-      files(limit: 100) { name language { name } } }`,
+      files(limit: 1) { name } }`,
   },
 } as const;
 

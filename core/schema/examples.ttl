@@ -3393,8 +3393,7 @@ keyed by their numeric id, the repository by its owner (its :creator) and its
           :sourceId "6302";
           :handle "trailco";
           :url "https://github.com/trailco"
-        ];
-        :programmingLanguage "TypeScript"
+        ]
       ]
     ];
     :result [
@@ -4011,6 +4010,5 @@ a sentence of prose, so the action has no :object.
 
 :PullRequest skos:example example:github-review .
 :Repository skos:example example:github-review .
-:programmingLanguage skos:example example:github-review .
 :ratingValue skos:example example:github-review .
 :Response skos:example example:github-review .
