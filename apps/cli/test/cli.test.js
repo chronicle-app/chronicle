@@ -295,7 +295,10 @@ export class Fixture extends Extractor {
   assert.equal(listing.tier, null);
   assert.match(success(run('sources', '--source', 'fixture')), /not in catalog · fixture-plugin/);
   assert.match(success(run('auth', 'login', '--list')), /fixture/);
-  assert.equal(JSON.parse(success(run('extract', 'fixture', '--raw'))).name, 'installed fixture');
+  const extracted = run('extract', 'fixture', '--raw');
+  assert.equal(JSON.parse(success(extracted)).name, 'installed fixture');
+  // Sharing modules with plugins uses no deprecated loader API (DEP0205 on Node 26+).
+  assert.doesNotMatch(extracted.stderr, /DeprecationWarning/);
 
   success(run('plugins', 'uninstall', 'fixture-plugin'));
   assert.equal(
