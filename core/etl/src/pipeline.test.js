@@ -15,6 +15,18 @@ import {
   Runner,
   Transformer,
 } from '../dist/index.js';
+import { JsonSink } from '@chronicle.app/logging';
+
+/** A sink that keeps every event, as JSON, for a test to read. */
+function memorySink() {
+  const events = [];
+  const sink = new JsonSink({
+    level: 'debug',
+    heartbeatMs: 0,
+    write: line => events.push(JSON.parse(line)),
+  });
+  return { sink, events };
+}
 
 // All identifiers and records in this file are synthetic fixtures.
 class FixtureExtractor extends Extractor {
@@ -170,18 +182,38 @@ test('preserves streaming and buffered extraction, post-filter limits, and itera
     const extractor = new FixtureExtractor([{ kind: 'skip' }, { kind: 'keep' }, { kind: 'keep' }]);
     const loader = new MemoryLoader();
     const read = [];
+    const { sink, events } = memorySink();
+    const run = { id: 'run-1', source: 'fixture', strategy: 'memory' };
     const runner = new Runner({
       streamExtraction,
       recordTypes: ['keep'],
       limit: 1,
       quiet: true,
       onRead: (record, count) => read.push(count),
+      sink,
+      run,
     })
       .addExtractor(extractor)
       .addLoader(loader);
     assert.equal((await collect(runner)).length, 1);
     // Only a buffered run reads ahead, and it reports each kept record as it does.
     assert.deepEqual(read, streamExtraction ? [] : [1]);
+    // The runner reports the run on the host's sink, with no host code: progress
+    // through each phase, then a summary whose fields hold the totals.
+    const phases = events.filter(e => e.kind === 'progress').map(e => e.fields.phase);
+    assert.deepEqual([...new Set(phases)], ['reading', 'loading', 'writing']);
+    const summary = events.find(e => e.kind === 'summary');
+    assert.deepEqual(summary.fields.counts, { keep: 1 });
+    assert.equal(summary.fields.records, 1);
+    assert.equal(summary.fields.title, 'fixture · memory');
+    assert.ok(events.every(e => e.run.id === 'run-1'));
+    assert.deepEqual(runner.stats, {
+      counts: { keep: 1 },
+      processed: 1,
+      written: 1,
+      skipped: 0,
+      failed: 0,
+    });
     assert.equal(loader.records[0].extraction.recordType, 'keep');
     assert.equal(extractor.closed, true);
   }
@@ -218,14 +250,22 @@ test('invalid Chronicle output is reported and never loaded', async () => {
     }
   }
   const loader = new MemoryLoader();
+  const { sink, events } = memorySink();
   const [log] = await collect(
-    new Runner({ quiet: true })
+    new Runner({ quiet: true, sink })
       .addExtractor(new FixtureExtractor([{}]))
       .addTransformer(new MissingIdentity())
       .addLoader(loader)
   );
   assert.match(log.error, /identity/);
   assert.equal(loader.records.length, 0);
+  // The failure is also a keyed error event, and the summary counts it.
+  const failure = events.find(e => e.kind === 'error');
+  assert.equal(failure.key, 'record.transform');
+  assert.match(failure.message, /identity/);
+  const summary = events.find(e => e.kind === 'summary');
+  assert.equal(summary.level, 'error');
+  assert.equal(summary.fields.failed, 1);
 
   // Every schema marker a transformer can declare triggers validation.
   for (const schema of [

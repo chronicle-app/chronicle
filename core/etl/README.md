@@ -108,6 +108,16 @@ hands it to the extractor and transformers, so their events render the host's
 way. Without one, each logs plain lines to stderr at the `quiet`/`verbose` level
 of its config. Fields a plugin logs are marked personal.
 
+The runner also reports the run itself, so every host sees a run the same
+way: `progress` events as it reads records in (`reading`), processes them
+(`loading`), and flushes the loaders (`writing`); a keyed `error` event for
+each failed transform, validation, or load (`record.transform`,
+`record.validation`, `record.load`); and, once a run that went through every
+record is torn down, a `summary` whose fields hold the totals (`counts`,
+`records`, `written`, `skipped`, `failed`, `durationMs`). `title` and `output`
+in the config label it. `runner.stats` has the same totals as the run goes.
+Plugins can't emit `progress` or `summary`.
+
 ## Scope
 
 This package covers extraction only: contracts, the runner transformation loop,

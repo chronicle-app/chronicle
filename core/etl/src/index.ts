@@ -8,6 +8,7 @@ export { Loader } from './loader.js';
 // Plugins extend Extractor.schema with the same zod, without depending on it.
 export { z } from 'zod';
 export { Runner, type RunnerConfig } from './runner.js';
+export { RunReport, type RunStats } from './report.js';
 export { JsonLoader, colorizeJson, type JsonColorTheme } from './json-loader.js';
 export { CsvLoader } from './connectors/loaders/CsvLoader.js';
 export { YamlLoader } from './connectors/loaders/YamlLoader.js';
@@ -27,7 +28,9 @@ export {
   type LogLevel,
   type LoggerContext,
   type OutputEvent,
+  type ProgressFields,
   type RunContext,
+  type SummaryFields,
   type Sink,
 } from '@chronicle.app/logging';
 export * from './selfAgent.js';
