@@ -3341,6 +3341,65 @@ News id.
     ]
   ] .
 
+example:github-review
+  rdfs:label "Approving a pull request on GitHub";
+  rdfs:comment """
+You approved Riley's pull request. The :RespondAction's :object is the
+:PullRequest, which :isPartOf its :Repository; its :result is your review, a
+:Response whose :ratingValue is GitHub's verdict, kept verbatim. Every node is
+keyed by its GitHub node id.
+""";
+  rdf:value [
+    a :RespondAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "github";
+    :sourceId "PRR_kwDOAbc123";
+    :timestamp "2025-02-06T08:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "github";
+      :sourceId "U_kgDOsam";
+      :handle "sam";
+      :url "https://github.com/sam";
+      :sameAs "@me"
+    ];
+    :object [
+      a :PullRequest;
+      doc:key ("@type" "source" "sourceId");
+      :source "github";
+      :sourceId "PR_kwDOAbc456";
+      :url "https://github.com/trailco/trails/pull/7";
+      :name "Draw the ridge trail";
+      :author [
+        a :Person;
+        doc:key ("@type" "source" "sourceId");
+        :source "github";
+        :sourceId "U_kgDOriley";
+        :handle "riley";
+        :url "https://github.com/riley"
+      ];
+      :isPartOf [
+        a :Repository;
+        doc:key ("@type" "source" "sourceId");
+        :source "github";
+        :sourceId "R_kgDOtrails";
+        :url "https://github.com/trailco/trails";
+        :name "trailco/trails";
+        :programmingLanguage "TypeScript"
+      ]
+    ];
+    :result [
+      a :Response;
+      doc:key ("@type" "source" "sourceId");
+      :source "github";
+      :sourceId "PRR_kwDOAbc123";
+      :url "https://github.com/trailco/trails/pull/7#pullrequestreview-2001";
+      :body "Ship it.";
+      :ratingValue "APPROVED"
+    ]
+  ] .
+
 : skos:example example:message-from-alex, example:shell-command, example:task-completed .
 
 :Base skos:example example:entity-with-url .
@@ -3941,3 +4000,9 @@ a sentence of prose, so the action has no :object.
 :RespondAction skos:example example:hackernews-reply .
 :Comment skos:example example:hackernews-reply .
 :about skos:example example:hackernews-reply .
+
+:PullRequest skos:example example:github-review .
+:Repository skos:example example:github-review .
+:programmingLanguage skos:example example:github-review .
+:ratingValue skos:example example:github-review .
+:Response skos:example example:github-review .
