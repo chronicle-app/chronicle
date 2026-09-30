@@ -86,7 +86,25 @@ export async function runExtraction(
   const logger = createLogger({ scope: 'runner', sink, run });
   const builder = new RunnerBuilder(flags, flagSources);
   // The runner reports the run itself: progress, record errors, the summary.
-  const runner: Runner = await builder.buildRunner(extractor, { sink, run, output });
+  let runner: Runner;
+  try {
+    runner = await builder.buildRunner(extractor, { sink, run, output });
+  } catch (error) {
+    // Building the run constructs the extractor; a typed failure there is
+    // reported like one from the run, and exits with its code.
+    const { message, code, exitCode, hint, fields } = describeError(error);
+    if (code === 'internal') throw error;
+    logger.emit({
+      level: 'error',
+      kind: 'error',
+      message,
+      error: { code, exitCode },
+      ...(hint && { hint: { action: hint } }),
+      ...(fields && { fields, sensitive: Object.keys(fields) }),
+    });
+    logger.flush();
+    throw new Errors.ExitError(exitCode);
+  }
   // For the run, everything goes to its sink: loggers without one of their
   // own, and anything a plugin or dependency writes to the console, as its
   // diagnostics. Stdout carries only the records.
