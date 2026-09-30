@@ -468,10 +468,6 @@ ${START[kind](name, P)}
 - \`--limit n\` stops after n records; \`--limit 0\` means no limit. Use
   \`this.shouldStopExtracting(count)\`.
 - Honour \`--since\` and \`--until\` using the record's own date.
-- Say things through \`this.logger\` (\`debug\`, \`info\`, \`warn\`, \`error\`), never
-  \`console\`: stdout carries the records. Put personal values (paths, names,
-  addresses) in the second argument's fields, not the message, so a log can
-  redact them. Don't log once per record; the run already counts them.
 
 ## Tests
 
