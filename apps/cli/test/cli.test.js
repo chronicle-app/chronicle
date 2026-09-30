@@ -102,6 +102,15 @@ test('bundled sources are discoverable from an unrelated cwd; JSON has no diagno
     /↳ pick kinds with --type; without it, every kind · `chronicle extract shell --type commands`/
   );
   assert.doesNotMatch(success(run('--help')), /archive|sync|serve/);
+
+  // An unknown --type is a usage error that names the kinds, not the whole help.
+  const typo = run('extract', 'shell', '--type', 'command');
+  assert.equal(typo.status, 2);
+  assert.match(typo.stderr, /✗ shell has no record type "command"/);
+  assert.match(typo.stderr, /↳ did you mean `--type commands`\? Types: commands/);
+  assert.doesNotMatch(typo.stderr, /flags:/);
+  const unknownType = run('extract', 'shell', '--type', 'likes');
+  assert.match(unknownType.stderr, /↳ pick from commands/);
 });
 
 test('raw extraction, four output loaders, file output and stream mode', t => {

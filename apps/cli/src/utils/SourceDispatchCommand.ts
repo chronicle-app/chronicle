@@ -1,4 +1,5 @@
-import { Args, Command } from '@oclif/core';
+import { Args, Command, Errors } from '@oclif/core';
+import { describeError } from '@chronicle.app/logging';
 import { BaseCommand } from '../baseCommand.js';
 import { PluginScanner, type ExtractorMetadata } from '../plugins/PluginScanner.js';
 import { FlagManager } from './FlagManager.js';
@@ -231,6 +232,20 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
       this.selectedExtractor = await selector.select();
     } catch (error) {
       if ((error as any)?.oclif?.exit === 130) throw error;
+      // A typed failure (an unknown --type) says what to do in its hint; the
+      // whole source help would bury it.
+      const { message, code, exitCode, hint } = describeError(error);
+      if (code !== 'internal') {
+        this.logger.emit({
+          level: 'error',
+          kind: 'error',
+          message,
+          error: { code, exitCode },
+          ...(hint && { hint: { action: hint } }),
+        });
+        this.logger.flush();
+        throw new Errors.ExitError(exitCode);
+      }
       this.error(
         `${error instanceof Error ? error.message : String(error)}\n\n` +
           renderSourceHelp(positional, candidates, { verb, theme: parsed.theme })
