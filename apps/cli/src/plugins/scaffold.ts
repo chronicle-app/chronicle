@@ -435,10 +435,6 @@ ${START[kind](name, P)}
 - \`package.json\`'s \`chronicle.sources\` repeats each source's strategies,
   deliveries, record types, and default, so Chronicle can list the plugin
   without loading it. Change it whenever the extractor's static fields change.
-- \`package.json\`'s optional \`chronicle.deepLinks\` maps a source and \`@type\`
-  (or \`*\`) to a URI template, such as \`myapp://open/{sourceId}\`, that opens a
-  record in the source app. See
-  https://github.com/chronicle-app/chronicle/tree/main/apps/cli#deep-links.
 
 ## Run it
 
@@ -472,6 +468,10 @@ ${START[kind](name, P)}
 - \`--limit n\` stops after n records; \`--limit 0\` means no limit. Use
   \`this.shouldStopExtracting(count)\`.
 - Honour \`--since\` and \`--until\` using the record's own date.
+- Say things through \`this.logger\` (\`debug\`, \`info\`, \`warn\`, \`error\`), never
+  \`console\`: stdout carries the records. Put personal values (paths, names,
+  addresses) in the second argument's fields, not the message, so a log can
+  redact them. Don't log once per record; the run already counts them.
 
 ## Tests
 

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -431,75 +431,6 @@ test('since, until, and limit filter on each item’s dateModified', async t => 
     limited.map(a => a.sourceId),
     ['WORKAAAA', 'ATTPDF01', 'SECTION1']
   );
-});
-
-/**
- * Expands the package's `chronicle.deepLinks` template for a node the way a
- * host does: the node's `@type` over `*`, each `{var}` from `sourceId`,
- * `handle`, or an `@key` path, and no link when a variable is missing.
- */
-function deepLink(node) {
-  const { deepLinks } = JSON.parse(
-    readFileSync(new URL('../package.json', import.meta.url))
-  ).chronicle;
-  const template = deepLinks[node.source]?.[node['@type']] ?? deepLinks[node.source]?.['*'];
-  if (!template) return;
-  let missing = false;
-  const url = template.replaceAll(/\{([^{}]+)\}/g, (_, name) => {
-    let value;
-    if (name === 'sourceId' || name === 'handle') value = node[name];
-    else if (node['@key']?.includes(name)) {
-      const [head, rest, ...deeper] = name.split('.');
-      value = name in node ? node[name] : deeper.length > 0 ? undefined : node[head]?.[rest];
-    }
-    if (typeof value === 'string' || typeof value === 'number') {
-      return encodeURIComponent(value);
-    }
-    missing = true;
-    return '';
-  });
-  return missing ? undefined : url;
-}
-
-const select = key => `zotero://select/library/items/${key}`;
-
-/** Every node from a source, nested ones included. */
-function nodesFrom(source, value, out = []) {
-  if (Array.isArray(value)) for (const item of value) nodesFrom(source, item, out);
-  else if (value && typeof value === 'object') {
-    if (value.source === source && typeof value['@type'] === 'string') out.push(value);
-    for (const child of Object.values(value)) nodesFrom(source, child, out);
-  }
-  return out;
-}
-
-test('item records link into Zotero; the account and collections do not', async t => {
-  const out = await actions({ input: fixture(t) });
-  const links = new Map();
-  for (const node of nodesFrom('zotero', out)) {
-    links.set(`${node['@type']} ${node.sourceId ?? node.handle ?? node.name}`, deepLink(node));
-  }
-  assert.equal(links.get('Article WORKAAAA'), select('WORKAAAA'));
-  assert.equal(links.get('Book BOOKAAAA'), select('BOOKAAAA'));
-  assert.equal(links.get('Quotation ANNOPDF1'), select('ANNOPDF1'));
-  assert.equal(links.get('Comment NOTE0001'), select('NOTE0001'));
-  assert.equal(links.get('QuoteAction ANNOPDF1'), select('ANNOPDF1'));
-  assert.equal(links.get('DocumentObject ATTPDF01'), 'zotero://open-pdf/library/items/ATTPDF01');
-  for (const unlinked of [
-    `Person ${LOCAL_USER_KEY}`,
-    `Realm ${USER_ID}`,
-    'Collection COLLROOT',
-    'Collection COLLCHLD',
-    'Tag hiking',
-    'Person Pat Example',
-  ]) {
-    assert.ok(links.has(unlinked), unlinked);
-    assert.equal(links.get(unlinked), undefined, unlinked);
-  }
-  // Only records keyed by an 8-character item key get a link.
-  for (const [node, link] of links) {
-    if (link) assert.match(node, / [A-Z0-9]{8}$/);
-  }
 });
 
 /** Copies the extractor made of a locked database, by its naming scheme. */

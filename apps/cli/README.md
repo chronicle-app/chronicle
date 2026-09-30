@@ -48,36 +48,3 @@ To run a plugin you're writing without installing it, use
 It runs from where it is, so edits apply on the next run, and it takes over any
 source it provides, including an official one. `chronicle plugins remove` stops it.
 Plugins can be TypeScript; they run without a build.
-
-### Deep links
-
-A plugin can say how to open one of its records in the source app. Hosts that
-serve stored records (query output, a read API, an agent) read `deepLinks` from
-each installed plugin's package.json and attach an app URL to matching records.
-No plugin code runs for this.
-
-```json
-"chronicle": {
-  "plugin": true,
-  "sources": { },
-  "deepLinks": {
-    "zotero": {
-      "*": "zotero://select/library/items/{sourceId}",
-      "DocumentObject": "zotero://open-pdf/library/items/{sourceId}",
-      "Person": ""
-    }
-  }
-}
-```
-
-- The outer key is the record's `source`. Within it, the record's `@type` wins
-  over `*`, the fallback for any other type from that source. An empty template
-  gives that type no link, even when `*` would match. Several packages may add
-  templates for the same source; hosts merge them.
-- Templates are [RFC 6570](https://www.rfc-editor.org/rfc/rfc6570) level 1.
-  Each `{var}` becomes the percent-encoded (`encodeURIComponent`) value of
-  `sourceId` or `handle` on the record, or else of a field named in its `@key`.
-  A dotted key path such as `inRealm.handle` is read under that exact dotted
-  name first, else one level into an object field (`inRealm`, then its `handle`).
-- If any variable is missing or isn't a string or number, the record gets no
-  link. Expansion never throws.
