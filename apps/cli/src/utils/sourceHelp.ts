@@ -53,6 +53,21 @@ function needsNote(delivery: string): string {
 }
 
 /**
+ * A source's record kinds, one per line with the strategies that carry them:
+ * `--list-types`, plain so it pipes (`cut -d' ' -f1` gives the kinds).
+ */
+export function renderRecordTypes(candidates: ExtractorMetadata[]): string {
+  const byType = new Map<string, string[]>();
+  for (const s of strategiesOf(candidates)) {
+    for (const type of s.recordTypes) byType.set(type, [...(byType.get(type) ?? []), s.name]);
+  }
+  const width = Math.max(0, ...[...byType.keys()].map(type => type.length));
+  return [...byType]
+    .map(([type, strategies]) => `${type.padEnd(width)}  ${strategies.join(',')}`)
+    .join('\n');
+}
+
+/**
  * Render a source as strategies × record kinds, plus the flags they accept. Shared
  * by the custom Help class (`extract <source> --help`) and the dispatcher's
  * `--list-types` / non-TTY selection error, so the surfaces never drift.

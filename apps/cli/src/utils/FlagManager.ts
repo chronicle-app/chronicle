@@ -232,7 +232,7 @@ export class FlagManager {
       }),
       'list-types': Flags.boolean({
         helpGroup: 'EXTRACTION',
-        summary: 'List the strategies and the record kinds each carries, then exit',
+        summary: 'List the record kinds and the strategies that carry them, then exit',
         char: 'L',
       }),
       ...this.getAllLoaderFlags(),

@@ -2,7 +2,7 @@ import { Args, Command } from '@oclif/core';
 import { BaseCommand } from '../baseCommand.js';
 import { PluginScanner, type ExtractorMetadata } from '../plugins/PluginScanner.js';
 import { FlagManager } from './FlagManager.js';
-import { renderSourceHelp } from './sourceHelp.js';
+import { renderRecordTypes, renderSourceHelp } from './sourceHelp.js';
 import { getTheme } from '../theme.js';
 import { outputFlagsIn } from '../output/index.js';
 
@@ -100,6 +100,16 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
   public override async init(): Promise<void> {
     // Before discovery, so what it says follows the output flags.
     this.installOutput(outputFlagsIn(this.argv));
+    // `extract help [source]` reads like `git help <command>`: the command's
+    // help, or the source's.
+    if (this.firstPositional() === 'help') {
+      this.argv = this.argv.filter((_, i) => i !== this.argv.indexOf('help'));
+      if (!this.firstPositional()) {
+        await this.config.runCommand('help', [this.id ?? 'extract']);
+        this.exit(0);
+      }
+      this.argv.push('--help');
+    }
     const positional = this.firstPositional();
     const wantsHelp = this.argv.includes('--help') || this.argv.includes('-h');
 
@@ -129,8 +139,12 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
 
     // Help / list-types render from the candidates alone — before flag parsing,
     // so they never trip over a source's own required flags.
-    if (wantsHelp || this.argv.includes('--list-types') || this.argv.includes('-L')) {
+    if (wantsHelp) {
       this.renderSourceHelp(positional, candidates);
+      this.exit(0);
+    }
+    if (this.argv.includes('--list-types') || this.argv.includes('-L')) {
+      this.log(renderRecordTypes(candidates));
       this.exit(0);
     }
 

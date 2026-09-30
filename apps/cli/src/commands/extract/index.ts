@@ -11,13 +11,19 @@ import { SourceDispatchCommand } from '../../utils/SourceDispatchCommand.js';
 export default class Extract extends SourceDispatchCommand<typeof Extract> {
   static override aliases = ['e'];
 
-  static override description = 'Pull a source to stdout as Chronicle JSON-LD';
+  static override summary = 'Pull a source to stdout as Chronicle JSON-LD';
+
+  static override description = `Each source has its own strategies, record kinds, and flags:
+  chronicle extract <source> --help   (or: chronicle extract help <source>)
+  chronicle extract <source> --list-types
+See every source with: chronicle sources --all`;
 
   static override examples = [
     'chronicle extract shell --limit 10',
     'chronicle extract things-todo --type tasks',
     'chronicle extract claude-code --loader yaml --output sessions.yaml',
-    'chronicle extract things-todo --list-types',
+    'chronicle extract arena --help',
+    'chronicle extract arena --list-types',
   ];
 
   protected readonly defaultLoaderName = 'json' as const;

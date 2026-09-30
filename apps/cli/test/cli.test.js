@@ -90,6 +90,10 @@ test('bundled sources are discoverable from an unrelated cwd; JSON has no diagno
 
   const help = success(run('extract', 'shell', '--help'));
   assert.match(help, /history/);
+  // `extract help [source]` reads like `git help`, and --list-types lists only the kinds.
+  assert.equal(success(run('extract', 'help', 'shell')), help);
+  assert.match(success(run('extract', 'help')), /chronicle extract <source> --help/);
+  assert.equal(success(run('extract', 'shell', '--list-types')), 'commands  history\n');
   assert.doesNotMatch(success(run('--help')), /archive|sync|serve/);
 });
 
