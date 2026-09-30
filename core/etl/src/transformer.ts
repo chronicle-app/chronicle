@@ -1,5 +1,5 @@
 import { Record, Transformation } from './types.js';
-import { Logger, createLogger } from '@chronicle.app/logging';
+import { Logger, createLogger, type RunContext, type Sink } from '@chronicle.app/logging';
 
 export abstract class Transformer {
   static source: string;
@@ -16,10 +16,16 @@ export abstract class Transformer {
     // Initialize logger with config flags (similar to Extractor)
     const cls = this.constructor as typeof Transformer;
     this.logger = createLogger({
-      prefix: `[${cls.name}]`,
+      scope: cls.name,
       quiet: config.quiet,
       verbose: config.verbose,
+      sensitive: true,
     });
+  }
+
+  /** Send this transformer's events to the host's sink, tagged with its run. */
+  useOutput(sink: Sink, run?: RunContext): void {
+    this.logger.use(sink, { run });
   }
 
   private createTransformation(): Transformation {

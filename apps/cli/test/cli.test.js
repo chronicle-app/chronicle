@@ -90,6 +90,10 @@ test('bundled sources are discoverable from an unrelated cwd; JSON has no diagno
 
   const help = success(run('extract', 'shell', '--help'));
   assert.match(help, /history/);
+  // `extract help [source]` reads like `git help`, and --list-types lists only the kinds.
+  assert.equal(success(run('extract', 'help', 'shell')), help);
+  assert.match(success(run('extract', 'help')), /chronicle extract <source> --help/);
+  assert.equal(success(run('extract', 'shell', '--list-types')), 'commands  history\n');
   assert.doesNotMatch(success(run('--help')), /archive|sync|serve/);
 });
 
@@ -145,19 +149,44 @@ test('raw extraction, four output loaders, file output and stream mode', t => {
     'stdout'
   );
   assert.equal(JSON.parse(success(result)).command, 'printf fixture');
-  // Unless quiet, the run ends with its summary on stderr, and the default
-  // --limit says when it cut the run short.
+  // Unless quiet, the run ends with its summary on stderr, stamped with the
+  // time when stderr isn't a terminal, and the default --limit says when it
+  // cut the run short.
   // Anchored to the end only: some Node versions warn on stderr first.
-  assert.match(result.stderr, /(^|\n)✓ shell · \S+ {2}1 command {2}in \S+\n$/);
+  assert.match(result.stderr, /(^|\n)\d\d:\d\d:\d\d ✓ shell · \S+ {2}1 command {2}in \S+\n$/);
+  // A supervisor reads the same run as JSON events on stderr. --delay slows
+  // each extracted record, for watching a run while debugging.
+  const events = run(
+    ...['extract', 'shell', '--input', input, '--raw', '--limit', '1'],
+    ...['--log-format', 'json', '--delay', '150']
+  )
+    .stderr.split('\n')
+    .filter(line => line.startsWith('{'))
+    .map(line => JSON.parse(line));
+  const done = events.find(event => event.kind === 'summary');
+  assert.deepEqual(done.fields.counts, { commands: 1 });
+  assert.deepEqual(done.run.source, 'shell');
+  assert.ok(events.every(event => event.run.id === done.run.id));
+  assert.ok(done.fields.durationMs >= 150);
   const long = join(dir, 'long-history');
   writeFileSync(
     long,
     Array.from({ length: 101 }, (_, i) => `: ${1700000000 + i}:0;echo ${i}\n`).join('')
   );
   const capped = run('extract', 'shell', '--input', long, '--raw', '--output', 'stdout');
-  assert.match(capped.stderr, /100 commands.*\n.*stopped at --limit 100/);
+  assert.match(capped.stderr, /100 commands.*\n.*first 100 · use --limit 0 for all/);
+  // With a count from the source (a streamed run asks), the hint says how many there are.
+  const counted = run('extract', 'shell', '--input', long, '--raw', '--stream');
+  assert.match(counted.stderr, /first 100 of 101 · use --limit 0 for all/);
+  // The default limit that didn't cut anything short gets no hint.
+  const exact = join(dir, 'exact-history');
+  writeFileSync(
+    exact,
+    Array.from({ length: 100 }, (_, i) => `: ${1700000000 + i}:0;echo ${i}\n`).join('')
+  );
+  assert.doesNotMatch(run('extract', 'shell', '--input', exact, '--raw').stderr, /first 100/);
   const chosen = run('extract', 'shell', '--input', long, '--raw', '--limit', '100');
-  assert.doesNotMatch(chosen.stderr, /stopped/);
+  assert.doesNotMatch(chosen.stderr, /first 100/);
   // Tabular output hints at the other column mode, but only when it would show more.
   const labelled = run('extract', 'shell', '--input', input, '--loader', 'csv');
   assert.match(labelled.stderr, /--columns schema/);
@@ -381,7 +410,7 @@ export class OtherShell extends Extractor {
   assert.doesNotMatch(localList().join(), /gone-first/);
   const pruned = run('sources', '--format', 'json');
   assert.match(success(pruned), /^\[/);
-  assert.match(pruned.stderr, /Removed .*gone-second from your local plugins: it no longer exists/);
+  assert.match(pruned.stderr, /Removed a local plugin that no longer exists {2}path=.*gone-second/);
   assert.deepEqual(localList(), []);
   assert.doesNotMatch(run('sources', '--format', 'json').stderr, /gone-second/);
 });
@@ -519,7 +548,7 @@ test('failed setup and transformation release extractor resources and exit nonze
       export class Fixture extends Extractor {
         static source = 'fixture'; static strategy = 'file'; static delivery = 'export'; static recordTypes = ['rows'];
         static defaultTransformer = FailingTransformer;
-        async setup() { ${phase === 'setup' ? "throw new Error('synthetic setup failure');" : ''} }
+        async setup() { this.logger.warn('synthetic warning'); console.log('synthetic console output'); ${phase === 'setup' ? "throw new Error('synthetic setup failure');" : ''} }
         async teardown() { writeFileSync(${JSON.stringify(marker)}, 'closed'); }
         async *extract() { yield this.createRecord({ name: 'fixture' }); }
       }`
@@ -527,6 +556,10 @@ test('failed setup and transformation release extractor resources and exit nonze
     const result = run('extract', 'fixture');
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, new RegExp(`synthetic ${phase} failure`));
+    // Plugin warnings reach stderr even when stdout is piped.
+    assert.match(result.stderr, /! fixture\.file {2}synthetic warning/);
+    // A plugin's console output becomes its diagnostics on stderr, never records on stdout.
+    assert.match(result.stderr, /· fixture\.file {2}synthetic console output/);
     assert.equal(readFileSync(marker, 'utf8'), 'closed');
     assert.equal(result.stdout, '');
   }

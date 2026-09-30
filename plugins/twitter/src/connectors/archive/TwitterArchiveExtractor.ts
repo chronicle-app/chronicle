@@ -29,7 +29,7 @@ export abstract class TwitterArchiveExtractor<
       const jsData = this.parseTwitterJS(content, 'account');
       this.accountInfo = jsData[0]?.account || null;
     } catch (error) {
-      console.warn(`Could not load account info: ${error}`);
+      this.logger.warn('Could not load account info', { error: String(error) });
       this.accountInfo = null;
     }
   }

@@ -5,16 +5,12 @@ import { GoogleReaderItem, UserInfo } from './types.js';
 
 export default class GoogleReaderTransformer extends ChronicleTransformer {
   async transform(record: Record): Promise<ActionAndChildren[]> {
-    this.logger.debug('Transforming google-reader record', {
-      recordType: record.extraction.recordType,
-    });
     const actions: ActionAndChildren[] = [];
 
     if (record.extraction.recordType === 'stream-contents') {
       actions.push(...this.buildStreamContentActions(record));
     }
 
-    this.logger.verboseInfo(`Generated ${actions.length} actions from google-reader record`);
     return actions;
   }
 

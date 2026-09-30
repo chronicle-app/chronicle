@@ -1,6 +1,9 @@
 import { promises as fs } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { TokenResponse } from './types.js';
+import { createLogger } from '@chronicle.app/logging';
+
+const logger = createLogger({ scope: 'credentials' });
 
 export interface StoredCredentials {
   accessToken: string;
@@ -42,7 +45,7 @@ export class FileCredentialManager {
         return {};
       }
       // If file is invalid, return empty and log warning
-      console.warn('Invalid credentials file, starting fresh:', error);
+      logger.warn('Invalid credentials file, starting fresh', { error: String(error) });
       return {};
     }
   }
@@ -212,10 +215,9 @@ export class FileCredentialManager {
           return refreshedToken;
         }
       } catch (error) {
-        console.warn(
-          `Failed to refresh ${provider} token:`,
-          error instanceof Error ? error.message : error
-        );
+        logger.warn(`Failed to refresh the ${provider} token`, {
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 

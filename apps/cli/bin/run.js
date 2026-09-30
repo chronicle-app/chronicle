@@ -7,7 +7,10 @@ const minimum = engines.node.replace(/^>=\s*/, '');
 const [current, required] = [process.versions.node, minimum].map(v => v.split('.').map(Number));
 const index = required.findIndex((part, i) => current[i] !== part);
 if (index !== -1 && current[index] < required[index]) {
-  console.error(`Chronicle needs Node.js ${minimum} or newer; this is ${process.versions.node}.`);
+  // Before any module loads, so no logger yet: the one direct write to stderr.
+  process.stderr.write(
+    `Chronicle needs Node.js ${minimum} or newer; this is ${process.versions.node}.\n`
+  );
   process.exit(1);
 }
 

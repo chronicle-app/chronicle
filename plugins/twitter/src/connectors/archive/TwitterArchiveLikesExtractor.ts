@@ -54,7 +54,7 @@ export class TwitterArchiveLikesExtractor extends TwitterArchiveExtractor<
         }
       }
     } catch (error) {
-      console.warn(`Could not process likes: ${error}`);
+      this.logger.warn('Could not process likes', { error: String(error) });
     }
   }
 

@@ -31,10 +31,6 @@ export default class ArenaTransformer extends ChronicleTransformer {
   private selfUserId?: number;
 
   async transform(record: Record): Promise<ActionAndChildren[]> {
-    this.logger.debug('Transforming arena record', {
-      recordType: record.extraction.recordType,
-    });
-
     // Safe as a per-record field: the build* methods below run synchronously,
     // with no await between this assignment and the buildUser calls.
     this.selfUserId = (record.context as { userId?: number })?.userId;
@@ -66,7 +62,6 @@ export default class ArenaTransformer extends ChronicleTransformer {
         break;
     }
 
-    this.logger.verboseInfo(`Generated ${actions.length} actions from arena record`);
     return actions;
   }
 

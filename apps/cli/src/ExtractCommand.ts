@@ -65,22 +65,20 @@ export default abstract class ExtractCommand<T extends typeof Command> extends B
       if (!flagDef) return null;
 
       // Show helpful message before prompting
-      console.error(`\n  Missing required flag: --${flagName}`);
-      if (flagDef.summary) {
-        console.error(`  ${flagDef.summary}`);
-      }
-
-      // Show all required flags for this command
       const requiredFlags = Object.entries(flags)
         .filter(([, def]: [string, any]) => def?.required === true)
         .map(([name]) => `--${name}`)
         .join(', ');
-
-      if (requiredFlags) {
-        console.error(`  Required flags for this command: ${requiredFlags}`);
-      }
-
-      console.error(`  You can also provide this flag directly: --${flagName} <value>\n`);
+      this.logger.warn(
+        `Missing required flag --${flagName}${flagDef.summary ? `: ${flagDef.summary}` : ''}`,
+        requiredFlags ? { required: requiredFlags } : undefined
+      );
+      this.logger.emit({
+        level: 'info',
+        kind: 'hint',
+        message: `--${flagName} is required`,
+        hint: { action: `pass --${flagName} <value> to skip this prompt` },
+      });
 
       const result = await inkInput(`Enter value for required flag --${flagName}:`, {
         validate(input: string) {
@@ -105,8 +103,6 @@ export default abstract class ExtractCommand<T extends typeof Command> extends B
   }
 
   async init(): Promise<void> {
-    // Set up global console capture IMMEDIATELY at the start of init
-
     try {
       await super.init();
     } catch (error) {
@@ -225,23 +221,9 @@ export default abstract class ExtractCommand<T extends typeof Command> extends B
   }
 
   /**
-   * Log error messages
-   */
-  private logError(message: string, error: any): void {
-    if (!this.flags.quiet) {
-      console.error(`\u001B[0m[ERROR] ${message}`, error instanceof Error ? error.message : error);
-      if (this.flags.verbose && error instanceof Error && error.stack) {
-        console.error(`\u001B[0m[TRACE] Stack:`, error.stack);
-      }
-    }
-  }
-
-  /**
    * Handle initialization step reporting - can be overridden by subclasses
    */
   protected reportInitializationStep(message: string): void {
-    if (!this.flags.quiet) {
-      console.error(`\u001B[0mℹ ${message}`);
-    }
+    this.logger.info(message);
   }
 }

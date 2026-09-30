@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { render, Box, Text } from 'ink';
 import { inkInput, InkInputResult } from './InkInput.js';
 import { inkSelect, InkSelectResult, SelectOption } from './InkSelect.js';
-import { getTheme } from '../theme.js';
+import { createLogger } from '@chronicle.app/logging';
+
+const logger = createLogger({ scope: 'cli' });
 
 export interface PickerStep {
   type: 'input' | 'select';
@@ -44,7 +46,7 @@ export class InkPicker {
     try {
       // Show title if provided
       if (this.config.title) {
-        console.log(`\n${getTheme(this.theme).info(this.config.title)}\n`);
+        logger.info(this.config.title);
       }
 
       // Process each step
@@ -84,8 +86,8 @@ export class InkPicker {
           if (step.validate && step.type === 'select') {
             const validationResult = step.validate(result.value, this.answers);
             if (validationResult !== true) {
-              console.error(
-                `\n${getTheme(this.theme).error('✗')} ${typeof validationResult === 'string' ? validationResult : 'Invalid selection'}\n`
+              logger.error(
+                typeof validationResult === 'string' ? validationResult : 'Invalid selection'
               );
               continue;
             }

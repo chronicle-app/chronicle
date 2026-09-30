@@ -5,6 +5,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Config } from '@oclif/core';
 import { glob } from 'glob';
 import { Delivery, Extractor } from '@chronicle.app/etl';
+import { createLogger } from '@chronicle.app/logging';
+
+const logger = createLogger({ scope: 'plugins' });
 
 export interface ExtractorMetadata {
   source: string;
@@ -244,15 +247,16 @@ export class PluginScanner {
         try {
           local.push(await localPlugin(pluginPath));
         } catch (error) {
-          console.warn(
-            `Skipping local plugin ${pluginPath}: ${error instanceof Error ? error.message : error}`
-          );
+          logger.warn('Skipping a local plugin', {
+            path: pluginPath,
+            error: error instanceof Error ? error.message : String(error),
+          });
         }
       }
       if (gone.length > 0) {
         await forgetLocalPlugins(gone);
         for (const pluginPath of gone) {
-          console.warn(`Removed ${pluginPath} from your local plugins: it no longer exists.`);
+          logger.warn('Removed a local plugin that no longer exists', { path: pluginPath });
         }
       }
       add(local, 'local');
@@ -292,7 +296,7 @@ export class PluginScanner {
 
       return [...found.values()];
     } catch (error) {
-      console.warn('Failed to scan for Chronicle plugins:', error);
+      logger.warn('Failed to scan for Chronicle plugins', { error: String(error) });
       return [];
     }
   }
@@ -320,7 +324,7 @@ export class PluginScanner {
     try {
       return this.extractorsOf(plugin, await this.importPlugin(plugin));
     } catch (error) {
-      console.warn(`Failed to scan plugin ${plugin.name}:`, error);
+      logger.warn(`Failed to scan plugin ${plugin.name}`, { error: String(error) });
       return [];
     }
   }
@@ -336,12 +340,9 @@ export class PluginScanner {
 
         // Validate required metadata
         if (!ExtractorClass.source || !ExtractorClass.strategy) {
-          // Only log in verbose mode to reduce noise
-          if (process.argv.includes('--verbose')) {
-            console.warn(
-              `Skipping extractor ${exportName} from ${plugin.name}: missing source or strategy`
-            );
-          }
+          logger.debug(
+            `Skipping extractor ${exportName} from ${plugin.name}: missing source or strategy`
+          );
           continue;
         }
 

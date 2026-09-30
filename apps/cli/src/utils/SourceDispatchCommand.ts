@@ -2,8 +2,9 @@ import { Args, Command } from '@oclif/core';
 import { BaseCommand } from '../baseCommand.js';
 import { PluginScanner, type ExtractorMetadata } from '../plugins/PluginScanner.js';
 import { FlagManager } from './FlagManager.js';
-import { renderSourceHelp } from './sourceHelp.js';
+import { renderRecordTypes, renderSourceHelp } from './sourceHelp.js';
 import { getTheme } from '../theme.js';
+import { outputFlagsIn } from '../output/index.js';
 
 // NOTE: nothing here may statically import `ink` (ExtractorSelector/InkSelect,
 // ExtractCommand). Importing ink resumes
@@ -61,6 +62,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
   private firstPositional(): string | undefined {
     const valueFlags = new Set([
       '--theme',
+      '--log-format',
       '--preset',
       '-p',
       '--db',
@@ -96,6 +98,18 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
   }
 
   public override async init(): Promise<void> {
+    // Before discovery, so what it says follows the output flags.
+    this.installOutput(outputFlagsIn(this.argv));
+    // `extract help [source]` reads like `git help <command>`: the command's
+    // help, or the source's.
+    if (this.firstPositional() === 'help') {
+      this.argv = this.argv.filter((_, i) => i !== this.argv.indexOf('help'));
+      if (!this.firstPositional()) {
+        await this.config.runCommand('help', [this.id ?? 'extract']);
+        this.exit(0);
+      }
+      this.argv.push('--help');
+    }
     const positional = this.firstPositional();
     const wantsHelp = this.argv.includes('--help') || this.argv.includes('-h');
 
@@ -120,13 +134,17 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
 
     const override = candidates[0].localOverride;
     if (override) {
-      this.logToStderr(`Using the local plugin for ${positional} (${override})`);
+      this.logger.info(`Using the local plugin for ${positional}`, { path: override });
     }
 
     // Help / list-types render from the candidates alone — before flag parsing,
     // so they never trip over a source's own required flags.
-    if (wantsHelp || this.argv.includes('--list-types') || this.argv.includes('-L')) {
+    if (wantsHelp) {
       this.renderSourceHelp(positional, candidates);
+      this.exit(0);
+    }
+    if (this.argv.includes('--list-types') || this.argv.includes('-L')) {
+      this.log(renderRecordTypes(candidates));
       this.exit(0);
     }
 
@@ -242,7 +260,6 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
    * its plugin on a terminal and then run again, or else print the command.
    */
   protected async installPrompt(source: string): Promise<void> {
-    const theme = getTheme((this.flags as any)?.theme);
     const { listSources } = await import('../plugins/catalog.js');
     const listing = (await listSources()).find(s => s.source === source && !s.installed);
     if (!listing) {
@@ -262,7 +279,12 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
       { defaultValue: true, theme: (this.flags as any)?.theme }
     );
     if (!confirmed) {
-      this.logToStderr(theme.textDim(`Install it later with: ${command}`));
+      this.logger.emit({
+        level: 'info',
+        kind: 'hint',
+        message: 'not installed',
+        hint: { action: `install it later with: ${command}` },
+      });
       this.exit(1);
     }
 
@@ -272,7 +294,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     } catch (error) {
       this.error(error instanceof Error ? error.message : String(error));
     }
-    this.logToStderr(theme.success(`Installed ${listing.package}.`));
+    this.logger.emit({ level: 'info', kind: 'summary', message: `Installed ${listing.package}` });
     const verb = (this.constructor as any).id || 'extract';
     await this.config.runCommand(verb, this.argv);
   }

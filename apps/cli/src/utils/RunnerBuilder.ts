@@ -1,21 +1,23 @@
 import {
   Base64TruncateTransformer,
   CsvLoader,
+  type RunContext,
+  type Sink,
   configForIo,
-  DelayTransformer,
   DownloadAttachmentsTransformer,
   FilterFieldsTransformer,
   FlattenTransformer,
   JsonLoader,
   NullTransformer,
   Runner,
+  type RunnerConfig,
   SamplingTransformer,
-  TableLoader,
   YamlLoader,
   toCamelCase,
 } from '@chronicle.app/etl';
 import { getTheme } from '../theme.js';
 import { PreviewLoader } from '../loaders/PreviewLoader.js';
+import { TableLoader } from '../loaders/TableLoader.js';
 
 // Loader registry mapping loader names to classes
 const loaderRegistry = {
@@ -61,6 +63,16 @@ export class RunnerBuilder {
   }
 
   /**
+   * Whether the run is capped by the default `--limit`, which the CLI hints
+   * at only when it cut the run short, so the Runner peeks past it. A limit
+   * you set is the scope you asked for: no peek, no hint.
+   */
+  peeking(): boolean {
+    const chosen = (this.flagSources?.limit?.source ?? 'default') !== 'default';
+    return !chosen && Number.isInteger(this.flags.limit) && this.flags.limit > 0;
+  }
+
+  /**
    * Build extractor configuration from flags
    */
   buildExtractorConfig(selectedExtractor: any): any {
@@ -72,8 +84,12 @@ export class RunnerBuilder {
 
     // With a type filter in play the Runner owns `--limit`, so the extractor
     // reads unbounded rather than stopping on records that get discarded.
+    // Under the default limit it reads one past it, so the Runner can tell
+    // whether the limit cut the run short.
     if (this.needsTypeFilter(selectedExtractor)) {
       config.limit = 0;
+    } else if (this.peeking()) {
+      config.limit = this.flags.limit + 1;
     }
 
     // Convert kebab-case flags back to camelCase for extractor schema
@@ -178,23 +194,36 @@ export class RunnerBuilder {
   /**
    * Build and configure the complete runner
    */
-  async buildRunner(selectedExtractor: any): Promise<Runner> {
+  async buildRunner(
+    selectedExtractor: any,
+    output: {
+      sink?: Sink;
+      run?: RunContext;
+      onRead?: RunnerConfig['onRead'];
+    } = {}
+  ): Promise<Runner> {
     const extractor = await this.initializeExtractor(selectedExtractor);
     const loader = await this.initializeLoader();
     this.loader = loader;
     const transformer = this.initializeTransformer(extractor);
 
     const filtering = this.needsTypeFilter(selectedExtractor);
+    const peek = this.peeking();
     const runner = new Runner({
       streamExtraction: this.flags.stream,
       quiet: this.flags.quiet,
       verbose: this.flags.verbose,
       validateSchema: this.flags.validate,
       recordTypes: filtering ? requestedRecordTypes(this.flags.type) : undefined,
-      limit: filtering ? this.flags.limit : undefined,
+      limit: filtering || peek ? this.flags.limit : undefined,
+      peek,
       // A typed --limit states the run's scope, so the frontier yields to it
       // (the Runner's own rule). The CLI's default cap is not a statement of
       // scope: underneath it the frontier stays the stopping rule.
+      sink: output.sink,
+      run: output.run,
+      onRead: output.onRead,
+      delay: this.flags.delay,
     })
       .addExtractor(extractor)
       .addTransformer(transformer)
@@ -232,10 +261,6 @@ export class RunnerBuilder {
         throw new Error('Sample rate must be a number between 0 and 1');
       }
       runner.addTransformer(new SamplingTransformer({ rate }));
-    }
-
-    if (this.flags.delay) {
-      runner.addTransformer(new DelayTransformer({ delay: this.flags.delay }));
     }
 
     if (this.flags['truncate-base64']) {

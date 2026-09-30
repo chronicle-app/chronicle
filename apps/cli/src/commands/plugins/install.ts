@@ -23,7 +23,7 @@ export default class PluginsInstall extends BaseCommand<typeof PluginsInstall> {
 
     const target = await resolveInstallTarget(args.plugin, this.config.version);
     if (!target.entry) {
-      this.logToStderr(theme.warning(`${args.plugin} isn't in the Chronicle catalog.`));
+      this.logger.warn(`${args.plugin} isn't in the Chronicle catalog`);
     }
     let name: string;
     try {

@@ -1,9 +1,8 @@
-import chalk from 'chalk';
 import { z } from 'zod';
-import { Loader, type LoadResult, type Record } from '@chronicle.app/etl';
+import { LABELS, Loader, type LoadResult, type Record } from '@chronicle.app/etl';
+import { tokens } from '../output/index.js';
 
-// Properties that name a node, tried in order for its one-line label.
-const LABELS = ['name', 'title', 'headline', 'handle', 'text', 'url'];
+const t = tokens({ stream: 'stdout' });
 const MAX_DEPTH = 4;
 const MAX_ITEMS = 5;
 const MAX_TEXT = 100;
@@ -22,14 +21,14 @@ function text(value: unknown): string {
 function heading(node: { [key: string]: unknown }): { line: string; used: Set<string> } {
   const used = new Set<string>();
   const parts: string[] = [];
-  if (typeof node['@type'] === 'string') parts.push(chalk.bold(node['@type']));
+  if (typeof node['@type'] === 'string') parts.push(t.strong(node['@type']));
   const label = LABELS.find(key => typeof node[key] === 'string' && node[key] !== '');
   if (label) {
     parts.push(`"${text(node[label])}"`);
     used.add(label);
   }
   if (node.timestamp) {
-    parts.push(chalk.dim(text(node.timestamp)));
+    parts.push(t.muted(text(node.timestamp)));
     used.add('timestamp');
   }
   return { line: parts.join(' '), used };
@@ -55,15 +54,15 @@ function body(node: { [key: string]: unknown }, used: Set<string>, depth: number
       if (isNode(item) && depth < MAX_DEPTH) {
         const nested = heading(item);
         lines.push(
-          `${indent}${chalk.dim(`${key}:`)} ${nested.line}`,
+          `${indent}${t.muted(`${key}:`)} ${nested.line}`,
           ...body(item, nested.used, depth + 1)
         );
       } else {
-        lines.push(`${indent}${chalk.dim(`${key}:`)} ${text(item)}`);
+        lines.push(`${indent}${t.muted(`${key}:`)} ${text(item)}`);
       }
     }
     if (values.length > MAX_ITEMS) {
-      lines.push(`${indent}${chalk.dim(`${key}: … ${values.length - MAX_ITEMS} more`)}`);
+      lines.push(`${indent}${t.muted(`${key}: … ${values.length - MAX_ITEMS} more`)}`);
     }
   }
   return lines;
@@ -82,7 +81,10 @@ export class PreviewLoader extends Loader<typeof PreviewLoader> {
   async load(record: Record): Promise<LoadResult> {
     const data = record.data as { [key: string]: unknown };
     const { line, used } = heading(data);
-    const lines = [line || chalk.bold(record.extraction.recordType), ...body(data, used, 1)];
+    const lines = [
+      line || t.strong(record.extraction.recordType ?? 'record'),
+      ...body(data, used, 1),
+    ];
     process.stdout.write(`${this.count++ > 0 ? '\n' : ''}${lines.join('\n')}\n`);
     return { success: true, record };
   }

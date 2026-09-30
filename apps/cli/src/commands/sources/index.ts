@@ -80,7 +80,7 @@ export default class Sources extends BaseCommand<typeof Sources> {
           break;
       }
     } catch (error) {
-      this.logError('Failed to list sources:', error);
+      this.logError('Failed to list sources', error);
       throw error;
     }
   }
@@ -135,15 +135,6 @@ export default class Sources extends BaseCommand<typeof Sources> {
         .join(',');
 
       this.log(csvRow);
-    }
-  }
-
-  private logError(message: string, error: any) {
-    if (!this.flags.quiet) {
-      console.error(`[0m[ERROR] ${message}`, error instanceof Error ? error.message : error);
-      if (this.flags.verbose && error instanceof Error && error.stack) {
-        console.error(`[0m[TRACE] Stack:`, error.stack);
-      }
     }
   }
 }
