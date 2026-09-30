@@ -32,6 +32,8 @@ The connection is read-only: missing databases are not created, and journal mode
 
 Apple epoch helpers retain the existing API: iOS inputs/outputs use nanoseconds since 2001, Safari inputs/outputs use seconds since 2001. `iosToUnixTimestamp` returns Unix milliseconds; other Unix arguments/results use seconds.
 
+Chrome epoch helpers cover Chromium's microseconds since 1601. `chromeToUnixMsSql(column)` returns a SQL expression in Unix milliseconds, since current Chrome times are too large to read as numbers. `unixMsToChromeTimestamp(ms)` converts a bound back, as a `timeRangeConditions` `convert`.
+
 Node SQLite returns large INTEGER values only when `statement.setReadBigInts(true)` is enabled. Use that for source nanosecond timestamps and convert deliberately at the application boundary.
 
 ## Porting from better-sqlite3
