@@ -4,7 +4,6 @@ import { glyphs } from './glyphs.js';
 import type { Tokens } from './tokens.js';
 
 const BAR = 24;
-const SWEEP = 6;
 const TICK = 80;
 
 /** What a `progress` event carries in its fields. */
@@ -26,28 +25,21 @@ export type ProgressFields = {
   elapsedMs: number;
 };
 
-function bar(fields: ProgressFields, frame: number, t: Tokens): Segment[] {
-  if (fields.total > 0) {
-    const filled = Math.round(Math.min(1, fields.processed / fields.total) * BAR);
-    return [
-      [glyphs.bar.repeat(filled), t.accent],
-      [glyphs.bar.repeat(BAR - filled), t.muted],
-    ];
-  }
-  // No total to measure against: a highlight sweeps back and forth.
-  const span = BAR - SWEEP;
-  const step = frame % (2 * span);
-  const at = step <= span ? step : 2 * span - step;
+/** A bar filled in proportion to the total; nothing when there's no total to measure against. */
+function bar(fields: ProgressFields, t: Tokens): Segment[] {
+  if (fields.total <= 0) return [];
+  const filled = Math.round(Math.min(1, fields.processed / fields.total) * BAR);
   return [
-    [glyphs.bar.repeat(at), t.muted],
-    [glyphs.bar.repeat(SWEEP), t.accent],
-    [glyphs.bar.repeat(BAR - SWEEP - at), t.muted],
+    [glyphs.bar.repeat(filled), t.accent],
+    [glyphs.bar.repeat(BAR - filled), t.muted],
+    ['  '],
   ];
 }
 
 /**
  * The live view of a run: spinner, bar, count, rate, and clock, and the
- * record in hand beneath.
+ * record in hand beneath. Without a known total there's no bar: the spinner
+ * alone says the run is alive, so nothing looks like progress it isn't.
  */
 export function progress(fields: ProgressFields, t: Tokens, width: number, frame = 0): string[] {
   const { processed, total, elapsedMs } = fields;
@@ -67,8 +59,7 @@ export function progress(fields: ProgressFields, t: Tokens, width: number, frame
         [' '],
         [fields.title, t.strong],
         ['  '],
-        ...bar(fields, frame, t),
-        ['  '],
+        ...bar(fields, t),
         ...counted,
         [rate ? `  ${rate}` : '', t.muted],
         [`  ${clock(elapsedMs)}`, t.muted],
