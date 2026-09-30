@@ -1,4 +1,4 @@
-import { ArchiveExtractor, Extractor } from '@chronicle.app/etl';
+import { ArchiveExtractor, Extractor, InputNotFound, fileError } from '@chronicle.app/etl';
 import { parse } from 'csv-parse/sync';
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -200,8 +200,11 @@ export abstract class LinkedInArchiveExtractor<
       let entries: string[] = [];
       try {
         entries = await readdir(input);
-      } catch {
-        throw new Error(`Could not read the LinkedIn export directory ${input}`);
+      } catch (error) {
+        const typed = fileError(error, input, 'LinkedIn export');
+        throw typed === error
+          ? new InputNotFound("Couldn't read the LinkedIn export", { path: input, cause: error })
+          : typed;
       }
       this.fileIndex = new Map(entries.map(name => [name.toLowerCase(), name]));
     }

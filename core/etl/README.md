@@ -118,6 +118,18 @@ record is torn down, a `summary` whose fields hold the totals (`counts`,
 in the config label it. `runner.stats` has the same totals as the run goes.
 Plugins can't emit `progress` or `summary`.
 
+A plugin that can't go on throws a typed error, re-exported from
+`@chronicle.app/logging`: `AuthRequired`, `InputNotFound`, `PermissionDenied`,
+`RateLimited`, or `ExtractorError` with a `code`. The runner reports any error
+that ends `setup()` or `run()` as an `error` event with its code, exit code,
+and hint, then rethrows it. `ApiAuthError` and `ApiRateLimitError` are the
+typed ones. `fileError(error, path, what)` turns a missing or refused file
+into `InputNotFound` or `PermissionDenied` (on macOS, with the Full Disk Access
+hint), and `assertReadable(path)` checks a file that way before a library
+opens it; `SqliteExtractor` does, for every SQLite source. A plugin that
+succeeds but leaves something out calls `this.hint(message, { action })`,
+which prints under the run's summary.
+
 ## Scope
 
 This package covers extraction only: contracts, the runner transformation loop,

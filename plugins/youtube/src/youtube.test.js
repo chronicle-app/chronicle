@@ -235,7 +235,10 @@ test('a rejected token fails setup with re-authentication guidance', async t => 
   const extractor = new YouTubeLikesExtractor({ accessToken: 'stale-token', quiet: true });
   await assert.rejects(
     extractor.setup(),
-    error => error instanceof ApiAuthError && error.message.includes('chronicle auth login youtube')
+    error =>
+      error instanceof ApiAuthError &&
+      error.exitCode === 3 &&
+      error.hint.includes('chronicle auth login youtube')
   );
 });
 

@@ -1,4 +1,16 @@
 export { Logger } from './Logger.js';
+export {
+  AuthRequired,
+  EXIT_CODES,
+  ExtractorError,
+  InputNotFound,
+  PermissionDenied,
+  RateLimited,
+  describeError,
+  isReported,
+  markReported,
+  type ExtractorErrorOptions,
+} from './errors.js';
 export { Aggregator, groupOf, type AggregatorOptions, type ValueCounts } from './aggregate.js';
 export { captureConsole } from './console.js';
 export { defaultSink, setDefaultSink } from './defaultSink.js';

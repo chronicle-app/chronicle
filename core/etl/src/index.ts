@@ -22,6 +22,13 @@ export {
 } from './connectors/loaders/columns.js';
 export type { Delivery, Extraction, Transformation, Record, LoadResult, RunLog } from './types.js';
 export {
+  AuthRequired,
+  EXIT_CODES,
+  ExtractorError,
+  InputNotFound,
+  PermissionDenied,
+  RateLimited,
+  type ExtractorErrorOptions,
   Logger,
   createLogger,
   type LoggerOptions,
@@ -43,6 +50,7 @@ export * from './connectors/transformers/DelayTransformer.js';
 export * from './connectors/transformers/SamplingTransformer.js';
 export * from './connectors/csv/CsvExtractor.js';
 export * from './io-extractor-helper.js';
+export { assertReadable, fileError } from './fileErrors.js';
 export * from './utils/string.js';
 export { ApiProxy, ApiAuthError, ApiRateLimitError, type ApiProxyOptions } from './api/ApiProxy.js';
 export { delay, paginateByPage, paginateCursor, paginateOffset } from './api/pagination.js';
