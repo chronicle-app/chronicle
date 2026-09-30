@@ -24,25 +24,32 @@ async function extract(Extractor, config = { username: USERNAME }) {
   }
 }
 
-const source = 'hacker-news';
+const source = 'hackernews';
 const key = ['@type', 'source', 'sourceId'];
 const url = id => `https://news.ycombinator.com/item?id=${id}`;
 const date = id => new Date(at(id) * 1000);
 
+const userKey = ['@type', 'source', 'handle'];
 const sam = {
   '@type': 'Agent',
-  '@key': key,
+  '@key': userKey,
   source,
-  sourceId: 'sam',
   handle: 'sam',
+  url: 'https://news.ycombinator.com/user?id=sam',
   sameAs: ['@me'],
   description: 'Bread and bikes.',
 };
-const user = name => ({ '@type': 'Agent', '@key': key, source, sourceId: name, handle: name });
+const user = name => ({
+  '@type': 'Agent',
+  '@key': userKey,
+  source,
+  handle: name,
+  url: `https://news.ycombinator.com/user?id=${name}`,
+});
 const alex = user('alex');
 const riley = user('riley');
 
-const link = href => ({ '@type': 'Entity', '@key': ['url', 'source'], source, url: href });
+const link = href => ({ '@type': 'Entity', '@key': ['url'], url: href });
 const post = (id, author, fields) => ({
   '@type': 'Post',
   '@key': key,

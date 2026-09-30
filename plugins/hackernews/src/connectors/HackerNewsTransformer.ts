@@ -10,11 +10,15 @@ import {
 } from '@chronicle.app/schema';
 import { HackerNewsItem, HackerNewsUser } from '../utils/HackerNewsProxy.js';
 
-const SOURCE = 'hacker-news';
+const SOURCE = 'hackernews';
 const KEY: ['@type', 'source', 'sourceId'] = ['@type', 'source', 'sourceId'];
 
 function itemUrl(id: number): string {
   return `https://news.ycombinator.com/item?id=${id}`;
+}
+
+function userUrl(username: string): string {
+  return `https://news.ycombinator.com/user?id=${encodeURIComponent(username)}`;
 }
 
 function time(item: HackerNewsItem): Date {
@@ -112,27 +116,26 @@ export default class HackerNewsTransformer extends ChronicleTransformer {
     };
   }
 
-  /**
-   * The submitted page. Keyed to this source like Pinboard's bookmarks; the
-   * `url` field still mints the shared `{url}` hub.
-   */
+  /** The submitted page: the shared `{url}` hub, as Are.na's link blocks are. */
   private buildLink(url: string): Entity {
-    return { '@type': 'Entity', '@key': ['url', 'source'], source: SOURCE, url };
+    return { '@type': 'Entity', '@key': ['url'], url };
   }
 
   private buildUser(username: string): Agent {
     if (username !== this.user?.id) {
+      // A username is the only identity Hacker News gives an account.
       return {
         '@type': 'Agent',
-        '@key': KEY,
+        '@key': ['@type', 'source', 'handle'],
         source: SOURCE,
-        sourceId: username,
         handle: username,
+        url: userUrl(username),
       };
     }
     const description = htmlToText(this.user.about);
     return {
-      ...selfAgent({ type: 'Agent', source: SOURCE, sourceId: username, handle: username }),
+      ...selfAgent({ type: 'Agent', source: SOURCE, handle: username }),
+      url: userUrl(username),
       ...(description && { description }),
     };
   }

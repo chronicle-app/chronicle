@@ -7,7 +7,7 @@ const CONCURRENCY = 8;
 
 export default abstract class HackerNewsExtractor extends Extractor<typeof HackerNewsExtractor> {
   static override defaultTransformer = HackerNewsTransformer;
-  static override source = 'hacker-news';
+  static override source = 'hackernews';
   static override delivery = 'api' as const;
   static override strategy = 'api';
   static override schema = Extractor.schema.extend({
