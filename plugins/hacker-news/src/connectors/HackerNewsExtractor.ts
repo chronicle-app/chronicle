@@ -1,5 +1,4 @@
 import { Extractor, InputNotFound, Record, z } from '@chronicle.app/etl';
-import { resolveCredentials } from '@chronicle.app/auth';
 import HackerNewsProxy, { HackerNewsItem, HackerNewsUser } from '../utils/HackerNewsProxy.js';
 import HackerNewsTransformer from './HackerNewsTransformer.js';
 
@@ -12,26 +11,17 @@ export default abstract class HackerNewsExtractor extends Extractor<typeof Hacke
   static override delivery = 'api' as const;
   static override strategy = 'api';
   static override schema = Extractor.schema.extend({
-    username: z
-      .string()
-      .describe('Hacker News username (auto-retrieved from stored credentials if not provided)')
-      .optional(),
+    // Hacker News has no API credentials: the username is all it needs.
+    username: z.string().describe('Hacker News username'),
   });
 
   protected proxy!: HackerNewsProxy;
   protected user!: HackerNewsUser;
 
   override async setup(): Promise<void> {
-    const { username } = await resolveCredentials(
-      'hacker-news',
-      { username: { from: ['username', 'handle'] } },
-      {
-        overrides: { username: this.config.username },
-        errorMessage: 'Hacker News username is required. Provide --username.',
-      }
-    );
+    const { username } = this.config;
     this.proxy = new HackerNewsProxy();
-    const user = await this.proxy.getUser(username as string);
+    const user = await this.proxy.getUser(username);
     if (!user) {
       throw new InputNotFound(`Hacker News has no user named ${username}`);
     }

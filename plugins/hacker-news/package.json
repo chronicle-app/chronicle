@@ -38,9 +38,6 @@
     "access": "public",
     "registry": "https://registry.npmjs.org/"
   },
-  "dependencies": {
-    "@chronicle.app/auth": "0.3.0"
-  },
   "peerDependencies": {
     "@chronicle.app/etl": ">=0.1.0 <1.0.0",
     "@chronicle.app/schema": ">=0.1.0 <1.0.0"
