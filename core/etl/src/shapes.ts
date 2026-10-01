@@ -5,10 +5,10 @@ import type { Transformer } from './transformer.js';
  * Shapes: what a plugin's transformer makes of its source's records, read
  * from the transformer's actual output rather than its code. Run the plugin's
  * extractors over its test fixtures, keep each record beside what it became,
- * and summarize both: per record type, every input path, every output node
- * and property, and which input each output value came from. A plugin keeps
- * the rendering in its SHAPES.md, so a change to its graph shows up in review
- * as a diff of that file.
+ * and sketch each record type as a tree of the nodes it becomes, marking the
+ * values the transformer computes rather than copies from the record. A
+ * plugin keeps the sketch in its SHAPES.md, so a change to its graph shows up
+ * in review as a diff of that file.
  */
 
 /** One record and the nodes the transformer made of it. */
@@ -47,16 +47,6 @@ export async function sampleTransform(
 
 // ---------------------------------------------------------------------------
 // Reading values.
-
-type Kind = 'text' | 'number' | 'boolean' | 'date' | 'null';
-
-function kindOf(value: unknown): Kind {
-  if (value === null || value === undefined) return 'null';
-  if (value instanceof Date) return 'date';
-  if (typeof value === 'number') return 'number';
-  if (typeof value === 'boolean') return 'boolean';
-  return 'text';
-}
 
 function isNode(value: unknown): value is { [key: string]: unknown } {
   return (
@@ -185,7 +175,8 @@ function lineage(occurrences: { value: unknown; sources: string[] }[]): string {
 // Summaries.
 
 interface PropertyShape {
-  kinds: Set<string>;
+  /** Whether its values are nodes (rendered as children) rather than plain values. */
+  nodes: boolean;
   present: number;
   list: boolean;
   occurrences: { value: unknown; sources: string[] }[];
@@ -199,55 +190,36 @@ interface NodeShape {
 }
 
 interface RecordTypeShape {
-  samples: number;
-  input: Map<string, { kinds: Set<string>; present: number }>;
+  /** Output nodes by where they sit: `''` is the action, `object.author[]` an author of its object. */
   output: Map<string, NodeShape>;
 }
 
 export interface Shapes {
   recordTypes: Map<string, RecordTypeShape>;
-  /** `Type —property→ Type`, across every record type. */
-  edges: Set<string>;
 }
 
 /** Fields every node carries for identity and bookkeeping, not as content. */
 const BOOKKEEPING = new Set(['@type', '@key', '@assertedAt']);
 
-/** Summarize what each record type's records looked like and became. */
+/** Summarize what each record type's records became, and from what. */
 export function shapesOf(samples: ShapeSample[]): Shapes {
-  const shapes: Shapes = { recordTypes: new Map(), edges: new Set() };
+  const shapes: Shapes = { recordTypes: new Map() };
   for (const sample of samples) {
     let shape = shapes.recordTypes.get(sample.recordType);
     if (!shape) {
-      shape = { samples: 0, input: new Map(), output: new Map() };
+      shape = { output: new Map() };
       shapes.recordTypes.set(sample.recordType, shape);
     }
-    shape.samples++;
-
     const inputs = new Map<string, unknown[]>();
     leaves(sample.input, '', inputs);
-    for (const [path, values] of inputs) {
-      let entry = shape.input.get(path);
-      if (!entry) {
-        entry = { kinds: new Set(), present: 0 };
-        shape.input.set(path, entry);
-      }
-      for (const value of values) {
-        entry.kinds.add(Array.isArray(value) ? 'empty list' : kindOf(value));
-      }
-      if (values.some(value => value !== null && value !== undefined)) entry.present++;
-    }
-    // The context explains outputs, but isn't the source's own shape.
     leaves(sample.context ?? {}, 'context', inputs);
-
-    for (const output of sample.outputs) addNode(shape.output, shapes.edges, output, '', inputs);
+    for (const output of sample.outputs) addNode(shape.output, output, '', inputs);
   }
   return shapes;
 }
 
 function addNode(
   nodes: Map<string, NodeShape>,
-  edges: Set<string>,
   node: unknown,
   path: string,
   inputs: Map<string, unknown[]>
@@ -258,99 +230,126 @@ function addNode(
     shape = { types: new Set(), keys: new Set(), count: 0, properties: new Map() };
     nodes.set(path, shape);
   }
-  const type = String(node['@type'] ?? 'object');
-  shape.types.add(type);
-  if (Array.isArray(node['@key'])) shape.keys.add(node['@key'].join(', '));
+  shape.types.add(String(node['@type'] ?? 'object'));
+  if (Array.isArray(node['@key'])) shape.keys.add(keyLabel(node['@key'] as string[]));
   shape.count++;
 
   for (const [name, value] of Object.entries(node)) {
     if (BOOKKEEPING.has(name) || value === undefined) continue;
     let property = shape.properties.get(name);
     if (!property) {
-      property = { kinds: new Set(), present: 0, list: false, occurrences: [] };
+      property = { nodes: false, present: 0, list: false, occurrences: [] };
       shape.properties.set(name, property);
     }
     property.present++;
-    const values = Array.isArray(value) ? value : [value];
     if (Array.isArray(value)) property.list = true;
     const childPath = `${path ? `${path}.` : ''}${name}${Array.isArray(value) ? '[]' : ''}`;
-    for (const item of values) {
+    for (const item of Array.isArray(value) ? value : [value]) {
       if (isNode(item)) {
-        const target = String(item['@type'] ?? 'object');
-        property.kinds.add(`→ ${target}`);
-        edges.add(`${type} —${name}→ ${target}`);
-        addNode(nodes, edges, item, childPath, inputs);
+        property.nodes = true;
+        addNode(nodes, item, childPath, inputs);
       } else {
-        property.kinds.add(kindOf(item));
         property.occurrences.push({ value: item, sources: sourcesOf(item, inputs) });
       }
     }
   }
 }
 
+/**
+ * A key without the `@type` and `source` nearly every key starts with; a key
+ * without `source` is shared across sources, which matters, so it says so.
+ */
+function keyLabel(key: string[]): string {
+  const fields = key.filter(field => field !== '@type' && field !== 'source');
+  const shared = key.includes('source') ? '' : ', any source';
+  return `${fields.join(' + ') || '@type'}${shared}`;
+}
+
 // ---------------------------------------------------------------------------
 // Rendering.
 
-const code = (text: string) => `\`${text}\``;
-const cell = (text: string) => text.replaceAll('|', '\\|');
+/** Properties every node has, which a sketch can leave out. */
+const UNREMARKABLE = new Set(['source']);
 
-function presence(present: number, total: number): string {
-  return present === total ? 'always' : 'sometimes';
-}
-
-/** The summary as Markdown, for a plugin's SHAPES.md. */
+/**
+ * The summary as a tree per record type, for a plugin's SHAPES.md: each node's
+ * type and key, then its plain properties, then its nested nodes, indented.
+ *
+ *   PublishAction (sourceId): sourceId, timestamp
+ *     agent → Agent (handle): handle, url, sameAs?
+ *     object → Post (sourceId): sourceId, url, name, body?
+ */
 export function renderShapes(shapes: Shapes, { title }: { title: string }): string {
   const lines = [
     `# ${title} shapes`,
     '',
-    'Generated from what the transformer makes of the test fixtures. Do not edit:',
-    'run `npm run shapes` in this plugin to update it.',
+    'What each record type becomes, from the transformer’s output for the test',
+    'fixtures. Generated: run `npm run shapes` in this plugin to update it.',
     '',
-    'For each record type: the paths in its input, the nodes in its output, and',
-    'where each output value came from. `[]` is any list element. A value is',
-    'copied from an input path; converted (`String`, `lower`, `date`, `unix`);',
-    'built around one (`…{path}…`, as a URL around an id); from a different',
-    'path each time (`varies`); always the same (`= value`, `seen once` when',
-    'the fixtures show it once); or `computed` in the transformer.',
-    '',
-    '## Graph',
-    '',
-    ...[...shapes.edges].sort().map(edge => `- ${edge}`),
+    'Each line is a node: its type, its key in parentheses (after `@type` and',
+    '`source`), and its properties. `?` marks a property that is sometimes',
+    'absent, `[]` a list, and `*` a value computed in the transformer rather',
+    'than copied or converted from the record. Every node also has `source`.',
   ];
-
+  const constants = constantsOf(shapes);
   for (const [recordType, shape] of shapes.recordTypes) {
-    lines.push(
-      '',
-      `## ${recordType}`,
-      '',
-      '### Input',
-      '',
-      '| Path | Value | Present |',
-      '| --- | --- | --- |'
-    );
-    for (const [path, entry] of shape.input) {
-      lines.push(
-        `| ${code(path || '(record)')} | ${cell([...entry.kinds].join(' | '))} | ${presence(entry.present, shape.samples)} |`
-      );
-    }
+    lines.push('', `## ${recordType}`, '', '```text');
+    renderNode(shape.output, '', '', 0, lines, constants);
+    lines.push('```');
+  }
+  return `${lines.join('\n')}\n`;
+}
 
-    lines.push('', '### Output');
-    for (const [path, node] of shape.output) {
-      const types = [...node.types].map(type => code(type)).join(' | ');
-      lines.push('', `#### ${path ? `${code(path)} → ${types}` : types}`, '');
-      if (node.keys.size > 0) {
-        lines.push(`Key: ${[...node.keys].map(key => code(key)).join(' or ')}`, '');
-      }
-      lines.push('| Property | Value | Present | From |', '| --- | --- | --- | --- |');
+function renderNode(
+  nodes: Map<string, NodeShape>,
+  path: string,
+  label: string,
+  depth: number,
+  lines: string[],
+  constants: Set<string>
+): void {
+  const node = nodes.get(path);
+  if (!node) return;
+  const types = [...node.types].join(' | ');
+  const keys = node.keys.size > 0 ? ` (${[...node.keys].join(' / ')})` : '';
+  const plain: string[] = [];
+  const nested: [string, string][] = [];
+  for (const [name, property] of node.properties) {
+    const marks = `${property.list ? '[]' : ''}${property.present < node.count ? '?' : ''}`;
+    if (property.nodes) {
+      nested.push([
+        `${path ? `${path}.` : ''}${name}${property.list ? '[]' : ''}`,
+        `${name}${marks}`,
+      ]);
+    } else if (!UNREMARKABLE.has(name)) {
+      // Seen once and not in the record: a constant only if other record
+      // types show it never changes.
+      const from = lineage(property.occurrences);
+      const once = from.endsWith('(seen once)') && !constants.has(name);
+      const computed = from === 'computed' || once ? '*' : '';
+      plain.push(`${name}${marks}${computed}`);
+    }
+  }
+  const head = `${'  '.repeat(depth)}${label ? `${label} → ` : ''}${types}${keys}`;
+  lines.push(plain.length > 0 ? `${head}: ${plain.join(', ')}` : head);
+  for (const [childPath, childLabel] of nested) {
+    renderNode(nodes, childPath, childLabel, depth + 1, lines, constants);
+  }
+}
+
+/** Properties with one value everywhere they appear, across every record type. */
+function constantsOf(shapes: Shapes): Set<string> {
+  const seen = new Map<string, string[]>();
+  for (const shape of shapes.recordTypes.values()) {
+    for (const node of shape.output.values()) {
       for (const [name, property] of node.properties) {
-        const kinds = [...property.kinds].join(' | ');
-        const value = property.list ? `list of ${kinds}` : kinds;
-        const from = property.occurrences.length > 0 ? lineage(property.occurrences) : '';
-        lines.push(
-          `| ${code(name)} | ${cell(value)} | ${presence(property.present, node.count)} | ${cell(from)} |`
-        );
+        for (const { value } of property.occurrences) push(seen, name, JSON.stringify(value));
       }
     }
   }
-  return `${lines.join('\n')}\n`;
+  return new Set(
+    [...seen]
+      .filter(([, values]) => values.length > 1 && new Set(values).size === 1)
+      .map(([name]) => name)
+  );
 }
