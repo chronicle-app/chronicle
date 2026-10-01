@@ -1,20 +1,22 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  GitHubClosesExtractor,
   GitHubCommentsExtractor,
   GitHubDefaultExtractor,
   GitHubGistsExtractor,
   GitHubIssuesExtractor,
   GitHubPullRequestsExtractor,
   GitHubRepliesExtractor,
+  GitHubResolutionsExtractor,
   GitHubStarsExtractor,
   GitHubTransformer,
 } from '../dist/index.js';
 import {
   ACTORS,
   COMMENTS,
+  GLAZE,
   MOLD,
+  RYE,
   THREADS,
   TOKEN,
   TOKENS,
@@ -110,8 +112,8 @@ const task = (t, { withBody = false } = {}) => ({
   ...(withBody && t.body && { body: t.body }),
   isPartOf: [repositories[t.repository.id]],
 });
-const pullRequest = (t, { withBody = false } = {}) => ({
-  '@type': 'PullRequest',
+const changeset = (t, { withBody = false } = {}) => ({
+  '@type': 'Changeset',
   '@key': key,
   source,
   sourceId: t.id,
@@ -123,19 +125,24 @@ const pullRequest = (t, { withBody = false } = {}) => ({
   isPartOf: [repositories[t.repository.id]],
   visibility: repositories[t.repository.id].visibility,
 });
-const thread = t => (t.__typename === 'Issue' ? task(t) : pullRequest(t));
+const thread = t => (t.__typename === 'Issue' ? task(t) : changeset(t));
 const ref = (type, id) => ({ '@type': type, '@key': key, source, sourceId: id });
 
-/** An action of Sam's on an issue or pull request, dated `at`. */
-const action = (type, sourceId, at, object) => ({
+/** An action on an issue or pull request, dated `at`; Sam's unless `by` says whose. */
+const action = (type, sourceId, at, object, by = sam) => ({
   '@type': type,
   '@key': key,
   source,
   sourceId,
   timestamp: date(at),
   '@assertedAt': date(at),
-  agent: sam,
+  agent: by,
   object,
+});
+/** You opened a pull request: its changeset, offered to its repository. */
+const offer = t => ({
+  ...action('OfferAction', t.id, t.createdAt, changeset(t, { withBody: true })),
+  target: repositories[t.repository.id],
 });
 
 /** A RespondAction for a comment on an issue or pull request. */
@@ -156,7 +163,7 @@ const respond = (c, on) => ({
     url: c.url,
     body: c.body,
     author: [person(c.author)],
-    about: [ref(on.__typename === 'Issue' ? 'Task' : 'PullRequest', on.id)],
+    about: [ref(on.__typename === 'Issue' ? 'Task' : 'Changeset', on.id)],
     visibility: repositories[on.repository.id].visibility,
   },
 });
@@ -192,15 +199,15 @@ const gist = (id, createdAt, fields) => ({
 
 const { oven, crust, map, flour, signs } = THREADS;
 
-test('pull requests you opened become PublishActions, a page at a time', async t => {
+test('a pull request you opened is a changeset offered to its repository, a page at a time', async t => {
   const { requests } = await fakeGitHub(t);
   const { keys, actions, notices } = await extract(GitHubPullRequestsExtractor);
 
   assert.deepEqual(keys, ['PR_oven', 'PR_crust']);
   assert.deepEqual(actions, [
-    action('PublishAction', 'PR_oven', oven.createdAt, pullRequest(oven, { withBody: true })),
+    offer(oven),
     // An empty description is no body.
-    action('PublishAction', 'PR_crust', crust.createdAt, pullRequest(crust)),
+    offer(crust),
   ]);
   assert.deepEqual(
     requests.map(r => r.operation),
@@ -224,23 +231,32 @@ test('an issue you opened is a Task you planned', async t => {
   ]);
 });
 
-test('issues you closed are done or cancelled, by why you closed them', async t => {
+test('resolutions: how issues and pull requests ended, by you or for your pull requests', async t => {
   await fakeGitHub(t);
-  const { keys, actions } = await extract(GitHubClosesExtractor);
+  const { keys, actions } = await extract(GitHubResolutionsExtractor);
 
-  // Your rye issue, read from both your issues and your bakery, counts once;
-  // Riley's earlier close of the mold report isn't yours.
-  assert.deepEqual(keys, ['CE_flour', 'CE_mold_sam']);
+  // Riley merged your timer: someone else's decision, on your pull request.
+  // A merge also closes, so CE_oven and CE_rye add nothing. Your rye issue,
+  // read from your issues and your bakery, counts once; Riley's close of the
+  // mold report isn't yours.
+  assert.deepEqual(keys, ['ME_oven', 'CE_flour', 'ME_rye', 'CE_mold_sam', 'CE_glaze', 'CE_crust']);
+  const riley = agent(ACTORS.riley);
   assert.deepEqual(actions, [
+    action('AcceptAction', 'ME_oven', '2025-03-12T00:00:00Z', changeset(oven), riley),
     action('CompleteAction', 'CE_flour', '2025-03-01T00:00:00Z', task(flour)),
+    action('AcceptAction', 'ME_rye', '2025-02-25T10:00:00Z', changeset(RYE)),
     action('CancelAction', 'CE_mold_sam', '2025-02-15T10:00:00Z', task(MOLD)),
+    // Closed unmerged by someone else: declined.
+    action('RejectAction', 'CE_glaze', '2025-02-12T10:00:00Z', changeset(GLAZE)),
+    // Closed unmerged by its own author: withdrawn.
+    action('CancelAction', 'CE_crust', '2024-11-03T00:00:00Z', changeset(crust)),
   ]);
 });
 
-test('`since` ends each walk for closes at the first quiet issue', async t => {
+test('`since` ends each resolutions walk at the first quiet thread', async t => {
   await fakeGitHub(t);
-  const { keys } = await extract(GitHubClosesExtractor, { since: date('2025-02-20') });
-  assert.deepEqual(keys, ['CE_flour']);
+  const { keys } = await extract(GitHubResolutionsExtractor, { since: date('2025-02-20') });
+  assert.deepEqual(keys, ['ME_oven', 'CE_flour', 'ME_rye']);
 });
 
 test('your comments respond to their issue or pull request', async t => {
@@ -334,7 +350,7 @@ test('a bare run reads every record type newest first, signing in once', async t
   const { requests } = await fakeGitHub(t);
   const { keys, notices } = await extract(GitHubDefaultExtractor, { since: date('2025-03-01') });
 
-  assert.deepEqual(keys, ['alex/kiln', 'IC_s3', 'IC_r1', 'PR_oven', 'CE_flour']);
+  assert.deepEqual(keys, ['alex/kiln', 'ME_oven', 'IC_s3', 'IC_r1', 'PR_oven', 'CE_flour']);
   assert.deepEqual(notices, ['Using GitHub credentials from gh CLI']);
   assert.equal(requests.filter(r => r.operation === 'Viewer').length, 1);
 });

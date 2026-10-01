@@ -66,6 +66,7 @@ export interface Action extends Omit<Base, '@type'> {
 
 export type ActionAndChildren =
   | Action
+  | AcceptActionAndChildren
   | AssessActionAndChildren
   | CancelActionAndChildren
   | CompleteActionAndChildren
@@ -77,8 +78,10 @@ export type ActionAndChildren =
   | FindActionAndChildren
   | InteractActionAndChildren
   | MessageActionAndChildren
+  | OfferActionAndChildren
   | OrganizeActionAndChildren
   | PlanActionAndChildren
+  | RejectActionAndChildren
   | TravelActionAndChildren
   | UpdateActionAndChildren
   | VisitActionAndChildren;
@@ -100,6 +103,24 @@ export const ActionSchema: z.ZodType<Action> = z
   .object({
     '@type': z.literal('Action'),
     ...ActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// AcceptAction, child of https://schema.chronicle.app/Action
+export interface AcceptAction extends Omit<Action, '@type'> {
+  '@type': 'AcceptAction';
+}
+
+export type AcceptActionAndChildren = AcceptAction;
+
+const AcceptActionProperties = {
+  ...ActionProperties,
+};
+
+export const AcceptActionSchema: z.ZodType<AcceptAction> = z
+  .object({
+    '@type': z.literal('AcceptAction'),
+    ...AcceptActionProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -276,6 +297,7 @@ export type CreativeWorkAndChildren =
   | CreativeWork
   | ArticleAndChildren
   | BookAndChildren
+  | ChangesetAndChildren
   | ChannelAndChildren
   | CollectionAndChildren
   | MediaObjectAndChildren
@@ -284,7 +306,6 @@ export type CreativeWorkAndChildren =
   | MusicRecordingAndChildren
   | PodcastEpisodeAndChildren
   | PostAndChildren
-  | PullRequestAndChildren
   | QueryAndChildren
   | QuotationAndChildren
   | ResponseAndChildren
@@ -634,6 +655,24 @@ export const CategorySchema: z.ZodType<Category> = z
   .object({
     '@type': z.literal('Category'),
     ...CategoryProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Changeset, child of https://schema.chronicle.app/CreativeWork
+export interface Changeset extends Omit<CreativeWork, '@type'> {
+  '@type': 'Changeset';
+}
+
+export type ChangesetAndChildren = Changeset;
+
+const ChangesetProperties = {
+  ...CreativeWorkProperties,
+};
+
+export const ChangesetSchema: z.ZodType<Changeset> = z
+  .object({
+    '@type': z.literal('Changeset'),
+    ...ChangesetProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -1475,6 +1514,24 @@ export const MusicRecordingSchema: z.ZodType<MusicRecording> = z
   })
   .superRefine(requireNodeIdentity);
 
+// OfferAction, child of https://schema.chronicle.app/Action
+export interface OfferAction extends Omit<Action, '@type'> {
+  '@type': 'OfferAction';
+}
+
+export type OfferActionAndChildren = OfferAction;
+
+const OfferActionProperties = {
+  ...ActionProperties,
+};
+
+export const OfferActionSchema: z.ZodType<OfferAction> = z
+  .object({
+    '@type': z.literal('OfferAction'),
+    ...OfferActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // PageSelector, child of https://schema.chronicle.app/Selector
 export interface PageSelector extends Omit<Selector, '@type'> {
   '@type': 'PageSelector';
@@ -1621,24 +1678,6 @@ export const PublishActionSchema: z.ZodType<PublishAction> = z
   })
   .superRefine(requireNodeIdentity);
 
-// PullRequest, child of https://schema.chronicle.app/CreativeWork
-export interface PullRequest extends Omit<CreativeWork, '@type'> {
-  '@type': 'PullRequest';
-}
-
-export type PullRequestAndChildren = PullRequest;
-
-const PullRequestProperties = {
-  ...CreativeWorkProperties,
-};
-
-export const PullRequestSchema: z.ZodType<PullRequest> = z
-  .object({
-    '@type': z.literal('PullRequest'),
-    ...PullRequestProperties,
-  })
-  .superRefine(requireNodeIdentity);
-
 // Query, child of https://schema.chronicle.app/CreativeWork
 export interface Query extends Omit<CreativeWork, '@type'> {
   '@type': 'Query';
@@ -1732,6 +1771,24 @@ export const RealmSchema: z.ZodType<Realm> = z
   .object({
     '@type': z.literal('Realm'),
     ...RealmProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// RejectAction, child of https://schema.chronicle.app/Action
+export interface RejectAction extends Omit<Action, '@type'> {
+  '@type': 'RejectAction';
+}
+
+export type RejectActionAndChildren = RejectAction;
+
+const RejectActionProperties = {
+  ...ActionProperties,
+};
+
+export const RejectActionSchema: z.ZodType<RejectAction> = z
+  .object({
+    '@type': z.literal('RejectAction'),
+    ...RejectActionProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -2078,6 +2135,8 @@ export const SoftwareSourceCodeAndChildrenSchema: z.ZodType<SoftwareSourceCodeAn
   .superRefine(requireNodeIdentity);
 export const RelationshipAndChildrenSchema = RelationshipSchema;
 
+export const RejectActionAndChildrenSchema = RejectActionSchema;
+
 export const RealmAndChildrenSchema = RealmSchema;
 
 export const ReadActionAndChildrenSchema = ReadActionSchema;
@@ -2087,8 +2146,6 @@ export const QuoteActionAndChildrenSchema = QuoteActionSchema;
 export const QuotationAndChildrenSchema = QuotationSchema;
 
 export const QueryAndChildrenSchema = QuerySchema;
-
-export const PullRequestAndChildrenSchema = PullRequestSchema;
 
 export const PublishActionAndChildrenSchema = PublishActionSchema;
 
@@ -2116,6 +2173,8 @@ export const PlaceAndChildrenSchema: z.ZodType<PlaceAndChildren> = z
 export const PersonAndChildrenSchema = PersonSchema;
 
 export const PageSelectorAndChildrenSchema = PageSelectorSchema;
+
+export const OfferActionAndChildrenSchema = OfferActionSchema;
 
 export const MusicRecordingAndChildrenSchema = MusicRecordingSchema;
 
@@ -2367,6 +2426,8 @@ export const CheckInActionAndChildrenSchema = CheckInActionSchema;
 
 export const ChannelAndChildrenSchema = ChannelSchema;
 
+export const ChangesetAndChildrenSchema = ChangesetSchema;
+
 export const CategoryAndChildrenSchema = CategorySchema;
 
 export const DefinedTermAndChildrenSchema: z.ZodType<DefinedTermAndChildren> = z
@@ -2610,11 +2671,6 @@ export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> =
     }),
 
     z.object({
-      '@type': z.literal('PullRequest'),
-      ...PullRequestProperties,
-    }),
-
-    z.object({
       '@type': z.literal('Post'),
       ...PostProperties,
     }),
@@ -2672,6 +2728,11 @@ export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> =
     z.object({
       '@type': z.literal('Channel'),
       ...ChannelProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Changeset'),
+      ...ChangesetProperties,
     }),
 
     z.object({
@@ -2926,11 +2987,6 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('PullRequest'),
-      ...PullRequestProperties,
-    }),
-
-    z.object({
       '@type': z.literal('Post'),
       ...PostProperties,
     }),
@@ -2988,6 +3044,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     z.object({
       '@type': z.literal('Channel'),
       ...ChannelProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Changeset'),
+      ...ChangesetProperties,
     }),
 
     z.object({
@@ -3071,6 +3132,8 @@ export const UpdateActionAndChildrenSchema: z.ZodType<UpdateActionAndChildren> =
     }),
   ])
   .superRefine(requireNodeIdentity);
+export const AcceptActionAndChildrenSchema = AcceptActionSchema;
+
 export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
   .discriminatedUnion('@type', [
     z.object({
@@ -3089,8 +3152,18 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('RejectAction'),
+      ...RejectActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('PlanAction'),
       ...PlanActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('OfferAction'),
+      ...OfferActionProperties,
     }),
 
     z.object({
@@ -3256,6 +3329,11 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     z.object({
       '@type': z.literal('AddAction'),
       ...AddActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('AcceptAction'),
+      ...AcceptActionProperties,
     }),
   ])
   .superRefine(requireNodeIdentity);
@@ -3422,11 +3500,6 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('PullRequest'),
-      ...PullRequestProperties,
-    }),
-
-    z.object({
       '@type': z.literal('Post'),
       ...PostProperties,
     }),
@@ -3484,6 +3557,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('Channel'),
       ...ChannelProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Changeset'),
+      ...ChangesetProperties,
     }),
 
     z.object({
@@ -3567,8 +3645,18 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('RejectAction'),
+      ...RejectActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('PlanAction'),
       ...PlanActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('OfferAction'),
+      ...OfferActionProperties,
     }),
 
     z.object({
@@ -3734,6 +3822,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('AddAction'),
       ...AddActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('AcceptAction'),
+      ...AcceptActionProperties,
     }),
   ])
   .superRefine(requireNodeIdentity);

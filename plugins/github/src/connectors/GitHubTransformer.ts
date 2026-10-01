@@ -1,15 +1,18 @@
 import { ChronicleTransformer, Record, selfAgent } from '@chronicle.app/etl';
 import {
+  AcceptAction,
   ActionAndChildren,
   AgentAndChildren,
   CancelAction,
+  Changeset,
   Comment,
   CompleteAction,
   Entity,
   LikeAction,
+  OfferAction,
   PlanAction,
   PublishAction,
-  PullRequest,
+  RejectAction,
   Repository,
   RespondAction,
   SoftwareSourceCode,
@@ -24,8 +27,8 @@ import {
   GitHubThread,
   GitHubViewer,
 } from '../utils/GitHubProxy.js';
-import type { CloseRecord } from './GitHubClosesExtractor.js';
 import type { ReplyRecord } from './GitHubRepliesExtractor.js';
+import type { ResolutionRecord } from './GitHubResolutionsExtractor.js';
 
 const SOURCE = 'github';
 const KEY: ['@type', 'source', 'sourceId'] = ['@type', 'source', 'sourceId'];
@@ -48,7 +51,7 @@ export default class GitHubTransformer extends ChronicleTransformer {
 
     switch (record.extraction.recordType) {
       case 'pull-requests': {
-        return [this.buildPullRequestOpened(record.data as GitHubThread)];
+        return [this.buildPullRequestOffered(record.data as GitHubThread)];
       }
       case 'issues': {
         return [this.buildIssueOpened(record.data as GitHubThread)];
@@ -58,8 +61,8 @@ export default class GitHubTransformer extends ChronicleTransformer {
         const { comment, thread } = record.data as ReplyRecord;
         return [this.buildComment(comment, thread)];
       }
-      case 'closes': {
-        return [this.buildClose(record.data as CloseRecord)];
+      case 'resolutions': {
+        return [this.buildResolution(record.data as ResolutionRecord)];
       }
       case 'stars': {
         return [this.buildStar(record.data as GitHubStar)];
@@ -86,34 +89,57 @@ export default class GitHubTransformer extends ChronicleTransformer {
     };
   }
 
-  /** You opened a pull request: it's published under your name. */
-  private buildPullRequestOpened(pullRequest: GitHubThread): PublishAction {
+  /** You opened a pull request: a changeset offered to the repository it would change. */
+  private buildPullRequestOffered(pullRequest: GitHubThread): OfferAction {
     return {
-      '@type': 'PublishAction',
+      '@type': 'OfferAction',
       '@key': KEY,
       source: SOURCE,
       sourceId: pullRequest.id,
       timestamp: new Date(pullRequest.createdAt),
       ...(pullRequest.author && { agent: this.buildActor(pullRequest.author) }),
-      object: this.buildPullRequest(pullRequest),
+      object: this.buildChangeset(pullRequest),
+      target: this.buildRepository(pullRequest.repository),
     };
   }
 
   /**
-   * You closed an issue: done when closed as completed, cancelled when closed
-   * as not planned or a duplicate. A close from before GitHub recorded reasons
-   * has none, and GitHub shows it as completed.
+   * How an issue or pull request ended. An issue closed as completed is done,
+   * and closed as not planned or a duplicate is cancelled; a close from before
+   * GitHub recorded reasons has none, and GitHub shows it as completed. A
+   * merged pull request was accepted; one closed unmerged was declined, or
+   * withdrawn when its own author closed it.
    */
-  private buildClose({ event, issue }: CloseRecord): CompleteAction | CancelAction {
-    const cancelled = event.stateReason === 'NOT_PLANNED' || event.stateReason === 'DUPLICATE';
-    return {
-      '@type': cancelled ? 'CancelAction' : 'CompleteAction',
+  private buildResolution({
+    event,
+    thread,
+  }: ResolutionRecord): CompleteAction | CancelAction | AcceptAction | RejectAction {
+    const common = {
       '@key': KEY,
       source: SOURCE,
       sourceId: event.id,
       timestamp: new Date(event.createdAt),
       ...(event.actor && { agent: this.buildActor(event.actor) }),
-      object: this.buildTask(issue),
+    };
+    if (thread.__typename === 'Issue') {
+      const cancelled = event.stateReason === 'NOT_PLANNED' || event.stateReason === 'DUPLICATE';
+      return {
+        '@type': cancelled ? 'CancelAction' : 'CompleteAction',
+        ...common,
+        object: this.buildTask(thread),
+      };
+    }
+    const withdrawn =
+      event.actor?.databaseId !== undefined && event.actor.databaseId === thread.author?.databaseId;
+    return {
+      '@type':
+        event.__typename === 'MergedEvent'
+          ? 'AcceptAction'
+          : withdrawn
+            ? 'CancelAction'
+            : 'RejectAction',
+      ...common,
+      object: this.buildChangeset(thread),
     };
   }
 
@@ -168,9 +194,9 @@ export default class GitHubTransformer extends ChronicleTransformer {
     };
   }
 
-  private buildThread(thread: GitHubThread): Task | PullRequest {
+  private buildThread(thread: GitHubThread): Task | Changeset {
     return thread.__typename === 'PullRequest'
-      ? this.buildPullRequest(thread)
+      ? this.buildChangeset(thread)
       : this.buildTask(thread);
   }
 
@@ -191,9 +217,10 @@ export default class GitHubTransformer extends ChronicleTransformer {
     };
   }
 
-  private buildPullRequest(pullRequest: GitHubThread): PullRequest {
+  /** A pull request is a changeset: changes to its repository, put forward as a unit. */
+  private buildChangeset(pullRequest: GitHubThread): Changeset {
     return {
-      '@type': 'PullRequest',
+      '@type': 'Changeset',
       '@key': KEY,
       source: SOURCE,
       sourceId: pullRequest.id,
@@ -216,7 +243,7 @@ export default class GitHubTransformer extends ChronicleTransformer {
       url: comment.url,
       ...(comment.body && { body: comment.body }),
       ...(comment.author && { author: [this.buildActor(comment.author)] }),
-      about: [this.ref(thread.__typename === 'PullRequest' ? 'PullRequest' : 'Task', thread.id)],
+      about: [this.ref(thread.__typename === 'PullRequest' ? 'Changeset' : 'Task', thread.id)],
       visibility: VISIBILITY[thread.repository.visibility],
     };
   }
@@ -238,7 +265,7 @@ export default class GitHubTransformer extends ChronicleTransformer {
   }
 
   /** A node another record describes in full, named by its key alone. */
-  private ref<T extends 'Task' | 'PullRequest'>(type: T, id: string) {
+  private ref<T extends 'Task' | 'Changeset'>(type: T, id: string) {
     return { '@type': type, '@key': KEY, source: SOURCE, sourceId: id };
   }
 

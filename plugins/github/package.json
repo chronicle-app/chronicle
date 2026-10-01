@@ -63,12 +63,12 @@
           "api": {
             "delivery": "api",
             "recordTypes": [
-              "closes",
               "comments",
               "gists",
               "issues",
               "pull-requests",
               "replies",
+              "resolutions",
               "stars"
             ],
             "default": true
