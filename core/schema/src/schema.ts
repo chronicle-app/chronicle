@@ -308,6 +308,7 @@ export type CreativeWorkAndChildren =
   | PostAndChildren
   | QueryAndChildren
   | QuotationAndChildren
+  | RepositoryAndChildren
   | ResponseAndChildren
   | SoftwareApplicationAndChildren
   | SoftwareSourceCodeAndChildren;
@@ -1812,33 +1813,15 @@ export const RelationshipSchema: z.ZodType<Relationship> = z
   })
   .superRefine(requireNodeIdentity);
 
-// SoftwareSourceCode, child of https://schema.chronicle.app/CreativeWork
-export interface SoftwareSourceCode extends Omit<CreativeWork, '@type'> {
-  '@type': 'SoftwareSourceCode';
-}
-
-export type SoftwareSourceCodeAndChildren = SoftwareSourceCode | RepositoryAndChildren;
-
-const SoftwareSourceCodeProperties = {
-  ...CreativeWorkProperties,
-};
-
-export const SoftwareSourceCodeSchema: z.ZodType<SoftwareSourceCode> = z
-  .object({
-    '@type': z.literal('SoftwareSourceCode'),
-    ...SoftwareSourceCodeProperties,
-  })
-  .superRefine(requireNodeIdentity);
-
-// Repository, child of https://schema.chronicle.app/SoftwareSourceCode
-export interface Repository extends Omit<SoftwareSourceCode, '@type'> {
+// Repository, child of https://schema.chronicle.app/CreativeWork
+export interface Repository extends Omit<CreativeWork, '@type'> {
   '@type': 'Repository';
 }
 
 export type RepositoryAndChildren = Repository;
 
 const RepositoryProperties = {
-  ...SoftwareSourceCodeProperties,
+  ...CreativeWorkProperties,
 };
 
 export const RepositorySchema: z.ZodType<Repository> = z
@@ -1899,6 +1882,24 @@ export const SoftwareApplicationSchema: z.ZodType<SoftwareApplication> = z
   .object({
     '@type': z.literal('SoftwareApplication'),
     ...SoftwareApplicationProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// SoftwareSourceCode, child of https://schema.chronicle.app/CreativeWork
+export interface SoftwareSourceCode extends Omit<CreativeWork, '@type'> {
+  '@type': 'SoftwareSourceCode';
+}
+
+export type SoftwareSourceCodeAndChildren = SoftwareSourceCode;
+
+const SoftwareSourceCodeProperties = {
+  ...CreativeWorkProperties,
+};
+
+export const SoftwareSourceCodeSchema: z.ZodType<SoftwareSourceCode> = z
+  .object({
+    '@type': z.literal('SoftwareSourceCode'),
+    ...SoftwareSourceCodeProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -2112,6 +2113,8 @@ export const TaskAndChildrenSchema = TaskSchema;
 
 export const TagAndChildrenSchema = TagSchema;
 
+export const SoftwareSourceCodeAndChildrenSchema = SoftwareSourceCodeSchema;
+
 export const SoftwareApplicationAndChildrenSchema = SoftwareApplicationSchema;
 
 export const SoftwareAgentAndChildrenSchema = SoftwareAgentSchema;
@@ -2120,19 +2123,6 @@ export const RespondActionAndChildrenSchema = RespondActionSchema;
 
 export const RepositoryAndChildrenSchema = RepositorySchema;
 
-export const SoftwareSourceCodeAndChildrenSchema: z.ZodType<SoftwareSourceCodeAndChildren> = z
-  .discriminatedUnion('@type', [
-    z.object({
-      '@type': z.literal('SoftwareSourceCode'),
-      ...SoftwareSourceCodeProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Repository'),
-      ...RepositoryProperties,
-    }),
-  ])
-  .superRefine(requireNodeIdentity);
 export const RelationshipAndChildrenSchema = RelationshipSchema;
 
 export const RejectActionAndChildrenSchema = RejectActionSchema;
@@ -2646,13 +2636,13 @@ export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> =
     }),
 
     z.object({
-      '@type': z.literal('SoftwareApplication'),
-      ...SoftwareApplicationProperties,
+      '@type': z.literal('SoftwareSourceCode'),
+      ...SoftwareSourceCodeProperties,
     }),
 
     z.object({
-      '@type': z.literal('SoftwareSourceCode'),
-      ...SoftwareSourceCodeProperties,
+      '@type': z.literal('SoftwareApplication'),
+      ...SoftwareApplicationProperties,
     }),
 
     z.object({
@@ -2962,13 +2952,13 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('SoftwareApplication'),
-      ...SoftwareApplicationProperties,
+      '@type': z.literal('SoftwareSourceCode'),
+      ...SoftwareSourceCodeProperties,
     }),
 
     z.object({
-      '@type': z.literal('SoftwareSourceCode'),
-      ...SoftwareSourceCodeProperties,
+      '@type': z.literal('SoftwareApplication'),
+      ...SoftwareApplicationProperties,
     }),
 
     z.object({
@@ -3475,13 +3465,13 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('SoftwareApplication'),
-      ...SoftwareApplicationProperties,
+      '@type': z.literal('SoftwareSourceCode'),
+      ...SoftwareSourceCodeProperties,
     }),
 
     z.object({
-      '@type': z.literal('SoftwareSourceCode'),
-      ...SoftwareSourceCodeProperties,
+      '@type': z.literal('SoftwareApplication'),
+      ...SoftwareApplicationProperties,
     }),
 
     z.object({
