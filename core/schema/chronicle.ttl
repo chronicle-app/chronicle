@@ -696,8 +696,19 @@
   rdfs:subClassOf :CreativeWork;
   owl:equivalentClass schemaorg:SoftwareSourceCode .
 :Repository a rdfs:Class;
-  rdfs:comment "A version-controlled collection of source code and its history, as hosted on a forge. Work filed against it, such as tasks and pull requests, links to it through :isPartOf.";
+  rdfs:comment "A version-controlled collection of source code and its history, as hosted on a forge. Work filed against it, such as tasks and changesets, links to it through :isPartOf.";
   rdfs:subClassOf :SoftwareSourceCode .
-:PullRequest a rdfs:Class;
-  rdfs:comment "A proposed change to a :Repository, discussed and reviewed before it is merged or closed. Links to its repository through :isPartOf.";
+:Changeset a rdfs:Class;
+  rdfs:comment "A set of changes to a work, put forward or applied as a unit and revisable until it is decided: a pull or merge request, a suggested edit to a document. It :isPartOf the work it changes; the actions on it record its fate, from an :OfferAction to an :AcceptAction, :RejectAction, or :CancelAction.";
   rdfs:subClassOf :CreativeWork .
+:OfferAction a rdfs:Class;
+  rdfs:comment "The agent put the :object forward for the owners of the :target to accept or decline, such as offering a changeset to a repository.";
+  rdfs:subClassOf :Action .
+:AcceptAction a rdfs:Class;
+  rdfs:comment "The agent accepted what was offered, such as merging a changeset into the work it changes. The :object is what was accepted.";
+  rdfs:subClassOf :Action;
+  owl:equivalentClass schemaorg:AcceptAction .
+:RejectAction a rdfs:Class;
+  rdfs:comment "The agent declined what was offered, such as closing a changeset without taking it in. The :object is what was declined.";
+  rdfs:subClassOf :Action;
+  owl:equivalentClass schemaorg:RejectAction .

@@ -1,11 +1,11 @@
 import { MergingExtractor, Record } from '@chronicle.app/etl';
-import GitHubClosesExtractor from './GitHubClosesExtractor.js';
 import GitHubCommentsExtractor from './GitHubCommentsExtractor.js';
 import { gitHubSchema, openSession, sharedSessions } from './GitHubExtractor.js';
 import GitHubGistsExtractor from './GitHubGistsExtractor.js';
 import GitHubIssuesExtractor from './GitHubIssuesExtractor.js';
 import GitHubPullRequestsExtractor from './GitHubPullRequestsExtractor.js';
 import GitHubRepliesExtractor from './GitHubRepliesExtractor.js';
+import GitHubResolutionsExtractor from './GitHubResolutionsExtractor.js';
 import GitHubStarsExtractor from './GitHubStarsExtractor.js';
 import GitHubTransformer from './GitHubTransformer.js';
 
@@ -25,7 +25,7 @@ export default class GitHubDefaultExtractor extends MergingExtractor<
     'pull-requests',
     'issues',
     'comments',
-    'closes',
+    'resolutions',
     'replies',
     'stars',
     'gists',
@@ -39,7 +39,7 @@ export default class GitHubDefaultExtractor extends MergingExtractor<
     GitHubPullRequestsExtractor,
     GitHubIssuesExtractor,
     GitHubCommentsExtractor,
-    GitHubClosesExtractor,
+    GitHubResolutionsExtractor,
     GitHubRepliesExtractor,
     GitHubStarsExtractor,
     GitHubGistsExtractor,

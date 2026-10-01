@@ -55,17 +55,22 @@ export interface GitHubComment {
   author: GitHubActor | null;
 }
 
-/** An issue being closed; `stateReason` says whether as done, not planned, or a duplicate. */
-export interface GitHubClosedEvent {
+/**
+ * An issue or pull request being closed, or a pull request being merged. A
+ * closed issue's `stateReason` says whether as done, not planned, or a
+ * duplicate.
+ */
+export interface GitHubResolutionEvent {
+  __typename: 'ClosedEvent' | 'MergedEvent';
   id: string;
   createdAt: string;
-  stateReason: 'COMPLETED' | 'NOT_PLANNED' | 'DUPLICATE' | 'REOPENED' | null;
+  stateReason?: 'COMPLETED' | 'NOT_PLANNED' | 'DUPLICATE' | 'REOPENED' | null;
   actor: GitHubActor | null;
 }
 
-/** A closed issue with the times it was closed. */
-export interface ClosedIssue extends GitHubThread {
-  timelineItems: { nodes: GitHubClosedEvent[] };
+/** A closed issue or pull request with the times it was closed or merged. */
+export interface ResolvedThread extends GitHubThread {
+  timelineItems: { nodes: GitHubResolutionEvent[] };
 }
 
 export interface GitHubStar {
@@ -135,10 +140,23 @@ export interface DiscussedThread extends GitHubThread {
 
 const DISCUSSION = `comments(first: ${COMMENTS_PER_THREAD}) { ${PAGE_INFO} nodes { ${COMMENT} } }`;
 
-/** A closed issue and its closings. More than twenty closings of one issue go unread. */
-const CLOSED_ISSUE = `${THREAD} timelineItems(first: 20, itemTypes: [CLOSED_EVENT]) {
-  nodes { ... on ClosedEvent { id createdAt stateReason actor { ${ACTOR} } } } }`;
-const CLOSED_ISSUES_ARGS = 'states: CLOSED, orderBy: {field: UPDATED_AT, direction: DESC}';
+/** A closed thread and how it ended. More than twenty closings of one go unread. */
+const RESOLVED = {
+  issues: {
+    args: 'states: CLOSED, orderBy: {field: UPDATED_AT, direction: DESC}',
+    selection: `${THREAD} timelineItems(first: 20, itemTypes: [CLOSED_EVENT]) {
+      nodes { __typename ... on ClosedEvent { id createdAt stateReason actor { ${ACTOR} } } } }`,
+  },
+  pullRequests: {
+    args: 'states: [MERGED, CLOSED], orderBy: {field: UPDATED_AT, direction: DESC}',
+    selection: `${THREAD} timelineItems(first: 20, itemTypes: [MERGED_EVENT, CLOSED_EVENT]) {
+      nodes { __typename
+        ... on MergedEvent { id createdAt actor { ${ACTOR} } }
+        ... on ClosedEvent { id createdAt actor { ${ACTOR} } } } }`,
+  },
+} as const;
+
+export type ResolvedKind = keyof typeof RESOLVED;
 
 /** One page of a viewer connection, newest first. */
 const VIEWER_CONNECTIONS = {
@@ -161,13 +179,19 @@ const VIEWER_CONNECTIONS = {
     args: 'orderBy: {field: UPDATED_AT, direction: DESC}',
     selection: `nodes { ${THREAD} }`,
   },
-  // Closed issues the viewer opened, most recently active first, for closes.
+  // Closed issues and pull requests the viewer opened, most recently active
+  // first, for resolutions.
   closedIssues: {
     field: 'issues',
-    args: CLOSED_ISSUES_ARGS,
-    selection: `nodes { ${CLOSED_ISSUE} }`,
+    args: RESOLVED.issues.args,
+    selection: `nodes { ${RESOLVED.issues.selection} }`,
   },
-  // Repositories under the viewer's own account, for closes.
+  closedPullRequests: {
+    field: 'pullRequests',
+    args: RESOLVED.pullRequests.args,
+    selection: `nodes { ${RESOLVED.pullRequests.selection} }`,
+  },
+  // Repositories under the viewer's own account, for resolutions.
   ownedRepositories: {
     field: 'repositories',
     args: 'ownerAffiliations: OWNER, orderBy: {field: UPDATED_AT, direction: DESC}',
@@ -252,23 +276,30 @@ export default class GitHubProxy extends ApiProxy {
     }
   }
 
-  /** A repository's closed issues, most recently active first, with their closings. */
-  public async *closedIssuesIn(repositoryId: string): AsyncGenerator<ClosedIssue> {
-    const operation = 'Repository_closedIssues';
+  /**
+   * A repository's closed issues or pull requests, most recently active
+   * first, with how each ended.
+   */
+  public async *resolvedIn(
+    repositoryId: string,
+    kind: ResolvedKind
+  ): AsyncGenerator<ResolvedThread> {
+    const operation = `Repository_${kind}`;
     const query = `query ${operation}($id: ID!, $after: String) { node(id: $id) {
-      ... on Repository { issues(first: 50, after: $after, ${CLOSED_ISSUES_ARGS}) {
-        ${PAGE_INFO} nodes { ${CLOSED_ISSUE} } } } } }`;
+      ... on Repository { ${kind}(first: 50, after: $after, ${RESOLVED[kind].args}) {
+        ${PAGE_INFO} nodes { ${RESOLVED[kind].selection} } } } } }`;
     let after: string | null = null;
     for (;;) {
-      const data: { node: { issues: Page<ClosedIssue> } | null } = await this.graphql(
+      const data: { node: Record<string, Page<ResolvedThread>> | null } = await this.graphql(
         operation,
         query,
         { id: repositoryId, after }
       );
       if (!data.node) return;
-      yield* data.node.issues.nodes;
-      if (!data.node.issues.pageInfo.hasNextPage) return;
-      after = data.node.issues.pageInfo.endCursor;
+      const page = data.node[kind];
+      yield* page.nodes;
+      if (!page.pageInfo.hasNextPage) return;
+      after = page.pageInfo.endCursor;
     }
   }
 

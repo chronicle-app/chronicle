@@ -13,10 +13,10 @@ converted from the record. Every node also has `source`.
 ## pull-requests
 
 ```ts
-PublishAction key(sourceId) {
+OfferAction key(sourceId) {
   sourceId, timestamp
   agent: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
-  object: PullRequest key(sourceId) {
+  object: Changeset key(sourceId) {
     sourceId, url, name, body?, datePublished, visibility
     author[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
     isPartOf[]: Repository key(creator.sourceId, name) {
@@ -24,6 +24,11 @@ PublishAction key(sourceId) {
       references[]: Entity key(url, any source) { url }
       creator[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
     }
+  }
+  target: Repository key(creator.sourceId, name) {
+    url, name, description, tags[], visibility
+    references[]: Entity key(url, any source) { url }
+    creator[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
   }
 }
 ```
@@ -45,30 +50,13 @@ PlanAction key(sourceId) {
 }
 ```
 
-## closes
-
-```ts
-CompleteAction | CancelAction key(sourceId) {
-  sourceId, timestamp
-  agent: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
-  object: Task key(sourceId) {
-    sourceId, url, name
-    isPartOf[]: Repository key(creator.sourceId, name) {
-      url, name, description, tags[], visibility
-      references[]: Entity key(url, any source) { url }
-      creator[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
-    }
-  }
-}
-```
-
 ## comments
 
 ```ts
 RespondAction key(sourceId) {
   sourceId, timestamp
   agent: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
-  object: PullRequest | Task key(sourceId) {
+  object: Changeset | Task key(sourceId) {
     sourceId, url, name, datePublished?, visibility?
     author[]?: Person key(sourceId) { sourceId, handle, name, sameAs[]?, url }
     isPartOf[]: Repository key(creator.sourceId, name) {
@@ -80,7 +68,7 @@ RespondAction key(sourceId) {
   result: Comment key(sourceId) {
     sourceId, url, body, visibility
     author[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
-    about[]: PullRequest | Task key(sourceId) { sourceId }
+    about[]: Changeset | Task key(sourceId) { sourceId }
   }
 }
 ```
@@ -91,7 +79,7 @@ RespondAction key(sourceId) {
 RespondAction key(sourceId) {
   sourceId, timestamp
   agent: Person | SoftwareAgent key(sourceId) { sourceId, handle, name?, url }
-  object: PullRequest | Task key(sourceId) {
+  object: Changeset | Task key(sourceId) {
     sourceId, url, name, datePublished?, visibility?
     author[]?: Person key(sourceId) { sourceId, handle, name, sameAs[]?, url }
     isPartOf[]: Repository key(creator.sourceId, name) {
@@ -103,7 +91,25 @@ RespondAction key(sourceId) {
   result: Comment key(sourceId) {
     sourceId, url, body, visibility
     author[]: Person | SoftwareAgent key(sourceId) { sourceId, handle, name?, url }
-    about[]: PullRequest | Task key(sourceId) { sourceId }
+    about[]: Changeset | Task key(sourceId) { sourceId }
+  }
+}
+```
+
+## resolutions
+
+```ts
+AcceptAction | CompleteAction | CancelAction | RejectAction key(sourceId) {
+  sourceId, timestamp
+  agent: Person key(sourceId) { sourceId, handle, name, url, sameAs[]? }
+  object: Changeset | Task key(sourceId) {
+    sourceId, url, name, datePublished?, visibility?
+    author[]?: Person key(sourceId) { sourceId, handle, name?, sameAs[]?, url }
+    isPartOf[]: Repository key(creator.sourceId, name) {
+      url, name, description, tags[], visibility
+      references[]: Entity key(url, any source) { url }
+      creator[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
+    }
   }
 }
 ```

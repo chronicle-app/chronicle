@@ -228,37 +228,75 @@ export const GISTS = [
   },
 ];
 
-const closed = (id, actor, stateReason, createdAt) => ({ id, createdAt, stateReason, actor });
+const closed = (id, actor, createdAt, stateReason) => ({
+  __typename: 'ClosedEvent',
+  id,
+  createdAt,
+  ...(stateReason && { stateReason }),
+  actor,
+});
+const merged = (id, actor, createdAt) => ({ __typename: 'MergedEvent', id, createdAt, actor });
+
+const bakeryIssue = (id, number, title, author, createdAt, updatedAt) =>
+  ref(thread('Issue', id, bakery, number, title, author, createdAt, updatedAt, ''));
+const bakeryPull = (id, number, title, author, createdAt, updatedAt) =>
+  ref(thread('PullRequest', id, bakery, number, title, author, createdAt, updatedAt, ''));
 
 /** Alex's report on Sam's bakery: Riley closed it, Alex reopened it, Sam closed it for good. */
-export const MOLD = {
-  ...ref(
-    thread(
-      'Issue',
-      'I_mold',
-      bakery,
-      5,
-      'Mold in the starter',
-      alex,
-      '2025-02-01T10:00:00Z',
-      '2025-02-15T10:00:00Z',
-      ''
-    )
-  ),
-};
+export const MOLD = bakeryIssue(
+  'I_mold',
+  5,
+  'Mold in the starter',
+  alex,
+  '2025-02-01T10:00:00Z',
+  '2025-02-15T10:00:00Z'
+);
+/** Alex's pull requests to Sam's bakery: Sam merged one and declined the other. */
+export const RYE = bakeryPull(
+  'PR_rye',
+  6,
+  'Add a rye recipe',
+  alex,
+  '2025-02-20T10:00:00Z',
+  '2025-02-25T10:00:00Z'
+);
+export const GLAZE = bakeryPull(
+  'PR_glaze',
+  7,
+  'Glaze everything',
+  alex,
+  '2025-02-10T10:00:00Z',
+  '2025-02-12T10:00:00Z'
+);
 
-/** Closings, by issue: Sam closed his rye issue as done, and Alex's mold report as not planned. */
-export const CLOSINGS = {
-  I_flour: [closed('CE_flour', sam, 'COMPLETED', '2025-03-01T00:00:00Z')],
+/** How each closed thread ended. Merging also closes a pull request, at the same moment. */
+export const ENDINGS = {
+  I_flour: [closed('CE_flour', sam, '2025-03-01T00:00:00Z', 'COMPLETED')],
   I_mold: [
-    closed('CE_mold_riley', riley, 'COMPLETED', '2025-02-10T10:00:00Z'),
-    closed('CE_mold_sam', sam, 'NOT_PLANNED', '2025-02-15T10:00:00Z'),
+    closed('CE_mold_riley', riley, '2025-02-10T10:00:00Z', 'COMPLETED'),
+    closed('CE_mold_sam', sam, '2025-02-15T10:00:00Z', 'NOT_PLANNED'),
   ],
+  // Riley merged Sam's timer; Sam withdrew his crust change.
+  PR_oven: [
+    merged('ME_oven', riley, '2025-03-12T00:00:00Z'),
+    closed('CE_oven', riley, '2025-03-12T00:00:00Z'),
+  ],
+  PR_crust: [closed('CE_crust', sam, '2024-11-03T00:00:00Z')],
+  PR_rye: [
+    merged('ME_rye', sam, '2025-02-25T10:00:00Z'),
+    closed('CE_rye', sam, '2025-02-25T10:00:00Z'),
+  ],
+  PR_glaze: [closed('CE_glaze', sam, '2025-02-12T10:00:00Z')],
 };
-const closedIssue = issue => ({ ...ref(issue), timelineItems: { nodes: CLOSINGS[issue.id] } });
+const ended = t => ({ ...ref(t), timelineItems: { nodes: ENDINGS[t.id] } });
 
-/** The closed issues in each repository Sam owns, most recently active first. */
-const CLOSED_IN = { R_bakery: [closedIssue(flour), closedIssue(MOLD)] };
+/** Closed threads in each repository Sam owns, most recently active first. */
+const ENDED_IN = {
+  R_bakery: {
+    issues: [ended(flour), ended(MOLD)],
+    pullRequests: [ended(oven), ended(RYE), ended(GLAZE), ended(crust)],
+  },
+};
 
 const CONNECTIONS = {
   pullRequests: [oven, crust],
@@ -267,8 +305,9 @@ const CONNECTIONS = {
   pullRequestsByActivity: [ref(oven), ref(crust)],
   issuesByActivity: [ref(flour)],
   issueComments: ISSUE_COMMENTS,
-  // Sam's own closed issues; the bakery is the only repository he owns.
-  closedIssues: [closedIssue(flour)],
+  // Sam's own closed threads; the bakery is the only repository he owns.
+  closedIssues: [ended(flour)],
+  closedPullRequests: [ended(oven), ended(crust)],
   ownedRepositories: [{ id: 'R_bakery' }],
   starredRepositories: STARS,
   gists: GISTS,
@@ -279,6 +318,7 @@ const ACTIVITY_FIELDS = {
   pullRequestsByActivity: 'pullRequests',
   issuesByActivity: 'issues',
   closedIssues: 'issues',
+  closedPullRequests: 'pullRequests',
   ownedRepositories: 'repositories',
 };
 
@@ -340,9 +380,10 @@ function respond(token, { query, variables }) {
       },
     ];
   }
-  if (operation === 'Repository_closedIssues') {
-    const issues = CLOSED_IN[variables.id];
-    return [200, { data: { node: issues ? { issues: page(issues, variables.after) } : null } }];
+  const kind = operation.match(/^Repository_(issues|pullRequests)$/)?.[1];
+  if (kind) {
+    const threads = ENDED_IN[variables.id]?.[kind];
+    return [200, { data: { node: threads ? { [kind]: page(threads, variables.after) } : null } }];
   }
   if (operation === 'Discussions') {
     return [200, { data: { nodes: variables.ids.map(id => discussion(id)) } }];
