@@ -2,65 +2,58 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { renderShapes, shapesOf } from '../dist/index.js';
 
-const sample = (input, outputs, context = {}) => ({ recordType: 'posts', input, context, outputs });
-const post = (id, fields) => ({
+const sample = (input, outputs, recordType = 'posts') => ({ recordType, input, outputs });
+const KEY = ['@type', 'source', 'sourceId'];
+const publish = (id, object) => ({
   '@type': 'PublishAction',
-  '@key': ['@type', 'source', 'sourceId'],
+  '@key': KEY,
   source: 'example',
   sourceId: String(id),
-  object: { '@type': 'Post', '@key': ['@type', 'source', 'sourceId'], ...fields },
+  object,
 });
+const post = (id, fields) => ({ '@type': 'Post', '@key': KEY, source: 'example', ...fields });
+const link = url => ({ '@type': 'Entity', '@key': ['url'], url });
 
-test('shapes say where each output value came from', () => {
-  const shapes = shapesOf([
-    sample({ id: 701, title: 'Rye', state: 'OPEN', at: '2025-01-01T00:00:00Z' }, [
-      post(701, {
-        name: 'Rye',
-        url: 'https://example.com/p/701',
-        visibility: 'open',
-        datePublished: new Date('2025-01-01T00:00:00Z'),
-        score: 3,
+function sketch(samples) {
+  const markdown = renderShapes(shapesOf(samples), { title: 'Example' });
+  return markdown.slice(markdown.indexOf('```text\n') + 8, markdown.lastIndexOf('```'));
+}
+
+test('each record type is a tree of the nodes it becomes, with their keys', () => {
+  const tree = sketch([
+    sample({ id: 701, title: 'Rye', state: 'OPEN', link: 'https://example.com/rye' }, [
+      publish(701, {
+        ...post(701, { name: 'Rye', visibility: 'open', score: 3 }),
+        references: [link('https://example.com/rye')],
       }),
     ]),
-    sample({ id: 802, title: 'Spelt', state: 'CLOSED', at: '2025-02-01T00:00:00Z' }, [
-      post(802, {
-        name: 'Spelt',
-        url: 'https://example.com/p/802',
-        visibility: 'closed',
-        datePublished: new Date('2025-02-01T00:00:00Z'),
-        score: 5,
-      }),
+    sample({ id: 802, title: 'Spelt', state: 'CLOSED' }, [
+      publish(802, post(802, { name: 'Spelt', visibility: 'closed', score: 5 })),
     ]),
   ]);
-  const markdown = renderShapes(shapes, { title: 'Example' });
 
-  assert.match(markdown, /- PublishAction —object→ Post/);
-  assert.match(markdown, /\| `id` \| number \| always \|/);
-  assert.match(markdown, /\| `source` \| text \| always \| = "example" \|/);
-  assert.match(markdown, /\| `sourceId` \| text \| always \| String\(id\) \|/);
-  assert.match(markdown, /\| `name` \| text \| always \| title \|/);
-  assert.match(markdown, /\| `url` \| text \| always \| …\{id\}… \|/);
-  assert.match(markdown, /\| `visibility` \| text \| always \| lower\(state\) \|/);
-  assert.match(markdown, /\| `datePublished` \| date \| always \| date\(at\) \|/);
-  // Nothing in the input says 3 or 5: the transformer decided.
-  assert.match(markdown, /\| `score` \| number \| always \| computed \|/);
+  // Copied (name ← title) and converted (visibility ← lower(state)) values are
+  // plain; nothing in the record says 3 or 5, so the transformer computed it.
+  // A key without `source` is shared across sources.
+  assert.equal(
+    tree,
+    [
+      'PublishAction (sourceId): sourceId',
+      '  object → Post (sourceId): name, visibility, score*',
+      '    references[]? → Entity (url, any source): url',
+      '',
+    ].join('\n')
+  );
 });
 
-test('a value from a different input each time varies; a value seen once says so', () => {
-  const markdown = renderShapes(
-    shapesOf([
-      sample({ comment: { body: 'Hello there' } }, [post(1, { body: 'Hello there' })]),
-      sample({ review: { body: 'Looks good' } }, [post(2, { body: 'Looks good' })]),
-      { recordType: 'once', input: {}, outputs: [post(3, {})] },
+test('a value the record lacks is computed, unless it never changes', () => {
+  const tree = sketch([
+    sample({ text: 'Hello <i>there</i>' }, [
+      publish(1, post(1, { body: 'Hello there', tag: 'x' })),
     ]),
-    { title: 'Example' }
-  );
-  assert.match(
-    markdown,
-    /\| `body` \| text \| always \| varies: comment\.body \\\| review\.body \|/
-  );
-  assert.match(
-    markdown,
-    /## once[\s\S]*\| `source` \| text \| always \| = "example" \(seen once\) \|/
-  );
+    sample({}, [publish(2, post(2, { tag: 'x' }))], 'others'),
+  ]);
+  // `body` was seen once and matches nothing in the record; `tag` is the same
+  // everywhere it appears, so it's a constant.
+  assert.match(tree, /object → Post \(sourceId\): body\*, tag\n/);
 });
