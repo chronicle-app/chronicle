@@ -261,8 +261,8 @@ function addNode(
  */
 function keyLabel(key: string[]): string {
   const fields = key.filter(field => field !== '@type' && field !== 'source');
-  const shared = key.includes('source') ? '' : ', any source';
-  return `${fields.join(' + ') || '@type'}${shared}`;
+  if (!key.includes('source')) fields.push('any source');
+  return `key(${fields.join(', ') || '@type'})`;
 }
 
 // ---------------------------------------------------------------------------
@@ -273,11 +273,13 @@ const UNREMARKABLE = new Set(['source']);
 
 /**
  * The summary as a tree per record type, for a plugin's SHAPES.md: each node's
- * type and key, then its plain properties, then its nested nodes, indented.
+ * type, key, and properties, with the nodes it links to nested inside.
  *
- *   PublishAction (sourceId): sourceId, timestamp
- *     agent → Agent (handle): handle, url, sameAs?
- *     object → Post (sourceId): sourceId, url, name, body?
+ *   PublishAction key(sourceId) {
+ *     sourceId, timestamp
+ *     agent: Agent key(handle) { handle, url, sameAs[]? }
+ *     object: Post key(sourceId) { sourceId, url, name, body? }
+ *   }
  */
 export function renderShapes(shapes: Shapes, { title }: { title: string }): string {
   const lines = [
@@ -286,41 +288,44 @@ export function renderShapes(shapes: Shapes, { title }: { title: string }): stri
     'What each record type becomes, from the transformer’s output for the test',
     'fixtures. Generated: run `npm run shapes` in this plugin to update it.',
     '',
-    'Each line is a node: its type, its key in parentheses (after `@type` and',
-    '`source`), and its properties. `?` marks a property that is sometimes',
-    'absent, `[]` a list, and `*` a value computed in the transformer rather',
-    'than copied or converted from the record. Every node also has `source`.',
+    'Each node is its type, its key, and its properties in braces; a property',
+    'that links to another node names that node’s type. `key(…)` lists the key',
+    'fields after `@type` and `source`, and says `any source` when the key has',
+    'no `source`. `?` marks a property that is sometimes absent, `[]` a list,',
+    'and `*` a value computed in the transformer rather than copied or',
+    'converted from the record. Every node also has `source`.',
   ];
   const constants = constantsOf(shapes);
   for (const [recordType, shape] of shapes.recordTypes) {
-    lines.push('', `## ${recordType}`, '', '```text');
-    renderNode(shape.output, '', '', 0, lines, constants);
-    lines.push('```');
+    lines.push(
+      '',
+      `## ${recordType}`,
+      '',
+      '```ts',
+      ...renderNode(shape.output, '', constants),
+      '```'
+    );
   }
   return `${lines.join('\n')}\n`;
 }
 
-function renderNode(
-  nodes: Map<string, NodeShape>,
-  path: string,
-  label: string,
-  depth: number,
-  lines: string[],
-  constants: Set<string>
-): void {
+/**
+ * A node as `Type key(…) { plain, properties` then its links, one per line,
+ * indented; a node without links fits on one line.
+ */
+function renderNode(nodes: Map<string, NodeShape>, path: string, constants: Set<string>): string[] {
   const node = nodes.get(path);
-  if (!node) return;
-  const types = [...node.types].join(' | ');
-  const keys = node.keys.size > 0 ? ` (${[...node.keys].join(' / ')})` : '';
+  if (!node) return [];
+  const keys = [...node.keys].join(' / ');
+  const head = `${[...node.types].join(' | ')}${keys ? ` ${keys}` : ''}`;
   const plain: string[] = [];
-  const nested: [string, string][] = [];
+  const links: string[] = [];
   for (const [name, property] of node.properties) {
     const marks = `${property.list ? '[]' : ''}${property.present < node.count ? '?' : ''}`;
     if (property.nodes) {
-      nested.push([
-        `${path ? `${path}.` : ''}${name}${property.list ? '[]' : ''}`,
-        `${name}${marks}`,
-      ]);
+      const childPath = `${path ? `${path}.` : ''}${name}${property.list ? '[]' : ''}`;
+      const [first, ...rest] = renderNode(nodes, childPath, constants);
+      links.push(`${name}${marks}: ${first}`, ...rest);
     } else if (!UNREMARKABLE.has(name)) {
       // Seen once and not in the record: a constant only if other record
       // types show it never changes.
@@ -330,11 +335,13 @@ function renderNode(
       plain.push(`${name}${marks}${computed}`);
     }
   }
-  const head = `${'  '.repeat(depth)}${label ? `${label} → ` : ''}${types}${keys}`;
-  lines.push(plain.length > 0 ? `${head}: ${plain.join(', ')}` : head);
-  for (const [childPath, childLabel] of nested) {
-    renderNode(nodes, childPath, childLabel, depth + 1, lines, constants);
-  }
+  if (links.length === 0) return [`${head} { ${plain.join(', ')} }`];
+  return [
+    `${head} {`,
+    ...(plain.length > 0 ? [`  ${plain.join(', ')}`] : []),
+    ...links.map(line => `  ${line}`),
+    '}',
+  ];
 }
 
 /** Properties with one value everywhere they appear, across every record type. */

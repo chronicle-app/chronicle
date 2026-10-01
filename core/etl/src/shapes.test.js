@@ -16,7 +16,7 @@ const link = url => ({ '@type': 'Entity', '@key': ['url'], url });
 
 function sketch(samples) {
   const markdown = renderShapes(shapesOf(samples), { title: 'Example' });
-  return markdown.slice(markdown.indexOf('```text\n') + 8, markdown.lastIndexOf('```'));
+  return markdown.slice(markdown.indexOf('```ts\n') + 6, markdown.lastIndexOf('```'));
 }
 
 test('each record type is a tree of the nodes it becomes, with their keys', () => {
@@ -38,9 +38,13 @@ test('each record type is a tree of the nodes it becomes, with their keys', () =
   assert.equal(
     tree,
     [
-      'PublishAction (sourceId): sourceId',
-      '  object → Post (sourceId): name, visibility, score*',
-      '    references[]? → Entity (url, any source): url',
+      'PublishAction key(sourceId) {',
+      '  sourceId',
+      '  object: Post key(sourceId) {',
+      '    name, visibility, score*',
+      '    references[]?: Entity key(url, any source) { url }',
+      '  }',
+      '}',
       '',
     ].join('\n')
   );
@@ -55,5 +59,5 @@ test('a value the record lacks is computed, unless it never changes', () => {
   ]);
   // `body` was seen once and matches nothing in the record; `tag` is the same
   // everywhere it appears, so it's a constant.
-  assert.match(tree, /object → Post \(sourceId\): body\*, tag\n/);
+  assert.match(tree, /object: Post key\(sourceId\) \{ body\*, tag \}\n/);
 });
