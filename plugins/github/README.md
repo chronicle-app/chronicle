@@ -76,7 +76,7 @@ gh's default scopes (`repo`, `read:org`, `gist`) cover everything. For a persona
 
 **Reviews aren't read.** A pull request review, its verdict, and its inline comments on the code aren't imported; conversation comments on a pull request are.
 
-**Gists are `SoftwareSourceCode`; repositories are `Repository`, a kind of it.** A secret gist is hidden from listings but open to anyone with its URL, so it's `unlisted`, not `private`. A gist is named by its description, or its first file when it has none. An enterprise's internal repository is `private`.
+**Gists are `SoftwareSourceCode`; repositories are `Repository`.** A repository is a version-controlled store of files and their history, whatever it holds (code, data, documents), so it isn't a kind of source code; a gist is a snippet of code. A secret gist is hidden from listings but open to anyone with its URL, so it's `unlisted`, not `private`. A gist is named by its description, or its first file when it has none. An enterprise's internal repository is `private`.
 
 **A repository's owner is its `creator`.** An owner publishes the repository but may not have written it, and it can change hands, so `author` isn't claimed.
 
