@@ -9,6 +9,11 @@ Chronicle extracts personal history into a shared vocabulary.
 - Keep the schema small. Add terms only when a plugin needs them. Edit
   `core/schema/chronicle.ttl`, then run `npm run schema:generate`; do not hand-edit
   generated schema code.
+- A plugin keeps a generated `SHAPES.md`: its `shapes.test.js` runs every
+  extractor over the fixtures and summarizes what the transformer emits and
+  where each value came from (`sampleTransform`, `shapesOf`, `renderShapes`
+  from `@chronicle.app/etl`). After changing a transformer or its fixtures, run
+  `npm run shapes` in the plugin and review the diff.
 - Prefer a few integration tests over many unit tests. Test through the
   highest practical boundary: the CLI, a plugin's full pipeline, or a script
   run as a process. Use synthetic files and databases, and keep personal data
