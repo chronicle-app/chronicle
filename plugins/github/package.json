@@ -21,7 +21,7 @@
   "author": "Andrew Louis",
   "license": "MIT",
   "type": "module",
-  "description": "Chronicle plugin for your GitHub pull requests, issues, comments, reviews, stars, and gists",
+  "description": "Chronicle plugin for your GitHub pull requests, issues, comments, stars, and gists",
   "dependencies": {
     "@chronicle.app/auth": "0.3.0"
   },
@@ -63,12 +63,12 @@
           "api": {
             "delivery": "api",
             "recordTypes": [
+              "closes",
               "comments",
               "gists",
               "issues",
               "pull-requests",
               "replies",
-              "reviews",
               "stars"
             ],
             "default": true

@@ -3341,21 +3341,21 @@ News id.
     ]
   ] .
 
-example:github-review
-  rdfs:label "Approving a pull request on GitHub";
+example:github-issue-closed
+  rdfs:label "Closing an issue on GitHub";
   rdfs:comment """
-You approved Riley's pull request. The :RespondAction's :object is the
-:PullRequest, which :isPartOf its :Repository; its :result is your review, a
-:Response whose :ratingValue is GitHub's verdict, kept verbatim. Accounts are
-keyed by their numeric id, the repository by its owner (its :creator) and its
-:name, and the rest by GitHub node id.
+You closed Riley's issue as done. An issue is a :Task filed against its
+:Repository, which it :isPartOf, so closing it as completed is a
+:CompleteAction; closing it as not planned would be a :CancelAction. Accounts
+are keyed by their numeric GitHub id, the repository by its owner (its
+:creator) and its :name, and the rest by GitHub node id.
 """;
   rdf:value [
-    a :RespondAction;
+    a :CompleteAction;
     doc:key ("@type" "source" "sourceId");
     :source "github";
-    :sourceId "PRR_kwDOAbc123";
-    :timestamp "2025-02-06T08:00:00.000Z"^^xsd:dateTime;
+    :sourceId "CE_lADOAbc123";
+    :timestamp "2025-03-01T10:00:00.000Z"^^xsd:dateTime;
     :agent [
       a :Person;
       doc:key ("@type" "source" "sourceId");
@@ -3366,20 +3366,12 @@ keyed by their numeric id, the repository by its owner (its :creator) and its
       :sameAs "@me"
     ];
     :object [
-      a :PullRequest;
+      a :Task;
       doc:key ("@type" "source" "sourceId");
       :source "github";
-      :sourceId "PR_kwDOAbc456";
-      :url "https://github.com/trailco/trails/pull/7";
-      :name "Draw the ridge trail";
-      :author [
-        a :Person;
-        doc:key ("@type" "source" "sourceId");
-        :source "github";
-        :sourceId "6301";
-        :handle "riley";
-        :url "https://github.com/riley"
-      ];
+      :sourceId "I_kwDOAbc456";
+      :url "https://github.com/trailco/trails/issues/4";
+      :name "Trail signs are faded";
       :isPartOf [
         a :Repository;
         doc:key ("@type" "source" "creator.sourceId" "name");
@@ -3395,15 +3387,6 @@ keyed by their numeric id, the repository by its owner (its :creator) and its
           :url "https://github.com/trailco"
         ]
       ]
-    ];
-    :result [
-      a :Response;
-      doc:key ("@type" "source" "sourceId");
-      :source "github";
-      :sourceId "PRR_kwDOAbc123";
-      :url "https://github.com/trailco/trails/pull/7#pullrequestreview-2001";
-      :body "Ship it.";
-      :ratingValue "APPROVED"
     ]
   ] .
 
@@ -4007,8 +3990,5 @@ a sentence of prose, so the action has no :object.
 :RespondAction skos:example example:hackernews-reply .
 :Comment skos:example example:hackernews-reply .
 :about skos:example example:hackernews-reply .
-
-:PullRequest skos:example example:github-review .
-:Repository skos:example example:github-review .
-:ratingValue skos:example example:github-review .
-:Response skos:example example:github-review .
+:Repository skos:example example:github-issue-closed .
+:Task skos:example example:github-issue-closed .

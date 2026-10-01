@@ -32,7 +32,7 @@ export interface GitHubRepository {
   owner: GitHubActor;
 }
 
-/** An issue or pull request, as the target of a comment or review. */
+/** An issue or pull request, as the target of a comment. */
 export interface GitHubThread {
   __typename: 'Issue' | 'PullRequest';
   id: string;
@@ -55,19 +55,17 @@ export interface GitHubComment {
   author: GitHubActor | null;
 }
 
-export interface GitHubReviewComment extends GitHubComment {
-  replyTo: { id: string } | null;
-  pullRequestReview: { id: string } | null;
+/** An issue being closed; `stateReason` says whether as done, not planned, or a duplicate. */
+export interface GitHubClosedEvent {
+  id: string;
+  createdAt: string;
+  stateReason: 'COMPLETED' | 'NOT_PLANNED' | 'DUPLICATE' | 'REOPENED' | null;
+  actor: GitHubActor | null;
 }
 
-export interface GitHubReview {
-  id: string;
-  state: 'APPROVED' | 'CHANGES_REQUESTED' | 'COMMENTED' | 'DISMISSED' | 'PENDING';
-  body: string;
-  url: string;
-  submittedAt: string | null;
-  createdAt: string;
-  author: GitHubActor | null;
+/** A closed issue with the times it was closed. */
+export interface ClosedIssue extends GitHubThread {
+  timelineItems: { nodes: GitHubClosedEvent[] };
 }
 
 export interface GitHubStar {
@@ -123,32 +121,24 @@ const THREAD = `__typename ${THREAD_FIELDS}`;
 
 const COMMENT = `id body url createdAt author { ${ACTOR} }`;
 
-const REVIEW_COMMENT = `${COMMENT} replyTo { id } pullRequestReview { id }`;
-
-const REVIEW = `id state body url submittedAt createdAt author { ${ACTOR} }`;
-
 const PAGE_INFO = 'pageInfo { hasNextPage endCursor }';
 
-/** Pages of a connection: the first comes with its parent, later ones by node id. */
+/** Comments read with each thread; the rest are read by the thread's id. */
 export const COMMENTS_PER_THREAD = 50;
-export const REVIEWS_PER_PULL_REQUEST = 30;
-export const THREADS_PER_PULL_REQUEST = 30;
-export const COMMENTS_PER_REVIEW_THREAD = 30;
 /** Threads read in one query: small enough to stay inside GitHub's timeouts. */
 export const THREADS_PER_BATCH = 10;
 
-/** A thread with the replies-extractor's view of its discussion. */
+/** A thread with its conversation, for the replies extractor. */
 export interface DiscussedThread extends GitHubThread {
   comments: Page<GitHubComment>;
-  reviews?: Page<GitHubReview>;
-  reviewThreads?: Page<{ id: string; comments: Page<GitHubReviewComment> }>;
 }
 
 const DISCUSSION = `comments(first: ${COMMENTS_PER_THREAD}) { ${PAGE_INFO} nodes { ${COMMENT} } }`;
-const PULL_REQUEST_DISCUSSION = `${DISCUSSION}
-  reviews(first: ${REVIEWS_PER_PULL_REQUEST}) { ${PAGE_INFO} nodes { ${REVIEW} } }
-  reviewThreads(first: ${THREADS_PER_PULL_REQUEST}) { ${PAGE_INFO} nodes { id
-    comments(first: ${COMMENTS_PER_REVIEW_THREAD}) { ${PAGE_INFO} nodes { ${REVIEW_COMMENT} } } } }`;
+
+/** A closed issue and its closings. More than twenty closings of one issue go unread. */
+const CLOSED_ISSUE = `${THREAD} timelineItems(first: 20, itemTypes: [CLOSED_EVENT]) {
+  nodes { ... on ClosedEvent { id createdAt stateReason actor { ${ACTOR} } } } }`;
+const CLOSED_ISSUES_ARGS = 'states: CLOSED, orderBy: {field: UPDATED_AT, direction: DESC}';
 
 /** One page of a viewer connection, newest first. */
 const VIEWER_CONNECTIONS = {
@@ -170,6 +160,18 @@ const VIEWER_CONNECTIONS = {
     field: 'issues',
     args: 'orderBy: {field: UPDATED_AT, direction: DESC}',
     selection: `nodes { ${THREAD} }`,
+  },
+  // Closed issues the viewer opened, most recently active first, for closes.
+  closedIssues: {
+    field: 'issues',
+    args: CLOSED_ISSUES_ARGS,
+    selection: `nodes { ${CLOSED_ISSUE} }`,
+  },
+  // Repositories under the viewer's own account, for closes.
+  ownedRepositories: {
+    field: 'repositories',
+    args: 'ownerAffiliations: OWNER, orderBy: {field: UPDATED_AT, direction: DESC}',
+    selection: 'nodes { id }',
   },
   // GitHub orders a user's comments by when they were last edited, never by
   // when they were written.
@@ -195,15 +197,6 @@ export interface GitHubIssueComment extends GitHubComment {
   issue: GitHubThread;
   pullRequest: GitHubThread | null;
 }
-
-export interface ReviewContribution {
-  occurredAt: string;
-  pullRequestReview: GitHubReview & { comments: Page<GitHubReviewComment> };
-  pullRequest: GitHubThread;
-}
-
-/** Contributions are windowed; GitHub allows at most a year per query. */
-export const CONTRIBUTION_WINDOW_MS = 365 * 24 * 60 * 60 * 1000;
 
 // ---------------------------------------------------------------------------
 
@@ -259,42 +252,33 @@ export default class GitHubProxy extends ApiProxy {
     }
   }
 
-  /** The viewer's submitted reviews in one window of at most a year, newest first. */
-  public async *reviewContributions(from: Date, to: Date): AsyncGenerator<ReviewContribution> {
-    const operation = 'ReviewContributions';
-    const query = `query ${operation}($from: DateTime!, $to: DateTime!, $after: String) {
-      viewer { contributionsCollection(from: $from, to: $to) {
-        pullRequestReviewContributions(first: 50, after: $after, orderBy: {direction: DESC}) {
-          ${PAGE_INFO}
-          nodes { occurredAt
-            pullRequestReview { ${REVIEW}
-              comments(first: 50) { ${PAGE_INFO} nodes { ${REVIEW_COMMENT} } } }
-            pullRequest { ${THREAD} } } } } } }`;
+  /** A repository's closed issues, most recently active first, with their closings. */
+  public async *closedIssuesIn(repositoryId: string): AsyncGenerator<ClosedIssue> {
+    const operation = 'Repository_closedIssues';
+    const query = `query ${operation}($id: ID!, $after: String) { node(id: $id) {
+      ... on Repository { issues(first: 50, after: $after, ${CLOSED_ISSUES_ARGS}) {
+        ${PAGE_INFO} nodes { ${CLOSED_ISSUE} } } } } }`;
     let after: string | null = null;
     for (;;) {
-      const data: {
-        viewer: {
-          contributionsCollection: { pullRequestReviewContributions: Page<ReviewContribution> };
-        };
-      } = await this.graphql(operation, query, {
-        from: from.toISOString(),
-        to: to.toISOString(),
-        after,
-      });
-      const page = data.viewer.contributionsCollection.pullRequestReviewContributions;
-      yield* page.nodes;
-      if (!page.pageInfo.hasNextPage) return;
-      after = page.pageInfo.endCursor;
+      const data: { node: { issues: Page<ClosedIssue> } | null } = await this.graphql(
+        operation,
+        query,
+        { id: repositoryId, after }
+      );
+      if (!data.node) return;
+      yield* data.node.issues.nodes;
+      if (!data.node.issues.pageInfo.hasNextPage) return;
+      after = data.node.issues.pageInfo.endCursor;
     }
   }
 
-  /** Issues and pull requests with their comments, reviews, and review threads. */
+  /** Issues and pull requests with their conversations. */
   public async discussions(ids: string[]): Promise<DiscussedThread[]> {
     const operation = 'Discussions';
     const query = `query ${operation}($ids: [ID!]!) { nodes(ids: $ids) {
       __typename
       ... on Issue { ${THREAD_FIELDS} ${DISCUSSION} }
-      ... on PullRequest { ${THREAD_FIELDS} ${PULL_REQUEST_DISCUSSION} } } }`;
+      ... on PullRequest { ${THREAD_FIELDS} ${DISCUSSION} } } }`;
     const data = await this.graphql<{ nodes: (DiscussedThread | null)[] }>(operation, query, {
       ids,
     });
@@ -302,35 +286,25 @@ export default class GitHubProxy extends ApiProxy {
     return data.nodes.filter((node): node is DiscussedThread => node !== null);
   }
 
-  /**
-   * Every node of a connection whose first page came nested in a larger
-   * query: that page, then the rest read from its parent by node id.
-   */
-  public async all<T>(
-    parent: { type: string; id: string },
-    field: 'comments' | 'reviews' | 'reviewThreads',
-    page: Page<T>
-  ): Promise<T[]> {
-    const selection = {
-      comments: parent.type === 'Issue' || parent.type === 'PullRequest' ? COMMENT : REVIEW_COMMENT,
-      reviews: REVIEW,
-      reviewThreads: `id comments(first: ${COMMENTS_PER_REVIEW_THREAD}) { ${PAGE_INFO} nodes { ${REVIEW_COMMENT} } }`,
-    }[field];
-    const operation = `More_${field}`;
+  /** Every comment on a thread: the page read with it, then the rest by its id. */
+  public async allComments(thread: DiscussedThread): Promise<GitHubComment[]> {
+    const operation = 'More_comments';
     const query = `query ${operation}($id: ID!, $after: String) { node(id: $id) {
-      ... on ${parent.type} { ${field}(first: 100, after: $after) { ${PAGE_INFO} nodes { ${selection} } } } } }`;
-    const nodes = [...page.nodes];
-    let current = page;
-    while (current.pageInfo.hasNextPage) {
-      const data: { node: Record<string, Page<T>> | null } = await this.graphql(operation, query, {
-        id: parent.id,
-        after: current.pageInfo.endCursor,
-      });
+      ... on ${thread.__typename} { comments(first: 100, after: $after) {
+        ${PAGE_INFO} nodes { ${COMMENT} } } } } }`;
+    const comments = [...thread.comments.nodes];
+    let page = thread.comments;
+    while (page.pageInfo.hasNextPage) {
+      const data: { node: { comments: Page<GitHubComment> } | null } = await this.graphql(
+        operation,
+        query,
+        { id: thread.id, after: page.pageInfo.endCursor }
+      );
       if (!data.node) break;
-      current = data.node[field];
-      nodes.push(...current.nodes);
+      page = data.node.comments;
+      comments.push(...page.nodes);
     }
-    return nodes;
+    return comments;
   }
 
   /**

@@ -2,30 +2,30 @@ import { ChronicleTransformer, Record, selfAgent } from '@chronicle.app/etl';
 import {
   ActionAndChildren,
   AgentAndChildren,
+  CancelAction,
   Comment,
+  CompleteAction,
   Entity,
-  Issue,
   LikeAction,
+  PlanAction,
   PublishAction,
   PullRequest,
   Repository,
   RespondAction,
-  Response,
   SoftwareSourceCode,
+  Task,
 } from '@chronicle.app/schema';
 import {
   GitHubActor,
   GitHubComment,
   GitHubGist,
   GitHubRepository,
-  GitHubReview,
-  GitHubReviewComment,
   GitHubStar,
   GitHubThread,
   GitHubViewer,
 } from '../utils/GitHubProxy.js';
+import type { CloseRecord } from './GitHubClosesExtractor.js';
 import type { ReplyRecord } from './GitHubRepliesExtractor.js';
-import type { ReviewRecord } from './GitHubReviewsExtractor.js';
 
 const SOURCE = 'github';
 const KEY: ['@type', 'source', 'sourceId'] = ['@type', 'source', 'sourceId'];
@@ -47,31 +47,19 @@ export default class GitHubTransformer extends ChronicleTransformer {
     this.viewer = record.context.viewer;
 
     switch (record.extraction.recordType) {
-      case 'pull-requests':
-      case 'issues': {
-        return [this.buildOpen(record.data as GitHubThread)];
+      case 'pull-requests': {
+        return [this.buildPullRequestOpened(record.data as GitHubThread)];
       }
-      case 'comments': {
-        const { comment, thread } = record.data as { comment: GitHubComment; thread: GitHubThread };
+      case 'issues': {
+        return [this.buildIssueOpened(record.data as GitHubThread)];
+      }
+      case 'comments':
+      case 'replies': {
+        const { comment, thread } = record.data as ReplyRecord;
         return [this.buildComment(comment, thread)];
       }
-      case 'reviews': {
-        return this.buildReview(record.data as ReviewRecord);
-      }
-      case 'replies': {
-        const reply = record.data as ReplyRecord;
-        switch (reply.kind) {
-          case 'comment': {
-            return [this.buildComment(reply.comment, reply.thread)];
-          }
-          case 'review': {
-            return this.buildReview(reply);
-          }
-          case 'review-comment': {
-            return [this.buildReviewComment(reply.comment, reply.pullRequest)];
-          }
-        }
-        return [];
+      case 'closes': {
+        return [this.buildClose(record.data as CloseRecord)];
       }
       case 'stars': {
         return [this.buildStar(record.data as GitHubStar)];
@@ -85,16 +73,47 @@ export default class GitHubTransformer extends ChronicleTransformer {
     }
   }
 
-  /** You opened an issue or pull request: it's published under your name. */
-  private buildOpen(thread: GitHubThread): PublishAction {
+  /** You filed an issue: a task you planned, as a to-do app records one. */
+  private buildIssueOpened(issue: GitHubThread): PlanAction {
+    return {
+      '@type': 'PlanAction',
+      '@key': KEY,
+      source: SOURCE,
+      sourceId: issue.id,
+      timestamp: new Date(issue.createdAt),
+      ...(issue.author && { agent: this.buildActor(issue.author) }),
+      object: this.buildTask(issue),
+    };
+  }
+
+  /** You opened a pull request: it's published under your name. */
+  private buildPullRequestOpened(pullRequest: GitHubThread): PublishAction {
     return {
       '@type': 'PublishAction',
       '@key': KEY,
       source: SOURCE,
-      sourceId: thread.id,
-      timestamp: new Date(thread.createdAt),
-      ...(thread.author && { agent: this.buildActor(thread.author) }),
-      object: this.buildThread(thread),
+      sourceId: pullRequest.id,
+      timestamp: new Date(pullRequest.createdAt),
+      ...(pullRequest.author && { agent: this.buildActor(pullRequest.author) }),
+      object: this.buildPullRequest(pullRequest),
+    };
+  }
+
+  /**
+   * You closed an issue: done when closed as completed, cancelled when closed
+   * as not planned or a duplicate. A close from before GitHub recorded reasons
+   * has none, and GitHub shows it as completed.
+   */
+  private buildClose({ event, issue }: CloseRecord): CompleteAction | CancelAction {
+    const cancelled = event.stateReason === 'NOT_PLANNED' || event.stateReason === 'DUPLICATE';
+    return {
+      '@type': cancelled ? 'CancelAction' : 'CompleteAction',
+      '@key': KEY,
+      source: SOURCE,
+      sourceId: event.id,
+      timestamp: new Date(event.createdAt),
+      ...(event.actor && { agent: this.buildActor(event.actor) }),
+      object: this.buildTask(issue),
     };
   }
 
@@ -109,63 +128,6 @@ export default class GitHubTransformer extends ChronicleTransformer {
       ...(comment.author && { agent: this.buildActor(comment.author) }),
       object: this.buildThread(thread),
       result: this.buildCommentNode(comment, thread),
-    };
-  }
-
-  /**
-   * A review is a Response rated with its verdict. A review with no summary
-   * that only comments carries nothing its inline comments don't, and GitHub
-   * files each reply in a review thread as one, so it gets no action of its
-   * own; its inline comments still point at it.
-   */
-  private buildReview({
-    review,
-    comments,
-    pullRequest,
-  }: {
-    review: GitHubReview;
-    comments: GitHubReviewComment[];
-    pullRequest: GitHubThread;
-  }): RespondAction[] {
-    const actions: RespondAction[] = [];
-    if (review.state === 'PENDING') return actions;
-    if (review.body || review.state !== 'COMMENTED') {
-      actions.push({
-        '@type': 'RespondAction',
-        '@key': KEY,
-        source: SOURCE,
-        sourceId: review.id,
-        timestamp: new Date(review.submittedAt ?? review.createdAt),
-        ...(review.author && { agent: this.buildActor(review.author) }),
-        object: this.buildThread(pullRequest),
-        result: this.buildReviewNode(review, pullRequest),
-      });
-    }
-    for (const comment of comments) actions.push(this.buildReviewComment(comment, pullRequest));
-    return actions;
-  }
-
-  /** An inline comment on a pull request's code, in its review and its thread. */
-  private buildReviewComment(
-    comment: GitHubReviewComment,
-    pullRequest: GitHubThread
-  ): RespondAction {
-    const node: Comment = {
-      ...this.buildCommentNode(comment, pullRequest),
-      ...(comment.pullRequestReview && {
-        isPartOf: [this.ref('Response', comment.pullRequestReview.id)],
-      }),
-      ...(comment.replyTo && { inReplyTo: [this.ref('Comment', comment.replyTo.id)] }),
-    };
-    return {
-      '@type': 'RespondAction',
-      '@key': KEY,
-      source: SOURCE,
-      sourceId: comment.id,
-      timestamp: new Date(comment.createdAt),
-      ...(comment.author && { agent: this.buildActor(comment.author) }),
-      object: this.buildThread(pullRequest),
-      result: node,
     };
   }
 
@@ -206,19 +168,42 @@ export default class GitHubTransformer extends ChronicleTransformer {
     };
   }
 
-  private buildThread(thread: GitHubThread): Issue | PullRequest {
+  private buildThread(thread: GitHubThread): Task | PullRequest {
+    return thread.__typename === 'PullRequest'
+      ? this.buildPullRequest(thread)
+      : this.buildTask(thread);
+  }
+
+  /**
+   * An issue is a task: work to be done, filed against its repository. A task
+   * isn't a creative work, so who filed it is the agent of its PlanAction.
+   */
+  private buildTask(issue: GitHubThread): Task {
     return {
-      '@type': thread.__typename === 'PullRequest' ? 'PullRequest' : 'Issue',
+      '@type': 'Task',
       '@key': KEY,
       source: SOURCE,
-      sourceId: thread.id,
-      url: thread.url,
-      name: thread.title,
-      ...(thread.body && { body: thread.body }),
-      datePublished: new Date(thread.createdAt),
-      ...(thread.author && { author: [this.buildActor(thread.author)] }),
-      isPartOf: [this.buildRepository(thread.repository)],
-      visibility: VISIBILITY[thread.repository.visibility],
+      sourceId: issue.id,
+      url: issue.url,
+      name: issue.title,
+      ...(issue.body && { body: issue.body }),
+      isPartOf: [this.buildRepository(issue.repository)],
+    };
+  }
+
+  private buildPullRequest(pullRequest: GitHubThread): PullRequest {
+    return {
+      '@type': 'PullRequest',
+      '@key': KEY,
+      source: SOURCE,
+      sourceId: pullRequest.id,
+      url: pullRequest.url,
+      name: pullRequest.title,
+      ...(pullRequest.body && { body: pullRequest.body }),
+      datePublished: new Date(pullRequest.createdAt),
+      ...(pullRequest.author && { author: [this.buildActor(pullRequest.author)] }),
+      isPartOf: [this.buildRepository(pullRequest.repository)],
+      visibility: VISIBILITY[pullRequest.repository.visibility],
     };
   }
 
@@ -231,23 +216,8 @@ export default class GitHubTransformer extends ChronicleTransformer {
       url: comment.url,
       ...(comment.body && { body: comment.body }),
       ...(comment.author && { author: [this.buildActor(comment.author)] }),
-      about: [this.ref(thread.__typename, thread.id)],
+      about: [this.ref(thread.__typename === 'PullRequest' ? 'PullRequest' : 'Task', thread.id)],
       visibility: VISIBILITY[thread.repository.visibility],
-    };
-  }
-
-  private buildReviewNode(review: GitHubReview, pullRequest: GitHubThread): Response {
-    return {
-      '@type': 'Response',
-      '@key': KEY,
-      source: SOURCE,
-      sourceId: review.id,
-      url: review.url,
-      ...(review.body && { body: review.body }),
-      ratingValue: review.state,
-      ...(review.author && { author: [this.buildActor(review.author)] }),
-      about: [this.ref('PullRequest', pullRequest.id)],
-      visibility: VISIBILITY[pullRequest.repository.visibility],
     };
   }
 
@@ -268,7 +238,7 @@ export default class GitHubTransformer extends ChronicleTransformer {
   }
 
   /** A node another record describes in full, named by its key alone. */
-  private ref<T extends 'Issue' | 'PullRequest' | 'Response' | 'Comment'>(type: T, id: string) {
+  private ref<T extends 'Task' | 'PullRequest'>(type: T, id: string) {
     return { '@type': type, '@key': KEY, source: SOURCE, sourceId: id };
   }
 

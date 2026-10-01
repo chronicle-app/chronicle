@@ -3,12 +3,12 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { renderShapes, sampleTransform, shapesOf } from '@chronicle.app/etl';
 import {
+  GitHubClosesExtractor,
   GitHubCommentsExtractor,
   GitHubGistsExtractor,
   GitHubIssuesExtractor,
   GitHubPullRequestsExtractor,
   GitHubRepliesExtractor,
-  GitHubReviewsExtractor,
   GitHubStarsExtractor,
 } from '../dist/index.js';
 import { fakeGitHub } from './fixture.test-helper.js';
@@ -22,8 +22,8 @@ test('SHAPES.md describes what every record type becomes', async t => {
   for (const Extractor of [
     GitHubPullRequestsExtractor,
     GitHubIssuesExtractor,
+    GitHubClosesExtractor,
     GitHubCommentsExtractor,
-    GitHubReviewsExtractor,
     GitHubRepliesExtractor,
     GitHubStarsExtractor,
     GitHubGistsExtractor,
