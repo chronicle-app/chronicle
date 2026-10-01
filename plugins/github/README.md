@@ -1,6 +1,6 @@
 # @chronicle.app/github
 
-Read your GitHub activity through the [GraphQL API](https://docs.github.com/en/graphql): the pull requests and issues you opened, your comments and reviews, the repositories you starred, your gists, and other people's replies to you.
+Read your GitHub activity through the [GraphQL API](https://docs.github.com/en/graphql): the pull requests and issues you opened, the issues you closed, your comments, the repositories you starred, your gists, and other people's replies to you.
 
 ## Usage
 
@@ -15,12 +15,12 @@ Each kind is one record type. A bare run reads them all, merged newest first.
 - `pull-requests`: pull requests you opened.
 - `issues`: issues you opened.
 - `comments`: your comments on issues and pull requests.
-- `reviews`: pull request reviews you submitted, with their inline comments.
-- `replies`: other people's comments and reviews on your issues and pull requests, replies in review threads you started, and on anyone else's issue or pull request, every comment after your first one there.
+- `closes`: issues you closed, among the issues you opened and those in repositories you own.
+- `replies`: other people's comments on your issues and pull requests, and on anyone else's issue or pull request, every comment after your first one there.
 - `stars`: repositories you starred, dated when you starred them.
 - `gists`: your gists, public and secret.
 
-`--since` ends each walk once it passes older items. GitHub lists comments by when they were last edited, so `comments` stops at the first comment last edited before `--since` and keeps those written since then. `reviews` reads your contributions a year at a time, back to `--since` or to when the account was created. `replies` is the slowest kind: it walks every thread you opened, commented on, or started a review thread in, because an old thread can get a new reply, and skips only threads with no activity since `--since`. A bare run waits on it before yielding anything.
+`--since` ends each walk once it passes older items. GitHub lists comments by when they were last edited, so `comments` stops at the first comment last edited before `--since` and keeps those written since then. `closes` walks closed issues, most recently active first, and stops at the first quiet since `--since`; without it, it reads every closed issue in every repository you own, which takes a while. `replies` is the slowest kind: it walks every thread you opened or commented on, because an old thread can get a new reply, and skips only threads with no activity since `--since`. A bare run waits on `closes` and `replies` before yielding anything.
 
 Activity in private repositories is included when the token can see it, marked `visibility: private`.
 
@@ -37,37 +37,41 @@ gh's default scopes (`repo`, `read:org`, `gist`) cover everything. For a persona
 
 ## Schema
 
-| GitHub activity                    | Chronicle action | `object`                     | `result`                              |
-| ---------------------------------- | ---------------- | ---------------------------- | ------------------------------------- |
-| You opened a pull request or issue | `PublishAction`  | `PullRequest` or `Issue`     |                                       |
-| You or someone else commented      | `RespondAction`  | the `Issue` or `PullRequest` | `Comment`                             |
-| You or someone else reviewed       | `RespondAction`  | the `PullRequest`            | `Response` (verdict in `ratingValue`) |
-| An inline comment in a review      | `RespondAction`  | the `PullRequest`            | `Comment`                             |
-| You starred a repository           | `LikeAction`     | `Repository`                 |                                       |
-| You created a gist                 | `PublishAction`  | `SoftwareSourceCode`         |                                       |
+| GitHub activity               | Chronicle action                   | `object`                    | `result`  |
+| ----------------------------- | ---------------------------------- | --------------------------- | --------- |
+| You opened an issue           | `PlanAction`                       | `Task`                      |           |
+| You opened a pull request     | `PublishAction`                    | `PullRequest`               |           |
+| You or someone else commented | `RespondAction`                    | the `Task` or `PullRequest` | `Comment` |
+| You closed an issue           | `CompleteAction` or `CancelAction` | `Task`                      |           |
+| You starred a repository      | `LikeAction`                       | `Repository`                |           |
+| You created a gist            | `PublishAction`                    | `SoftwareSourceCode`        |           |
 
 | GitHub thing            | Chronicle entity                          | Key                                           | Properties                                                                                                                  |
 | ----------------------- | ----------------------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | Repository              | `Repository`                              | `@type`, `source`, `creator.sourceId`, `name` | `name` (without the owner), `url`, `description`, `references` (homepage), `tags` (topics), `creator` (owner), `visibility` |
-| Pull request, issue     | `PullRequest`, `Issue`                    | `@type`, `source`, `sourceId`                 | `name` (title), `body`, `url`, `datePublished`, `author`, `isPartOf` (repository), `visibility`                             |
-| Comment                 | `Comment`                                 | `@type`, `source`, `sourceId`                 | `body`, `url`, `author`, `about` (its issue or pull request), `visibility`; inline: `isPartOf` (review), `inReplyTo`        |
-| Review                  | `Response`                                | `@type`, `source`, `sourceId`                 | `ratingValue`, `body`, `url`, `author`, `about` (its pull request), `visibility`                                            |
+| Issue                   | `Task`                                    | `@type`, `source`, `sourceId`                 | `name` (title), `body`, `url`, `isPartOf` (repository)                                                                      |
+| Pull request            | `PullRequest`                             | `@type`, `source`, `sourceId`                 | `name` (title), `body`, `url`, `datePublished`, `author`, `isPartOf` (repository), `visibility`                             |
+| Comment                 | `Comment`                                 | `@type`, `source`, `sourceId`                 | `body`, `url`, `author`, `about` (its issue or pull request), `visibility`                                                  |
 | Gist                    | `SoftwareSourceCode`                      | `@type`, `source`, `sourceId`                 | `name`, `url`, `datePublished`, `author`, `visibility`                                                                      |
 | User, organization, bot | `Person`, `Organization`, `SoftwareAgent` | `@type`, `source`, `sourceId`                 | `sourceId` (numeric id), `handle` (login), `name`, `url`                                                                    |
+
+`SHAPES.md` sketches every record type's output, generated from the tests.
 
 ### Decisions
 
 **Accounts are keyed by their numeric id; a repository by its owner and name.** An account's `sourceId` is GitHub's numeric id, the one in `api.github.com/user/<id>`, which survives a change of login; its login is the `handle`. A repository is keyed through its owner, its `creator`, by the owner's numeric id and the repository's own `name` (`maloja` in `krateng/maloja`), so it stays one node when its owner changes their login. A renamed or transferred repository becomes a new node. A star is keyed the same way through its repository, since you can star a repository once.
 
-**Everything else is keyed by its GitHub node id.** Comments on issues and inline review comments are numbered separately, so their numeric ids can collide; node ids can't. The plugin asks for GitHub's next-generation ids, which are stable: without that, old objects answer with legacy ids GitHub is migrating away from. An action and the thing it creates share a `sourceId` and differ by `@type`.
+**Everything else is keyed by its GitHub node id.** Issues, pull requests, comments, and closings are numbered separately, so their numeric ids can collide; node ids can't. The plugin asks for GitHub's next-generation ids, which are stable: without that, old objects answer with legacy ids GitHub is migrating away from. An action and the thing it creates share a `sourceId` and differ by `@type`.
 
-**A pull request is an `Issue`.** It's a `PullRequest`, a kind of `Issue`, as on GitHub, where every pull request is an issue with code attached. A comment on a pull request is on the pull request, not on the issue behind it, which GitHub gives an id of its own.
+**An issue is a `Task`.** An issue is work to be done, filed against a repository, as a to-do item is filed in a project, so it's a `Task` that `isPartOf` its `Repository`, and its life follows a to-do's: opening it is a `PlanAction`, closing it as completed a `CompleteAction`, and closing it as not planned or a duplicate a `CancelAction`. A close from before GitHub recorded reasons counts as completed, as GitHub shows it. A task isn't a creative work, so who filed it is the agent of its `PlanAction`, and it carries no `author` or `visibility` of its own. A comment on a pull request is on the pull request, not on the issue GitHub keeps behind it.
 
-**A review is a `Response` rated with its verdict.** GitHub's `APPROVED`, `CHANGES_REQUESTED`, `COMMENTED`, or `DISMISSED` is its `ratingValue`, verbatim, and its summary is the `body`. Each inline comment is a `Comment` of its own, `isPartOf` its review and `inReplyTo` the comment it answers in its thread. GitHub files every reply in a review thread as a review that only comments, so a review with no summary and no verdict gets no action; its inline comments still point at it.
+**Closes are yours.** `closes` reads the issues you opened and those in repositories you own, and keeps the closings you made: someone else closing your issue isn't your action. An issue closed, reopened, and closed again is closed twice.
 
-**Replies stop at what's addressed to you.** On your own issues and pull requests, everything others wrote counts. Elsewhere, GitHub comments aren't threaded, so a comment counts as a reply when it comes after your first one on that issue or pull request. In review threads, which are threaded, only replies in threads you started count. Comments by deleted accounts are skipped.
+**Replies stop at what's addressed to you.** On your own issues and pull requests, everything others wrote counts. Elsewhere, GitHub comments aren't threaded, so a comment counts as a reply when it comes after your first one on that issue or pull request. Comments by deleted accounts are skipped.
 
-**Merges and closes aren't read.** Which actions they should be is still open, and a pull request's current state changes after it's opened, which a record dated when it was opened can't say.
+**Reviews aren't read.** A pull request review, its verdict, and its inline comments on the code aren't imported; conversation comments on a pull request are.
+
+**Pull request merges and closes aren't read yet.** What a pull request is in the vocabulary is still open, and its merging follows from that.
 
 **Gists are `SoftwareSourceCode`; repositories are `Repository`, a kind of it.** A secret gist is hidden from listings but open to anyone with its URL, so it's `unlisted`, not `private`. A gist is named by its description, or its first file when it has none. An enterprise's internal repository is `private`.
 

@@ -31,12 +31,28 @@ PublishAction key(sourceId) {
 ## issues
 
 ```ts
-PublishAction key(sourceId) {
+PlanAction key(sourceId) {
   sourceId, timestamp
   agent: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
-  object: Issue key(sourceId) {
-    sourceId, url, name, body, datePublished, visibility
-    author[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
+  object: Task key(sourceId) {
+    sourceId, url, name, body
+    isPartOf[]: Repository key(creator.sourceId, name) {
+      url, name, description, tags[], visibility
+      references[]: Entity key(url, any source) { url }
+      creator[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
+    }
+  }
+}
+```
+
+## closes
+
+```ts
+CompleteAction | CancelAction key(sourceId) {
+  sourceId, timestamp
+  agent: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
+  object: Task key(sourceId) {
+    sourceId, url, name
     isPartOf[]: Repository key(creator.sourceId, name) {
       url, name, description, tags[], visibility
       references[]: Entity key(url, any source) { url }
@@ -52,9 +68,9 @@ PublishAction key(sourceId) {
 RespondAction key(sourceId) {
   sourceId, timestamp
   agent: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
-  object: PullRequest | Issue key(sourceId) {
-    sourceId, url, name, datePublished, visibility
-    author[]: Person key(sourceId) { sourceId, handle, name?, sameAs[]?, url }
+  object: PullRequest | Task key(sourceId) {
+    sourceId, url, name, datePublished?, visibility?
+    author[]?: Person key(sourceId) { sourceId, handle, name, sameAs[]?, url }
     isPartOf[]: Repository key(creator.sourceId, name) {
       url, name, description?, tags[]?, visibility
       references[]?: Entity key(url, any source) { url }
@@ -64,32 +80,7 @@ RespondAction key(sourceId) {
   result: Comment key(sourceId) {
     sourceId, url, body, visibility
     author[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
-    about[]: PullRequest | Issue key(sourceId) { sourceId }
-  }
-}
-```
-
-## reviews
-
-```ts
-RespondAction key(sourceId) {
-  sourceId, timestamp
-  agent: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
-  object: PullRequest key(sourceId) {
-    sourceId, url, name, datePublished, visibility
-    author[]: Person key(sourceId) { sourceId, handle, name, sameAs[]?, url }
-    isPartOf[]: Repository key(creator.sourceId, name) {
-      url, name, description?, tags[]?, visibility
-      references[]?: Entity key(url, any source) { url }
-      creator[]: Person | Organization key(sourceId) { sourceId, handle, name, sameAs[]?, url }
-    }
-  }
-  result: Comment | Response key(sourceId) {
-    sourceId, url, body, visibility, ratingValue?
-    author[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
-    about[]: PullRequest key(sourceId) { sourceId }
-    isPartOf[]?: Response key(sourceId) { sourceId }
-    inReplyTo[]?: Comment key(sourceId) { sourceId }
+    about[]: PullRequest | Task key(sourceId) { sourceId }
   }
 }
 ```
@@ -100,21 +91,19 @@ RespondAction key(sourceId) {
 RespondAction key(sourceId) {
   sourceId, timestamp
   agent: Person | SoftwareAgent key(sourceId) { sourceId, handle, name?, url }
-  object: PullRequest | Issue key(sourceId) {
-    sourceId, url, name, datePublished, visibility
-    author[]: Person key(sourceId) { sourceId, handle, name?, sameAs[]?, url }
+  object: PullRequest | Task key(sourceId) {
+    sourceId, url, name, datePublished?, visibility?
+    author[]?: Person key(sourceId) { sourceId, handle, name, sameAs[]?, url }
     isPartOf[]: Repository key(creator.sourceId, name) {
       url, name, description?, tags[]?, visibility
       references[]?: Entity key(url, any source) { url }
       creator[]: Person | Organization key(sourceId) { sourceId, handle, name, sameAs[]?, url }
     }
   }
-  result: Response | Comment key(sourceId) {
-    sourceId, url, body, ratingValue?, visibility
+  result: Comment key(sourceId) {
+    sourceId, url, body, visibility
     author[]: Person | SoftwareAgent key(sourceId) { sourceId, handle, name?, url }
-    about[]: PullRequest | Issue key(sourceId) { sourceId }
-    isPartOf[]?: Response key(sourceId) { sourceId }
-    inReplyTo[]?: Comment key(sourceId) { sourceId }
+    about[]: PullRequest | Task key(sourceId) { sourceId }
   }
 }
 ```

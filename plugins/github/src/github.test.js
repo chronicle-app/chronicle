@@ -1,25 +1,23 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
+  GitHubClosesExtractor,
   GitHubCommentsExtractor,
   GitHubDefaultExtractor,
   GitHubGistsExtractor,
   GitHubIssuesExtractor,
   GitHubPullRequestsExtractor,
   GitHubRepliesExtractor,
-  GitHubReviewsExtractor,
   GitHubStarsExtractor,
   GitHubTransformer,
 } from '../dist/index.js';
 import {
   ACTORS,
   COMMENTS,
-  REVIEW_COMMENTS,
-  REVIEWS,
+  MOLD,
   THREADS,
   TOKEN,
   TOKENS,
-  VIEWER,
   fakeGitHub,
 } from './fixture.test-helper.js';
 
@@ -101,9 +99,19 @@ const kiln = {
 };
 const repositories = { R_bakery: bakery, R_trails: trails, R_kiln: kiln };
 
-/** An issue or pull request; `body` only where the thread itself is the record. */
-const thread = (t, { withBody = false } = {}) => ({
-  '@type': t.__typename,
+/** An issue is a Task; `body` only where the issue itself is the record. */
+const task = (t, { withBody = false } = {}) => ({
+  '@type': 'Task',
+  '@key': key,
+  source,
+  sourceId: t.id,
+  url: t.url,
+  name: t.title,
+  ...(withBody && t.body && { body: t.body }),
+  isPartOf: [repositories[t.repository.id]],
+});
+const pullRequest = (t, { withBody = false } = {}) => ({
+  '@type': 'PullRequest',
   '@key': key,
   source,
   sourceId: t.id,
@@ -115,21 +123,23 @@ const thread = (t, { withBody = false } = {}) => ({
   isPartOf: [repositories[t.repository.id]],
   visibility: repositories[t.repository.id].visibility,
 });
+const thread = t => (t.__typename === 'Issue' ? task(t) : pullRequest(t));
 const ref = (type, id) => ({ '@type': type, '@key': key, source, sourceId: id });
 
-const publish = (t, object) => ({
-  '@type': 'PublishAction',
+/** An action of Sam's on an issue or pull request, dated `at`. */
+const action = (type, sourceId, at, object) => ({
+  '@type': type,
   '@key': key,
   source,
-  sourceId: t.id,
-  timestamp: date(t.createdAt),
-  '@assertedAt': date(t.createdAt),
+  sourceId,
+  timestamp: date(at),
+  '@assertedAt': date(at),
   agent: sam,
   object,
 });
 
-/** A RespondAction for a conversation comment or inline review comment. */
-const respond = (c, on, extra = {}) => ({
+/** A RespondAction for a comment on an issue or pull request. */
+const respond = (c, on) => ({
   '@type': 'RespondAction',
   '@key': key,
   source,
@@ -146,35 +156,7 @@ const respond = (c, on, extra = {}) => ({
     url: c.url,
     body: c.body,
     author: [person(c.author)],
-    about: [ref(on.__typename, on.id)],
-    visibility: repositories[on.repository.id].visibility,
-    ...extra,
-  },
-});
-const inline = (c, on) =>
-  respond(c, on, {
-    isPartOf: [ref('Response', c.pullRequestReview.id)],
-    ...(c.replyTo && { inReplyTo: [ref('Comment', c.replyTo.id)] }),
-  });
-const verdict = (r, on) => ({
-  '@type': 'RespondAction',
-  '@key': key,
-  source,
-  sourceId: r.id,
-  timestamp: date(r.submittedAt),
-  '@assertedAt': date(r.submittedAt),
-  agent: person(r.author),
-  object: thread(on),
-  result: {
-    '@type': 'Response',
-    '@key': key,
-    source,
-    sourceId: r.id,
-    url: r.url,
-    body: r.body,
-    ratingValue: r.state,
-    author: [person(r.author)],
-    about: [ref('PullRequest', on.id)],
+    about: [ref(on.__typename === 'Issue' ? 'Task' : 'PullRequest', on.id)],
     visibility: repositories[on.repository.id].visibility,
   },
 });
@@ -216,9 +198,9 @@ test('pull requests you opened become PublishActions, a page at a time', async t
 
   assert.deepEqual(keys, ['PR_oven', 'PR_crust']);
   assert.deepEqual(actions, [
-    publish(oven, thread(oven, { withBody: true })),
+    action('PublishAction', 'PR_oven', oven.createdAt, pullRequest(oven, { withBody: true })),
     // An empty description is no body.
-    publish(crust, thread(crust)),
+    action('PublishAction', 'PR_crust', crust.createdAt, pullRequest(crust)),
   ]);
   assert.deepEqual(
     requests.map(r => r.operation),
@@ -234,10 +216,31 @@ test('`since` ends the walk at the first older pull request', async t => {
   assert.equal(requests.filter(r => r.operation === 'Viewer_pullRequests').length, 2);
 });
 
-test('issues you opened become PublishActions', async t => {
+test('an issue you opened is a Task you planned', async t => {
   await fakeGitHub(t);
   const { actions } = await extract(GitHubIssuesExtractor);
-  assert.deepEqual(actions, [publish(flour, thread(flour, { withBody: true }))]);
+  assert.deepEqual(actions, [
+    action('PlanAction', 'I_flour', flour.createdAt, task(flour, { withBody: true })),
+  ]);
+});
+
+test('issues you closed are done or cancelled, by why you closed them', async t => {
+  await fakeGitHub(t);
+  const { keys, actions } = await extract(GitHubClosesExtractor);
+
+  // Your rye issue, read from both your issues and your bakery, counts once;
+  // Riley's earlier close of the mold report isn't yours.
+  assert.deepEqual(keys, ['CE_flour', 'CE_mold_sam']);
+  assert.deepEqual(actions, [
+    action('CompleteAction', 'CE_flour', '2025-03-01T00:00:00Z', task(flour)),
+    action('CancelAction', 'CE_mold_sam', '2025-02-15T10:00:00Z', task(MOLD)),
+  ]);
+});
+
+test('`since` ends each walk for closes at the first quiet issue', async t => {
+  await fakeGitHub(t);
+  const { keys } = await extract(GitHubClosesExtractor, { since: date('2025-02-20') });
+  assert.deepEqual(keys, ['CE_flour']);
 });
 
 test('your comments respond to their issue or pull request', async t => {
@@ -264,35 +267,13 @@ test('`since` keeps comments written since then, though GitHub lists them by edi
   assert.equal(requests.filter(r => r.operation === 'Viewer_issueComments').length, 4);
 });
 
-test('reviews carry their verdict; a bare reply review is only its inline comment', async t => {
-  const { requests } = await fakeGitHub(t);
-  const { keys, actions } = await extract(GitHubReviewsExtractor);
-
-  assert.deepEqual(keys, ['PRR_s1', 'PRR_s2']);
-  assert.deepEqual(actions, [
-    inline(REVIEW_COMMENTS.s1, oven),
-    verdict(REVIEWS.s2, map),
-    inline(REVIEW_COMMENTS.s2, map),
-  ]);
-  // A year at a time, from now back to when the account was created.
-  const windows = requests.filter(r => r.operation === 'ReviewContributions');
-  assert.equal(windows.at(-1).variables.from, VIEWER.createdAt.replace('Z', '.000Z'));
-  for (const { variables } of windows) {
-    assert.ok(Date.parse(variables.to) - Date.parse(variables.from) <= 365 * 24 * 3600 * 1000);
-  }
-});
-
 test('replies are what others said to you, newest first', async t => {
   await fakeGitHub(t);
   const { keys, actions } = await extract(GitHubRepliesExtractor);
 
   assert.deepEqual(keys, [
-    // On Sam's timer PR: Riley's review and comment. Riley's inline comment
-    // comes with the review, not again on its own.
-    'PRR_r1',
+    // On Sam's timer PR.
     'IC_r1',
-    // In Sam's review thread on Riley's map.
-    'PRRC_r2',
     // On Riley's map after Sam first commented; Alex's earlier "First!" isn't.
     'IC_b1',
     'IC_r2',
@@ -301,10 +282,7 @@ test('replies are what others said to you, newest first', async t => {
     'IC_r3',
   ]);
   assert.deepEqual(actions, [
-    verdict(REVIEWS.r1, oven),
-    inline(REVIEW_COMMENTS.r1, oven),
     respond(COMMENTS.r1, oven),
-    inline(REVIEW_COMMENTS.r2, map),
     // A bot is a SoftwareAgent.
     respond(COMMENTS.b1, map),
     respond(COMMENTS.r2, map),
@@ -317,7 +295,7 @@ test('replies skip threads quiet since `since`', async t => {
   const { requests } = await fakeGitHub(t);
   const { keys } = await extract(GitHubRepliesExtractor, { since: date('2025-03-01') });
 
-  assert.deepEqual(keys, ['PRR_r1', 'IC_r1']);
+  assert.deepEqual(keys, ['IC_r1']);
   const read = requests.filter(r => r.operation === 'Discussions').flatMap(r => r.variables.ids);
   assert.deepEqual(read.sort(), ['I_flour', 'PR_map', 'PR_oven']);
 });
@@ -356,7 +334,7 @@ test('a bare run reads every record type newest first, signing in once', async t
   const { requests } = await fakeGitHub(t);
   const { keys, notices } = await extract(GitHubDefaultExtractor, { since: date('2025-03-01') });
 
-  assert.deepEqual(keys, ['alex/kiln', 'IC_s3', 'PRR_s1', 'PRR_r1', 'IC_r1', 'PR_oven']);
+  assert.deepEqual(keys, ['alex/kiln', 'IC_s3', 'IC_r1', 'PR_oven', 'CE_flour']);
   assert.deepEqual(notices, ['Using GitHub credentials from gh CLI']);
   assert.equal(requests.filter(r => r.operation === 'Viewer').length, 1);
 });

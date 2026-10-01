@@ -144,7 +144,7 @@ export const THREADS = {
 };
 const { oven, crust, map, flour, signs } = THREADS;
 
-/** A thread as the target of a comment or review: no body. */
+/** A thread as the target of a comment: no body. */
 export const ref = ({ body: _, ...rest }) => rest;
 
 const comment = (id, author, body, createdAt, on) => ({
@@ -154,22 +154,6 @@ const comment = (id, author, body, createdAt, on) => ({
   createdAt,
   author,
 });
-const reviewComment = (id, author, body, createdAt, on, review, replyTo = null) => ({
-  ...comment(id, author, body, createdAt, on),
-  url: `${on.url}#discussion_${id}`,
-  replyTo: replyTo && { id: replyTo },
-  pullRequestReview: { id: review },
-});
-const review = (id, author, state, body, submittedAt, on) => ({
-  id,
-  state,
-  body,
-  url: `${on.url}#pullrequestreview-${id}`,
-  submittedAt,
-  createdAt: submittedAt,
-  author,
-});
-
 export const COMMENTS = {
   s0: comment('IC_s0', sam, 'Ordered more.', '2025-01-16T10:00:00Z', flour),
   s1: comment('IC_s1', sam, 'I can repaint them.', '2025-01-06T10:00:00Z', signs),
@@ -184,72 +168,20 @@ export const COMMENTS = {
 };
 const C = COMMENTS;
 
-export const REVIEWS = {
-  // Riley asks for changes on Sam's timer, with one inline comment.
-  r1: review('PRR_r1', riley, 'CHANGES_REQUESTED', 'Needs a snooze.', '2025-03-11T09:00:00Z', oven),
-  // Sam's reply in that thread, which GitHub files as a review of its own.
-  s1: review('PRR_s1', sam, 'COMMENTED', '', '2025-03-11T10:00:00Z', oven),
-  // Sam approves Riley's map, starting a review thread Riley answers.
-  s2: review('PRR_s2', sam, 'APPROVED', 'Ship it.', '2025-02-06T08:00:00Z', map),
-  r3: review('PRR_r3', riley, 'COMMENTED', '', '2025-02-06T12:00:00Z', map),
-};
-const R = REVIEWS;
-
-export const REVIEW_COMMENTS = {
-  r1: reviewComment('PRRC_r1', riley, 'Why 60?', '2025-03-11T09:00:00Z', oven, 'PRR_r1'),
-  s1: reviewComment(
-    'PRRC_s1',
-    sam,
-    'A sane default.',
-    '2025-03-11T10:00:00Z',
-    oven,
-    'PRR_s1',
-    'PRRC_r1'
-  ),
-  s2: reviewComment('PRRC_s2', sam, 'Steep here?', '2025-02-06T08:00:00Z', map, 'PRR_s2'),
-  r2: reviewComment(
-    'PRRC_r2',
-    riley,
-    'Yes, 30%.',
-    '2025-02-06T12:00:00Z',
-    map,
-    'PRR_r3',
-    'PRRC_s2'
-  ),
-};
-const RC = REVIEW_COMMENTS;
-
 const pageOf = nodes => ({ pageInfo: { hasNextPage: false, endCursor: null }, nodes });
 
-/** Each thread's discussion, as `nodes(ids:)` returns it. */
+/** Each thread's conversation, as `nodes(ids:)` returns it. */
 const DISCUSSIONS = {
-  PR_oven: {
-    comments: [C.r1, C.s3],
-    reviews: [R.r1, R.s1],
-    reviewThreads: [{ id: 'PRRT_oven', comments: [RC.r1, RC.s1] }],
-  },
-  PR_crust: { comments: [], reviews: [], reviewThreads: [] },
-  PR_map: {
-    comments: [C.a1, C.s2, C.r2, C.b1],
-    reviews: [R.s2, R.r3],
-    reviewThreads: [{ id: 'PRRT_map', comments: [RC.s2, RC.r2] }],
-  },
-  I_flour: { comments: [C.s0, C.a2] },
-  I_signs: { comments: [C.s1, C.r3] },
+  PR_oven: [C.r1, C.s3],
+  PR_crust: [],
+  PR_map: [C.a1, C.s2, C.r2, C.b1],
+  I_flour: [C.s0, C.a2],
+  I_signs: [C.s1, C.r3],
 };
 
 function discussion(id) {
   const found = Object.values(THREADS).find(t => t.id === id);
-  if (!found) return null;
-  const { comments, reviews, reviewThreads } = DISCUSSIONS[id];
-  return {
-    ...ref(found),
-    comments: pageOf(comments),
-    ...(reviews && {
-      reviews: pageOf(reviews),
-      reviewThreads: pageOf(reviewThreads.map(t => ({ id: t.id, comments: pageOf(t.comments) }))),
-    }),
-  };
+  return found ? { ...ref(found), comments: pageOf(DISCUSSIONS[id]) } : null;
 }
 
 /** Sam's comments, most recently edited first; Sam edited IC_s1 in February. */
@@ -296,15 +228,37 @@ export const GISTS = [
   },
 ];
 
-/** Sam's reviews; each carries its inline comments. */
-const CONTRIBUTIONS = [
-  { review: R.s1, comments: [RC.s1], pullRequest: oven },
-  { review: R.s2, comments: [RC.s2], pullRequest: map },
-].map(({ review: r, comments, pullRequest }) => ({
-  occurredAt: r.submittedAt,
-  pullRequestReview: { ...r, comments: pageOf(comments) },
-  pullRequest: ref(pullRequest),
-}));
+const closed = (id, actor, stateReason, createdAt) => ({ id, createdAt, stateReason, actor });
+
+/** Alex's report on Sam's bakery: Riley closed it, Alex reopened it, Sam closed it for good. */
+export const MOLD = {
+  ...ref(
+    thread(
+      'Issue',
+      'I_mold',
+      bakery,
+      5,
+      'Mold in the starter',
+      alex,
+      '2025-02-01T10:00:00Z',
+      '2025-02-15T10:00:00Z',
+      ''
+    )
+  ),
+};
+
+/** Closings, by issue: Sam closed his rye issue as done, and Alex's mold report as not planned. */
+export const CLOSINGS = {
+  I_flour: [closed('CE_flour', sam, 'COMPLETED', '2025-03-01T00:00:00Z')],
+  I_mold: [
+    closed('CE_mold_riley', riley, 'COMPLETED', '2025-02-10T10:00:00Z'),
+    closed('CE_mold_sam', sam, 'NOT_PLANNED', '2025-02-15T10:00:00Z'),
+  ],
+};
+const closedIssue = issue => ({ ...ref(issue), timelineItems: { nodes: CLOSINGS[issue.id] } });
+
+/** The closed issues in each repository Sam owns, most recently active first. */
+const CLOSED_IN = { R_bakery: [closedIssue(flour), closedIssue(MOLD)] };
 
 const CONNECTIONS = {
   pullRequests: [oven, crust],
@@ -313,12 +267,20 @@ const CONNECTIONS = {
   pullRequestsByActivity: [ref(oven), ref(crust)],
   issuesByActivity: [ref(flour)],
   issueComments: ISSUE_COMMENTS,
+  // Sam's own closed issues; the bakery is the only repository he owns.
+  closedIssues: [closedIssue(flour)],
+  ownedRepositories: [{ id: 'R_bakery' }],
   starredRepositories: STARS,
   gists: GISTS,
 };
 
 /** The connection each by-activity walk reads. */
-const ACTIVITY_FIELDS = { pullRequestsByActivity: 'pullRequests', issuesByActivity: 'issues' };
+const ACTIVITY_FIELDS = {
+  pullRequestsByActivity: 'pullRequests',
+  issuesByActivity: 'issues',
+  closedIssues: 'issues',
+  ownedRepositories: 'repositories',
+};
 
 /** One item a page, so every walk pages. */
 function page(items, after, edges = false) {
@@ -378,24 +340,9 @@ function respond(token, { query, variables }) {
       },
     ];
   }
-  if (operation === 'ReviewContributions') {
-    const [from, to] = [Date.parse(variables.from), Date.parse(variables.to)];
-    const inWindow = CONTRIBUTIONS.filter(c => {
-      const at = Date.parse(c.occurredAt);
-      return at >= from && at <= to;
-    });
-    return [
-      200,
-      {
-        data: {
-          viewer: {
-            contributionsCollection: {
-              pullRequestReviewContributions: page(inWindow, variables.after),
-            },
-          },
-        },
-      },
-    ];
+  if (operation === 'Repository_closedIssues') {
+    const issues = CLOSED_IN[variables.id];
+    return [200, { data: { node: issues ? { issues: page(issues, variables.after) } : null } }];
   }
   if (operation === 'Discussions') {
     return [200, { data: { nodes: variables.ids.map(id => discussion(id)) } }];

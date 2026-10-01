@@ -278,13 +278,13 @@ export type CreativeWorkAndChildren =
   | BookAndChildren
   | ChannelAndChildren
   | CollectionAndChildren
-  | IssueAndChildren
   | MediaObjectAndChildren
   | MessageAndChildren
   | MusicAlbumAndChildren
   | MusicRecordingAndChildren
   | PodcastEpisodeAndChildren
   | PostAndChildren
+  | PullRequestAndChildren
   | QueryAndChildren
   | QuotationAndChildren
   | ResponseAndChildren
@@ -717,14 +717,12 @@ export const CommandSchema: z.ZodType<Command> = z
 // Response, child of https://schema.chronicle.app/CreativeWork
 export interface Response extends Omit<CreativeWork, '@type'> {
   '@type': 'Response';
-  ratingValue?: string | number;
 }
 
 export type ResponseAndChildren = Response | CommentAndChildren;
 
 const ResponseProperties = {
   ...CreativeWorkProperties,
-  ratingValue: z.lazy(() => z.union([z.string(), z.number()])).optional(),
 };
 
 export const ResponseSchema: z.ZodType<Response> = z
@@ -737,16 +735,12 @@ export const ResponseSchema: z.ZodType<Response> = z
 // Comment, child of https://schema.chronicle.app/Response
 export interface Comment extends Omit<Response, '@type'> {
   '@type': 'Comment';
-  inReplyTo?: (MessageAndChildren | CommentAndChildren)[];
 }
 
 export type CommentAndChildren = Comment;
 
 const CommentProperties = {
   ...ResponseProperties,
-  inReplyTo: z
-    .lazy(() => z.array(z.union([MessageAndChildrenSchema, CommentAndChildrenSchema])))
-    .optional(),
 };
 
 export const CommentSchema: z.ZodType<Comment> = z
@@ -1163,24 +1157,6 @@ export const IntervalSchema: z.ZodType<Interval> = z.object({
   ...IntervalProperties,
 });
 
-// Issue, child of https://schema.chronicle.app/CreativeWork
-export interface Issue extends Omit<CreativeWork, '@type'> {
-  '@type': 'Issue';
-}
-
-export type IssueAndChildren = Issue | PullRequestAndChildren;
-
-const IssueProperties = {
-  ...CreativeWorkProperties,
-};
-
-export const IssueSchema: z.ZodType<Issue> = z
-  .object({
-    '@type': z.literal('Issue'),
-    ...IssueProperties,
-  })
-  .superRefine(requireNodeIdentity);
-
 // JoinAction, child of https://schema.chronicle.app/ExperienceAction
 export interface JoinAction extends Omit<ExperienceAction, '@type'> {
   '@type': 'JoinAction';
@@ -1359,7 +1335,7 @@ export const MembershipSchema: z.ZodType<Membership> = z
 export interface Message extends Omit<CreativeWork, '@type'> {
   '@type': 'Message';
   author?: AgentAndChildren[];
-  inReplyTo?: (MessageAndChildren | CommentAndChildren)[];
+  inReplyTo?: MessageAndChildren[];
   recipient?: AgentAndChildren[];
 }
 
@@ -1368,9 +1344,7 @@ export type MessageAndChildren = Message;
 const MessageProperties = {
   ...CreativeWorkProperties,
   author: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
-  inReplyTo: z
-    .lazy(() => z.array(z.union([MessageAndChildrenSchema, CommentAndChildrenSchema])))
-    .optional(),
+  inReplyTo: z.lazy(() => z.array(MessageAndChildrenSchema)).optional(),
   recipient: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
 };
 
@@ -1647,15 +1621,15 @@ export const PublishActionSchema: z.ZodType<PublishAction> = z
   })
   .superRefine(requireNodeIdentity);
 
-// PullRequest, child of https://schema.chronicle.app/Issue
-export interface PullRequest extends Omit<Issue, '@type'> {
+// PullRequest, child of https://schema.chronicle.app/CreativeWork
+export interface PullRequest extends Omit<CreativeWork, '@type'> {
   '@type': 'PullRequest';
 }
 
 export type PullRequestAndChildren = PullRequest;
 
 const PullRequestProperties = {
-  ...IssueProperties,
+  ...CreativeWorkProperties,
 };
 
 export const PullRequestSchema: z.ZodType<PullRequest> = z
@@ -2213,19 +2187,6 @@ export const JourneyAndChildrenSchema = JourneySchema;
 
 export const JoinActionAndChildrenSchema = JoinActionSchema;
 
-export const IssueAndChildrenSchema: z.ZodType<IssueAndChildren> = z
-  .discriminatedUnion('@type', [
-    z.object({
-      '@type': z.literal('Issue'),
-      ...IssueProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('PullRequest'),
-      ...PullRequestProperties,
-    }),
-  ])
-  .superRefine(requireNodeIdentity);
 export const IntervalAndChildrenSchema = IntervalSchema;
 
 export const StructuredValueAndChildrenSchema: z.ZodType<StructuredValueAndChildren> =
@@ -2649,6 +2610,11 @@ export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> =
     }),
 
     z.object({
+      '@type': z.literal('PullRequest'),
+      ...PullRequestProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Post'),
       ...PostProperties,
     }),
@@ -2671,16 +2637,6 @@ export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> =
     z.object({
       '@type': z.literal('Message'),
       ...MessageProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Issue'),
-      ...IssueProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('PullRequest'),
-      ...PullRequestProperties,
     }),
 
     z.object({
@@ -2970,6 +2926,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('PullRequest'),
+      ...PullRequestProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Post'),
       ...PostProperties,
     }),
@@ -2992,16 +2953,6 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     z.object({
       '@type': z.literal('Message'),
       ...MessageProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Issue'),
-      ...IssueProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('PullRequest'),
-      ...PullRequestProperties,
     }),
 
     z.object({
@@ -3471,6 +3422,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('PullRequest'),
+      ...PullRequestProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Post'),
       ...PostProperties,
     }),
@@ -3493,16 +3449,6 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('Message'),
       ...MessageProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Issue'),
-      ...IssueProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('PullRequest'),
-      ...PullRequestProperties,
     }),
 
     z.object({

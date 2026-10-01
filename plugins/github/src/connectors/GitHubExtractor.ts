@@ -1,10 +1,6 @@
 import { Extractor, Record, z } from '@chronicle.app/etl';
 import { CREDENTIAL_LABELS, resolveGitHubCredential } from '../utils/credentials.js';
-import GitHubProxy, {
-  CONTRIBUTION_WINDOW_MS,
-  GitHubViewer,
-  ReviewContribution,
-} from '../utils/GitHubProxy.js';
+import GitHubProxy, { GitHubViewer } from '../utils/GitHubProxy.js';
 import GitHubTransformer from './GitHubTransformer.js';
 
 /** A signed-in connection to GitHub: one per run, however many extractors share it. */
@@ -94,34 +90,6 @@ export default abstract class GitHubExtractor extends Extractor<typeof GitHubExt
    */
   protected record(recordType: string, key: string, occurredAt: string, data: unknown): Record {
     return this.createRecord(data, { recordType, key, occurredAt, viewer: this.viewer });
-  }
-
-  /**
-   * Your reviews, newest first. GitHub reads contributions a year at a time,
-   * so this walks back from `until` (or now) a window at a time, to `since` or
-   * to when the account was created.
-   */
-  protected async *contributions(since?: Date): AsyncGenerator<ReviewContribution> {
-    const floor = Math.max(
-      Date.parse(this.viewer.createdAt),
-      since?.getTime() ?? Number.NEGATIVE_INFINITY
-    );
-    const seen = new Set<string>();
-    let to = this.config.until?.getTime() ?? Date.now();
-    while (to > floor) {
-      const from = Math.max(floor, to - CONTRIBUTION_WINDOW_MS);
-      for await (const contribution of this.proxy.reviewContributions(
-        new Date(from),
-        new Date(to)
-      )) {
-        // A review on a window's edge can appear in both windows.
-        const { id } = contribution.pullRequestReview;
-        if (seen.has(id)) continue;
-        seen.add(id);
-        yield contribution;
-      }
-      to = from;
-    }
   }
 
   protected isBeforeSince(time: string): boolean {
