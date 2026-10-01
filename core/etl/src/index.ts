@@ -67,5 +67,12 @@ export {
 } from './utils/html.js';
 
 export { MergingExtractor } from './MergingExtractor.js';
+export {
+  renderShapes,
+  sampleTransform,
+  shapesOf,
+  type ShapeSample,
+  type Shapes,
+} from './shapes.js';
 export { ArchiveExtractor } from './archive/ArchiveExtractor.js';
 export { SystemInfo } from './system/SystemInfo.js';

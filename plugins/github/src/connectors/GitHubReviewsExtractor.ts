@@ -1,10 +1,10 @@
 import { Record } from '@chronicle.app/etl';
-import { GitHubReviewComment, ReviewContribution } from '../utils/GitHubProxy.js';
+import { GitHubReview, GitHubReviewComment, ReviewContribution } from '../utils/GitHubProxy.js';
 import GitHubExtractor from './GitHubExtractor.js';
 
 /** A review with its inline comments, as the transformer reads it. */
 export interface ReviewRecord {
-  review: ReviewContribution['pullRequestReview'];
+  review: GitHubReview;
   comments: GitHubReviewComment[];
   pullRequest: ReviewContribution['pullRequest'];
 }
@@ -24,7 +24,9 @@ export default class GitHubReviewsExtractor extends GitHubExtractor {
         'comments',
         review.comments
       );
-      const data: ReviewRecord = { review, comments, pullRequest };
+      // The review's first page of comments is in `comments` with the rest.
+      const { comments: _, ...rest } = review;
+      const data: ReviewRecord = { review: rest, comments, pullRequest };
       yield this.record('reviews', review.id, time, data);
     }
   }

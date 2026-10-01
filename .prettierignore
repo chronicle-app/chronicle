@@ -4,3 +4,4 @@ build/
 coverage/
 package-lock.json
 artifacts/
+plugins/*/SHAPES.md
