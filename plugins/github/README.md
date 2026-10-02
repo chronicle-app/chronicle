@@ -5,12 +5,12 @@ Read your GitHub activity through the [GraphQL API](https://docs.github.com/en/g
 ## Usage
 
 ```sh
-chronicle extract github
-chronicle extract github --type stars
-chronicle extract github --type replies --since 2025-01-01
+chronicle extract github stars
+chronicle extract github pull-requests commits --since 2025-01-01
+chronicle extract github -t all
 ```
 
-Each kind is one record type. A bare run reads your own activity, merged newest first: every kind but `replies` and `resolutions`, which are slow and run only when asked for with `--type`.
+Each kind is one record type, named after the source (or with `--type`). Several kinds merge newest first. GitHub declares no default kinds: a bare `chronicle extract github` asks which, and outside a terminal says to name them or pass `-t all`. `replies` and `resolutions` are slow, so pick them knowingly.
 
 - `repositories`: repositories you created, forks included.
 - `commits`: commits you authored, on the default branch of every repository the token can see.

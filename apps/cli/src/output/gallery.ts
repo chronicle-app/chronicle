@@ -145,8 +145,8 @@ function blocks(theme: string, width: number): string[] {
   return [
     heading('Sources', t, width),
     ...list(['shell · history', 'claude-code · sessions', 'imessage · chat-db'], t, width),
-    summary(done, t, width),
-    summary(failed, t, width),
+    ...summary(done, t, width).split('\n'),
+    ...summary(failed, t, width).split('\n'),
     ...hint('stopped at --limit 100', 'pass --limit 0 to extract everything', t, width).split('\n'),
     ...progress(running, t, width, 3),
     ...progress({ ...running, total: 0 }, t, width, 7),

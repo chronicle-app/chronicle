@@ -10,7 +10,7 @@ export interface ResolutionRecord {
 
 export default class GitHubResolutionsExtractor extends GitHubExtractor {
   static override description =
-    'Issues and pull requests you closed or merged, and what became of your pull requests';
+    'Issues and pull requests you closed or merged, and what became of your pull requests (slow: reads every closed issue and pull request in your repositories)';
 
   static override recordTypes: string[] = ['resolutions'];
   // Collected from several walks, then sorted.

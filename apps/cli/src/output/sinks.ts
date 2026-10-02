@@ -103,7 +103,9 @@ export function render(
     [glyph, glyphStyle],
     [' '],
     [HOST.has(event.scope) || !event.scope ? '' : `${event.scope}  `, t.muted],
-    [event.level === 'error' ? `Error: ${first}` : first, textStyle],
+    // The label carries the status, in its color; the message stays readable.
+    [event.level === 'error' ? 'Error: ' : '', glyphStyle],
+    [first, textStyle],
     [fields ? `  ${fields}` : '', t.muted],
   ];
   const length = segments.reduce((sum, [text]) => sum + text.length, 0);

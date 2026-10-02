@@ -4,7 +4,7 @@ Read your Bluesky follows, followers, and likes through the atproto API.
 
 ```sh
 chronicle extract bluesky --type follows --handle you.bsky.social --password <app-password>
-chronicle extract bluesky --type followers,likes --handle you.bsky.social --access-token <token>
+chronicle extract bluesky followers likes --handle you.bsky.social --access-token <token>
 ```
 
 The extractor resolves the handle to a DID, looks up the account's PDS in the PLC directory, and logs in with the password unless `--access-token` is given. `--handle` and `--password` fall back to the `handle`/`clientId` and `password`/`clientSecret` fields of the stored `bluesky` credentials. Use an app password rather than your account password.
