@@ -198,6 +198,12 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
           ? error.message.match(/Nonexistent flags?: ([^\n]+)/)?.[1]
           : undefined;
       if (unknown) this.unknownFlags(unknown.split(/,\s*/), assembled, positional, verb);
+      // A flag given without its value: for --type, the kinds to choose from.
+      const valueless =
+        error instanceof Error
+          ? error.message.match(/Flag --([\w-]+) expects a value/)?.[1]
+          : undefined;
+      if (valueless) this.missingValue(valueless, positional, verb);
       // Surface missing source-specific flags with a pointer to the source help.
       if (error instanceof Error && /Missing required flag/i.test(error.message)) {
         this.error(
@@ -292,6 +298,24 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
       message: `${source} has no flag ${typed.join(', ')}`,
       error: { code: 'unknown-flag', exitCode: EXIT_CODES.usage },
       hint: { action: guess ? `did you mean ${guess}? ${help}` : help },
+    });
+    this.logger.flush();
+    throw new Errors.ExitError(EXIT_CODES.usage);
+  }
+
+  /** Report a flag given without its value, with where its values are listed. */
+  private missingValue(flag: string, source: string, verb: string): never {
+    this.logger.emit({
+      level: 'error',
+      kind: 'error',
+      message: `--${flag} needs a value`,
+      error: { code: 'missing-flag-value', exitCode: EXIT_CODES.usage },
+      hint: {
+        action:
+          flag === 'type'
+            ? `\`chronicle ${verb} ${source} --list-types\` lists ${source}'s kinds`
+            : `\`chronicle ${verb} ${source} --help\` describes --${flag}`,
+      },
     });
     this.logger.flush();
     throw new Errors.ExitError(EXIT_CODES.usage);
