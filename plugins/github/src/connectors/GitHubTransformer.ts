@@ -186,7 +186,7 @@ export default class GitHubTransformer extends ChronicleTransformer {
    * the repository, based on its parent commits, and part of the pull requests
    * it came in through.
    */
-  private buildCommit(commit: GitHubCommit & { repository: GitHubRepository }): UpdateAction {
+  private buildCommit(commit: GitHubCommit): UpdateAction {
     const revision: Revision = {
       ...this.buildRevisionRef(commit.oid),
       url: commit.url,

@@ -84,7 +84,7 @@ UpdateAction key(sourceId) {
   object: Repository key(creator.sourceId, name) {
     url, name, description?, tags[]?, visibility
     references[]?: Entity key(url, any source) { url }
-    creator[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
+    creator[]: Person | Organization key(sourceId) { sourceId, handle, name, sameAs[]?, url }
   }
   result: Revision key(sourceId, any source) {
     sourceId, url, name, body?
@@ -92,7 +92,7 @@ UpdateAction key(sourceId) {
     isPartOf[]: Repository | Changeset key(creator.sourceId, name) / key(isPartOf.creator.sourceId, isPartOf.name, handle) {
       url?, name?, description?, tags[]?, visibility?, handle?
       references[]?: Entity key(url, any source) { url }
-      creator[]?: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
+      creator[]?: Person | Organization key(sourceId) { sourceId, handle, name, sameAs[]?, url }
       isPartOf[]?: Repository key(creator.sourceId, name) {
         url, name, description?, tags[]?, visibility
         references[]?: Entity key(url, any source) { url }
