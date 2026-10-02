@@ -120,6 +120,10 @@ test('bundled sources are discoverable from an unrelated cwd; JSON has no diagno
   assert.match(badFlag.stderr, /↳ did you mean `-t` \(`--type`\)\?/);
   assert.doesNotMatch(badFlag.stderr, /USAGE/);
   assert.match(help, /-L, --list-types/);
+  const noKind = run('extract', 'shell', '-t');
+  assert.equal(noKind.status, 2);
+  assert.match(noKind.stderr, /✗ --type needs a value/);
+  assert.match(noKind.stderr, /↳ `chronicle extract shell --list-types` lists shell's kinds/);
 });
 
 test('raw extraction, four output loaders, file output and stream mode', t => {
