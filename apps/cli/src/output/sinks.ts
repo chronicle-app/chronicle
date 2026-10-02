@@ -102,7 +102,8 @@ export function render(
   const segments: Segment[] = [
     [glyph, glyphStyle],
     [' '],
-    [HOST.has(event.scope) || !event.scope ? '' : `${event.scope}  `, t.muted],
+    // A run's scope is `source.strategy`; a person only needs the source.
+    [HOST.has(event.scope) || !event.scope ? '' : `${event.scope.split('.')[0]}  `, t.muted],
     // The label carries the status, in its color; the message stays readable.
     [event.level === 'error' ? 'Error: ' : '', glyphStyle],
     [first, textStyle],

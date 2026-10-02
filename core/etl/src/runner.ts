@@ -166,11 +166,11 @@ export class Runner {
       for (const transformer of this.transformers) transformer.useOutput?.(sink, run);
     }
     const cls = this.extractor.constructor as typeof Extractor;
+    // Named by what it reads, not how it reads it: `github · commits`. A run of
+    // several kinds is just the source, and its summary lists each kind.
+    const kinds = cls.recordTypes ?? [];
     const title =
-      this.config.title ??
-      (cls.strategy && cls.strategy !== cls.source
-        ? `${cls.source} · ${cls.strategy}`
-        : cls.source);
+      this.config.title ?? (kinds.length === 1 ? `${cls.source} · ${kinds[0]}` : cls.source);
     this.report = new RunReport(this.logger, String(title), this.config.output);
     this.report.progress();
     await this.extractor.setup();

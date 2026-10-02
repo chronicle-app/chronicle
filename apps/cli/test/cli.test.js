@@ -616,9 +616,9 @@ test('failed setup and transformation release extractor resources and exit nonze
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, new RegExp(`synthetic ${phase} failure`));
     // Plugin warnings reach stderr even when stdout is piped.
-    assert.match(result.stderr, /! fixture\.file {2}synthetic warning/);
+    assert.match(result.stderr, /! fixture {2}synthetic warning/);
     // A plugin's console output becomes its diagnostics on stderr, never records on stdout.
-    assert.match(result.stderr, /· fixture\.file {2}synthetic console output/);
+    assert.match(result.stderr, /· fixture {2}synthetic console output/);
     assert.equal(readFileSync(marker, 'utf8'), 'closed');
     assert.equal(result.stdout, '');
   }
@@ -708,6 +708,6 @@ test('a plugin fails with a typed error and exit code, and hints under the summa
   assert.equal(hinted.status, 0, hinted.stderr);
   assert.match(
     hinted.stderr,
-    /✓ typed · api.*\n.*1 row\n[\s\S]*attachments skipped[\s\S]*grant access/
+    /✓ typed · rows.*\n.*1 row\n[\s\S]*attachments skipped[\s\S]*grant access/
   );
 });
