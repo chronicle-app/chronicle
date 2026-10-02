@@ -5,7 +5,7 @@ import { InputNotFound } from '@chronicle.app/logging';
 
 const NO_INPUT = () =>
   new InputNotFound('No input provided', {
-    hint: 'Pass the file with `--input`, or pipe the data in',
+    hint: 'Pass the file with `--input`, or pipe it in.',
   });
 
 export const ioFlags = {

@@ -121,13 +121,12 @@ export const EVENTS: OutputEvent[] = [
     fields: failed,
   }),
   // A run of several kinds says which it reads, and what it leaves out.
-  event({ level: 'info', kind: 'notice', scope: 'cli', message: 'extracting stars, gists' }),
+  event({ level: 'info', kind: 'notice', scope: 'cli', message: 'Extracting stars, gists' }),
   event({
     level: 'info',
     kind: 'hint',
     scope: 'cli',
-    message: 'not included: commits, issues, pull-requests, replies',
-    hint: { action: 'Read every kind: `chronicle extract github -t all`' },
+    message: 'Also available: commits, issues. Use `-t all` to get everything.',
   }),
   // A usage error, with what to do about it.
   event({
@@ -136,7 +135,7 @@ export const EVENTS: OutputEvent[] = [
     scope: 'cli',
     message: 'github has no record type "likes"',
     error: { code: 'unknown-record-type', exitCode: 2 },
-    hint: { action: 'See its kinds: `chronicle extract github --list-types`' },
+    hint: { action: 'Run `chronicle extract github --list-types` to see what it has.' },
   }),
   // Cancelling is a choice: said plainly.
   event({ level: 'info', kind: 'notice', scope: 'cli', message: 'Extraction cancelled' }),
@@ -145,7 +144,7 @@ export const EVENTS: OutputEvent[] = [
     level: 'info',
     kind: 'hint',
     scope: 'runner',
-    message: 'Stopped at the default limit; add `--limit 0` to read them all',
+    message: 'Showing the first 100 of 1,240. Use `--limit 0` for all.',
     fields: { limit: 100 },
   }),
 ];
@@ -166,12 +165,7 @@ function blocks(theme: string, width: number): string[] {
     ...list(['shell · history', 'claude-code · sessions', 'imessage · chat-db'], t, width),
     ...summary(done, t, width).split('\n'),
     ...summary(failed, t, width).split('\n'),
-    ...hint(
-      'Stopped at the default limit; add `--limit 0` to read them all',
-      undefined,
-      t,
-      width
-    ).split('\n'),
+    ...hint('Showing the first 100. Use `--limit 0` for all.', undefined, t, width).split('\n'),
     ...progress(running, t, width, 3),
     ...progress({ ...running, total: 0 }, t, width, 7),
     ...progress({ ...running, phase: 'reading', total: 0 }, t, width, 11),

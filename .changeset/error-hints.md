@@ -6,4 +6,4 @@ Every error reads the same way: `✗ Error: <message>`, with the next step as a 
 
 A command in a hint prints without its backticks when there's color, plain against the dim hint so it stands out; plain output keeps the backticks. Hints name real examples rather than templates.
 
-Hints are steps: one `↳` line each, a short instruction, and a command to run on its own line in cyan, whole. A command that doesn't exist (`chronicle sorces`) is reported the same way, suggesting the nearest one. `chronicle list`, an alias of `chronicle sources`, is gone.
+Hints are plain sentences with the command in them ("Run `chronicle auth login lastfm` to sign in."). A command that doesn't exist (`chronicle sorces`) is reported the same way, suggesting the nearest one. `chronicle list`, an alias of `chronicle sources`, is gone.

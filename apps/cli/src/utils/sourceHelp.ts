@@ -103,13 +103,17 @@ export function recordTypesHint(
   const strategy = strategies.length > 1 ? ` --strategy ${chosen.name}` : '';
   const bare = bareRunKinds(candidates) ?? [];
   const others = chosen.recordTypes.filter(kind => !bare.includes(kind));
-  const kind = (others.length > 0 ? others : chosen.recordTypes)[0];
+  const kinds = (others.length > 0 ? others : chosen.recordTypes).slice(0, 2).join(' ');
+  const bareKinds = bareRunKinds(candidates);
+  const all = new Set(candidates.flatMap(e => e.recordType));
+  const opening = bareKinds
+    ? bareKinds.length === all.size
+      ? 'The default is all of them.'
+      : `The default is ${bareKinds.join(', ')}.`
+    : "There's no default; you'll be asked.";
   return {
-    message: (() => {
-      const summary = bareRunSummary(candidates);
-      return summary ? `With none named, it reads ${summary}` : '';
-    })(),
-    action: `Name the kinds you want after the source: \`chronicle ${verb} ${source}${strategy} ${kind}\``,
+    message: `${opening} To pick others: \`chronicle ${verb} ${source}${strategy} ${kinds}\``,
+    action: '',
   };
 }
 

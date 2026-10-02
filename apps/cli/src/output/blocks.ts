@@ -86,13 +86,12 @@ export function summary(
 }
 
 /**
- * What to do next, under the line it follows: one `↳` step per line of the
- * message and action, each a short instruction. A step that ends in a command
- * (`See its kinds: \`chronicle extract github --list-types\``) puts the
- * command on a line of its own, indented, to read and copy whole.
+ * What to do next, under the line it follows: a `↳` line per line of the
+ * message and action, in plain sentences with commands inline. Wrapping never
+ * splits a command. A line that ends in a command (`To pick others:
+ * \`chronicle extract hackernews comments\``) puts it on a line of its own.
  *
- *   ↳ See its kinds:
- *       chronicle extract github --list-types
+ *   ↳ Run `chronicle extract github --list-types` to see what it has.
  */
 export function hint(message: string, action: string | undefined, t: Tokens, width: number) {
   const steps = [message, ...(action ?? '').split('\n')].filter(step => step.trim() !== '');
@@ -102,8 +101,14 @@ export function hint(message: string, action: string | undefined, t: Tokens, wid
     const [prose, command] = ending ? [ending[1].trim(), ending[2]] : [step, undefined];
     if (prose) {
       // Wrapped at spaces, continued under its text rather than its arrow.
-      for (const [i, part] of wrap(command ? `${prose}:` : prose, width - 4).entries())
-        lines.push(t.muted(i === 0 ? `  ${glyphs.child} ` : '    ') + codeSpans(part, t));
+      // Spaces inside code spans held, so wrapping keeps each command whole.
+      const held = (command ? `${prose}:` : prose).replaceAll(/`[^`]*`/g, span =>
+        span.replaceAll(' ', HELD_SPACE)
+      );
+      for (const [i, part] of wrap(held, width - 4).entries()) {
+        const text = codeSpans(part.replaceAll(HELD_SPACE, ' '), t);
+        lines.push(t.muted(i === 0 ? `  ${glyphs.child} ` : '    ') + text);
+      }
     }
     if (command) {
       // Never cut: a command prints whole, and the terminal wraps it.
@@ -116,6 +121,8 @@ export function hint(message: string, action: string | undefined, t: Tokens, wid
   }
   return lines.join('\n');
 }
+
+const HELD_SPACE = '\u0000';
 
 /** Text with each `code span` in the code style, the rest muted. */
 function codeSpans(text: string, t: Tokens): string {

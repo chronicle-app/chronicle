@@ -52,13 +52,13 @@ function columnHints(flags: any, loader: any, flagSources: Record<string, FlagSo
   if (hidden.length > 0) {
     const n = hidden.length;
     hints.push({
-      message: `${n} column${n === 1 ? '' : 's'} didn't fit (${list(hidden)}); add \`--loader csv\` to keep every column`,
+      message: `${n} column${n === 1 ? '' : 's'} didn't fit (${list(hidden)}). Use \`--loader csv\` to see them all.`,
       fields: { hidden },
     });
   }
   if (loader?.collapsed && (flagSources.columns?.source ?? 'default') === 'default') {
     hints.push({
-      message: 'Nested nodes are shown as labels; add `--columns schema` to show every property',
+      message: 'Nested nodes are shown as labels. Use `--columns schema` to see every property.',
     });
   }
   return hints;
@@ -172,9 +172,9 @@ export async function runExtraction(
   const hints: Hint[] = [];
   if (builder.peeking() && runner.truncated) {
     const { limit } = flags;
-    const of = sourceTotal && sourceTotal > limit ? ` (${count(sourceTotal)} in all)` : '';
+    const of = sourceTotal && sourceTotal > limit ? ` of ${count(sourceTotal)}` : '';
     hints.push({
-      message: `Stopped at the default limit${of}; add \`--limit 0\` to read them all`,
+      message: `Showing the first ${count(limit)}${of}. Use \`--limit 0\` for all.`,
       fields: { limit, ...(of && { total: sourceTotal }) },
     });
   }

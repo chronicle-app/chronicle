@@ -17,12 +17,12 @@ const hook: Hook<'command_not_found'> = async function ({ id, argv }) {
   logger.emit({
     level: 'error',
     kind: 'error',
-    message: `No command named "${typed}"`,
+    message: `Unknown command "${typed}"`,
     error: { code: 'unknown-command', exitCode: EXIT_CODES.usage },
     hint: {
       action: guess
-        ? `Did you mean: \`chronicle ${guess}\``
-        : 'See the commands: `chronicle --help`',
+        ? `Did you mean \`chronicle ${guess}\`?`
+        : 'Run `chronicle --help` to see the commands.',
     },
   });
   logger.flush();

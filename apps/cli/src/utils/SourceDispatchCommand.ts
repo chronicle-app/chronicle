@@ -153,7 +153,12 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
         candidates,
         (this.constructor as any).id || 'extract'
       );
-      this.logger.emit({ level: 'info', kind: 'hint', message, hint: { action } });
+      this.logger.emit({
+        level: 'info',
+        kind: 'hint',
+        message,
+        ...(action && { hint: { action } }),
+      });
       this.exit(0);
     }
 
@@ -220,7 +225,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
           ''
         ),
         {
-          hint: `See its flags: \`chronicle ${verb} ${positional} --help\``,
+          hint: `Run \`chronicle ${verb} ${positional} --help\` to see its flags.`,
         }
       );
     }
@@ -242,7 +247,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     const named = positionals.filter((arg): arg is string => typeof arg === 'string').slice(1);
     if (named.length > 0 && parsed.type) {
       this.fail('Record kinds named twice', {
-        hint: `Name them once, after the source: \`chronicle ${verb} ${positional} ${named.join(' ')}\``,
+        hint: 'Name them after the source or with `--type`, not both.',
       });
     }
     const selector = new ExtractorSelector({
@@ -279,7 +284,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
         throw new Errors.ExitError(exitCode);
       }
       this.fail(error instanceof Error ? error.message : String(error), {
-        hint: `See its strategies and kinds: \`chronicle ${verb} ${positional} --help\``,
+        hint: `Run \`chronicle ${verb} ${positional} --help\` to see its strategies and record types.`,
       });
     }
     this.announce(selector.selection, positional, verb);
@@ -305,15 +310,12 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     // One kind, nothing left out: nothing to say.
     if (kinds.length < 2 && (how === 'named' || excluded.length === 0)) return;
     const order = kinds.length > 1 && !merged ? ', one kind after another' : '';
-    this.logger.info(
-      `extracting ${kinds.join(', ')}${how === 'defaults' ? ' (the defaults)' : ''}${order}`
-    );
+    this.logger.info(`Extracting ${kinds.join(', ')}${order}`);
     if (excluded.length > 0 && how !== 'named') {
       this.logger.emit({
         level: 'info',
         kind: 'hint',
-        message: `Not included: ${excluded.join(', ')}`,
-        hint: { action: `Read every kind: \`chronicle ${verb} ${source} -t all\`` },
+        message: `Also available: ${excluded.join(', ')}. Use \`-t all\` to get everything.`,
       });
     }
   }
@@ -352,13 +354,16 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
       const name = closest(bare, Object.keys(flags));
       if (name) guess = `\`--${name}\``;
     }
-    const help = `See its flags: \`chronicle ${verb} ${source} --help\``;
     this.logger.emit({
       level: 'error',
       kind: 'error',
-      message: `${source} has no flag ${typed.join(', ')}`,
+      message: `Unknown flag ${typed.join(', ')}`,
       error: { code: 'unknown-flag', exitCode: EXIT_CODES.usage },
-      hint: { action: guess ? `Did you mean ${guess}?\n${help}` : help },
+      hint: {
+        action: guess
+          ? `Did you mean ${guess}?`
+          : `Run \`chronicle ${verb} ${source} --help\` to see its flags.`,
+      },
     });
     this.logger.flush();
     throw new Errors.ExitError(EXIT_CODES.usage);
@@ -374,8 +379,8 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
       hint: {
         action:
           flag === 'type'
-            ? `Name a kind, or see them all: \`chronicle ${verb} ${source} --list-types\``
-            : `See what it takes: \`chronicle ${verb} ${source} --help\``,
+            ? `Run \`chronicle ${verb} ${source} --list-types\` to see what it has.`
+            : `Run \`chronicle ${verb} ${source} --help\` for details.`,
       },
     });
     this.logger.flush();
@@ -413,14 +418,14 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     const listing = (await listSources()).find(s => s.source === source && !s.installed);
     if (!listing) {
       this.fail(`No source named "${source}"`, {
-        hint: 'See every source: `chronicle sources --all`',
+        hint: "Run `chronicle sources --all` to see what's available.",
       });
     }
 
     const command = `chronicle plugins install ${listing.plugin}`;
     // The prompt draws on stdout, so only offer it when records aren't piped.
     if (!process.stdin.isTTY || !process.stdout.isTTY) {
-      this.fail(`${source} isn't installed`, { hint: `Install it: \`${command}\`` });
+      this.fail(`${source} isn't installed`, { hint: `Install it with \`${command}\`.` });
     }
     const { inkConfirm } = await import('../components/InkConfirm.js');
     const { confirmed } = await inkConfirm(
@@ -431,8 +436,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
       this.logger.emit({
         level: 'info',
         kind: 'hint',
-        message: 'Not installed',
-        hint: { action: `Install it later: \`${command}\`` },
+        message: `Not installed. Install it later with \`${command}\`.`,
       });
       this.exit(1);
     }
