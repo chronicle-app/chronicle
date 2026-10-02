@@ -99,7 +99,8 @@ export function recordTypesHint(
   const strategy = strategies.length > 1 ? ` --strategy ${chosen.name}` : '';
   const bare = bareRunKinds(candidates) ?? [];
   const others = chosen.recordTypes.filter(kind => !bare.includes(kind));
-  const kinds = (others.length > 0 ? others : chosen.recordTypes).slice(0, 2).join(',');
+  // One kind: two kinds read by separate extractors can't run together.
+  const kinds = (others.length > 0 ? others : chosen.recordTypes)[0];
   return {
     message: `pick kinds with --type; without it, ${bareRunSummary(candidates) ?? 'you’re asked which'}`,
     action: `\`chronicle ${verb} ${source}${strategy} --type ${kinds}\``,
