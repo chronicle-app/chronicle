@@ -97,9 +97,19 @@ export default abstract class GitHubExtractor extends Extractor<typeof GitHubExt
   /**
    * A record whose `key` is its GitHub id and whose `occurredAt` orders it
    * among the other record types in a merged run.
+   *
+   * GitHub answers with accounts, repositories, and threads as they are now,
+   * not as they were when the action happened, so the record is observed at
+   * read time. The action keeps its own `timestamp`. This isn't a snapshot:
+   * a snapshot would mark every node complete, and commits and links are
+   * shared with other sources.
    */
   protected record(recordType: string, key: string, occurredAt: string, data: unknown): Record {
-    return this.createRecord(data, { recordType, key, occurredAt, viewer: this.viewer });
+    return this.createRecord(
+      data,
+      { recordType, key, occurredAt, viewer: this.viewer },
+      { assertedAt: this.asOfTime() }
+    );
   }
 
   protected isBeforeSince(time: string): boolean {
