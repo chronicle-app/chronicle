@@ -77,7 +77,6 @@ export async function runExtraction(
     level: thresholdFor(flags),
     theme: flags.theme,
     live: wantsLiveView(flags),
-    personal: flags['log-personal'],
     air: !output && process.stdout.isTTY && process.stderr.isTTY,
   });
   const run = { id: randomUUID(), source: String(source), strategy: String(strategy ?? '') };

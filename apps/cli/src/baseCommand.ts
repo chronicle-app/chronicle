@@ -65,10 +65,6 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
       helpGroup: 'GLOBAL',
       summary: 'How stderr reports: pretty on a terminal, else plain; json for supervisors',
     })(),
-    'log-personal': Flags.boolean({
-      helpGroup: 'GLOBAL',
-      summary: 'Keep personal values in --log-format json instead of redacting them',
-    }),
   };
 
   // add the --json flag

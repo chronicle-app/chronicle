@@ -78,7 +78,7 @@ Every line on stderr is the rendering of an `OutputEvent` from
 
 `pretty` is the default on a terminal, `plain` otherwise. Sinks filter by
 level (`--verbose` shows debug, `--quiet` only errors), and in `json` redact
-the fields an event marks `sensitive` unless `--log-personal` is set. They
+the fields an event marks `sensitive`; use `plain` to see their values. They
 keep repeats from flooding: events with the same `key`, or else the same
 scope and message give or take numbers, show three examples, then a roll-up
 at most every five seconds with how often each value came up

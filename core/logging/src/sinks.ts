@@ -137,10 +137,10 @@ export class TextSink implements Sink {
 
 export const REDACTED = '[redacted]';
 
-/** An event as one JSON object, its personal fields redacted unless `personal`. */
-export function toJson(event: OutputEvent, personal = false): Record<string, unknown> {
+/** An event as one JSON object, its personal fields redacted. */
+export function toJson(event: OutputEvent): Record<string, unknown> {
   let { fields } = event;
-  if (fields && event.sensitive?.length && !personal) {
+  if (fields && event.sensitive?.length) {
     fields = Object.fromEntries(
       Object.entries(fields).map(([key, value]) => [
         key,
@@ -166,8 +166,6 @@ export function toJson(event: OutputEvent, personal = false): Record<string, unk
 export interface JsonSinkOptions {
   level?: LogLevel;
   write?: (text: string) => void;
-  /** Keep personal fields instead of redacting them (`--log-personal`). */
-  personal?: boolean;
   /** At most one progress event per run in this many milliseconds. Default 10s. */
   heartbeatMs?: number;
   aggregate?: AggregatorOptions;
@@ -180,7 +178,6 @@ export interface JsonSinkOptions {
 export class JsonSink implements Sink {
   readonly level: LogLevel;
   private readonly write: (text: string) => void;
-  private readonly personal: boolean;
   private readonly heartbeatMs: number;
   private readonly aggregator: Aggregator;
   private readonly rollups: RollupTimer;
@@ -189,7 +186,6 @@ export class JsonSink implements Sink {
   constructor(options: JsonSinkOptions = {}) {
     this.level = options.level ?? 'info';
     this.write = options.write ?? stderr;
-    this.personal = options.personal ?? false;
     this.heartbeatMs = options.heartbeatMs ?? 10_000;
     this.aggregator = new Aggregator(options.aggregate);
     this.rollups = new RollupTimer(this.aggregator, event => this.print(event));
@@ -221,6 +217,6 @@ export class JsonSink implements Sink {
   }
 
   private print(event: OutputEvent): void {
-    this.write(`${JSON.stringify(toJson(event, this.personal))}\n`);
+    this.write(`${JSON.stringify(toJson(event))}\n`);
   }
 }
