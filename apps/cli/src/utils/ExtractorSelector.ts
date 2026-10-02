@@ -114,7 +114,7 @@ export class ExtractorSelector {
     let how: 'named' | 'defaults' | 'picked';
     if (named) {
       if (named.includes(DEFAULT_KINDS) && defaultKinds(strategyPool).length === 0) {
-        throw this.noDefaults();
+        throw this.noDefaults(strategyPool);
       }
       kinds = expandKinds(named, strategyPool);
       how = 'named';
@@ -162,17 +162,18 @@ export class ExtractorSelector {
     return this.pickStrategy(covering);
   }
 
-  private noDefaults(): ExtractorError {
-    return new ExtractorError(`${this.input.source} has no default record types`, {
+  private noDefaults(pool: ExtractorMetadata[]): ExtractorError {
+    const { source } = this.input;
+    return new ExtractorError(`${source} has no default record types`, {
       code: 'no-default-record-types',
       exitCode: EXIT_CODES.usage,
-      hint: `pick with \`-t <kind>\`, or \`-t all\` · \`chronicle extract ${this.input.source} --list-types\``,
+      hint: `name some: \`chronicle extract ${source} ${allKinds(pool)[0]}\`, or \`-t all\` · \`--list-types\` lists them`,
     });
   }
 
   /** Ask which kinds to read; outside a terminal, say how to name them. */
   private async pickKinds(pool: ExtractorMetadata[]): Promise<string[]> {
-    if (!this.input.interactive) throw this.noDefaults();
+    if (!this.input.interactive) throw this.noDefaults(pool);
     const { inkMultiSelect } = await import('../components/InkMultiSelect.js');
     const result = await inkMultiSelect(
       `Which ${this.input.source} records?`,
@@ -208,7 +209,7 @@ export class ExtractorSelector {
           code: 'unknown-record-type',
           exitCode: EXIT_CODES.usage,
           hint: guess
-            ? `did you mean \`--type ${guess}\`? Types: ${available.join(', ')}`
+            ? `did you mean \`${guess}\`? Kinds: ${available.join(', ')}`
             : `pick from ${available.join(', ')}`,
         }
       );

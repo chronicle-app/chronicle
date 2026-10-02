@@ -8,6 +8,12 @@ styled. Commands, loaders, and sinks build their text from this module.
 - **stdout carries only data.** Everything for people goes to stderr.
 - **A command ends with one summary line**: status glyph, subject, counts,
   time, destination. `✓ shell · history  1,240 commands  in 1.7s  → out.json`
+- **Commands in hints** are written as `` `code spans` ``. With color they
+  print without the backticks, plain against the dim hint, so the part to
+  copy stands out; without color (the plain sink, `NO_COLOR`) the backticks
+  stay, since they're all that mark it. Either way a command is never split.
+  Prefer a real example to a template: `chronicle extract shell`, not
+  `chronicle extract <source>`.
 - **Errors** read `✗ Error: <message>`, the glyph and label in `danger` and the
   message plain, with what to do about it as a hint
   below, never folded into the message. Commands stop with `this.fail(message,

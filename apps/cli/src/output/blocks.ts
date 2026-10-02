@@ -90,13 +90,24 @@ export function hint(message: string, action: string | undefined, t: Tokens, wid
   const text = action ? (message ? `${message} ${glyphs.bullet} ${action}` : action) : message;
   // A next move is worth reading whole: wrapped at spaces, not cut, and
   // continued under its text rather than its arrow.
+  // Wrapped with its backticks, which mark where a command can't be split,
+  // then drawn in the code style; a command on a line of its own prints whole
+  // and the terminal wraps it.
   return wrap(text, width - 4)
-    .map((part, i) => {
-      const text = `${i === 0 ? `  ${glyphs.child} ` : '    '}${part}`;
-      // A command on a line of its own prints whole; the terminal wraps it.
-      return part.startsWith('`') ? t.muted(text) : line([[text, t.muted]], width);
-    })
+    .map((part, i) => t.muted(i === 0 ? `  ${glyphs.child} ` : '    ') + codeSpans(part, t))
     .join('\n');
+}
+
+/** Text with each `code span` in the code style and the rest muted. */
+function codeSpans(text: string, t: Tokens): string {
+  return text
+    .split(/(`[^`]*`)/)
+    .map(piece =>
+      piece.startsWith('`') && piece.endsWith('`') && piece.length > 1
+        ? t.code(piece.slice(1, -1))
+        : piece && t.muted(piece)
+    )
+    .join('');
 }
 
 /**
