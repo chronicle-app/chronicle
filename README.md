@@ -54,6 +54,7 @@ other source by name, for example `chronicle plugins install lastfm`, or let
 | Arc Timeline visits and trips                                         | [arc-timeline](plugins/arc-timeline/README.md)             | icloud-backup (local)           |
 | Are.na channels, blocks, comments, and follows                        | [arena](plugins/arena/README.md)                           | api                             |
 | Bluesky follows, followers, and likes                                 | [bluesky](plugins/bluesky/README.md)                       | api                             |
+| Chrome browsing history                                               | [chrome](plugins/chrome/README.md)                         | app-db (local)                  |
 | Email from mbox files                                                 | [email](plugins/email/README.md)                           | mbox (export)                   |
 | Facebook export                                                       | [facebook](plugins/facebook/README.md)                     | archive (export)                |
 | FoodNoms meal logs                                                    | [foodnoms](plugins/foodnoms/README.md)                     | app-db (local)                  |
