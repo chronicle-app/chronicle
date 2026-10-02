@@ -220,7 +220,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
           ''
         ),
         {
-          hint: `\`chronicle ${verb} ${positional} --help\` lists ${positional}'s flags`,
+          hint: `\`chronicle ${verb} ${positional} --help\` lists the flags`,
         }
       );
     }
@@ -279,7 +279,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
         throw new Errors.ExitError(exitCode);
       }
       this.fail(error instanceof Error ? error.message : String(error), {
-        hint: `\`chronicle ${verb} ${positional} --help\` lists ${positional}'s strategies, kinds, and flags`,
+        hint: `\`chronicle ${verb} ${positional} --help\` lists the strategies, kinds, and flags`,
       });
     }
     this.announce(selector.selection, positional, verb);
@@ -313,7 +313,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
         level: 'info',
         kind: 'hint',
         message: `not included: ${excluded.join(', ')}`,
-        hint: { action: `\`chronicle ${verb} ${source} -t all\` for everything` },
+        hint: { action: `\`-t all\` reads every kind` },
       });
     }
   }
@@ -352,7 +352,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
       const name = closest(bare, Object.keys(flags));
       if (name) guess = `\`--${name}\``;
     }
-    const help = `\`chronicle ${verb} ${source} --help\` lists ${source}'s flags; \`--list-types\` its kinds`;
+    const help = `\`chronicle ${verb} ${source} --help\` lists the flags, \`--list-types\` the kinds`;
     this.logger.emit({
       level: 'error',
       kind: 'error',
@@ -374,7 +374,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
       hint: {
         action:
           flag === 'type'
-            ? `\`chronicle ${verb} ${source} --list-types\` lists ${source}'s kinds`
+            ? `\`chronicle ${verb} ${source} --list-types\` lists the kinds`
             : `\`chronicle ${verb} ${source} --help\` describes --${flag}`,
       },
     });

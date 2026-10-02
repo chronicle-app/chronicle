@@ -34,7 +34,7 @@ See every source with: chronicle sources --all`;
   protected async handleNonSource(positional: string | undefined): Promise<void> {
     if (positional) return this.installPrompt(positional);
     this.fail('No source given', {
-      hint: '`chronicle extract <source>`, such as `chronicle extract shell` · `chronicle sources` lists them',
+      hint: 'name one: `chronicle extract shell` · `chronicle sources` lists them',
     });
   }
 }

@@ -108,7 +108,7 @@ test('bundled sources are discoverable from an unrelated cwd; JSON has no diagno
   const typo = run('extract', 'shell', '--type', 'command');
   assert.equal(typo.status, 2);
   assert.match(typo.stderr, /✗ Error: shell has no record type "command"/);
-  assert.match(typo.stderr, /↳ did you mean `--type commands`\? Types: commands/);
+  assert.match(typo.stderr, /↳ did you mean `commands`\? Kinds: commands/);
   assert.doesNotMatch(typo.stderr, /flags:/);
   const unknownType = run('extract', 'shell', '--type', 'likes');
   assert.match(unknownType.stderr, /↳ pick from commands/);

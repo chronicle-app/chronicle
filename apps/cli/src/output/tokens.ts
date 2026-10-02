@@ -14,6 +14,13 @@ export interface Tokens {
   warning: Style;
   muted: Style;
   strong: Style;
+  /**
+   * A command or flag, written as a `code span` in hints and messages. With
+   * color it drops the backticks and stands out from the dim text around it
+   * by being plain; without color the backticks are all that mark it, so
+   * they stay.
+   */
+  code: Style;
 }
 
 export type Stream = 'stdout' | 'stderr';
@@ -48,6 +55,7 @@ export function tokens({ stream = 'stderr', theme = 'default', color }: TokenOpt
     warning: c.yellow,
     muted: c.dim,
     strong: c.bold,
+    code: level > 0 ? text => text : text => `\`${text}\``,
   };
   switch (theme.toLowerCase()) {
     case 'minimal':
@@ -63,6 +71,8 @@ export function tokens({ stream = 'stderr', theme = 'default', color }: TokenOpt
         warning: c.yellowBright,
         muted: text => text,
         strong: c.bold.whiteBright,
+        // Nothing around it is dim, so a command is bright instead.
+        code: c.bold,
       };
     default:
       return base;
