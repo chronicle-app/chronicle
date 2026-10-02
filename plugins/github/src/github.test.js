@@ -86,6 +86,8 @@ const trails = {
 const repositories = { R_bakery: bakery, R_trails: trails };
 
 /** An issue is a Task; `body` only where the issue itself is the record. */
+/** A commit named by its hash alone, shared across sources. */
+const revision = oid => ({ '@type': 'Revision', '@key': ['@type', 'sourceId'], sourceId: oid });
 const threadKey = ['@type', 'source', 'isPartOf.creator.sourceId', 'isPartOf.name', 'handle'];
 const task = (t, { withBody = false } = {}) => ({
   '@type': 'Task',
@@ -134,9 +136,15 @@ test('resolutions: how issues and pull requests ended, by you or for your pull r
   assert.deepEqual(keys, ['ME_oven', 'CE_flour', 'ME_rye', 'CE_mold_sam', 'CE_glaze', 'CE_crust']);
   const riley = agent(ACTORS.riley);
   assert.deepEqual(actions, [
-    action('AcceptAction', 'ME_oven', '2025-03-12T00:00:00Z', changeset(oven), riley),
+    {
+      ...action('AcceptAction', 'ME_oven', '2025-03-12T00:00:00Z', changeset(oven), riley),
+      result: revision('a2a2a2'),
+    },
     action('CompleteAction', 'CE_flour', '2025-03-01T00:00:00Z', task(flour)),
-    action('AcceptAction', 'ME_rye', '2025-02-25T10:00:00Z', changeset(RYE)),
+    {
+      ...action('AcceptAction', 'ME_rye', '2025-02-25T10:00:00Z', changeset(RYE)),
+      result: revision('a3a3a3'),
+    },
     action('CancelAction', 'CE_mold_sam', '2025-02-15T10:00:00Z', task(MOLD)),
     // Closed unmerged by someone else: declined.
     action('RejectAction', 'CE_glaze', '2025-02-12T10:00:00Z', changeset(GLAZE)),

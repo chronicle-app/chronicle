@@ -43,6 +43,7 @@ export const ACTORS = {
 const { sam, riley, alex, bot, trailco } = ACTORS;
 
 export const VIEWER = {
+  id: 'U_sam',
   databaseId: sam.databaseId,
   login: 'sam',
   name: 'Sam Rivera',
@@ -235,7 +236,13 @@ const closed = (id, actor, createdAt, stateReason) => ({
   ...(stateReason && { stateReason }),
   actor,
 });
-const merged = (id, actor, createdAt) => ({ __typename: 'MergedEvent', id, createdAt, actor });
+const merged = (id, actor, createdAt, oid) => ({
+  __typename: 'MergedEvent',
+  id,
+  createdAt,
+  actor,
+  commit: { oid },
+});
 
 const bakeryIssue = (id, number, title, author, createdAt, updatedAt) =>
   ref(thread('Issue', id, bakery, number, title, author, createdAt, updatedAt, ''));
@@ -278,12 +285,12 @@ export const ENDINGS = {
   ],
   // Riley merged Sam's timer; Sam withdrew his crust change.
   PR_oven: [
-    merged('ME_oven', riley, '2025-03-12T00:00:00Z'),
+    merged('ME_oven', riley, '2025-03-12T00:00:00Z', 'a2a2a2'),
     closed('CE_oven', riley, '2025-03-12T00:00:00Z'),
   ],
   PR_crust: [closed('CE_crust', sam, '2024-11-03T00:00:00Z')],
   PR_rye: [
-    merged('ME_rye', sam, '2025-02-25T10:00:00Z'),
+    merged('ME_rye', sam, '2025-02-25T10:00:00Z', 'a3a3a3'),
     closed('CE_rye', sam, '2025-02-25T10:00:00Z'),
   ],
   PR_glaze: [closed('CE_glaze', sam, '2025-02-12T10:00:00Z')],
@@ -298,6 +305,43 @@ const ENDED_IN = {
   },
 };
 
+/** Sam's fork of Trail Co's map. */
+export const FORK = repository('R_fork', 'sam/trails', sam);
+
+/** The repositories Sam created, newest first. */
+const CREATED = [
+  { ...FORK, createdAt: '2024-05-01T10:00:00Z', isFork: true, parent: trails },
+  { ...bakery, createdAt: '2023-01-01T10:00:00Z', isFork: false, parent: null },
+];
+
+const commit = (oid, messageHeadline, authoredDate, parents, pulls = [], messageBody = '') => ({
+  oid,
+  messageHeadline,
+  messageBody,
+  url: `https://github.com/commit/${oid}`,
+  authoredDate,
+  parents: { nodes: parents.map(parent => ({ oid: parent })) },
+  associatedPullRequests: { nodes: pulls.map(pull => ref(pull)) },
+});
+/** Sam's commits on each repository's default branch, newest first. */
+export const COMMITS = {
+  R_bakery: [
+    commit(
+      'a1a1a1',
+      'Add an oven timer',
+      '2025-03-10T09:00:00Z',
+      ['a0a0a0'],
+      [oven],
+      'Counts down.'
+    ),
+    commit('a0a0a0', 'Start the recipes', '2023-01-02T10:00:00Z', []),
+  ],
+  // The ridge label reached Sam's fork too, and counts once.
+  R_trails: [commit('b1b1b1', 'Label the ridge', '2025-02-03T10:00:00Z', ['b0b0b0'], [map])],
+  R_fork: [commit('b1b1b1', 'Label the ridge', '2025-02-03T10:00:00Z', ['b0b0b0'], [map])],
+};
+const REPOSITORY_BY_ID = { R_bakery: bakery, R_trails: trails, R_fork: FORK };
+
 const CONNECTIONS = {
   pullRequests: [oven, crust],
   issues: [flour],
@@ -309,6 +353,10 @@ const CONNECTIONS = {
   closedIssues: [ended(flour)],
   closedPullRequests: [ended(oven), ended(crust)],
   ownedRepositories: [{ id: 'R_bakery' }],
+  createdRepositories: CREATED,
+  // Sam can push to his own repositories; he committed to Trail Co's lately.
+  committableRepositories: [{ id: 'R_bakery' }, { id: 'R_fork' }],
+  contributedRepositories: [{ id: 'R_trails' }],
   starredRepositories: STARS,
   gists: GISTS,
 };
@@ -320,6 +368,9 @@ const ACTIVITY_FIELDS = {
   closedIssues: 'issues',
   closedPullRequests: 'pullRequests',
   ownedRepositories: 'repositories',
+  createdRepositories: 'repositories',
+  committableRepositories: 'repositories',
+  contributedRepositories: 'repositoriesContributedTo',
 };
 
 /** One item a page, so every walk pages. */
@@ -365,6 +416,23 @@ function respond(token, { query, variables }) {
       {
         data: {
           viewer: { [name]: page(items, variables.after, viewerField === 'starredRepositories') },
+        },
+      },
+    ];
+  }
+  if (operation === 'Repository_commits') {
+    const repo = REPOSITORY_BY_ID[variables.id];
+    const history = (COMMITS[variables.id] ?? []).filter(
+      c => !variables.since || c.authoredDate >= variables.since
+    );
+    return [
+      200,
+      {
+        data: {
+          node: repo && {
+            ...repo,
+            defaultBranchRef: { target: { history: page(history, variables.after) } },
+          },
         },
       },
     ];

@@ -286,6 +286,7 @@ export interface CreativeWork extends Omit<Entity, '@type'> {
   creator?: AgentAndChildren[];
   datePublished?: Date | string;
   genre?: string[];
+  isBasedOn?: CreativeWorkAndChildren[];
   publisher?: OrganizationAndChildren[];
   references?: EntityAndChildren[];
   sourceFormat?: string;
@@ -309,6 +310,7 @@ export type CreativeWorkAndChildren =
   | QuotationAndChildren
   | RepositoryAndChildren
   | ResponseAndChildren
+  | RevisionAndChildren
   | SoftwareApplicationAndChildren
   | SoftwareSourceCodeAndChildren;
 
@@ -318,6 +320,7 @@ const CreativeWorkProperties = {
   creator: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
   datePublished: z.lazy(() => z.union([z.date(), z.string()])).optional(),
   genre: z.lazy(() => z.array(z.string())).optional(),
+  isBasedOn: z.lazy(() => z.array(CreativeWorkAndChildrenSchema)).optional(),
   publisher: z.lazy(() => z.array(OrganizationAndChildrenSchema)).optional(),
   references: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
   sourceFormat: z.lazy(() => z.string()).optional(),
@@ -1830,6 +1833,24 @@ export const RespondActionSchema: z.ZodType<RespondAction> = z
   })
   .superRefine(requireNodeIdentity);
 
+// Revision, child of https://schema.chronicle.app/CreativeWork
+export interface Revision extends Omit<CreativeWork, '@type'> {
+  '@type': 'Revision';
+}
+
+export type RevisionAndChildren = Revision;
+
+const RevisionProperties = {
+  ...CreativeWorkProperties,
+};
+
+export const RevisionSchema: z.ZodType<Revision> = z
+  .object({
+    '@type': z.literal('Revision'),
+    ...RevisionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // SoftwareAgent, child of https://schema.chronicle.app/Agent
 export interface SoftwareAgent extends Omit<Agent, '@type'> {
   '@type': 'SoftwareAgent';
@@ -2099,6 +2120,8 @@ export const SoftwareSourceCodeAndChildrenSchema = SoftwareSourceCodeSchema;
 export const SoftwareApplicationAndChildrenSchema = SoftwareApplicationSchema;
 
 export const SoftwareAgentAndChildrenSchema = SoftwareAgentSchema;
+
+export const RevisionAndChildrenSchema = RevisionSchema;
 
 export const RespondActionAndChildrenSchema = RespondActionSchema;
 
@@ -2625,6 +2648,11 @@ export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> =
     }),
 
     z.object({
+      '@type': z.literal('Revision'),
+      ...RevisionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Repository'),
       ...RepositoryProperties,
     }),
@@ -2938,6 +2966,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     z.object({
       '@type': z.literal('SoftwareApplication'),
       ...SoftwareApplicationProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Revision'),
+      ...RevisionProperties,
     }),
 
     z.object({
@@ -3446,6 +3479,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('SoftwareApplication'),
       ...SoftwareApplicationProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Revision'),
+      ...RevisionProperties,
     }),
 
     z.object({

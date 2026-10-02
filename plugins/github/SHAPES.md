@@ -75,6 +75,53 @@ RespondAction key(sourceId) {
 }
 ```
 
+## commits
+
+```ts
+UpdateAction key(sourceId) {
+  sourceId, timestamp
+  agent: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
+  object: Repository key(creator.sourceId, name) {
+    url, name, description?, tags[]?, visibility
+    references[]?: Entity key(url, any source) { url }
+    creator[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
+  }
+  result: Revision key(sourceId, any source) {
+    sourceId, url, name, body?
+    author[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
+    isPartOf[]: Repository | Changeset key(creator.sourceId, name) / key(isPartOf.creator.sourceId, isPartOf.name, handle) {
+      url?, name?, description?, tags[]?, visibility?, handle?
+      references[]?: Entity key(url, any source) { url }
+      creator[]?: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
+      isPartOf[]?: Repository key(creator.sourceId, name) {
+        url, name, description?, tags[]?, visibility
+        references[]?: Entity key(url, any source) { url }
+        creator[]: Person | Organization key(sourceId) { sourceId, handle, name, sameAs[]?, url }
+      }
+    }
+    isBasedOn[]?: Revision key(sourceId, any source) { sourceId }
+  }
+}
+```
+
+## repositories
+
+```ts
+CreateAction key(sourceId) {
+  sourceId, timestamp
+  agent: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
+  result: Repository key(creator.sourceId, name) {
+    url, name, visibility, description?, tags[]?
+    creator[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
+    isBasedOn[]?: Repository key(creator.sourceId, name) {
+      url, name, visibility
+      creator[]: Organization key(sourceId) { sourceId, handle, name, url }
+    }
+    references[]?: Entity key(url, any source) { url }
+  }
+}
+```
+
 ## replies
 
 ```ts
@@ -120,6 +167,7 @@ AcceptAction | CompleteAction | CancelAction | RejectAction key(sourceId) {
       creator[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
     }
   }
+  result?: Revision key(sourceId, any source) { sourceId }
 }
 ```
 

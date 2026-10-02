@@ -66,6 +66,27 @@ export interface GitHubResolutionEvent {
   createdAt: string;
   stateReason?: 'COMPLETED' | 'NOT_PLANNED' | 'DUPLICATE' | 'REOPENED' | null;
   actor: GitHubActor | null;
+  /** The commit a merge made. */
+  commit?: { oid: string } | null;
+}
+
+/** A repository with when it was made and, for a fork, what it was copied from. */
+export interface GitHubOwnRepository extends GitHubRepository {
+  createdAt: string;
+  isFork: boolean;
+  parent: GitHubRepository | null;
+}
+
+/** A commit on a repository's default branch. */
+export interface GitHubCommit {
+  oid: string;
+  messageHeadline: string;
+  messageBody: string;
+  url: string;
+  authoredDate: string;
+  parents: { nodes: { oid: string }[] };
+  /** The pull requests it came in through. */
+  associatedPullRequests: { nodes: GitHubThread[] };
 }
 
 /** A closed issue or pull request with the times it was closed or merged. */
@@ -89,6 +110,8 @@ export interface GitHubGist {
 }
 
 export interface GitHubViewer {
+  /** The global node id, which commit history filters by. */
+  id: string;
   databaseId: number;
   login: string;
   name: string | null;
@@ -151,7 +174,7 @@ const RESOLVED = {
     args: 'states: [MERGED, CLOSED], orderBy: {field: UPDATED_AT, direction: DESC}',
     selection: `${THREAD} timelineItems(first: 20, itemTypes: [MERGED_EVENT, CLOSED_EVENT]) {
       nodes { __typename
-        ... on MergedEvent { id createdAt actor { ${ACTOR} } }
+        ... on MergedEvent { id createdAt actor { ${ACTOR} } commit { oid } }
         ... on ClosedEvent { id createdAt actor { ${ACTOR} } } } }`,
   },
 } as const;
@@ -190,6 +213,24 @@ const VIEWER_CONNECTIONS = {
     field: 'pullRequests',
     args: RESOLVED.pullRequests.args,
     selection: `nodes { ${RESOLVED.pullRequests.selection} }`,
+  },
+  // Repositories the viewer created, newest first.
+  createdRepositories: {
+    field: 'repositories',
+    args: 'ownerAffiliations: OWNER, orderBy: {field: CREATED_AT, direction: DESC}',
+    selection: `nodes { ${REPOSITORY} createdAt isFork parent { ${REPOSITORY} } }`,
+  },
+  // Repositories the viewer can commit to, and ones they committed to lately
+  // (GitHub lists only recent contributions), for commits.
+  committableRepositories: {
+    field: 'repositories',
+    args: 'affiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER], ownerAffiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]',
+    selection: 'nodes { id }',
+  },
+  contributedRepositories: {
+    field: 'repositoriesContributedTo',
+    args: 'contributionTypes: [COMMIT], includeUserRepositories: true',
+    selection: 'nodes { id }',
   },
   // Repositories under the viewer's own account, for resolutions.
   ownedRepositories: {
@@ -250,7 +291,7 @@ export default class GitHubProxy extends ApiProxy {
   public async viewer(): Promise<GitHubViewer> {
     const data = await this.graphql<{ viewer: GitHubViewer }>(
       'Viewer',
-      'query Viewer { viewer { databaseId login name url createdAt } }'
+      'query Viewer { viewer { id databaseId login name url createdAt } }'
     );
     return data.viewer;
   }
@@ -300,6 +341,48 @@ export default class GitHubProxy extends ApiProxy {
       yield* page.nodes;
       if (!page.pageInfo.hasNextPage) return;
       after = page.pageInfo.endCursor;
+    }
+  }
+
+  /**
+   * The commits an author made to a repository's default branch, newest
+   * first, between `since` and `until` when given.
+   */
+  public async *commitsIn(
+    repositoryId: string,
+    authorId: string,
+    { since, until }: { since?: Date; until?: Date } = {}
+  ): AsyncGenerator<GitHubCommit & { repository: GitHubRepository }> {
+    const operation = 'Repository_commits';
+    const query = `query ${operation}($id: ID!, $author: ID!, $since: GitTimestamp, $until: GitTimestamp, $after: String) {
+      node(id: $id) { ... on Repository { ${REPOSITORY}
+        defaultBranchRef { target { ... on Commit {
+          history(first: 50, after: $after, author: {id: $author}, since: $since, until: $until) {
+            ${PAGE_INFO} nodes { oid messageHeadline messageBody url authoredDate
+              parents(first: 5) { nodes { oid } }
+              associatedPullRequests(first: 3) { nodes { ${THREAD} } } } } } } } } } }`;
+    let after: string | null = null;
+    for (;;) {
+      const data: {
+        node:
+          | (GitHubRepository & {
+              defaultBranchRef: { target: { history?: Page<GitHubCommit> } } | null;
+            })
+          | null;
+      } = await this.graphql(operation, query, {
+        id: repositoryId,
+        author: authorId,
+        since: since?.toISOString(),
+        until: until?.toISOString(),
+        after,
+      });
+      // An empty repository has no default branch.
+      const history = data.node?.defaultBranchRef?.target.history;
+      if (!data.node || !history) return;
+      const { defaultBranchRef: _, ...repository } = data.node;
+      for (const commit of history.nodes) yield { ...commit, repository };
+      if (!history.pageInfo.hasNextPage) return;
+      after = history.pageInfo.endCursor;
     }
   }
 
