@@ -6,7 +6,7 @@
 @prefix schemaorg: <https://schema.org/> .
 
 : a owl:Ontology;
-  owl:versionInfo "0.2.0" .
+  owl:versionInfo "0.3.0" .
 
 :Base a rdfs:Class;
   rdfs:comment "The common base for entities and actions described by a source. Each node carries an identity, expressed as @key or @id, so it can be referenced across records." .
@@ -691,3 +691,30 @@
   owl:maxCardinality 1;
   :domainIncludes :ImageObject;
   :rangeIncludes :Text .
+:SoftwareSourceCode a rdfs:Class;
+  rdfs:comment "Computer source code as a work — a snippet, a script, a program's code.";
+  rdfs:subClassOf :CreativeWork;
+  owl:equivalentClass schemaorg:SoftwareSourceCode .
+:Repository a rdfs:Class;
+  rdfs:comment "A version-controlled store of files and their history, as hosted on a forge or kept locally: source code, data, documents, or anything else kept under version control. Work filed against it, such as tasks and changesets, links to it through :isPartOf.";
+  rdfs:subClassOf :CreativeWork .
+:Changeset a rdfs:Class;
+  rdfs:comment "A set of changes to a work, put forward or applied as a unit and revisable until it is decided: a pull or merge request, a suggested edit to a document. It :isPartOf the work it changes; the actions on it record its fate: the :PublishAction that puts it forward, then an :AcceptAction, :RejectAction, or :CancelAction.";
+  rdfs:subClassOf :CreativeWork .
+:AcceptAction a rdfs:Class;
+  rdfs:comment "The agent accepted what was put forward, such as merging a changeset into the work it changes. The :object is what was accepted.";
+  rdfs:subClassOf :Action;
+  owl:equivalentClass schemaorg:AcceptAction .
+:RejectAction a rdfs:Class;
+  rdfs:comment "The agent declined what was put forward, such as closing a changeset without taking it in. The :object is what was declined.";
+  rdfs:subClassOf :Action;
+  owl:equivalentClass schemaorg:RejectAction .
+:Revision a rdfs:Class;
+  rdfs:comment "A version of a work recorded in its history: a commit to a repository, a revision of a document or wiki page. It :isPartOf the work and :isBasedOn the versions it follows; an :UpdateAction whose :result it is records making it. A version, not a change: the change it made is the difference from the versions it is based on.";
+  rdfs:subClassOf :CreativeWork .
+:isBasedOn a rdf:Property;
+  rdfs:comment "A work this one was derived from: the earlier version a revision follows, the repository a fork was copied from.";
+  rdfs:subPropertyOf :relation;
+  owl:equivalentProperty schemaorg:isBasedOn;
+  :domainIncludes :CreativeWork;
+  :rangeIncludes :CreativeWork .

@@ -14,6 +14,13 @@ export interface Tokens {
   warning: Style;
   muted: Style;
   strong: Style;
+  /**
+   * A flag or name inside a sentence, written as a `code span`: cyan with
+   * color; without, the backticks stay, since they're all that mark it.
+   */
+  code: Style;
+  /** A command on a line of its own, to copy: cyan with color, bare without. */
+  command: Style;
 }
 
 export type Stream = 'stdout' | 'stderr';
@@ -48,6 +55,8 @@ export function tokens({ stream = 'stderr', theme = 'default', color }: TokenOpt
     warning: c.yellow,
     muted: c.dim,
     strong: c.bold,
+    code: level > 0 ? c.cyan : text => `\`${text}\``,
+    command: c.cyan,
   };
   switch (theme.toLowerCase()) {
     case 'minimal':
@@ -63,6 +72,8 @@ export function tokens({ stream = 'stderr', theme = 'default', color }: TokenOpt
         warning: c.yellowBright,
         muted: text => text,
         strong: c.bold.whiteBright,
+        code: level > 0 ? c.cyanBright : text => `\`${text}\``,
+        command: c.cyanBright,
       };
     default:
       return base;

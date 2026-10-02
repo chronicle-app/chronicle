@@ -77,7 +77,7 @@ export default abstract class ExtractCommand<T extends typeof Command> extends B
         level: 'info',
         kind: 'hint',
         message: `--${flagName} is required`,
-        hint: { action: `pass --${flagName} <value> to skip this prompt` },
+        hint: { action: `Pass \`--${flagName}\` next time to skip this question.` },
       });
 
       const result = await inkInput(`Enter value for required flag --${flagName}:`, {
@@ -96,7 +96,7 @@ export default abstract class ExtractCommand<T extends typeof Command> extends B
       // Handle user cancellation (Ctrl+C)
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage.includes('force closed') || errorMessage.includes('User aborted')) {
-        this.error('Operation cancelled by user');
+        this.fail('Operation cancelled by user');
       }
       throw error;
     }
@@ -140,7 +140,7 @@ export default abstract class ExtractCommand<T extends typeof Command> extends B
           ExtractCommandClass.source
         );
       } catch (error) {
-        this.error(error instanceof Error ? error.message : String(error));
+        this.failFrom(error);
       }
     }
 
@@ -151,7 +151,7 @@ export default abstract class ExtractCommand<T extends typeof Command> extends B
       : extractors;
 
     if (!selected) {
-      this.error('No extractor available for this command');
+      this.fail('No extractor available for this command');
     }
 
     if (this.flags['list-types']) {

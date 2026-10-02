@@ -28,9 +28,9 @@ export default class SourcesInfo extends BaseCommand<typeof SourcesInfo> {
     const listing = (await listSources()).find(s => s.source === args.source);
 
     if (!listing) {
-      this.error(
-        `No source named "${args.source}". Run "chronicle sources --all" to see what's available.`
-      );
+      this.fail(`No source named "${args.source}"`, {
+        hint: "Run `chronicle sources --all` to see what's available.",
+      });
     }
 
     this.log(theme.textBold(args.source) + (listing.summary ? `  ${listing.summary}` : ''));

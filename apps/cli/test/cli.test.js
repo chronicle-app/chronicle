@@ -72,10 +72,11 @@ test('bundled sources are discoverable from an unrelated cwd; JSON has no diagno
       `${name} is not listed as installed`
     );
   }
-  // A bare `chronicle extract <source>` needs exactly one default strategy per source.
+  // A bare `chronicle extract <source>` reads one strategy's defaults, so a
+  // source has at most one; with none, the run asks which kinds.
   for (const { source, strategies } of all.filter(x => x.installed)) {
     const defaults = strategies.filter(strategy => strategy.default);
-    assert.equal(defaults.length, 1, `${source} has ${defaults.length} default strategies`);
+    assert.ok(defaults.length <= 1, `${source} has ${defaults.length} default strategies`);
   }
   // Legacy sources are listed only on request, and the table says so.
   assert.ok(sources.every(x => x.tier !== 'legacy'));
@@ -91,17 +92,46 @@ test('bundled sources are discoverable from an unrelated cwd; JSON has no diagno
 
   const help = success(run('extract', 'shell', '--help'));
   assert.match(help, /history/);
-  // `extract help [source]` reads like `git help`, and --list-types lists only the kinds.
+  // `extract help [source]` reads like `git help`, `help` after the source
+  // asks for help too, and --list-types lists only the kinds.
   assert.equal(success(run('extract', 'help', 'shell')), help);
+  assert.equal(success(run('extract', 'shell', 'help')), help);
   assert.match(success(run('extract', 'help')), /chronicle extract <source> --help/);
   const listed = run('extract', 'shell', '--list-types');
   assert.equal(success(listed), 'commands  history\n');
-  // How to use them goes to stderr, so the list still pipes.
-  assert.match(
-    listed.stderr,
-    /↳ pick kinds with --type; without it, every kind · `chronicle extract shell --type commands`/
-  );
+  // How to use them goes to stderr, with a runnable example, so the list still pipes.
+  assert.match(listed.stderr, /chronicle extract shell commands/);
   assert.doesNotMatch(success(run('--help')), /archive|sync|serve/);
+
+  // Usage mistakes: exit 2, a typed error, and a hint naming the way forward.
+  // The wording is the style guide's to keep, not this test's.
+  const usageError = (args, code, mentions) => {
+    const result = run(...args, '--log-format', 'json');
+    assert.equal(result.status, 2, args.join(' '));
+    const error = result.stderr
+      .split('\n')
+      .filter(line => line.startsWith('{'))
+      .map(line => JSON.parse(line))
+      .find(event => event.kind === 'error');
+    assert.ok(error, `${args.join(' ')} reports an error`);
+    if (code) assert.equal(error.error.code, code, args.join(' '));
+    if (mentions) assert.match(error.hint?.action ?? '', mentions, args.join(' '));
+  };
+  usageError(['extract', 'shell', '--type', 'command'], 'unknown-record-type', /shell commands/);
+  usageError(['extract', 'shell', '--type', 'likes'], 'unknown-record-type', /--list-types/);
+  usageError(['extract', 'shell', '-T'], 'unknown-flag', /--type/);
+  usageError(['extract', 'shell', '-t'], 'missing-flag-value', /--list-types/);
+  usageError(['extract', 'shell', 'commands', '--type', 'commands']);
+  usageError(['extract'], undefined, /chronicle sources/);
+  usageError(['sorces'], 'unknown-command', /chronicle sources/);
+  // Every error reads the same way: Chronicle's error line, never oclif's.
+  for (const args of [['extract'], ['sorces'], ['extract', 'shell', '-T']]) {
+    const { stderr } = run(...args);
+    assert.match(stderr, /✗ Error: /, args.join(' '));
+    assert.doesNotMatch(stderr, /›|USAGE/, args.join(' '));
+  }
+  // The source help lists --type and --list-types with the common flags.
+  assert.match(help, /-L, --list-types/);
 });
 
 test('raw extraction, four output loaders, file output and stream mode', t => {
@@ -160,7 +190,11 @@ test('raw extraction, four output loaders, file output and stream mode', t => {
   // time when stderr isn't a terminal, and the default --limit says when it
   // cut the run short.
   // Anchored to the end only: some Node versions warn on stderr first.
-  assert.match(result.stderr, /(^|\n)\d\d:\d\d:\d\d ✓ shell · \S+ {2}1 command {2}in \S+\n$/);
+  // The outcome on one line, a line per kind under it.
+  assert.match(result.stderr, /✓ shell · .*\n.*1 command\n$/);
+  // A kind named after the source reads just that kind.
+  const named = run('extract', 'shell', 'commands', '--input', input, '--raw', '--limit', '1');
+  assert.equal(JSON.parse(success(named)).command, 'printf fixture');
   // A supervisor reads the same run as JSON events on stderr. --delay slows
   // each extracted record, for watching a run while debugging.
   const events = run(
@@ -181,10 +215,10 @@ test('raw extraction, four output loaders, file output and stream mode', t => {
     Array.from({ length: 101 }, (_, i) => `: ${1700000000 + i}:0;echo ${i}\n`).join('')
   );
   const capped = run('extract', 'shell', '--input', long, '--raw', '--output', 'stdout');
-  assert.match(capped.stderr, /100 commands.*\n.*first 100 · use --limit 0 for all/);
+  assert.match(capped.stderr, /100 commands\n.*↳ .*--limit 0/);
   // With a count from the source (a streamed run asks), the hint says how many there are.
   const counted = run('extract', 'shell', '--input', long, '--raw', '--stream');
-  assert.match(counted.stderr, /first 100 of 101 · use --limit 0 for all/);
+  assert.match(counted.stderr, /↳ .*101.*--limit 0/);
   // The default limit that didn't cut anything short gets no hint.
   const exact = join(dir, 'exact-history');
   writeFileSync(
@@ -531,7 +565,7 @@ test('unsupported loader and missing input file fail without success output, eve
     chmodSync(locked, 0o000);
     const refused = run('extract', 'shell', '--input', locked);
     assert.equal(refused.status, 4);
-    assert.match(refused.stderr, /Can't read the shell history.*\n.*check the file's permissions/);
+    assert.match(refused.stderr, /Can't read the shell history.*\n.*↳ .*permissions/);
   }
 });
 
@@ -584,9 +618,9 @@ test('failed setup and transformation release extractor resources and exit nonze
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, new RegExp(`synthetic ${phase} failure`));
     // Plugin warnings reach stderr even when stdout is piped.
-    assert.match(result.stderr, /! fixture\.file {2}synthetic warning/);
+    assert.match(result.stderr, /! fixture {2}synthetic warning/);
     // A plugin's console output becomes its diagnostics on stderr, never records on stdout.
-    assert.match(result.stderr, /· fixture\.file {2}synthetic console output/);
+    assert.match(result.stderr, /· fixture {2}synthetic console output/);
     assert.equal(readFileSync(marker, 'utf8'), 'closed');
     assert.equal(result.stdout, '');
   }
@@ -661,7 +695,7 @@ test('a plugin fails with a typed error and exit code, and hints under the summa
   // Auth: exit code 3, the sign-in command as the next step, and in JSON as data.
   const auth = run.with({ FIXTURE_MODE: 'auth' })('extract', 'typed', '--raw');
   assert.equal(auth.status, 3);
-  assert.match(auth.stderr, /No typed credentials\n.*run `chronicle auth login typed`/);
+  assert.match(auth.stderr, /No typed credentials[\s\S]*chronicle auth login typed/);
   assert.equal(auth.stdout, '');
   const events = run
     .with({ FIXTURE_MODE: 'auth' })('extract', 'typed', '--raw', '--log-format', 'json')
@@ -670,12 +704,12 @@ test('a plugin fails with a typed error and exit code, and hints under the summa
     .map(line => JSON.parse(line));
   const failure = events.find(event => event.kind === 'error');
   assert.deepEqual(failure.error, { code: 'auth-required', exitCode: 3 });
-  assert.equal(failure.hint.action, 'run `chronicle auth login typed`');
+  assert.match(failure.hint.action, /chronicle auth login typed/);
   // A plugin's hint on a successful run prints under the summary.
   const hinted = run('extract', 'typed', '--raw');
   assert.equal(hinted.status, 0, hinted.stderr);
   assert.match(
     hinted.stderr,
-    /✓ typed · api {2}1 row.*\n.*attachments skipped · grant access to include them\n/
+    /✓ typed · rows.*\n.*1 row\n[\s\S]*attachments skipped[\s\S]*grant access/
   );
 });

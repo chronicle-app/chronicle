@@ -102,7 +102,10 @@ export function render(
   const segments: Segment[] = [
     [glyph, glyphStyle],
     [' '],
-    [HOST.has(event.scope) || !event.scope ? '' : `${event.scope}  `, t.muted],
+    // A run's scope is `source.strategy`; a person only needs the source.
+    [HOST.has(event.scope) || !event.scope ? '' : `${event.scope.split('.')[0]}  `, t.muted],
+    // The label carries the status, in its color; the message stays readable.
+    [event.level === 'error' ? 'Error: ' : '', glyphStyle],
     [first, textStyle],
     [fields ? `  ${fields}` : '', t.muted],
   ];
@@ -222,8 +225,6 @@ export interface OutputOptions extends SinkOptions {
   format?: LogFormat;
   /** Draw live progress (pretty only). */
   live?: Live;
-  /** Keep personal fields in JSON (`--log-personal`). */
-  personal?: boolean;
   /** A blank line before a summary, when records shared the terminal (pretty only). */
   air?: boolean;
 }
@@ -232,11 +233,7 @@ export interface OutputOptions extends SinkOptions {
 export function createSink(options: OutputOptions): Sink {
   switch (options.format ?? defaultLogFormat()) {
     case 'json':
-      return new JsonSink({
-        level: options.level,
-        write: options.write,
-        personal: options.personal,
-      });
+      return new JsonSink({ level: options.level, write: options.write });
     case 'plain':
       return new PlainSink(options);
     default:
@@ -250,7 +247,6 @@ export interface OutputFlags {
   verbose?: boolean;
   theme?: string;
   'log-format'?: LogFormat;
-  'log-personal'?: boolean;
 }
 
 /** The sink a command's flags ask for. */
@@ -259,7 +255,6 @@ export const sinkFor = (flags: OutputFlags, extra: { live?: Live } = {}): Sink =
     format: flags['log-format'],
     level: thresholdFor(flags),
     theme: flags.theme,
-    personal: flags['log-personal'],
     ...extra,
   });
 
@@ -279,6 +274,5 @@ export function outputFlagsIn(argv: string[]): OutputFlags {
     verbose: argv.includes('--verbose') || argv.includes('-v'),
     theme: value('--theme'),
     ...(LOG_FORMATS.includes(format as LogFormat) && { 'log-format': format as LogFormat }),
-    'log-personal': argv.includes('--log-personal'),
   };
 }

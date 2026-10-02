@@ -26,7 +26,7 @@ const time = new Date(2026, 0, 2, 9, 30, 5);
 const run = { id: 'run-1', source: 'shell', strategy: 'history' };
 
 const done: SummaryFields = {
-  title: 'shell · history',
+  title: 'shell · commands',
   counts: { commands: 1240 },
   records: 1240,
   durationMs: 1700,
@@ -34,7 +34,7 @@ const done: SummaryFields = {
 };
 
 const failed: SummaryFields = {
-  title: 'claude-code · sessions',
+  title: 'claude-code',
   counts: { messages: 3120, sessions: 48 },
   records: 3168,
   written: 3400,
@@ -44,7 +44,7 @@ const failed: SummaryFields = {
 };
 
 const running: ProgressFields = {
-  title: 'shell · history',
+  title: 'shell · commands',
   processed: 420,
   total: 1240,
   counts: { commands: 420 },
@@ -120,13 +120,31 @@ export const EVENTS: OutputEvent[] = [
     message: 'failed run',
     fields: failed,
   }),
+  // A run of several kinds says which it reads, and what it leaves out.
+  event({ level: 'info', kind: 'notice', scope: 'cli', message: 'Extracting stars, gists' }),
+  event({
+    level: 'info',
+    kind: 'hint',
+    scope: 'cli',
+    message: 'Also available: commits, issues. Use `-t all` to get everything.',
+  }),
+  // A usage error, with what to do about it.
+  event({
+    level: 'error',
+    kind: 'error',
+    scope: 'cli',
+    message: 'github has no record type "likes"',
+    error: { code: 'unknown-record-type', exitCode: 2 },
+    hint: { action: 'Run `chronicle extract github --list-types` to see what it has.' },
+  }),
+  // Cancelling is a choice: said plainly.
+  event({ level: 'info', kind: 'notice', scope: 'cli', message: 'Extraction cancelled' }),
   event({ level: 'info', kind: 'summary', scope: 'runner', message: 'finished run', fields: done }),
   event({
     level: 'info',
     kind: 'hint',
     scope: 'runner',
-    message: 'stopped at --limit 100',
-    hint: { action: 'pass --limit 0 to extract everything' },
+    message: 'Showing the first 100 of 1,240. Use `--limit 0` for all.',
     fields: { limit: 100 },
   }),
 ];
@@ -145,9 +163,9 @@ function blocks(theme: string, width: number): string[] {
   return [
     heading('Sources', t, width),
     ...list(['shell · history', 'claude-code · sessions', 'imessage · chat-db'], t, width),
-    summary(done, t, width),
-    summary(failed, t, width),
-    ...hint('stopped at --limit 100', 'pass --limit 0 to extract everything', t, width).split('\n'),
+    ...summary(done, t, width).split('\n'),
+    ...summary(failed, t, width).split('\n'),
+    ...hint('Showing the first 100. Use `--limit 0` for all.', undefined, t, width).split('\n'),
     ...progress(running, t, width, 3),
     ...progress({ ...running, total: 0 }, t, width, 7),
     ...progress({ ...running, phase: 'reading', total: 0 }, t, width, 11),

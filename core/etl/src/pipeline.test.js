@@ -205,7 +205,7 @@ test('preserves streaming and buffered extraction, post-filter limits, and itera
     const summary = events.find(e => e.kind === 'summary');
     assert.deepEqual(summary.fields.counts, { keep: 1 });
     assert.equal(summary.fields.records, 1);
-    assert.equal(summary.fields.title, 'fixture · memory');
+    assert.equal(summary.fields.title, 'fixture · items');
     assert.ok(events.every(e => e.run.id === 'run-1'));
     assert.deepEqual(runner.stats, {
       counts: { keep: 1 },

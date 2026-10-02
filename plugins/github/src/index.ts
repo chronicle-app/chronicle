@@ -1,0 +1,11 @@
+export { default as GitHubExtractor } from './connectors/GitHubExtractor.js';
+export { default as GitHubCommentsExtractor } from './connectors/GitHubCommentsExtractor.js';
+export { default as GitHubCommitsExtractor } from './connectors/GitHubCommitsExtractor.js';
+export { default as GitHubGistsExtractor } from './connectors/GitHubGistsExtractor.js';
+export { default as GitHubIssuesExtractor } from './connectors/GitHubIssuesExtractor.js';
+export { default as GitHubPullRequestsExtractor } from './connectors/GitHubPullRequestsExtractor.js';
+export { default as GitHubRepositoriesExtractor } from './connectors/GitHubRepositoriesExtractor.js';
+export { default as GitHubRepliesExtractor } from './connectors/GitHubRepliesExtractor.js';
+export { default as GitHubResolutionsExtractor } from './connectors/GitHubResolutionsExtractor.js';
+export { default as GitHubStarsExtractor } from './connectors/GitHubStarsExtractor.js';
+export { default as GitHubTransformer } from './connectors/GitHubTransformer.js';

@@ -29,7 +29,7 @@ export default class AuthRemove extends BaseCommand<typeof AuthRemove> {
       await TokenHelper.removeCredentials(provider);
       this.log(`✅ Removed credentials for ${provider}`);
     } catch (error) {
-      this.error(`Failed to remove credentials for ${provider}: ${error}`);
+      this.failFrom(error, `Failed to remove credentials for ${provider}`);
     }
   }
 }

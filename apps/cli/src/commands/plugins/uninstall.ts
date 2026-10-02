@@ -21,7 +21,7 @@ export default class PluginsUninstall extends BaseCommand<typeof PluginsUninstal
     try {
       removed = await uninstallPlugin(args.plugin);
     } catch (error) {
-      this.error(error instanceof Error ? error.message : String(error));
+      this.failFrom(error);
     }
     if (removed) {
       this.log(`${theme.success('Uninstalled')} ${theme.textBold(args.plugin)}`);
@@ -32,7 +32,7 @@ export default class PluginsUninstall extends BaseCommand<typeof PluginsUninstal
     const found = (await PluginScanner.findChroniclePlugins()).find(
       p => p.name === args.plugin || p.name.endsWith(`/${args.plugin}`)
     );
-    this.error(
+    this.fail(
       found
         ? `${found.name} is ${ORIGINS[found.origin]} (${found.path}), not installed by chronicle.`
         : `${args.plugin} isn't installed.`

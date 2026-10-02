@@ -30,7 +30,7 @@ export default class AuthList extends BaseCommand<typeof AuthList> {
         theme: this.flags.theme || 'default',
       });
     } catch (error) {
-      this.error(`Failed to list credentials: ${error}`);
+      this.failFrom(error, 'Failed to list credentials');
     }
   }
 }

@@ -3341,6 +3341,56 @@ News id.
     ]
   ] .
 
+example:github-issue-closed
+  rdfs:label "Closing an issue on GitHub";
+  rdfs:comment """
+You closed Riley's issue as done. An issue is a :Task filed against its
+:Repository, which it :isPartOf, so closing it as completed is a
+:CompleteAction; closing it as not planned would be a :CancelAction. Accounts
+are keyed by their numeric GitHub id, the repository by its owner (its
+:creator) and its :name, the issue by its repository and its number (its
+:handle), and the closing by its GitHub node id.
+""";
+  rdf:value [
+    a :CompleteAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "github";
+    :sourceId "CE_lADOAbc123";
+    :timestamp "2025-03-01T10:00:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "github";
+      :sourceId "6300";
+      :handle "sam";
+      :url "https://github.com/sam";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Task;
+      doc:key ("@type" "source" "isPartOf.creator.sourceId" "isPartOf.name" "handle");
+      :source "github";
+      :handle "4";
+      :url "https://github.com/trailco/trails/issues/4";
+      :name "Trail signs are faded";
+      :isPartOf [
+        a :Repository;
+        doc:key ("@type" "source" "creator.sourceId" "name");
+        :source "github";
+        :url "https://github.com/trailco/trails";
+        :name "trails";
+        :creator [
+          a :Organization;
+          doc:key ("@type" "source" "sourceId");
+          :source "github";
+          :sourceId "6302";
+          :handle "trailco";
+          :url "https://github.com/trailco"
+        ]
+      ]
+    ]
+  ] .
+
 : skos:example example:message-from-alex, example:shell-command, example:task-completed .
 
 :Base skos:example example:entity-with-url .
@@ -3941,3 +3991,5 @@ a sentence of prose, so the action has no :object.
 :RespondAction skos:example example:hackernews-reply .
 :Comment skos:example example:hackernews-reply .
 :about skos:example example:hackernews-reply .
+:Repository skos:example example:github-issue-closed .
+:Task skos:example example:github-issue-closed .

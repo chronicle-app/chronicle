@@ -75,6 +75,18 @@ test('each manifest matches its plugin’s exported extractor classes', async ()
   }
 });
 
+test('no plugin names a record kind after a reserved word (all, defaults, help)', async () => {
+  for (const { dir, pkg } of workspace) {
+    for (const [source, { strategies }] of Object.entries(pkg.chronicle.sources ?? {})) {
+      for (const strategy of Object.values(strategies)) {
+        for (const kind of ['all', 'defaults', 'help']) {
+          assert.ok(!strategy.recordTypes.includes(kind), `${dir}: ${source} has a "${kind}" kind`);
+        }
+      }
+    }
+  }
+});
+
 test('the CLI bundles exactly the core plugins', () => {
   const { dependencies } = JSON.parse(read('apps/cli/package.json'));
   const bundled = catalog.filter(entry => entry.package in dependencies);

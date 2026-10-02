@@ -56,7 +56,7 @@ export default class AuthLogin extends BaseCommand<typeof AuthLogin> {
     }
 
     if (!args.provider) {
-      this.error('Provider name is required. Use --list to see available providers.');
+      this.fail('No provider given', { hint: 'Run `chronicle auth login --list` to see them.' });
     }
 
     try {
@@ -72,7 +72,7 @@ export default class AuthLogin extends BaseCommand<typeof AuthLogin> {
       const tokens = await oauthCommand.execute();
       this.log(JSON.stringify(tokens, null, 2));
     } catch (error) {
-      this.error(`OAuth authorization failed: ${error}`);
+      this.failFrom(error, 'OAuth authorization failed');
     }
   }
 }

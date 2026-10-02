@@ -35,9 +35,9 @@ function wantsLiveView(flags: any): Live {
 const list = (names: string[]) =>
   names.length > 3 ? `${names.slice(0, 3).join(', ')}, …` : names.join(', ');
 
+/** A note under the summary: one line, saying what happened and what to add. */
 interface Hint {
   message: string;
-  action: string;
   fields?: Record<string, unknown>;
 }
 
@@ -52,15 +52,13 @@ function columnHints(flags: any, loader: any, flagSources: Record<string, FlagSo
   if (hidden.length > 0) {
     const n = hidden.length;
     hints.push({
-      message: `${n} column${n === 1 ? '' : 's'} didn't fit (${list(hidden)})`,
-      action: '--loader csv keeps every column',
+      message: `${n} column${n === 1 ? '' : 's'} didn't fit (${list(hidden)}). Use \`--loader csv\` to see them all.`,
       fields: { hidden },
     });
   }
   if (loader?.collapsed && (flagSources.columns?.source ?? 'default') === 'default') {
     hints.push({
-      message: 'nested nodes shown as labels',
-      action: '--columns schema keeps every schema property',
+      message: 'Nested nodes are shown as labels. Use `--columns schema` to see every property.',
     });
   }
   return hints;
@@ -79,7 +77,6 @@ export async function runExtraction(
     level: thresholdFor(flags),
     theme: flags.theme,
     live: wantsLiveView(flags),
-    personal: flags['log-personal'],
     air: !output && process.stdout.isTTY && process.stderr.isTTY,
   });
   const run = { id: randomUUID(), source: String(source), strategy: String(strategy ?? '') };
@@ -176,20 +173,13 @@ export async function runExtraction(
     const { limit } = flags;
     const of = sourceTotal && sourceTotal > limit ? ` of ${count(sourceTotal)}` : '';
     hints.push({
-      message: `first ${count(limit)}${of}`,
-      action: 'use --limit 0 for all',
+      message: `Showing the first ${count(limit)}${of}. Use \`--limit 0\` for all.`,
       fields: { limit, ...(of && { total: sourceTotal }) },
     });
   }
   if (processed > 0) hints.push(...columnHints(flags, builder.loader, flagSources));
-  for (const { message, action, fields } of hints) {
-    logger.emit({
-      level: 'info',
-      kind: 'hint',
-      message,
-      hint: { action },
-      ...(fields && { fields }),
-    });
+  for (const { message, fields } of hints) {
+    logger.emit({ level: 'info', kind: 'hint', message, ...(fields && { fields }) });
   }
   logger.flush();
   if (failed > 0) throw new Error(`Extraction failed for ${failed} record operation(s).`);

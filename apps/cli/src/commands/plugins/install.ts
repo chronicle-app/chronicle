@@ -29,7 +29,7 @@ export default class PluginsInstall extends BaseCommand<typeof PluginsInstall> {
     try {
       name = await installPlugin(target);
     } catch (error) {
-      this.error(error instanceof Error ? error.message : String(error));
+      this.failFrom(error);
     }
 
     const sources = (await listSources()).filter(s => s.package === name);
