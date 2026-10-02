@@ -1,5 +1,12 @@
 # @chronicle.app/arc-timeline
 
+## 0.4.0
+
+### Patch Changes
+
+- Updated dependencies [2148753]
+  - @chronicle.app/icloud@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes

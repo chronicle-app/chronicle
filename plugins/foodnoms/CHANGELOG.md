@@ -1,5 +1,15 @@
 # @chronicle.app/foodnoms
 
+## 0.4.0
+
+### Patch Changes
+
+- 7e12eb1: Fix `chronicle extract foodnoms` failing with `ERR_OUT_OF_RANGE` when a meal slot's `sortIndex` is outside JavaScript's safe integer range. FoodNoms can store values near Int64.min there; those now come through as decimal strings.
+- Updated dependencies [2148753]
+- Updated dependencies [59904c0]
+  - @chronicle.app/icloud@0.4.0
+  - @chronicle.app/etl-sqlite@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes

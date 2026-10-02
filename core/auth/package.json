@@ -1,6 +1,6 @@
 {
   "name": "@chronicle.app/auth",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
@@ -19,7 +19,7 @@
   "type": "module",
   "description": "Standalone Chronicle credential and OAuth services",
   "devDependencies": {
-    "@chronicle.app/tsconfig": "0.3.0",
+    "@chronicle.app/tsconfig": "0.4.0",
     "@types/node": "^22.10.1",
     "typescript": "^5.7.2"
   },
@@ -37,7 +37,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "dependencies": {
-    "@chronicle.app/logging": "0.3.0",
+    "@chronicle.app/logging": "0.4.0",
     "axios": "^1.7.9"
   },
   "engines": {

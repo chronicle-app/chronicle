@@ -1,5 +1,14 @@
 # @chronicle.app/pinboard
 
+## 0.4.0
+
+### Patch Changes
+
+- Updated dependencies [a7fb44c]
+- Updated dependencies [2148753]
+- Updated dependencies [59904c0]
+  - @chronicle.app/auth@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes
