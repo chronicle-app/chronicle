@@ -35,9 +35,9 @@ function wantsLiveView(flags: any): Live {
 const list = (names: string[]) =>
   names.length > 3 ? `${names.slice(0, 3).join(', ')}, …` : names.join(', ');
 
+/** A note under the summary: one line, saying what happened and what to add. */
 interface Hint {
   message: string;
-  action: string;
   fields?: Record<string, unknown>;
 }
 
@@ -52,15 +52,13 @@ function columnHints(flags: any, loader: any, flagSources: Record<string, FlagSo
   if (hidden.length > 0) {
     const n = hidden.length;
     hints.push({
-      message: `${n} column${n === 1 ? '' : 's'} didn't fit (${list(hidden)})`,
-      action: '--loader csv keeps every column',
+      message: `${n} column${n === 1 ? '' : 's'} didn't fit (${list(hidden)}); add \`--loader csv\` to keep every column`,
       fields: { hidden },
     });
   }
   if (loader?.collapsed && (flagSources.columns?.source ?? 'default') === 'default') {
     hints.push({
-      message: 'nested nodes shown as labels',
-      action: '--columns schema keeps every schema property',
+      message: 'Nested nodes are shown as labels; add `--columns schema` to show every property',
     });
   }
   return hints;
@@ -174,22 +172,15 @@ export async function runExtraction(
   const hints: Hint[] = [];
   if (builder.peeking() && runner.truncated) {
     const { limit } = flags;
-    const of = sourceTotal && sourceTotal > limit ? ` of ${count(sourceTotal)}` : '';
+    const of = sourceTotal && sourceTotal > limit ? ` (${count(sourceTotal)} in all)` : '';
     hints.push({
-      message: `first ${count(limit)}${of}`,
-      action: 'use --limit 0 for all',
+      message: `Stopped at the default limit${of}; add \`--limit 0\` to read them all`,
       fields: { limit, ...(of && { total: sourceTotal }) },
     });
   }
   if (processed > 0) hints.push(...columnHints(flags, builder.loader, flagSources));
-  for (const { message, action, fields } of hints) {
-    logger.emit({
-      level: 'info',
-      kind: 'hint',
-      message,
-      hint: { action },
-      ...(fields && { fields }),
-    });
+  for (const { message, fields } of hints) {
+    logger.emit({ level: 'info', kind: 'hint', message, ...(fields && { fields }) });
   }
   logger.flush();
   if (failed > 0) throw new Error(`Extraction failed for ${failed} record operation(s).`);

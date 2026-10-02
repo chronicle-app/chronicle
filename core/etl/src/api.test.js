@@ -108,7 +108,7 @@ test('ApiProxy maps 401 and 429 to typed errors and passes other failures throug
   assert.equal(limited.status, 429);
   assert.equal(limited.retryAfterSeconds, 42);
   assert.equal(limited.exitCode, 5);
-  assert.equal(limited.hint, 'try again in 42s');
+  assert.match(limited.hint, /42s/);
 
   const unhinted = await proxy.get('/busy').catch(error => error);
   assert.ok(unhinted instanceof ApiRateLimitError);

@@ -185,7 +185,7 @@ test('a missing token fails before any request, pointing at `auth set`', async (
   // Pinboard takes a static token, not OAuth, so the next step is `auth set`.
   await assert.rejects(extractor.setup(), {
     message: /Pinboard API key is required/,
-    hint: 'run `chronicle auth set pinboard`',
+    hint: /chronicle auth set pinboard/,
   });
   assert.equal(requests.length, 0);
 });

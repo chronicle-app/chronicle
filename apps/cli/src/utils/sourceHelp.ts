@@ -105,8 +105,11 @@ export function recordTypesHint(
   const others = chosen.recordTypes.filter(kind => !bare.includes(kind));
   const kind = (others.length > 0 ? others : chosen.recordTypes)[0];
   return {
-    message: `name kinds after the source, or \`-t all\`; without any, ${bareRunSummary(candidates) ?? 'you’re asked which'}`,
-    action: `\`chronicle ${verb} ${source}${strategy} ${kind}\``,
+    message: (() => {
+      const summary = bareRunSummary(candidates);
+      return summary ? `With none named, it reads ${summary}` : '';
+    })(),
+    action: `Name the kinds you want after the source: \`chronicle ${verb} ${source}${strategy} ${kind}\``,
   };
 }
 

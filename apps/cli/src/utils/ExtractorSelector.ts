@@ -167,7 +167,10 @@ export class ExtractorSelector {
     return new ExtractorError(`${source} has no default record types`, {
       code: 'no-default-record-types',
       exitCode: EXIT_CODES.usage,
-      hint: `name some: \`chronicle extract ${source} ${allKinds(pool)[0]}\`, or \`-t all\` · \`--list-types\` lists them`,
+      hint: [
+        `Name one or more, for example: \`chronicle extract ${source} ${allKinds(pool)[0]}\``,
+        `Or read every kind: \`chronicle extract ${source} -t all\``,
+      ].join('\n'),
     });
   }
 
@@ -209,8 +212,8 @@ export class ExtractorSelector {
           code: 'unknown-record-type',
           exitCode: EXIT_CODES.usage,
           hint: guess
-            ? `did you mean \`${guess}\`? Kinds: ${available.join(', ')}`
-            : `pick from ${available.join(', ')}`,
+            ? `Did you mean: \`chronicle extract ${this.input.source} ${guess}\``
+            : `See its kinds: \`chronicle extract ${this.input.source} --list-types\``,
         }
       );
     }
@@ -234,7 +237,7 @@ export class ExtractorSelector {
         {
           code: 'record-types-span-strategies',
           exitCode: EXIT_CODES.usage,
-          hint: 'pick one with `--strategy`',
+          hint: `See its strategies: \`chronicle extract ${this.input.source} --help\``,
         }
       );
     }

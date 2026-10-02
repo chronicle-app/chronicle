@@ -9,7 +9,11 @@ export function closest(typed: string, known: string[]): string | undefined {
   const needle = typed.toLowerCase();
   // Of the names that contain it or that it contains, the nearest in length.
   const containing = known
-    .filter(k => k.includes(needle) || needle.includes(k))
+    .filter(
+      k =>
+        // Containing a name of a letter or two matches nearly anything.
+        Math.min(k.length, needle.length) >= 3 && (k.includes(needle) || needle.includes(k))
+    )
     .sort((a, b) => Math.abs(a.length - needle.length) - Math.abs(b.length - needle.length));
   if (containing.length > 0) return containing[0];
   let best: { kind: string; distance: number } | undefined;

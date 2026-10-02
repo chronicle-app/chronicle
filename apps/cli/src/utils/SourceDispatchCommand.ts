@@ -220,7 +220,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
           ''
         ),
         {
-          hint: `\`chronicle ${verb} ${positional} --help\` lists the flags`,
+          hint: `See its flags: \`chronicle ${verb} ${positional} --help\``,
         }
       );
     }
@@ -242,7 +242,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     const named = positionals.filter((arg): arg is string => typeof arg === 'string').slice(1);
     if (named.length > 0 && parsed.type) {
       this.fail('Record kinds named twice', {
-        hint: `name them after the source or with \`--type\`, not both: \`chronicle ${verb} ${positional} ${named.join(' ')}\``,
+        hint: `Name them once, after the source: \`chronicle ${verb} ${positional} ${named.join(' ')}\``,
       });
     }
     const selector = new ExtractorSelector({
@@ -279,7 +279,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
         throw new Errors.ExitError(exitCode);
       }
       this.fail(error instanceof Error ? error.message : String(error), {
-        hint: `\`chronicle ${verb} ${positional} --help\` lists the strategies, kinds, and flags`,
+        hint: `See its strategies and kinds: \`chronicle ${verb} ${positional} --help\``,
       });
     }
     this.announce(selector.selection, positional, verb);
@@ -312,8 +312,8 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
       this.logger.emit({
         level: 'info',
         kind: 'hint',
-        message: `not included: ${excluded.join(', ')}`,
-        hint: { action: `\`-t all\` reads every kind` },
+        message: `Not included: ${excluded.join(', ')}`,
+        hint: { action: `Read every kind: \`chronicle ${verb} ${source} -t all\`` },
       });
     }
   }
@@ -352,13 +352,13 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
       const name = closest(bare, Object.keys(flags));
       if (name) guess = `\`--${name}\``;
     }
-    const help = `\`chronicle ${verb} ${source} --help\` lists the flags, \`--list-types\` the kinds`;
+    const help = `See its flags: \`chronicle ${verb} ${source} --help\``;
     this.logger.emit({
       level: 'error',
       kind: 'error',
       message: `${source} has no flag ${typed.join(', ')}`,
       error: { code: 'unknown-flag', exitCode: EXIT_CODES.usage },
-      hint: { action: guess ? `did you mean ${guess}? ${help}` : help },
+      hint: { action: guess ? `Did you mean ${guess}?\n${help}` : help },
     });
     this.logger.flush();
     throw new Errors.ExitError(EXIT_CODES.usage);
@@ -374,8 +374,8 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
       hint: {
         action:
           flag === 'type'
-            ? `\`chronicle ${verb} ${source} --list-types\` lists the kinds`
-            : `\`chronicle ${verb} ${source} --help\` describes --${flag}`,
+            ? `Name a kind, or see them all: \`chronicle ${verb} ${source} --list-types\``
+            : `See what it takes: \`chronicle ${verb} ${source} --help\``,
       },
     });
     this.logger.flush();
@@ -413,14 +413,14 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     const listing = (await listSources()).find(s => s.source === source && !s.installed);
     if (!listing) {
       this.fail(`No source named "${source}"`, {
-        hint: '`chronicle sources --all` lists every source',
+        hint: 'See every source: `chronicle sources --all`',
       });
     }
 
     const command = `chronicle plugins install ${listing.plugin}`;
     // The prompt draws on stdout, so only offer it when records aren't piped.
     if (!process.stdin.isTTY || !process.stdout.isTTY) {
-      this.fail(`${source} isn't installed`, { hint: `install it with \`${command}\`` });
+      this.fail(`${source} isn't installed`, { hint: `Install it: \`${command}\`` });
     }
     const { inkConfirm } = await import('../components/InkConfirm.js');
     const { confirmed } = await inkConfirm(
@@ -431,8 +431,8 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
       this.logger.emit({
         level: 'info',
         kind: 'hint',
-        message: 'not installed',
-        hint: { action: `install it later with: ${command}` },
+        message: 'Not installed',
+        hint: { action: `Install it later: \`${command}\`` },
       });
       this.exit(1);
     }

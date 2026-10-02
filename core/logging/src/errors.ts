@@ -54,7 +54,7 @@ export class AuthRequired extends ExtractorError {
     super(message, {
       code: 'auth-required',
       exitCode: EXIT_CODES.auth,
-      hint: source ? `run \`chronicle auth login ${source}\`` : undefined,
+      hint: source ? `Sign in: \`chronicle auth login ${source}\`` : undefined,
       ...rest,
     });
   }
@@ -104,7 +104,7 @@ export class RateLimited extends ExtractorError {
     super(message, {
       code: 'rate-limited',
       exitCode: EXIT_CODES.transient,
-      hint: retryAfter === undefined ? 'try again later' : `try again in ${retryAfter}s`,
+      hint: retryAfter === undefined ? 'Try again later' : `Try again in ${retryAfter}s`,
       ...rest,
       fields: { ...(retryAfter !== undefined && { retryAfter }), ...rest.fields },
     });
