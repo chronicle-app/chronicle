@@ -1,7 +1,8 @@
-import { Args, Command } from '@oclif/core';
+import { BaseCommand } from '../../baseCommand.js';
+import { Args } from '@oclif/core';
 import { ConfigManager } from '../../config/index.js';
 
-export default class ConfigGetCommand extends Command {
+export default class ConfigGetCommand extends BaseCommand<typeof ConfigGetCommand> {
   static override description = 'Get a global configuration value';
 
   static override examples = [
@@ -31,7 +32,7 @@ export default class ConfigGetCommand extends Command {
       // Output the value in a format suitable for scripts
       this.log(JSON.stringify(value));
     } catch (error) {
-      this.error(`Failed to get configuration: ${error}`);
+      this.failFrom(error, 'Failed to get configuration');
     }
   }
 }

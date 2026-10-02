@@ -8,6 +8,11 @@ styled. Commands, loaders, and sinks build their text from this module.
 - **stdout carries only data.** Everything for people goes to stderr.
 - **A command ends with one summary line**: status glyph, subject, counts,
   time, destination. `✓ shell · history  1,240 commands  in 1.7s  → out.json`
+- **Errors** read `✗ Error: <message>`, with what to do about it as a hint
+  below, never folded into the message. Commands stop with `this.fail(message,
+{ hint })` (or `this.failFrom(error)` in a catch-all), never oclif's
+  `this.error`; `BaseCommand.catch` shows anything else that escapes, oclif's
+  own parse errors included, the same way.
 - **Hints** are dim, marked `↳`, under the line they follow (the summary, or
   an error), and under a summary appear only for defaults the person didn't choose (the default `--limit` cutting a run
   short, readable columns hiding schema properties, columns that didn't fit).

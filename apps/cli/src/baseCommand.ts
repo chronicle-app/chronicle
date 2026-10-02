@@ -1,5 +1,12 @@
-import { Command, Flags, Interfaces } from '@oclif/core';
-import { createLogger, setDefaultSink, type Logger } from '@chronicle.app/logging';
+import { Command, Errors, Flags, Interfaces } from '@oclif/core';
+import {
+  EXIT_CODES,
+  createLogger,
+  describeError,
+  isReported,
+  setDefaultSink,
+  type Logger,
+} from '@chronicle.app/logging';
 import { ConfigManager, FlagResolver, FlagSource } from './config/index.js';
 import { outputFlagsIn, sinkFor, type OutputFlags } from './output/index.js';
 
@@ -60,6 +67,9 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
 
   static stdin: string;
 
+  /** Whether init() parses the flags; off for a command that reads its own argv. */
+  static parsesInInit = true;
+
   /** Opt in to reading piped stdin in init(); see shouldReadStdin. */
   static acceptsStdin = false;
 
@@ -86,10 +96,75 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
     if (error instanceof Error && error.stack) this.logger.debug(error.stack);
   }
 
+  /**
+   * Stop with an error for a person: the message, and on a line of its own
+   * the next step, if there is one. Use this, not oclif's `this.error`, so
+   * every error looks the same.
+   */
+  protected fail(
+    message: string,
+    { hint, exitCode = EXIT_CODES.usage }: { hint?: string; exitCode?: number } = {}
+  ): never {
+    this.logger.emit({
+      level: 'error',
+      kind: 'error',
+      message,
+      error: { code: 'command-failed', exitCode },
+      ...(hint && { hint: { action: hint } }),
+    });
+    this.logger.flush();
+    throw new Errors.ExitError(exitCode);
+  }
+
+  /** The command that shows this command's help, for hints. */
+  protected helpCommand(): string | undefined {
+    return this.id ? `chronicle ${this.id.replaceAll(':', ' ')} --help` : undefined;
+  }
+
+  /**
+   * Fail because of `error`: its message, after `context` when given. An exit
+   * already on its way out (from `fail` or `exit`) passes through, so a
+   * command's catch-all doesn't report a failure twice.
+   */
+  protected failFrom(error: unknown, context?: string): never {
+    if (error instanceof Errors.ExitError || isReported(error)) throw error;
+    const { message, hint } = describeError(error);
+    this.fail(context ? `${context}: ${message}` : message, { ...(hint && { hint }) });
+  }
+
+  /**
+   * Every error that leaves a command is shown the way `fail` shows one,
+   * including oclif's own (an unknown flag, a missing argument), whose "See
+   * more help" becomes a hint. Exits and cancellations pass through, and an
+   * error already reported as an event isn't shown twice.
+   */
   protected override async catch(err: { exitCode?: number } & Error): Promise<any> {
-    // add any custom logic to handle errors from the command
-    // or simply return the parent class error handling
-    return super.catch(err);
+    const exit = (err as any)?.oclif?.exit;
+    if (err instanceof Errors.ExitError || exit === 130 || isReported(err)) return super.catch(err);
+    // A flag value its extractor's schema rejected: say which flag, and why.
+    const { issues } = err as { issues?: { path: (string | number)[]; message: string }[] };
+    if (err?.name === 'ZodError' && Array.isArray(issues)) {
+      this.fail(issues.map(issue => `--${issue.path.join('.')}: ${issue.message}`).join('; '), {
+        ...(this.helpCommand() && { hint: `run \`${this.helpCommand()}\`` }),
+      });
+    }
+    const { message, code, exitCode, hint, stack } = describeError(err);
+    const seeHelp = /\n?\s*See more help with --help\s*$/;
+    const help = this.helpCommand();
+    const helpHint = seeHelp.test(message) && help ? `run \`${help}\`` : undefined;
+    this.logger.emit({
+      level: 'error',
+      kind: 'error',
+      message: message.replace(seeHelp, ''),
+      error: { code, exitCode },
+      ...((hint ?? helpHint) && { hint: { action: (hint ?? helpHint)! } }),
+    });
+    // A bug's stack, for --verbose.
+    if (code === 'internal' && stack) this.logger.debug(stack);
+    this.logger.flush();
+    throw new Errors.ExitError(
+      code === 'internal' ? (typeof exit === 'number' ? exit : exitCode) : exitCode
+    );
   }
 
   protected override async finally(_: Error | undefined): Promise<any> {
@@ -101,6 +176,8 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
     // Output first, from raw argv: anything said while parsing follows it.
     this.installOutput(outputFlagsIn(this.argv));
     await super.init();
+    // A command that reads its own argv (any flags at all) parses nothing here.
+    if (!(this.ctor as unknown as typeof BaseCommand).parsesInInit) return;
     const { args, flags, metadata } = await this.parse({
       args: this.ctor.args,
       baseFlags: (super.ctor as typeof BaseCommand).baseFlags,

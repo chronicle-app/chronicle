@@ -39,7 +39,7 @@ export default class PluginsRemove extends BaseCommand<typeof PluginsRemove> {
       if (!(await matches(pluginPath))) kept.push(pluginPath);
     }
     if (kept.length === paths.length) {
-      this.error(`${args.plugin} isn't a local plugin. See "chronicle plugins".`);
+      this.fail(`${args.plugin} isn't a local plugin`, { hint: '`chronicle plugins` lists them' });
     }
 
     config.plugins = kept;

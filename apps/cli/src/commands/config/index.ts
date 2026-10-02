@@ -1,10 +1,11 @@
-import { Args, Command, Flags } from '@oclif/core';
+import { BaseCommand } from '../../baseCommand.js';
+import { Args, Flags } from '@oclif/core';
 import { ConfigManager } from '../../config/index.js';
 
 /**
  * Base config command - shows help when run without subcommands
  */
-export default class ConfigCommand extends Command {
+export default class ConfigCommand extends BaseCommand<typeof ConfigCommand> {
   static override description = 'Manage Chronicle configuration';
 
   static override examples = [

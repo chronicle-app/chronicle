@@ -52,7 +52,7 @@ export default class AuthStatus extends BaseCommand<typeof AuthStatus> {
 
       this.log(`  Has Refresh Token: ${credentials.refreshToken ? 'Yes' : 'No'}`);
     } catch (error) {
-      this.error(`Failed to check status for ${provider}: ${error}`);
+      this.failFrom(error, `Failed to check status for ${provider}`);
     }
   }
 }
