@@ -1,5 +1,6 @@
 import { EXIT_CODES, ExtractorError } from '@chronicle.app/logging';
 import { inkSelect } from '../components/InkSelect.js';
+import { closest } from './closest.js';
 import {
   strategiesOf,
   type ExtractorMetadata,
@@ -189,36 +190,4 @@ export class ExtractorSelector {
   private strategiesSentence(strategies: StrategyInfo[]): string {
     return `Strategies: ${strategies.map(s => `${s.name} (${s.delivery})`).join(' · ')}.`;
   }
-}
-
-/**
- * The known kind a mistyped one most likely meant: one that contains it or is
- * contained in it (`star` for `stars`), else one a couple of edits away.
- */
-export function closest(typed: string, known: string[]): string | undefined {
-  const needle = typed.toLowerCase();
-  const containing = known.find(k => k.includes(needle) || needle.includes(k));
-  if (containing) return containing;
-  let best: { kind: string; distance: number } | undefined;
-  for (const kind of known) {
-    const distance = editDistance(needle, kind);
-    if (distance <= 2 && (!best || distance < best.distance)) best = { kind, distance };
-  }
-  return best?.kind;
-}
-
-function editDistance(a: string, b: string): number {
-  let previous = Array.from({ length: b.length + 1 }, (_, j) => j);
-  for (let i = 1; i <= a.length; i++) {
-    const current = [i];
-    for (let j = 1; j <= b.length; j++) {
-      current[j] = Math.min(
-        previous[j] + 1,
-        current[j - 1] + 1,
-        previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
-      );
-    }
-    previous = current;
-  }
-  return previous[b.length];
 }

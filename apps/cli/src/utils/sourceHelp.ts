@@ -9,7 +9,7 @@ const BASE_FLAGS = FlagManager.getBaseFlags(BaseCommand.baseFlags) as Record<str
 const BASE_FLAG_KEYS = new Set(Object.keys(BASE_FLAGS));
 
 // The base flags worth showing beside a source's own: scope and output.
-const COMMON_FLAG_KEYS = ['limit', 'since', 'until', 'loader', 'output'];
+const COMMON_FLAG_KEYS = ['type', 'list-types', 'limit', 'since', 'until', 'loader', 'output'];
 
 export interface SourceFlagInfo {
   name: string;
@@ -151,12 +151,21 @@ export function renderSourceHelp(
   for (const name of COMMON_FLAG_KEYS) {
     const f = BASE_FLAGS[name];
     if (!f) continue;
-    const value = f.type === 'boolean' ? '' : f.options ? ` <${f.options.join('|')}>` : ' <value>';
+    const value =
+      f.type === 'boolean'
+        ? ''
+        : f.options
+          ? ` <${f.options.join('|')}>`
+          : ` ${f.helpValue ?? '<value>'}`;
+    const short = f.char ? `-${f.char}, ` : '';
     const def =
       f.default !== undefined && typeof f.default !== 'function'
         ? `  ${theme.textDim(`default: ${String(f.default)}`)}`
         : '';
-    lines.push(`  ${theme.text(`--${name}${value}`)}${def}`, `      ${theme.textDim(f.summary)}`);
+    lines.push(
+      `  ${theme.text(`${short}--${name}${value}`)}${def}`,
+      `      ${theme.textDim(f.summary)}`
+    );
   }
 
   lines.push(
