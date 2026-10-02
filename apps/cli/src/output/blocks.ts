@@ -30,7 +30,7 @@ const measure = (segments: Segment[]) => segments.reduce((n, [text]) => n + text
  * aligned so they scan as a column, and lines for anything failed, skipped,
  * or written.
  *
- *   ✓ github · api  in 4.6s  → out.json
+ *   ✓ github  in 4.6s  → out.json
  *       2 stars
  *       3 pull requests
  *       1 commit

@@ -26,7 +26,7 @@ const time = new Date(2026, 0, 2, 9, 30, 5);
 const run = { id: 'run-1', source: 'shell', strategy: 'history' };
 
 const done: SummaryFields = {
-  title: 'shell · history',
+  title: 'shell · commands',
   counts: { commands: 1240 },
   records: 1240,
   durationMs: 1700,
@@ -34,7 +34,7 @@ const done: SummaryFields = {
 };
 
 const failed: SummaryFields = {
-  title: 'claude-code · sessions',
+  title: 'claude-code',
   counts: { messages: 3120, sessions: 48 },
   records: 3168,
   written: 3400,
@@ -44,7 +44,7 @@ const failed: SummaryFields = {
 };
 
 const running: ProgressFields = {
-  title: 'shell · history',
+  title: 'shell · commands',
   processed: 420,
   total: 1240,
   counts: { commands: 420 },
