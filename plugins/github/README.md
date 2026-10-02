@@ -10,7 +10,7 @@ chronicle extract github --type stars
 chronicle extract github --type replies --since 2025-01-01
 ```
 
-Each kind is one record type. A bare run reads them all, merged newest first.
+Each kind is one record type. A bare run reads your own activity, merged newest first: every kind but `replies` and `resolutions`, which are slow and run only when asked for with `--type`.
 
 - `pull-requests`: pull requests you opened.
 - `issues`: issues you opened.
@@ -20,7 +20,7 @@ Each kind is one record type. A bare run reads them all, merged newest first.
 - `stars`: repositories you starred, dated when you starred them.
 - `gists`: your gists, public and secret.
 
-`--since` ends each walk once it passes older items. GitHub lists comments by when they were last edited, so `comments` stops at the first comment last edited before `--since` and keeps those written since then. `resolutions` walks closed issues and pull requests, most recently active first, and stops at the first quiet since `--since`; without it, it reads every closed issue in every repository you own, which takes a while (about a minute and a half for 64 repositories). `replies` is the slowest kind: it walks every thread you opened or commented on, because an old thread can get a new reply, and skips only threads with no activity since `--since`. A bare run waits on `resolutions` and `replies` before yielding anything.
+`--since` ends each walk once it passes older items. GitHub lists comments by when they were last edited, so `comments` stops at the first comment last edited before `--since` and keeps those written since then. `resolutions` walks closed issues and pull requests, most recently active first, and stops at the first quiet since `--since`; without it, it reads every closed issue in every repository you own, which takes a while (about a minute and a half for 64 repositories). `replies` is the slowest kind: it walks every thread you opened or commented on, because an old thread can get a new reply, and skips only threads with no activity since `--since`.
 
 Activity in private repositories is included when the token can see it, marked `visibility: private`.
 
