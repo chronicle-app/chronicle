@@ -86,11 +86,12 @@ const trails = {
 const repositories = { R_bakery: bakery, R_trails: trails };
 
 /** An issue is a Task; `body` only where the issue itself is the record. */
+const threadKey = ['@type', 'source', 'isPartOf.creator.sourceId', 'isPartOf.name', 'handle'];
 const task = (t, { withBody = false } = {}) => ({
   '@type': 'Task',
-  '@key': key,
+  '@key': threadKey,
   source,
-  sourceId: t.id,
+  handle: String(t.number),
   url: t.url,
   name: t.title,
   ...(withBody && t.body && { body: t.body }),
@@ -98,9 +99,9 @@ const task = (t, { withBody = false } = {}) => ({
 });
 const changeset = (t, { withBody = false } = {}) => ({
   '@type': 'Changeset',
-  '@key': key,
+  '@key': threadKey,
   source,
-  sourceId: t.id,
+  handle: String(t.number),
   url: t.url,
   name: t.title,
   ...(withBody && t.body && { body: t.body }),
