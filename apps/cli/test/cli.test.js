@@ -206,6 +206,10 @@ test('raw extraction, four output loaders, file output and stream mode', t => {
   // Tabular output hints at the other column mode, but only when it would show more.
   const labelled = run('extract', 'shell', '--input', input, '--loader', 'csv');
   assert.match(labelled.stderr, /--columns schema/);
+  // A type every row shares is left out of the table rather than set above it.
+  const table = success(run('extract', 'shell', '--input', input, '--loader', 'table'));
+  assert.match(table, /echo synthetic/);
+  assert.doesNotMatch(table, /Action/);
   const flat = run('extract', 'shell', '--input', input, '--raw', '--loader', 'csv');
   assert.doesNotMatch(flat.stderr, /--columns/);
   const schema = run(
