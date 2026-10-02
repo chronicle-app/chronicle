@@ -124,7 +124,7 @@ test('bundled sources are discoverable from an unrelated cwd; JSON has no diagno
   const noKind = run('extract', 'shell', '-t');
   assert.equal(noKind.status, 2);
   assert.match(noKind.stderr, /✗ Error: --type needs a value/);
-  assert.match(noKind.stderr, /↳ `chronicle extract shell --list-types` lists shell's kinds/);
+  assert.match(noKind.stderr, /↳ `chronicle extract shell --list-types` lists the kinds/);
 
   // Kinds can follow the source, but not as well as --type.
   const twice = run('extract', 'shell', 'commands', '--type', 'commands');
