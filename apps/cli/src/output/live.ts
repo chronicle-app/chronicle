@@ -33,7 +33,7 @@ export function progress(fields: ProgressFields, t: Tokens, width: number, frame
     fields.phase === 'writing'
       ? [[`writing ${fields.target ?? 'output'}`], [`  ${count(processed)} ${unit}`, t.muted]]
       : fields.phase === 'reading'
-        ? [[processed === 0 ? 'starting' : `${count(processed)} ${unit} read`]]
+        ? [[processed === 0 ? 'starting' : `${count(processed)} ${unit} extracted`]]
         : total > 0
           ? [[count(processed)], ['/', t.muted], [`${count(total)} ${unit}`]]
           : [[`${count(processed)} ${unit}`]];

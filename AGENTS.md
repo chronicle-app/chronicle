@@ -50,6 +50,7 @@ auth login lastfm` to sign in." "Use `--limit 0` for all." "Did you mean
 - Use everyday verbs: run, use, pass, pick, sign in. Avoid words people don't
   say: "kinds you want", "read one", "name them", "proceed", "ensure",
   "utilize".
+- Records are extracted, not read or fetched: "12 commits extracted".
 - Don't describe the program ("it reads", "it asks which", "Chronicle will")
   or narrate yourself ("Extracting the following…").
 - Don't join phrases with `·` or `→`, don't stack headings over commands
