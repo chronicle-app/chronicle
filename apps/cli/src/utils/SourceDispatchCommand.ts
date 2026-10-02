@@ -62,6 +62,12 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
    * is expected before any source-specific flags, which is how it's typed.
    */
   private firstPositional(): string | undefined {
+    const [first] = this.positionals();
+    return first === undefined ? undefined : this.argv[first];
+  }
+
+  /** Where the positionals are in argv, skipping flags and their values as {@link firstPositional} does. */
+  private positionals(): number[] {
     const valueFlags = new Set([
       '--theme',
       '--log-format',
@@ -87,6 +93,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
       '--delay',
       '--fold-batch',
     ]);
+    const found: number[] = [];
     for (let i = 0; i < this.argv.length; i++) {
       const tok = this.argv[i];
       if (tok.startsWith('-')) {
@@ -94,18 +101,20 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
         if (valueFlags.has(tok)) i++; // skip this flag's value
         continue; // boolean flag (or value already skipped)
       }
-      return tok;
+      found.push(i);
     }
-    return undefined;
+    return found;
   }
 
   public override async init(): Promise<void> {
     // Before discovery, so what it says follows the output flags.
     this.installOutput(outputFlagsIn(this.argv));
-    // `extract help [source]` reads like `git help <command>`: the command's
-    // help, or the source's.
-    if (this.firstPositional() === 'help') {
-      this.argv = this.argv.filter((_, i) => i !== this.argv.indexOf('help'));
+    // `help` anywhere asks for help: `extract help [source]` reads like
+    // `git help <command>`, and `extract spotify help` like a kind would. The
+    // command's help, or the source's.
+    const helpAt = this.positionals().find(i => this.argv[i] === 'help');
+    if (helpAt !== undefined) {
+      this.argv = this.argv.filter((_, i) => i !== helpAt);
       if (!this.firstPositional()) {
         await this.config.runCommand('help', [this.id ?? 'extract']);
         this.exit(0);
