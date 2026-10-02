@@ -111,6 +111,15 @@ test('bundled sources are discoverable from an unrelated cwd; JSON has no diagno
   assert.doesNotMatch(typo.stderr, /flags:/);
   const unknownType = run('extract', 'shell', '--type', 'likes');
   assert.match(unknownType.stderr, /↳ pick from commands/);
+
+  // So is a flag the source doesn't have, without the generic extract usage;
+  // the source help lists --type and --list-types with the common flags.
+  const badFlag = run('extract', 'shell', '-T');
+  assert.equal(badFlag.status, 2);
+  assert.match(badFlag.stderr, /✗ shell has no flag -T/);
+  assert.match(badFlag.stderr, /↳ did you mean `-t` \(`--type`\)\?/);
+  assert.doesNotMatch(badFlag.stderr, /USAGE/);
+  assert.match(help, /-L, --list-types/);
 });
 
 test('raw extraction, four output loaders, file output and stream mode', t => {

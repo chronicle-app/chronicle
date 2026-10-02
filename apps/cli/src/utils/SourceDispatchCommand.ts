@@ -1,5 +1,6 @@
 import { Args, Command, Errors } from '@oclif/core';
-import { describeError } from '@chronicle.app/logging';
+import { EXIT_CODES, describeError } from '@chronicle.app/logging';
+import { closest } from './closest.js';
 import { BaseCommand } from '../baseCommand.js';
 import { PluginScanner, type ExtractorMetadata } from '../plugins/PluginScanner.js';
 import { FlagManager } from './FlagManager.js';
@@ -190,6 +191,13 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
         baseFlags: BaseCommand.baseFlags,
       }));
     } catch (error) {
+      // A flag the source doesn't have: oclif's own message would print the
+      // generic extract usage, which knows none of the source's flags.
+      const unknown =
+        error instanceof Error
+          ? error.message.match(/Nonexistent flags?: ([^\n]+)/)?.[1]
+          : undefined;
+      if (unknown) this.unknownFlags(unknown.split(/,\s*/), assembled, positional, verb);
       // Surface missing source-specific flags with a pointer to the source help.
       if (error instanceof Error && /Missing required flag/i.test(error.message)) {
         this.error(
@@ -252,6 +260,41 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
       );
     }
     this.dispatching = true;
+  }
+
+  /**
+   * Report flags the source doesn't have as a usage error whose hint names the
+   * likeliest flag meant and where the source's flags and kinds are listed.
+   */
+  private unknownFlags(
+    typed: string[],
+    flags: Record<string, { char?: string }>,
+    source: string,
+    verb: string
+  ): never {
+    const [first] = typed;
+    const bare = first.replace(/^-+/, '');
+    let guess: string | undefined;
+    if (!first.startsWith('--') && bare.length === 1) {
+      // A short flag: the same letter in the other case, if a flag has it.
+      const name = Object.keys(flags).find(
+        n => flags[n].char?.toLowerCase() === bare.toLowerCase()
+      );
+      if (name) guess = `\`-${flags[name].char}\` (\`--${name}\`)`;
+    } else {
+      const name = closest(bare, Object.keys(flags));
+      if (name) guess = `\`--${name}\``;
+    }
+    const help = `\`chronicle ${verb} ${source} --help\` lists ${source}'s flags; \`--list-types\` its kinds`;
+    this.logger.emit({
+      level: 'error',
+      kind: 'error',
+      message: `${source} has no flag ${typed.join(', ')}`,
+      error: { code: 'unknown-flag', exitCode: EXIT_CODES.usage },
+      hint: { action: guess ? `did you mean ${guess}? ${help}` : help },
+    });
+    this.logger.flush();
+    throw new Errors.ExitError(EXIT_CODES.usage);
   }
 
   /**
