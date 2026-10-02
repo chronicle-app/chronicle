@@ -9,7 +9,6 @@ import {
   CompleteAction,
   Entity,
   LikeAction,
-  OfferAction,
   PlanAction,
   PublishAction,
   RejectAction,
@@ -51,7 +50,7 @@ export default class GitHubTransformer extends ChronicleTransformer {
 
     switch (record.extraction.recordType) {
       case 'pull-requests': {
-        return [this.buildPullRequestOffered(record.data as GitHubThread)];
+        return [this.buildPullRequestOpened(record.data as GitHubThread)];
       }
       case 'issues': {
         return [this.buildIssueOpened(record.data as GitHubThread)];
@@ -89,17 +88,16 @@ export default class GitHubTransformer extends ChronicleTransformer {
     };
   }
 
-  /** You opened a pull request: a changeset offered to the repository it would change. */
-  private buildPullRequestOffered(pullRequest: GitHubThread): OfferAction {
+  /** You opened a pull request: a changeset, published to the repository it would change. */
+  private buildPullRequestOpened(pullRequest: GitHubThread): PublishAction {
     return {
-      '@type': 'OfferAction',
+      '@type': 'PublishAction',
       '@key': KEY,
       source: SOURCE,
       sourceId: pullRequest.id,
       timestamp: new Date(pullRequest.createdAt),
       ...(pullRequest.author && { agent: this.buildActor(pullRequest.author) }),
       object: this.buildChangeset(pullRequest),
-      target: this.buildRepository(pullRequest.repository),
     };
   }
 
@@ -178,7 +176,6 @@ export default class GitHubTransformer extends ChronicleTransformer {
       sourceId: gist.id,
       url: gist.url,
       ...(name && { name }),
-      datePublished: new Date(gist.createdAt),
       ...(this.viewer && { author: [this.buildSelf()] }),
       // A secret gist is hidden from listings but open to anyone with its URL.
       visibility: gist.isPublic ? 'public' : 'unlisted',
@@ -227,7 +224,6 @@ export default class GitHubTransformer extends ChronicleTransformer {
       url: pullRequest.url,
       name: pullRequest.title,
       ...(pullRequest.body && { body: pullRequest.body }),
-      datePublished: new Date(pullRequest.createdAt),
       ...(pullRequest.author && { author: [this.buildActor(pullRequest.author)] }),
       isPartOf: [this.buildRepository(pullRequest.repository)],
       visibility: VISIBILITY[pullRequest.repository.visibility],

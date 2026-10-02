@@ -37,25 +37,25 @@ gh's default scopes (`repo`, `read:org`, `gist`) cover everything. For a persona
 
 ## Schema
 
-| GitHub activity                                    | Chronicle action                  | `object`                  | Other                      |
-| -------------------------------------------------- | --------------------------------- | ------------------------- | -------------------------- |
-| You opened an issue                                | `PlanAction`                      | `Task`                    |                            |
-| You opened a pull request                          | `OfferAction`                     | `Changeset`               | `target`: the `Repository` |
-| You or someone else commented                      | `RespondAction`                   | the `Task` or `Changeset` | `result`: the `Comment`    |
-| An issue was closed as completed / not planned     | `CompleteAction` / `CancelAction` | `Task`                    |                            |
-| A pull request was merged                          | `AcceptAction`                    | `Changeset`               |                            |
-| A pull request was closed unmerged by someone else | `RejectAction`                    | `Changeset`               |                            |
-| A pull request was closed unmerged by its author   | `CancelAction`                    | `Changeset`               |                            |
-| You starred a repository                           | `LikeAction`                      | `Repository`              |                            |
-| You created a gist                                 | `PublishAction`                   | `SoftwareSourceCode`      |                            |
+| GitHub activity                                    | Chronicle action                  | `object`                  | Other                   |
+| -------------------------------------------------- | --------------------------------- | ------------------------- | ----------------------- |
+| You opened an issue                                | `PlanAction`                      | `Task`                    |                         |
+| You opened a pull request                          | `PublishAction`                   | `Changeset`               |                         |
+| You or someone else commented                      | `RespondAction`                   | the `Task` or `Changeset` | `result`: the `Comment` |
+| An issue was closed as completed / not planned     | `CompleteAction` / `CancelAction` | `Task`                    |                         |
+| A pull request was merged                          | `AcceptAction`                    | `Changeset`               |                         |
+| A pull request was closed unmerged by someone else | `RejectAction`                    | `Changeset`               |                         |
+| A pull request was closed unmerged by its author   | `CancelAction`                    | `Changeset`               |                         |
+| You starred a repository                           | `LikeAction`                      | `Repository`              |                         |
+| You created a gist                                 | `PublishAction`                   | `SoftwareSourceCode`      |                         |
 
 | GitHub thing            | Chronicle entity                          | Key                                           | Properties                                                                                                                  |
 | ----------------------- | ----------------------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | Repository              | `Repository`                              | `@type`, `source`, `creator.sourceId`, `name` | `name` (without the owner), `url`, `description`, `references` (homepage), `tags` (topics), `creator` (owner), `visibility` |
 | Issue                   | `Task`                                    | `@type`, `source`, `sourceId`                 | `name` (title), `body`, `url`, `isPartOf` (repository)                                                                      |
-| Pull request            | `Changeset`                               | `@type`, `source`, `sourceId`                 | `name` (title), `body`, `url`, `datePublished`, `author`, `isPartOf` (repository), `visibility`                             |
+| Pull request            | `Changeset`                               | `@type`, `source`, `sourceId`                 | `name` (title), `body`, `url`, `author`, `isPartOf` (repository), `visibility`                                              |
 | Comment                 | `Comment`                                 | `@type`, `source`, `sourceId`                 | `body`, `url`, `author`, `about` (its `Task` or `Changeset`), `visibility`                                                  |
-| Gist                    | `SoftwareSourceCode`                      | `@type`, `source`, `sourceId`                 | `name`, `url`, `datePublished`, `author`, `visibility`                                                                      |
+| Gist                    | `SoftwareSourceCode`                      | `@type`, `source`, `sourceId`                 | `name`, `url`, `author`, `visibility`                                                                                       |
 | User, organization, bot | `Person`, `Organization`, `SoftwareAgent` | `@type`, `source`, `sourceId`                 | `sourceId` (numeric id), `handle` (login), `name`, `url`                                                                    |
 
 `SHAPES.md` sketches every record type's output, generated from the tests.
@@ -68,7 +68,9 @@ gh's default scopes (`repo`, `read:org`, `gist`) cover everything. For a persona
 
 **An issue is a `Task`.** An issue is work to be done, filed against a repository, as a to-do item is filed in a project, so it's a `Task` that `isPartOf` its `Repository`, and its life follows a to-do's: opening it is a `PlanAction`, closing it as completed a `CompleteAction`, and closing it as not planned or a duplicate a `CancelAction`. A close from before GitHub recorded reasons counts as completed, as GitHub shows it. A task isn't a creative work, so who filed it is the agent of its `PlanAction`, and it carries no `author` or `visibility` of its own. A comment on a pull request is on the pull request, not on the issue GitHub keeps behind it.
 
-**A pull request is a `Changeset`.** It's a set of changes to its repository, put forward as a unit and revised until it's decided, and it's neither an issue nor a commit: an issue asks for work, a commit is a point in the repository's history, and a pull request offers changes for its maintainers to take in or not. What became of it is told by the actions on it, not a stored state: opening it is an `OfferAction` with the repository as `target`, merging it an `AcceptAction`, and closing it unmerged a `RejectAction`, or a `CancelAction` when its own author withdrew it. GitHub records a merge as a close too; that close adds nothing.
+**A pull request is a `Changeset`.** It's a set of changes to its repository, put forward as a unit and revised until it's decided, and it's neither an issue nor a commit: an issue asks for work, a commit is a point in the repository's history, and a pull request offers changes for its maintainers to take in or not. What became of it is told by the actions on it, not a stored state: opening it is a `PublishAction`, merging it an `AcceptAction`, and closing it unmerged a `RejectAction`, or a `CancelAction` when its own author withdrew it. GitHub records a merge as a close too; that close adds nothing.
+
+**Dates are on actions.** When a pull request was opened or a gist created is the `timestamp` of the `PublishAction` that did it; the work carries no `datePublished` of its own.
 
 **Resolutions are yours, or of your pull requests.** `resolutions` reads closed issues and pull requests among your own and those in repositories you own. It keeps the ones you resolved, and every resolution of a pull request you opened, since "my pull request was merged" is someone else's action on your work. Someone else closing an issue isn't. An issue closed, reopened, and closed again is closed twice.
 

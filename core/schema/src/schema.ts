@@ -78,7 +78,6 @@ export type ActionAndChildren =
   | FindActionAndChildren
   | InteractActionAndChildren
   | MessageActionAndChildren
-  | OfferActionAndChildren
   | OrganizeActionAndChildren
   | PlanActionAndChildren
   | RejectActionAndChildren
@@ -1515,24 +1514,6 @@ export const MusicRecordingSchema: z.ZodType<MusicRecording> = z
   })
   .superRefine(requireNodeIdentity);
 
-// OfferAction, child of https://schema.chronicle.app/Action
-export interface OfferAction extends Omit<Action, '@type'> {
-  '@type': 'OfferAction';
-}
-
-export type OfferActionAndChildren = OfferAction;
-
-const OfferActionProperties = {
-  ...ActionProperties,
-};
-
-export const OfferActionSchema: z.ZodType<OfferAction> = z
-  .object({
-    '@type': z.literal('OfferAction'),
-    ...OfferActionProperties,
-  })
-  .superRefine(requireNodeIdentity);
-
 // PageSelector, child of https://schema.chronicle.app/Selector
 export interface PageSelector extends Omit<Selector, '@type'> {
   '@type': 'PageSelector';
@@ -2163,8 +2144,6 @@ export const PlaceAndChildrenSchema: z.ZodType<PlaceAndChildren> = z
 export const PersonAndChildrenSchema = PersonSchema;
 
 export const PageSelectorAndChildrenSchema = PageSelectorSchema;
-
-export const OfferActionAndChildrenSchema = OfferActionSchema;
 
 export const MusicRecordingAndChildrenSchema = MusicRecordingSchema;
 
@@ -3152,11 +3131,6 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('OfferAction'),
-      ...OfferActionProperties,
-    }),
-
-    z.object({
       '@type': z.literal('MessageAction'),
       ...MessageActionProperties,
     }),
@@ -3642,11 +3616,6 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('PlanAction'),
       ...PlanActionProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('OfferAction'),
-      ...OfferActionProperties,
     }),
 
     z.object({

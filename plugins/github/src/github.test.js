@@ -104,7 +104,6 @@ const changeset = (t, { withBody = false } = {}) => ({
   url: t.url,
   name: t.title,
   ...(withBody && t.body && { body: t.body }),
-  datePublished: date(t.createdAt),
   author: [person(t.author)],
   isPartOf: [repositories[t.repository.id]],
   visibility: repositories[t.repository.id].visibility,

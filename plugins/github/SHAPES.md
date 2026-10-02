@@ -13,22 +13,17 @@ converted from the record. Every node also has `source`.
 ## pull-requests
 
 ```ts
-OfferAction key(sourceId) {
+PublishAction key(sourceId) {
   sourceId, timestamp
   agent: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
   object: Changeset key(sourceId) {
-    sourceId, url, name, body?, datePublished, visibility
+    sourceId, url, name, body?, visibility
     author[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
     isPartOf[]: Repository key(creator.sourceId, name) {
       url, name, description, tags[], visibility
       references[]: Entity key(url, any source) { url }
       creator[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
     }
-  }
-  target: Repository key(creator.sourceId, name) {
-    url, name, description, tags[], visibility
-    references[]: Entity key(url, any source) { url }
-    creator[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
   }
 }
 ```
@@ -57,7 +52,7 @@ RespondAction key(sourceId) {
   sourceId, timestamp
   agent: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
   object: Changeset | Task key(sourceId) {
-    sourceId, url, name, datePublished?, visibility?
+    sourceId, url, name, visibility?
     author[]?: Person key(sourceId) { sourceId, handle, name, sameAs[]?, url }
     isPartOf[]: Repository key(creator.sourceId, name) {
       url, name, description?, tags[]?, visibility
@@ -80,7 +75,7 @@ RespondAction key(sourceId) {
   sourceId, timestamp
   agent: Person | SoftwareAgent key(sourceId) { sourceId, handle, name?, url }
   object: Changeset | Task key(sourceId) {
-    sourceId, url, name, datePublished?, visibility?
+    sourceId, url, name, visibility?
     author[]?: Person key(sourceId) { sourceId, handle, name, sameAs[]?, url }
     isPartOf[]: Repository key(creator.sourceId, name) {
       url, name, description?, tags[]?, visibility
@@ -103,7 +98,7 @@ AcceptAction | CompleteAction | CancelAction | RejectAction key(sourceId) {
   sourceId, timestamp
   agent: Person key(sourceId) { sourceId, handle, name, url, sameAs[]? }
   object: Changeset | Task key(sourceId) {
-    sourceId, url, name, datePublished?, visibility?
+    sourceId, url, name, visibility?
     author[]?: Person key(sourceId) { sourceId, handle, name?, sameAs[]?, url }
     isPartOf[]: Repository key(creator.sourceId, name) {
       url, name, description, tags[], visibility
@@ -134,7 +129,7 @@ PublishAction key(sourceId) {
   sourceId, timestamp
   agent: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
   object: SoftwareSourceCode key(sourceId) {
-    sourceId, url, name, datePublished, visibility*
+    sourceId, url, name, visibility*
     author[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
   }
 }
