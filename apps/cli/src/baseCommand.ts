@@ -140,7 +140,14 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
    */
   protected override async catch(err: { exitCode?: number } & Error): Promise<any> {
     const exit = (err as any)?.oclif?.exit;
-    if (err instanceof Errors.ExitError || exit === 130 || isReported(err)) return super.catch(err);
+    if (err instanceof Errors.ExitError || isReported(err)) return super.catch(err);
+    // Cancelling (Esc in a picker, Ctrl+C in a run) is a choice, not a
+    // failure: said plainly, exiting 130 as an interrupt does.
+    if (exit === 130) {
+      this.logger.info(err.message || 'Cancelled');
+      this.logger.flush();
+      throw new Errors.ExitError(130);
+    }
     // A flag value its extractor's schema rejected: say which flag, and why.
     const { issues } = err as { issues?: { path: (string | number)[]; message: string }[] };
     if (err?.name === 'ZodError' && Array.isArray(issues)) {
