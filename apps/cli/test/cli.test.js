@@ -106,7 +106,7 @@ test('bundled sources are discoverable from an unrelated cwd; JSON has no diagno
   // An unknown --type is a usage error that names the kinds, not the whole help.
   const typo = run('extract', 'shell', '--type', 'command');
   assert.equal(typo.status, 2);
-  assert.match(typo.stderr, /✗ shell has no record type "command"/);
+  assert.match(typo.stderr, /✗ Error: shell has no record type "command"/);
   assert.match(typo.stderr, /↳ did you mean `--type commands`\? Types: commands/);
   assert.doesNotMatch(typo.stderr, /flags:/);
   const unknownType = run('extract', 'shell', '--type', 'likes');
@@ -116,14 +116,20 @@ test('bundled sources are discoverable from an unrelated cwd; JSON has no diagno
   // the source help lists --type and --list-types with the common flags.
   const badFlag = run('extract', 'shell', '-T');
   assert.equal(badFlag.status, 2);
-  assert.match(badFlag.stderr, /✗ shell has no flag -T/);
+  assert.match(badFlag.stderr, /✗ Error: shell has no flag -T/);
   assert.match(badFlag.stderr, /↳ did you mean `-t` \(`--type`\)\?/);
   assert.doesNotMatch(badFlag.stderr, /USAGE/);
   assert.match(help, /-L, --list-types/);
   const noKind = run('extract', 'shell', '-t');
   assert.equal(noKind.status, 2);
-  assert.match(noKind.stderr, /✗ --type needs a value/);
+  assert.match(noKind.stderr, /✗ Error: --type needs a value/);
   assert.match(noKind.stderr, /↳ `chronicle extract shell --list-types` lists shell's kinds/);
+
+  // Every command's errors read the same way, with the next step as a hint.
+  const noSource = run('extract');
+  assert.equal(noSource.status, 2);
+  assert.match(noSource.stderr, /✗ Error: No source given\n.*↳ .*`chronicle sources` lists them/);
+  assert.doesNotMatch(noSource.stderr, /›/);
 });
 
 test('raw extraction, four output loaders, file output and stream mode', t => {

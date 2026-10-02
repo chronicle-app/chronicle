@@ -35,21 +35,22 @@ export default class PluginsNew extends BaseCommand<typeof PluginsNew> {
     const { name } = args;
 
     if (!isPluginName(name)) {
-      this.error(`"${name}" isn't a plugin name. Use lowercase words joined by hyphens.`);
+      this.fail(`"${name}" isn't a plugin name`, {
+        hint: 'use lowercase words joined by hyphens',
+      });
     }
     if (findEntry(await loadCatalog(), name)) {
-      this.error(
-        `${name} is already a Chronicle plugin. Choose another name, or add a copy of ` +
-          'its directory with "chronicle plugins add <path>".'
-      );
+      this.fail(`${name} is already a Chronicle plugin`, {
+        hint: 'choose another name, or add a copy of its directory with `chronicle plugins add <path>`',
+      });
     }
     const dir = path.resolve(flags.dir ?? name);
     if (existsSync(dir)) {
       if (!(await fs.stat(dir)).isDirectory()) {
-        this.error(`${dir} already exists and isn't a folder.`);
+        this.fail(`${dir} already exists and isn't a folder.`);
       }
       if ((await fs.readdir(dir)).length > 0) {
-        this.error(`${dir} already exists and isn't empty.`);
+        this.fail(`${dir} already exists and isn't empty.`);
       }
     }
 
@@ -65,7 +66,7 @@ export default class PluginsNew extends BaseCommand<typeof PluginsNew> {
     try {
       await addLocalPlugin(this.config.configDir, dir);
     } catch (error) {
-      this.error(error instanceof Error ? error.message : String(error));
+      this.failFrom(error);
     }
 
     this.log(`${theme.success('Created and added')} ${theme.textBold(name)} ${theme.textDim(dir)}`);
@@ -79,7 +80,7 @@ export default class PluginsNew extends BaseCommand<typeof PluginsNew> {
 
   private async askKind(interactive: boolean): Promise<string> {
     if (!interactive) {
-      this.error(`Say how the data reaches you with --from (${Object.keys(KINDS).join(', ')}).`);
+      this.fail(`Say how the data reaches you with --from (${Object.keys(KINDS).join(', ')}).`);
     }
     const { inkSelect } = await import('../../components/InkSelect.js');
     const { value, cancelled } = await inkSelect(

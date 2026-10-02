@@ -1,7 +1,8 @@
-import { Args, Command, Flags } from '@oclif/core';
+import { BaseCommand } from '../../../baseCommand.js';
+import { Args, Flags } from '@oclif/core';
 import { ConfigManager } from '../../../config/index.js';
 
-export default class PresetShowCommand extends Command {
+export default class PresetShowCommand extends BaseCommand<typeof PresetShowCommand> {
   static override description = 'Show details of a configuration preset';
 
   static override examples = [
@@ -30,7 +31,7 @@ export default class PresetShowCommand extends Command {
       const preset = await configManager.getPreset(args.name);
 
       if (!preset) {
-        this.error(`Preset '${args.name}' not found`);
+        this.fail(`Preset '${args.name}' not found`);
       }
 
       if (flags.json) {
@@ -66,7 +67,7 @@ export default class PresetShowCommand extends Command {
       this.log(`  chronicle extract <source> --preset ${preset.name}`);
       this.log(`  chronicle extract <source> --preset ${preset.name} --limit 10  # override flags`);
     } catch (error) {
-      this.error(`Failed to show preset: ${error}`);
+      this.failFrom(error, 'Failed to show preset');
     }
   }
 }

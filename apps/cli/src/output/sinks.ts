@@ -103,7 +103,7 @@ export function render(
     [glyph, glyphStyle],
     [' '],
     [HOST.has(event.scope) || !event.scope ? '' : `${event.scope}  `, t.muted],
-    [first, textStyle],
+    [event.level === 'error' ? `Error: ${first}` : first, textStyle],
     [fields ? `  ${fields}` : '', t.muted],
   ];
   const length = segments.reduce((sum, [text]) => sum + text.length, 0);

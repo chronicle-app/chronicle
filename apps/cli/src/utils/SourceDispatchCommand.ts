@@ -134,6 +134,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
       return;
     }
 
+    this.dispatchedSource = positional;
     const override = candidates[0].localOverride;
     if (override) {
       this.logger.info(`Using the local plugin for ${positional}`, { path: override });
@@ -204,14 +205,18 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
           ? error.message.match(/Flag --([\w-]+) expects a value/)?.[1]
           : undefined;
       if (valueless) this.missingValue(valueless, positional, verb);
-      // Surface missing source-specific flags with a pointer to the source help.
-      if (error instanceof Error && /Missing required flag/i.test(error.message)) {
-        this.error(
-          `${error.message.replace(/\s*See more help.*$/s, '')}\n` +
-            `Run \`chronicle ${verb} ${positional} --help\` to see ${positional}'s flags.`
-        );
-      }
-      throw error;
+      // Any other parse failure (a missing required flag, a bad value): the
+      // source's help lists its flags, which oclif's generic usage doesn't.
+      if (error instanceof Errors.ExitError || (error as any)?.oclif?.exit === 130) throw error;
+      this.fail(
+        (error instanceof Error ? error.message : String(error)).replace(
+          /\s*See more help.*$/s,
+          ''
+        ),
+        {
+          hint: `\`chronicle ${verb} ${positional} --help\` lists ${positional}'s flags`,
+        }
+      );
     }
     this.args = args as typeof this.args;
     this.flags = await this.resolveCommandFlags(flags, metadata);
@@ -260,12 +265,22 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
         this.logger.flush();
         throw new Errors.ExitError(exitCode);
       }
-      this.error(
-        `${error instanceof Error ? error.message : String(error)}\n\n` +
-          renderSourceHelp(positional, candidates, { verb, theme: parsed.theme })
-      );
+      this.fail(error instanceof Error ? error.message : String(error), {
+        hint: `\`chronicle ${verb} ${positional} --help\` lists ${positional}'s strategies, kinds, and flags`,
+      });
     }
     this.dispatching = true;
+  }
+
+  /** The source being run, once the positional names one. */
+  private dispatchedSource?: string;
+
+  /** A source's own help, which lists its flags; the command's otherwise. */
+  protected override helpCommand(): string | undefined {
+    const verb = (this.constructor as any).id || 'extract';
+    return this.dispatchedSource
+      ? `chronicle ${verb} ${this.dispatchedSource} --help`
+      : super.helpCommand();
   }
 
   /**
@@ -351,15 +366,15 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     const { listSources } = await import('../plugins/catalog.js');
     const listing = (await listSources()).find(s => s.source === source && !s.installed);
     if (!listing) {
-      this.error(
-        `No source named "${source}". Run "chronicle sources --all" to see what's available.`
-      );
+      this.fail(`No source named "${source}"`, {
+        hint: '`chronicle sources --all` lists every source',
+      });
     }
 
     const command = `chronicle plugins install ${listing.plugin}`;
     // The prompt draws on stdout, so only offer it when records aren't piped.
     if (!process.stdin.isTTY || !process.stdout.isTTY) {
-      this.error(`${source} isn't installed. Install it with:\n  ${command}`);
+      this.fail(`${source} isn't installed`, { hint: `install it with \`${command}\`` });
     }
     const { inkConfirm } = await import('../components/InkConfirm.js');
     const { confirmed } = await inkConfirm(
@@ -380,7 +395,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     try {
       await installPlugin(await resolveInstallTarget(listing.plugin, this.config.version));
     } catch (error) {
-      this.error(error instanceof Error ? error.message : String(error));
+      this.failFrom(error);
     }
     this.logger.emit({ level: 'info', kind: 'summary', message: `Installed ${listing.package}` });
     const verb = (this.constructor as any).id || 'extract';

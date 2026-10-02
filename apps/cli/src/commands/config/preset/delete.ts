@@ -1,8 +1,9 @@
-import { Args, Command, Flags } from '@oclif/core';
+import { BaseCommand } from '../../../baseCommand.js';
+import { Args, Flags } from '@oclif/core';
 import { inkConfirm } from '../../../components/InkConfirm.js';
 import { ConfigManager } from '../../../config/index.js';
 
-export default class PresetDeleteCommand extends Command {
+export default class PresetDeleteCommand extends BaseCommand<typeof PresetDeleteCommand> {
   static override description = 'Delete a configuration preset';
 
   static override examples = [
@@ -32,7 +33,7 @@ export default class PresetDeleteCommand extends Command {
       const preset = await configManager.getPreset(args.name);
 
       if (!preset) {
-        this.error(`Preset '${args.name}' not found`);
+        this.fail(`Preset '${args.name}' not found`);
       }
 
       if (!flags.force) {
@@ -49,10 +50,10 @@ export default class PresetDeleteCommand extends Command {
       if (deleted) {
         this.log(`Preset '${args.name}' deleted.`);
       } else {
-        this.error(`Failed to delete preset '${args.name}'`);
+        this.fail(`Failed to delete preset '${args.name}'`);
       }
     } catch (error) {
-      this.error(`Failed to delete preset: ${error}`);
+      this.failFrom(error, 'Failed to delete preset');
     }
   }
 }
