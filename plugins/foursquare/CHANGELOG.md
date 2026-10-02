@@ -1,5 +1,15 @@
 # @chronicle.app/foursquare
 
+## 0.4.0
+
+### Patch Changes
+
+- a7fb44c: A missing stored credential now points at `chronicle auth set <source>`, the command that stores static tokens, instead of `chronicle auth login`, which only OAuth sources support. Last.fm and Foursquare, which sign in with OAuth, still point at `auth login`.
+- Updated dependencies [a7fb44c]
+- Updated dependencies [2148753]
+- Updated dependencies [59904c0]
+  - @chronicle.app/auth@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes

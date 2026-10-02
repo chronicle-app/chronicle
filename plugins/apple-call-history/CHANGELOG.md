@@ -1,5 +1,14 @@
 # @chronicle.app/apple-call-history
 
+## 0.4.0
+
+### Patch Changes
+
+- Updated dependencies [2148753]
+- Updated dependencies [59904c0]
+  - @chronicle.app/icloud@0.4.0
+  - @chronicle.app/etl-sqlite@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes

@@ -1,5 +1,11 @@
 # @chronicle.app/schema
 
+## 0.4.0
+
+### Minor Changes
+
+- 61ad43e: A GitHub plugin reads your pull requests, issues, commits, repositories, how issues and pull requests were resolved, comments, stars, and gists through the GitHub GraphQL API, plus other people's replies to you. An issue is a `Task` (opened with a `PlanAction`, closed with a `CompleteAction` or `CancelAction`); a pull request is a `Changeset` (opened with a `PublishAction`, merged with an `AcceptAction`, declined with a `RejectAction`, or withdrawn with a `CancelAction`). It signs in with `--token`, a token stored with `chronicle auth set github`, `GH_TOKEN`, `GITHUB_TOKEN`, or the gh CLI's login. A commit is a `Revision`, keyed by its hash across sources and `isBasedOn` its parents. The vocabulary adds `SoftwareSourceCode`, `Repository`, `Changeset`, `Revision`, `AcceptAction`, `RejectAction`, and `isBasedOn`.
+
 ## 0.3.0
 
 The vocabulary version (`owl:versionInfo`, exported as `SCHEMA_VERSION`) is now `0.2.0`. It adds 119 terms since the vocabulary released with 0.2.0 and removes none.
