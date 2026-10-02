@@ -181,7 +181,8 @@ export class ExtractorSelector {
         value: kind,
         description: pool.find(e => e.recordType.includes(kind))?.description,
       })),
-      defaultKinds(pool)
+      defaultKinds(pool),
+      this.input.theme
     );
     if (result.cancelled)
       throw Object.assign(new Error('Selection cancelled'), { oclif: { exit: 130 } });

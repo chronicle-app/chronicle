@@ -10,4 +10,8 @@ export const glyphs = {
   rule: '─',
   ellipsis: '…',
   spinner: '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏',
+  // Pickers: the highlighted option, and an option chosen or not.
+  pointer: '❯',
+  chosen: '◉',
+  unchosen: '○',
 } as const;

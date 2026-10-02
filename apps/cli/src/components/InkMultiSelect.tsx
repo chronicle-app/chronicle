@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { render, Box, Text, useInput } from 'ink';
+import { glyphs, tokens, type Tokens } from '../output/index.js';
 import type { SelectOption } from './InkSelect.js';
 
 interface InkMultiSelectProps {
@@ -9,6 +10,7 @@ interface InkMultiSelectProps {
   defaults: string[];
   onDone: (values: string[]) => void;
   onCancel: () => void;
+  t: Tokens;
 }
 
 /**
@@ -23,6 +25,7 @@ const InkMultiSelectComponent: React.FC<InkMultiSelectProps> = ({
   defaults,
   onDone,
   onCancel,
+  t,
 }) => {
   const [cursor, setCursor] = useState(0);
   const [chosen, setChosen] = useState<Set<string>>(new Set());
@@ -75,20 +78,21 @@ const InkMultiSelectComponent: React.FC<InkMultiSelectProps> = ({
   ];
   return (
     <Box flexDirection="column">
-      <Text bold>{message}</Text>
+      <Text>{t.strong(message)}</Text>
       <Text> </Text>
-      {options.map((option, index) => (
-        <Box key={option.value}>
-          <Text color={!started && index === cursor ? 'green' : undefined}>
-            {!started && index === cursor ? '❯ ' : '  '}
-            {chosen.has(option.value) ? '◉ ' : '○ '}
-            {option.label}
-            {option.description && <Text color="gray"> {option.description}</Text>}
+      {options.map((option, index) => {
+        const here = !started && index === cursor;
+        const mark = chosen.has(option.value) ? glyphs.chosen : glyphs.unchosen;
+        const row = `${here ? glyphs.pointer : ' '} ${mark} ${option.label}`;
+        return (
+          <Text key={option.value}>
+            {here ? t.accent(row) : row}
+            {option.description ? t.muted(` ${option.description}`) : ''}
           </Text>
-        </Box>
-      ))}
+        );
+      })}
       <Text> </Text>
-      {!started && <Text color="gray">{keys.join(' · ')}</Text>}
+      {!started && <Text>{t.muted(keys.join(` ${glyphs.bullet} `))}</Text>}
     </Box>
   );
 };
@@ -102,7 +106,8 @@ export interface InkMultiSelectResult {
 export function inkMultiSelect(
   message: string,
   options: SelectOption[],
-  defaults: string[] = []
+  defaults: string[] = [],
+  theme?: string
 ): Promise<InkMultiSelectResult> {
   return new Promise(resolve => {
     const finish = (result: InkMultiSelectResult) => {
@@ -116,6 +121,7 @@ export function inkMultiSelect(
         message={message}
         options={options}
         defaults={defaults}
+        t={tokens({ stream: 'stderr', theme })}
         onDone={values => finish({ values, cancelled: false })}
         onCancel={() => finish({ values: [], cancelled: true })}
       />,
