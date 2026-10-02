@@ -71,6 +71,14 @@ export abstract class Extractor<SelfClass extends typeof Extractor = typeof Extr
    */
   keyOf?(record: Record): string | null | undefined;
 
+  /**
+   * When this raw record's occurrence happened, if the extractor knows. With
+   * it, a run of several extractors' record kinds merges their streams newest
+   * first, each of which must be newest first itself; without it, they run one
+   * after another.
+   */
+  occurredAt?(record: Record): Date | undefined;
+
   constructor(config: ExtractorConfigObjectInput<SelfClass>) {
     const cls = this.constructor as typeof Extractor;
 

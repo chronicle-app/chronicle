@@ -10,10 +10,11 @@ export interface GitHubSession {
 }
 
 /**
- * Sessions opened by the default extractor, keyed by the raw config it hands
- * each child, so a merged run resolves credentials and says which it used once.
+ * Sessions by the raw config they were opened with. Extractors run together
+ * get the same config object, so a run of several record types resolves
+ * credentials, and says which it used, once.
  */
-export const sharedSessions = new WeakMap<object, GitHubSession>();
+const sessions = new WeakMap<object, Promise<GitHubSession>>();
 
 export const gitHubSchema = Extractor.schema.extend({
   token: z
@@ -61,11 +62,20 @@ export default abstract class GitHubExtractor extends Extractor<typeof GitHubExt
   }
 
   override async setup(): Promise<void> {
-    const session =
-      sharedSessions.get(this.rawInput) ??
-      (await openSession(this.config, message => this.logInitStep(message)));
+    let opening = sessions.get(this.rawInput);
+    if (!opening) {
+      opening = openSession(this.config, message => this.logInitStep(message));
+      sessions.set(this.rawInput, opening);
+    }
+    const session = await opening;
     this.proxy = session.proxy;
     this.viewer = session.viewer;
+  }
+
+  /** When it happened, as each record type dates it: so several types merge newest first. */
+  override occurredAt(record: Record): Date | undefined {
+    const { occurredAt } = record.context;
+    return occurredAt ? new Date(occurredAt) : undefined;
   }
 
   /** GitHub's global node id, which no two objects share. */

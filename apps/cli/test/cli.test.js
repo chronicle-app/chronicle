@@ -72,10 +72,11 @@ test('bundled sources are discoverable from an unrelated cwd; JSON has no diagno
       `${name} is not listed as installed`
     );
   }
-  // A bare `chronicle extract <source>` needs exactly one default strategy per source.
+  // A bare `chronicle extract <source>` reads one strategy's defaults, so a
+  // source has at most one; with none, the run asks which kinds.
   for (const { source, strategies } of all.filter(x => x.installed)) {
     const defaults = strategies.filter(strategy => strategy.default);
-    assert.equal(defaults.length, 1, `${source} has ${defaults.length} default strategies`);
+    assert.ok(defaults.length <= 1, `${source} has ${defaults.length} default strategies`);
   }
   // Legacy sources are listed only on request, and the table says so.
   assert.ok(sources.every(x => x.tier !== 'legacy'));
@@ -99,7 +100,7 @@ test('bundled sources are discoverable from an unrelated cwd; JSON has no diagno
   // How to use them goes to stderr, so the list still pipes.
   assert.match(
     listed.stderr,
-    /↳ pick kinds with --type; without it, every kind · `chronicle extract shell --type commands`/
+    /↳ name kinds after the source, or `-t all`; without any, every kind · `chronicle extract shell commands`/
   );
   assert.doesNotMatch(success(run('--help')), /archive|sync|serve/);
 
@@ -124,6 +125,11 @@ test('bundled sources are discoverable from an unrelated cwd; JSON has no diagno
   assert.equal(noKind.status, 2);
   assert.match(noKind.stderr, /✗ Error: --type needs a value/);
   assert.match(noKind.stderr, /↳ `chronicle extract shell --list-types` lists shell's kinds/);
+
+  // Kinds can follow the source, but not as well as --type.
+  const twice = run('extract', 'shell', 'commands', '--type', 'commands');
+  assert.equal(twice.status, 2);
+  assert.match(twice.stderr, /✗ Error: Record kinds named twice/);
 
   // Every command's errors read the same way, with the next step as a hint.
   const noSource = run('extract');
@@ -188,7 +194,14 @@ test('raw extraction, four output loaders, file output and stream mode', t => {
   // time when stderr isn't a terminal, and the default --limit says when it
   // cut the run short.
   // Anchored to the end only: some Node versions warn on stderr first.
-  assert.match(result.stderr, /(^|\n)\d\d:\d\d:\d\d ✓ shell · \S+ {2}1 command {2}in \S+\n$/);
+  // The outcome on one line, a line per kind under it.
+  assert.match(
+    result.stderr,
+    /(^|\n)\d\d:\d\d:\d\d ✓ shell · \S+ {2}in \S+\n\d\d:\d\d:\d\d {5}1 command\n$/
+  );
+  // A kind named after the source reads just that kind.
+  const named = run('extract', 'shell', 'commands', '--input', input, '--raw', '--limit', '1');
+  assert.equal(JSON.parse(success(named)).command, 'printf fixture');
   // A supervisor reads the same run as JSON events on stderr. --delay slows
   // each extracted record, for watching a run while debugging.
   const events = run(
@@ -704,6 +717,6 @@ test('a plugin fails with a typed error and exit code, and hints under the summa
   assert.equal(hinted.status, 0, hinted.stderr);
   assert.match(
     hinted.stderr,
-    /✓ typed · api {2}1 row.*\n.*attachments skipped · grant access to include them\n/
+    /✓ typed · api {2}in \S+\n.* {4}1 row\n.*attachments skipped · grant access to include them\n/
   );
 });

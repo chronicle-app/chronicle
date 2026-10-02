@@ -1,5 +1,6 @@
 import { BaseCommand } from '../baseCommand.js';
 import { getTheme } from '../theme.js';
+import { defaultKinds } from './recordKinds.js';
 import { FlagManager } from './FlagManager.js';
 import { strategiesOf, type ExtractorMetadata } from '../plugins/PluginScanner.js';
 
@@ -68,15 +69,18 @@ export function renderRecordTypes(candidates: ExtractorMetadata[]): string {
 }
 
 /**
- * What a run without `--type` reads, mirroring ExtractorSelector: the only
- * extractor, else the declared default. Undefined when the run would ask.
+ * What a run without kinds reads, mirroring ExtractorSelector: the default
+ * strategy's (or the only one's) declared default kinds. Undefined when the
+ * plugin declares none and the run asks.
  */
 function bareRunKinds(candidates: ExtractorMetadata[]): string[] | undefined {
-  const chosen = candidates.length === 1 ? candidates[0] : candidates.find(e => e.default);
-  return chosen?.recordType;
+  const strategies = strategiesOf(candidates);
+  const chosen = strategies.find(s => s.extractors.some(e => e.default)) ?? strategies[0];
+  const kinds = chosen ? defaultKinds(chosen.extractors) : [];
+  return kinds.length > 0 ? kinds : undefined;
 }
 
-/** What a run without `--type` reads: `only submissions`, `every kind`, or undefined when it asks. */
+/** What a run without kinds reads: `only submissions`, `every kind`, or undefined when it asks. */
 function bareRunSummary(candidates: ExtractorMetadata[]): string | undefined {
   const kinds = bareRunKinds(candidates);
   if (!kinds) return undefined;
@@ -85,8 +89,8 @@ function bareRunSummary(candidates: ExtractorMetadata[]): string | undefined {
 }
 
 /**
- * How to pick from `--list-types`, as a runnable example: kinds a bare run
- * leaves out when there are some, with `--strategy` only when there is a
+ * How to pick from `--list-types`, as a runnable example: a kind a bare run
+ * leaves out when there is one, with `--strategy` only when there is a
  * choice. Printed as a hint on stderr, so the list on stdout still pipes.
  */
 export function recordTypesHint(
@@ -99,11 +103,10 @@ export function recordTypesHint(
   const strategy = strategies.length > 1 ? ` --strategy ${chosen.name}` : '';
   const bare = bareRunKinds(candidates) ?? [];
   const others = chosen.recordTypes.filter(kind => !bare.includes(kind));
-  // One kind: two kinds read by separate extractors can't run together.
-  const kinds = (others.length > 0 ? others : chosen.recordTypes)[0];
+  const kind = (others.length > 0 ? others : chosen.recordTypes)[0];
   return {
-    message: `pick kinds with --type; without it, ${bareRunSummary(candidates) ?? 'you’re asked which'}`,
-    action: `\`chronicle ${verb} ${source}${strategy} --type ${kinds}\``,
+    message: `name kinds after the source, or \`-t all\`; without any, ${bareRunSummary(candidates) ?? 'you’re asked which'}`,
+    action: `\`chronicle ${verb} ${source}${strategy} ${kind}\``,
   };
 }
 
@@ -171,9 +174,9 @@ export function renderSourceHelp(
   lines.push(
     '',
     theme.textDim('usage:'),
-    `  chronicle ${verb} ${source} [--strategy <name>] [--type <kind[,kind]>] [flags]`,
+    `  chronicle ${verb} ${source} [kind...] [--strategy <name>] [flags]`,
     theme.textDim(
-      `  no --type reads ${bareRunSummary(candidates) ?? 'the kinds you pick when asked'}`
+      `  with no kinds, reads ${bareRunSummary(candidates) ?? 'the kinds you pick when asked'}; \`-t all\` reads every kind`
     )
   );
   return lines.join('\n');

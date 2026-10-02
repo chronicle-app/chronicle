@@ -20,7 +20,7 @@ function isBy(actor: { databaseId?: number } | null, id: number): boolean {
 
 export default class GitHubRepliesExtractor extends GitHubExtractor {
   static override description =
-    "Other people's comments on your issues and pull requests, and in discussions you joined";
+    "Other people's comments on your issues and pull requests, and in discussions you joined (slow: reads every thread you're part of)";
 
   static override recordTypes: string[] = ['replies'];
   // Collected from many threads, then sorted.

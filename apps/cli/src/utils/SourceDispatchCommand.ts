@@ -184,8 +184,14 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     let args: any;
     let flags: any;
     let metadata: any;
+    let positionals: unknown[] = [];
     try {
-      ({ args, flags, metadata } = await this.parse({
+      ({
+        args,
+        flags,
+        metadata,
+        argv: positionals,
+      } = await this.parse({
         args: SourceDispatchCommand.args,
         flags: assembled,
         strict: false,
@@ -232,11 +238,18 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     const parsed = this.flags as any;
     const { ExtractorSelector } = await import('./ExtractorSelector.js');
     const { requestedRecordTypes } = await import('./RunnerBuilder.js');
+    // Kinds named after the source (`extract github stars gists`), or with --type.
+    const named = positionals.filter((arg): arg is string => typeof arg === 'string').slice(1);
+    if (named.length > 0 && parsed.type) {
+      this.fail('Record kinds named twice', {
+        hint: `name them after the source or with \`--type\`, not both: \`chronicle ${verb} ${positional} ${named.join(' ')}\``,
+      });
+    }
     const selector = new ExtractorSelector({
       source: positional,
       candidates,
       strategy: parsed.strategy,
-      types: requestedRecordTypes(parsed.type),
+      types: named.length > 0 ? named : requestedRecordTypes(parsed.type),
       // Only a path you gave picks a strategy: an extractor's default input
       // (WhatsApp's Mac database) is not an export you handed it.
       input: metadata?.flags?.input?.setFromDefault ? undefined : parsed.input,
@@ -269,7 +282,40 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
         hint: `\`chronicle ${verb} ${positional} --help\` lists ${positional}'s strategies, kinds, and flags`,
       });
     }
+    this.announce(selector.selection, positional, verb);
+    // When the extractor reads kinds beyond those chosen, the Runner keeps
+    // only the chosen ones, however they were chosen.
+    const emitted: string[] = this.selectedExtractor?.recordTypes ?? [];
+    const kinds = selector.selection?.kinds ?? [];
+    if (emitted.some(kind => !kinds.includes(kind))) parsed.type = kinds.join(',');
     this.dispatching = true;
+  }
+
+  /**
+   * Before a run of several kinds, or of the plugin's defaults, say which kinds
+   * it reads, and which it leaves out and how to have them.
+   */
+  private announce(
+    selection: { kinds: string[]; excluded: string[]; how: string; merged: boolean } | undefined,
+    source: string,
+    verb: string
+  ): void {
+    if (!selection) return;
+    const { kinds, excluded, how, merged } = selection;
+    // One kind, nothing left out: nothing to say.
+    if (kinds.length < 2 && (how === 'named' || excluded.length === 0)) return;
+    const order = kinds.length > 1 && !merged ? ', one kind after another' : '';
+    this.logger.info(
+      `extracting ${kinds.join(', ')}${how === 'defaults' ? ' (the defaults)' : ''}${order}`
+    );
+    if (excluded.length > 0 && how !== 'named') {
+      this.logger.emit({
+        level: 'info',
+        kind: 'hint',
+        message: `not included: ${excluded.join(', ')}`,
+        hint: { action: `\`chronicle ${verb} ${source} -t all\` for everything` },
+      });
+    }
   }
 
   /** The source being run, once the positional names one. */

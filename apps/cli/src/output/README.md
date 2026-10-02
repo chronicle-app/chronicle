@@ -8,7 +8,8 @@ styled. Commands, loaders, and sinks build their text from this module.
 - **stdout carries only data.** Everything for people goes to stderr.
 - **A command ends with one summary line**: status glyph, subject, counts,
   time, destination. `✓ shell · history  1,240 commands  in 1.7s  → out.json`
-- **Errors** read `✗ Error: <message>`, with what to do about it as a hint
+- **Errors** read `✗ Error: <message>`, the glyph and label in `danger` and the
+  message plain, with what to do about it as a hint
   below, never folded into the message. Commands stop with `this.fail(message,
 { hint })` (or `this.failFrom(error)` in a catch-all), never oclif's
   `this.error`; `BaseCommand.catch` shows anything else that escapes, oclif's
