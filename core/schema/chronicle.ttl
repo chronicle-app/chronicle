@@ -709,3 +709,12 @@
   rdfs:comment "The agent declined what was put forward, such as closing a changeset without taking it in. The :object is what was declined.";
   rdfs:subClassOf :Action;
   owl:equivalentClass schemaorg:RejectAction .
+:Revision a rdfs:Class;
+  rdfs:comment "A version of a work recorded in its history: a commit to a repository, a revision of a document or wiki page. It :isPartOf the work and :isBasedOn the versions it follows; an :UpdateAction whose :result it is records making it. A version, not a change: the change it made is the difference from the versions it is based on.";
+  rdfs:subClassOf :CreativeWork .
+:isBasedOn a rdf:Property;
+  rdfs:comment "A work this one was derived from: the earlier version a revision follows, the repository a fork was copied from.";
+  rdfs:subPropertyOf :relation;
+  owl:equivalentProperty schemaorg:isBasedOn;
+  :domainIncludes :CreativeWork;
+  :rangeIncludes :CreativeWork .

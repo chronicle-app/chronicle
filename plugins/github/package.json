@@ -64,10 +64,12 @@
             "delivery": "api",
             "recordTypes": [
               "comments",
+              "commits",
               "gists",
               "issues",
               "pull-requests",
               "replies",
+              "repositories",
               "resolutions",
               "stars"
             ],

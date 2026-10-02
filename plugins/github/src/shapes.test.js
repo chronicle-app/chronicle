@@ -4,10 +4,12 @@ import { test } from 'node:test';
 import { renderShapes, sampleTransform, shapesOf } from '@chronicle.app/etl';
 import {
   GitHubCommentsExtractor,
+  GitHubCommitsExtractor,
   GitHubGistsExtractor,
   GitHubIssuesExtractor,
   GitHubPullRequestsExtractor,
   GitHubRepliesExtractor,
+  GitHubRepositoriesExtractor,
   GitHubResolutionsExtractor,
   GitHubStarsExtractor,
 } from '../dist/index.js';
@@ -23,6 +25,8 @@ test('SHAPES.md describes what every record type becomes', async t => {
     GitHubPullRequestsExtractor,
     GitHubIssuesExtractor,
     GitHubCommentsExtractor,
+    GitHubCommitsExtractor,
+    GitHubRepositoriesExtractor,
     GitHubRepliesExtractor,
     GitHubResolutionsExtractor,
     GitHubStarsExtractor,

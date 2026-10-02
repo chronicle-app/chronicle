@@ -7,6 +7,7 @@ import {
   Changeset,
   Comment,
   CompleteAction,
+  CreateAction,
   Entity,
   LikeAction,
   PlanAction,
@@ -14,11 +15,15 @@ import {
   RejectAction,
   Repository,
   RespondAction,
+  Revision,
   SoftwareSourceCode,
   Task,
+  UpdateAction,
 } from '@chronicle.app/schema';
 import {
   GitHubActor,
+  GitHubCommit,
+  GitHubOwnRepository,
   GitHubComment,
   GitHubGist,
   GitHubRepository,
@@ -39,6 +44,11 @@ const REPOSITORY_KEY = ['@type', 'source', 'creator.sourceId', 'name'];
  * Issues and pull requests share one sequence, so a number is never both.
  */
 const THREAD_KEY = ['@type', 'source', 'isPartOf.creator.sourceId', 'isPartOf.name', 'handle'];
+/**
+ * A commit is named by its hash wherever it's seen, with no source: a clone
+ * and its forge share the node.
+ */
+const REVISION_KEY = ['@type', 'sourceId'];
 /** You star a repository once, so the repository identifies the star. */
 const STAR_KEY = ['@type', 'source', 'object.creator.sourceId', 'object.name'];
 
@@ -67,6 +77,12 @@ export default class GitHubTransformer extends ChronicleTransformer {
       }
       case 'resolutions': {
         return [this.buildResolution(record.data as ResolutionRecord)];
+      }
+      case 'repositories': {
+        return [this.buildRepositoryCreated(record.data as GitHubOwnRepository)];
+      }
+      case 'commits': {
+        return [this.buildCommit(record.data as GitHubCommit & { repository: GitHubRepository })];
       }
       case 'stars': {
         return [this.buildStar(record.data as GitHubStar)];
@@ -143,7 +159,63 @@ export default class GitHubTransformer extends ChronicleTransformer {
             : 'RejectAction',
       ...common,
       object: this.buildChangeset(thread),
+      // A merge makes a commit: the repository's next version.
+      ...(event.__typename === 'MergedEvent' &&
+        event.commit && { result: this.buildRevisionRef(event.commit.oid) }),
     };
+  }
+
+  /** You created a repository; a fork is based on the repository it copied. */
+  private buildRepositoryCreated(repository: GitHubOwnRepository): CreateAction {
+    return {
+      '@type': 'CreateAction',
+      '@key': KEY,
+      source: SOURCE,
+      sourceId: repository.id,
+      timestamp: new Date(repository.createdAt),
+      ...(this.viewer && { agent: this.buildSelf() }),
+      result: {
+        ...this.buildRepository(repository),
+        ...(repository.parent && { isBasedOn: [this.buildRepository(repository.parent)] }),
+      },
+    };
+  }
+
+  /**
+   * You committed: the repository's next version. The commit is a Revision of
+   * the repository, based on its parent commits, and part of the pull requests
+   * it came in through.
+   */
+  private buildCommit(commit: GitHubCommit & { repository: GitHubRepository }): UpdateAction {
+    const revision: Revision = {
+      ...this.buildRevisionRef(commit.oid),
+      url: commit.url,
+      name: commit.messageHeadline,
+      ...(commit.messageBody && { body: commit.messageBody }),
+      ...(this.viewer && { author: [this.buildSelf()] }),
+      isPartOf: [
+        this.buildRepository(commit.repository),
+        ...commit.associatedPullRequests.nodes.map(pullRequest => this.ref(pullRequest)),
+      ],
+      ...(commit.parents.nodes.length > 0 && {
+        isBasedOn: commit.parents.nodes.map(parent => this.buildRevisionRef(parent.oid)),
+      }),
+    };
+    return {
+      '@type': 'UpdateAction',
+      '@key': KEY,
+      source: SOURCE,
+      sourceId: commit.oid,
+      timestamp: new Date(commit.authoredDate),
+      ...(this.viewer && { agent: this.buildSelf() }),
+      object: this.buildRepository(commit.repository),
+      result: revision,
+    };
+  }
+
+  /** A commit named by its hash alone. */
+  private buildRevisionRef(oid: string): Revision {
+    return { '@type': 'Revision', '@key': REVISION_KEY, sourceId: oid };
   }
 
   /** A conversation comment on an issue or pull request. */

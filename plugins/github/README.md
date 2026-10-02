@@ -10,8 +10,10 @@ chronicle extract github --type stars
 chronicle extract github --type replies --since 2025-01-01
 ```
 
-Each kind is one record type. A bare run reads your own activity, merged newest first: every kind but `replies` and `resolutions`, which are slow and run only when asked for with `--type`.
+Each kind is one record type. A bare run reads your own activity, merged newest first: every kind but `commits`, `replies`, and `resolutions`, which are slow and run only when asked for with `--type`.
 
+- `repositories`: repositories you created, forks included.
+- `commits`: commits you authored on the default branch of repositories you can push to, or committed to lately.
 - `pull-requests`: pull requests you opened.
 - `issues`: issues you opened.
 - `comments`: your comments on issues and pull requests.
@@ -37,23 +39,26 @@ gh's default scopes (`repo`, `read:org`, `gist`) cover everything. For a persona
 
 ## Schema
 
-| GitHub activity                                    | Chronicle action                  | `object`                  | Other                   |
-| -------------------------------------------------- | --------------------------------- | ------------------------- | ----------------------- |
-| You opened an issue                                | `PlanAction`                      | `Task`                    |                         |
-| You opened a pull request                          | `PublishAction`                   | `Changeset`               |                         |
-| You or someone else commented                      | `RespondAction`                   | the `Task` or `Changeset` | `result`: the `Comment` |
-| An issue was closed as completed / not planned     | `CompleteAction` / `CancelAction` | `Task`                    |                         |
-| A pull request was merged                          | `AcceptAction`                    | `Changeset`               |                         |
-| A pull request was closed unmerged by someone else | `RejectAction`                    | `Changeset`               |                         |
-| A pull request was closed unmerged by its author   | `CancelAction`                    | `Changeset`               |                         |
-| You starred a repository                           | `LikeAction`                      | `Repository`              |                         |
-| You created a gist                                 | `PublishAction`                   | `SoftwareSourceCode`      |                         |
+| GitHub activity                                    | Chronicle action                  | `object`                  | Other                         |
+| -------------------------------------------------- | --------------------------------- | ------------------------- | ----------------------------- |
+| You opened an issue                                | `PlanAction`                      | `Task`                    |                               |
+| You opened a pull request                          | `PublishAction`                   | `Changeset`               |                               |
+| You or someone else commented                      | `RespondAction`                   | the `Task` or `Changeset` | `result`: the `Comment`       |
+| An issue was closed as completed / not planned     | `CompleteAction` / `CancelAction` | `Task`                    |                               |
+| A pull request was merged                          | `AcceptAction`                    | `Changeset`               |                               |
+| A pull request was closed unmerged by someone else | `RejectAction`                    | `Changeset`               |                               |
+| A pull request was closed unmerged by its author   | `CancelAction`                    | `Changeset`               |                               |
+| You created a repository                           | `CreateAction`                    | `result`: `Repository`    | a fork `isBasedOn` its source |
+| You committed                                      | `UpdateAction`                    | `Repository`              | `result`: the `Revision`      |
+| You starred a repository                           | `LikeAction`                      | `Repository`              |                               |
+| You created a gist                                 | `PublishAction`                   | `SoftwareSourceCode`      |                               |
 
 | GitHub thing            | Chronicle entity                          | Key                                                                       | Properties                                                                                                                  |
 | ----------------------- | ----------------------------------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | Repository              | `Repository`                              | `@type`, `source`, `creator.sourceId`, `name`                             | `name` (without the owner), `url`, `description`, `references` (homepage), `tags` (topics), `creator` (owner), `visibility` |
 | Issue                   | `Task`                                    | `@type`, `source`, `isPartOf.creator.sourceId`, `isPartOf.name`, `handle` | `handle` (number), `name` (title), `body`, `url`, `isPartOf` (repository)                                                   |
 | Pull request            | `Changeset`                               | `@type`, `source`, `isPartOf.creator.sourceId`, `isPartOf.name`, `handle` | `handle` (number), `name` (title), `body`, `url`, `author`, `isPartOf` (repository), `visibility`                           |
+| Commit                  | `Revision`                                | `@type`, `sourceId` (the hash, any source)                                | `name` (subject line), `body`, `url`, `author`, `isPartOf` (repository and pull requests), `isBasedOn` (parent commits)     |
 | Comment                 | `Comment`                                 | `@type`, `source`, `sourceId`                                             | `body`, `url`, `author`, `about` (its `Task` or `Changeset`), `visibility`                                                  |
 | Gist                    | `SoftwareSourceCode`                      | `@type`, `source`, `sourceId`                                             | `name`, `url`, `author`, `visibility`                                                                                       |
 | User, organization, bot | `Person`, `Organization`, `SoftwareAgent` | `@type`, `source`, `sourceId`                                             | `sourceId` (numeric id), `handle` (login), `name`, `url`                                                                    |
@@ -73,6 +78,8 @@ gh's default scopes (`repo`, `read:org`, `gist`) cover everything. For a persona
 **A pull request is a `Changeset`.** It's a set of changes to its repository, put forward as a unit and revised until it's decided, and it's neither an issue nor a commit: an issue asks for work, a commit is a point in the repository's history, and a pull request offers changes for its maintainers to take in or not. What became of it is told by the actions on it, not a stored state: opening it is a `PublishAction`, merging it an `AcceptAction`, and closing it unmerged a `RejectAction`, or a `CancelAction` when its own author withdrew it. GitHub records a merge as a close too; that close adds nothing.
 
 **Dates are on actions.** When a pull request was opened or a gist created is the `timestamp` of the `PublishAction` that did it; the work carries no `datePublished` of its own.
+
+**A commit is a `Revision`.** It's a version of its repository, not a change: git stores each commit as the whole tree, and the same change on another base is another commit, which is what a rebase makes. The change it made is the difference from the commits it `isBasedOn`. It's keyed by its hash with no `source`, so a clone read by the git plugin and GitHub's view of it are one node. It `isPartOf` its repository and the pull requests it came in through, and a merge's `AcceptAction` has the merge commit as its `result`. Committing is an `UpdateAction` on the repository. `commits` reads each repository's default branch, so commits only on other branches aren't read, and GitHub lists contributions to repositories you can't push to only for the past year.
 
 **Resolutions are yours, or of your pull requests.** `resolutions` reads closed issues and pull requests among your own and those in repositories you own. It keeps the ones you resolved, and every resolution of a pull request you opened, since "my pull request was merged" is someone else's action on your work. Someone else closing an issue isn't. An issue closed, reopened, and closed again is closed twice.
 
