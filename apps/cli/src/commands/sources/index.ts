@@ -11,8 +11,6 @@ const legacyNote = (count: number) =>
 export default class Sources extends BaseCommand<typeof Sources> {
   static override description = 'List catalog and installed sources and the records they can pull';
 
-  static override aliases = ['list'];
-
   static override examples = [
     'chronicle sources',
     'chronicle sources --all',

@@ -61,6 +61,12 @@
       "summary": "Goodreads shelves and reading history"
     },
     {
+      "name": "github",
+      "package": "@chronicle.app/github",
+      "tier": "official",
+      "summary": "GitHub pull requests, issues, comments, reviews, stars, and gists"
+    },
+    {
       "name": "google-reader",
       "package": "@chronicle.app/google-reader",
       "tier": "legacy",

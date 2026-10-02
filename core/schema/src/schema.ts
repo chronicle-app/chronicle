@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = '0.2.0' as const;
+export const SCHEMA_VERSION = '0.3.0' as const;
 // Generated from chronicle.ttl. Do not edit; run npm run schema:generate.
 import { z } from 'zod';
 
@@ -66,6 +66,7 @@ export interface Action extends Omit<Base, '@type'> {
 
 export type ActionAndChildren =
   | Action
+  | AcceptActionAndChildren
   | AssessActionAndChildren
   | CancelActionAndChildren
   | CompleteActionAndChildren
@@ -79,6 +80,7 @@ export type ActionAndChildren =
   | MessageActionAndChildren
   | OrganizeActionAndChildren
   | PlanActionAndChildren
+  | RejectActionAndChildren
   | TravelActionAndChildren
   | UpdateActionAndChildren
   | VisitActionAndChildren;
@@ -100,6 +102,24 @@ export const ActionSchema: z.ZodType<Action> = z
   .object({
     '@type': z.literal('Action'),
     ...ActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// AcceptAction, child of https://schema.chronicle.app/Action
+export interface AcceptAction extends Omit<Action, '@type'> {
+  '@type': 'AcceptAction';
+}
+
+export type AcceptActionAndChildren = AcceptAction;
+
+const AcceptActionProperties = {
+  ...ActionProperties,
+};
+
+export const AcceptActionSchema: z.ZodType<AcceptAction> = z
+  .object({
+    '@type': z.literal('AcceptAction'),
+    ...AcceptActionProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -266,6 +286,7 @@ export interface CreativeWork extends Omit<Entity, '@type'> {
   creator?: AgentAndChildren[];
   datePublished?: Date | string;
   genre?: string[];
+  isBasedOn?: CreativeWorkAndChildren[];
   publisher?: OrganizationAndChildren[];
   references?: EntityAndChildren[];
   sourceFormat?: string;
@@ -276,6 +297,7 @@ export type CreativeWorkAndChildren =
   | CreativeWork
   | ArticleAndChildren
   | BookAndChildren
+  | ChangesetAndChildren
   | ChannelAndChildren
   | CollectionAndChildren
   | MediaObjectAndChildren
@@ -286,8 +308,11 @@ export type CreativeWorkAndChildren =
   | PostAndChildren
   | QueryAndChildren
   | QuotationAndChildren
+  | RepositoryAndChildren
   | ResponseAndChildren
-  | SoftwareApplicationAndChildren;
+  | RevisionAndChildren
+  | SoftwareApplicationAndChildren
+  | SoftwareSourceCodeAndChildren;
 
 const CreativeWorkProperties = {
   ...EntityProperties,
@@ -295,6 +320,7 @@ const CreativeWorkProperties = {
   creator: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
   datePublished: z.lazy(() => z.union([z.date(), z.string()])).optional(),
   genre: z.lazy(() => z.array(z.string())).optional(),
+  isBasedOn: z.lazy(() => z.array(CreativeWorkAndChildrenSchema)).optional(),
   publisher: z.lazy(() => z.array(OrganizationAndChildrenSchema)).optional(),
   references: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
   sourceFormat: z.lazy(() => z.string()).optional(),
@@ -632,6 +658,24 @@ export const CategorySchema: z.ZodType<Category> = z
   .object({
     '@type': z.literal('Category'),
     ...CategoryProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Changeset, child of https://schema.chronicle.app/CreativeWork
+export interface Changeset extends Omit<CreativeWork, '@type'> {
+  '@type': 'Changeset';
+}
+
+export type ChangesetAndChildren = Changeset;
+
+const ChangesetProperties = {
+  ...CreativeWorkProperties,
+};
+
+export const ChangesetSchema: z.ZodType<Changeset> = z
+  .object({
+    '@type': z.literal('Changeset'),
+    ...ChangesetProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -1715,6 +1759,24 @@ export const RealmSchema: z.ZodType<Realm> = z
   })
   .superRefine(requireNodeIdentity);
 
+// RejectAction, child of https://schema.chronicle.app/Action
+export interface RejectAction extends Omit<Action, '@type'> {
+  '@type': 'RejectAction';
+}
+
+export type RejectActionAndChildren = RejectAction;
+
+const RejectActionProperties = {
+  ...ActionProperties,
+};
+
+export const RejectActionSchema: z.ZodType<RejectAction> = z
+  .object({
+    '@type': z.literal('RejectAction'),
+    ...RejectActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // Relationship, child of https://schema.chronicle.app/Session
 export interface Relationship extends Omit<Session, '@type'> {
   '@type': 'Relationship';
@@ -1735,6 +1797,24 @@ export const RelationshipSchema: z.ZodType<Relationship> = z
   })
   .superRefine(requireNodeIdentity);
 
+// Repository, child of https://schema.chronicle.app/CreativeWork
+export interface Repository extends Omit<CreativeWork, '@type'> {
+  '@type': 'Repository';
+}
+
+export type RepositoryAndChildren = Repository;
+
+const RepositoryProperties = {
+  ...CreativeWorkProperties,
+};
+
+export const RepositorySchema: z.ZodType<Repository> = z
+  .object({
+    '@type': z.literal('Repository'),
+    ...RepositoryProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // RespondAction, child of https://schema.chronicle.app/AssessAction
 export interface RespondAction extends Omit<AssessAction, '@type'> {
   '@type': 'RespondAction';
@@ -1750,6 +1830,24 @@ export const RespondActionSchema: z.ZodType<RespondAction> = z
   .object({
     '@type': z.literal('RespondAction'),
     ...RespondActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Revision, child of https://schema.chronicle.app/CreativeWork
+export interface Revision extends Omit<CreativeWork, '@type'> {
+  '@type': 'Revision';
+}
+
+export type RevisionAndChildren = Revision;
+
+const RevisionProperties = {
+  ...CreativeWorkProperties,
+};
+
+export const RevisionSchema: z.ZodType<Revision> = z
+  .object({
+    '@type': z.literal('Revision'),
+    ...RevisionProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -1786,6 +1884,24 @@ export const SoftwareApplicationSchema: z.ZodType<SoftwareApplication> = z
   .object({
     '@type': z.literal('SoftwareApplication'),
     ...SoftwareApplicationProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// SoftwareSourceCode, child of https://schema.chronicle.app/CreativeWork
+export interface SoftwareSourceCode extends Omit<CreativeWork, '@type'> {
+  '@type': 'SoftwareSourceCode';
+}
+
+export type SoftwareSourceCodeAndChildren = SoftwareSourceCode;
+
+const SoftwareSourceCodeProperties = {
+  ...CreativeWorkProperties,
+};
+
+export const SoftwareSourceCodeSchema: z.ZodType<SoftwareSourceCode> = z
+  .object({
+    '@type': z.literal('SoftwareSourceCode'),
+    ...SoftwareSourceCodeProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -1999,13 +2115,21 @@ export const TaskAndChildrenSchema = TaskSchema;
 
 export const TagAndChildrenSchema = TagSchema;
 
+export const SoftwareSourceCodeAndChildrenSchema = SoftwareSourceCodeSchema;
+
 export const SoftwareApplicationAndChildrenSchema = SoftwareApplicationSchema;
 
 export const SoftwareAgentAndChildrenSchema = SoftwareAgentSchema;
 
+export const RevisionAndChildrenSchema = RevisionSchema;
+
 export const RespondActionAndChildrenSchema = RespondActionSchema;
 
+export const RepositoryAndChildrenSchema = RepositorySchema;
+
 export const RelationshipAndChildrenSchema = RelationshipSchema;
+
+export const RejectActionAndChildrenSchema = RejectActionSchema;
 
 export const RealmAndChildrenSchema = RealmSchema;
 
@@ -2294,6 +2418,8 @@ export const CheckInActionAndChildrenSchema = CheckInActionSchema;
 
 export const ChannelAndChildrenSchema = ChannelSchema;
 
+export const ChangesetAndChildrenSchema = ChangesetSchema;
+
 export const CategoryAndChildrenSchema = CategorySchema;
 
 export const DefinedTermAndChildrenSchema: z.ZodType<DefinedTermAndChildren> = z
@@ -2512,8 +2638,23 @@ export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> =
     }),
 
     z.object({
+      '@type': z.literal('SoftwareSourceCode'),
+      ...SoftwareSourceCodeProperties,
+    }),
+
+    z.object({
       '@type': z.literal('SoftwareApplication'),
       ...SoftwareApplicationProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Revision'),
+      ...RevisionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Repository'),
+      ...RepositoryProperties,
     }),
 
     z.object({
@@ -2584,6 +2725,11 @@ export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> =
     z.object({
       '@type': z.literal('Channel'),
       ...ChannelProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Changeset'),
+      ...ChangesetProperties,
     }),
 
     z.object({
@@ -2813,8 +2959,23 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('SoftwareSourceCode'),
+      ...SoftwareSourceCodeProperties,
+    }),
+
+    z.object({
       '@type': z.literal('SoftwareApplication'),
       ...SoftwareApplicationProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Revision'),
+      ...RevisionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Repository'),
+      ...RepositoryProperties,
     }),
 
     z.object({
@@ -2885,6 +3046,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     z.object({
       '@type': z.literal('Channel'),
       ...ChannelProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Changeset'),
+      ...ChangesetProperties,
     }),
 
     z.object({
@@ -2968,6 +3134,8 @@ export const UpdateActionAndChildrenSchema: z.ZodType<UpdateActionAndChildren> =
     }),
   ])
   .superRefine(requireNodeIdentity);
+export const AcceptActionAndChildrenSchema = AcceptActionSchema;
+
 export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
   .discriminatedUnion('@type', [
     z.object({
@@ -2983,6 +3151,11 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     z.object({
       '@type': z.literal('TravelAction'),
       ...TravelActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('RejectAction'),
+      ...RejectActionProperties,
     }),
 
     z.object({
@@ -3153,6 +3326,11 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     z.object({
       '@type': z.literal('AddAction'),
       ...AddActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('AcceptAction'),
+      ...AcceptActionProperties,
     }),
   ])
   .superRefine(requireNodeIdentity);
@@ -3294,8 +3472,23 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('SoftwareSourceCode'),
+      ...SoftwareSourceCodeProperties,
+    }),
+
+    z.object({
       '@type': z.literal('SoftwareApplication'),
       ...SoftwareApplicationProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Revision'),
+      ...RevisionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Repository'),
+      ...RepositoryProperties,
     }),
 
     z.object({
@@ -3366,6 +3559,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('Channel'),
       ...ChannelProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Changeset'),
+      ...ChangesetProperties,
     }),
 
     z.object({
@@ -3446,6 +3644,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('TravelAction'),
       ...TravelActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('RejectAction'),
+      ...RejectActionProperties,
     }),
 
     z.object({
@@ -3616,6 +3819,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('AddAction'),
       ...AddActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('AcceptAction'),
+      ...AcceptActionProperties,
     }),
   ])
   .superRefine(requireNodeIdentity);

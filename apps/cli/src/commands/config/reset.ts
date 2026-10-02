@@ -1,8 +1,9 @@
-import { Command, Flags } from '@oclif/core';
+import { BaseCommand } from '../../baseCommand.js';
+import { Flags } from '@oclif/core';
 import { inkConfirm } from '../../components/InkConfirm.js';
 import { ConfigManager } from '../../config/index.js';
 
-export default class ConfigResetCommand extends Command {
+export default class ConfigResetCommand extends BaseCommand<typeof ConfigResetCommand> {
   static override description = 'Reset configuration to defaults';
 
   static override examples = [
@@ -44,7 +45,7 @@ export default class ConfigResetCommand extends Command {
       await configManager.resetConfig();
       this.log('Configuration reset to defaults.');
     } catch (error) {
-      this.error(`Failed to reset configuration: ${error}`);
+      this.failFrom(error, 'Failed to reset configuration');
     }
   }
 }

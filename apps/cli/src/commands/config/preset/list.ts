@@ -1,7 +1,8 @@
-import { Command, Flags } from '@oclif/core';
+import { BaseCommand } from '../../../baseCommand.js';
+import { Flags } from '@oclif/core';
 import { ConfigManager } from '../../../config/index.js';
 
-export default class PresetListCommand extends Command {
+export default class PresetListCommand extends BaseCommand<typeof PresetListCommand> {
   static override description = 'List all configuration presets';
 
   static override examples = [
@@ -57,7 +58,7 @@ export default class PresetListCommand extends Command {
       this.log(`\nTotal: ${presetNames.length} presets`);
       this.log('Use "chronicle config preset show <name>" to see details');
     } catch (error) {
-      this.error(`Failed to list presets: ${error}`);
+      this.failFrom(error, 'Failed to list presets');
     }
   }
 }

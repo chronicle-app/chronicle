@@ -1,5 +1,6 @@
 import { BaseCommand } from '../baseCommand.js';
 import { getTheme } from '../theme.js';
+import { defaultKinds } from './recordKinds.js';
 import { FlagManager } from './FlagManager.js';
 import { strategiesOf, type ExtractorMetadata } from '../plugins/PluginScanner.js';
 
@@ -9,7 +10,7 @@ const BASE_FLAGS = FlagManager.getBaseFlags(BaseCommand.baseFlags) as Record<str
 const BASE_FLAG_KEYS = new Set(Object.keys(BASE_FLAGS));
 
 // The base flags worth showing beside a source's own: scope and output.
-const COMMON_FLAG_KEYS = ['limit', 'since', 'until', 'loader', 'output'];
+const COMMON_FLAG_KEYS = ['type', 'list-types', 'limit', 'since', 'until', 'loader', 'output'];
 
 export interface SourceFlagInfo {
   name: string;
@@ -68,15 +69,18 @@ export function renderRecordTypes(candidates: ExtractorMetadata[]): string {
 }
 
 /**
- * What a run without `--type` reads, mirroring ExtractorSelector: the only
- * extractor, else the declared default. Undefined when the run would ask.
+ * What a run without kinds reads, mirroring ExtractorSelector: the default
+ * strategy's (or the only one's) declared default kinds. Undefined when the
+ * plugin declares none and the run asks.
  */
 function bareRunKinds(candidates: ExtractorMetadata[]): string[] | undefined {
-  const chosen = candidates.length === 1 ? candidates[0] : candidates.find(e => e.default);
-  return chosen?.recordType;
+  const strategies = strategiesOf(candidates);
+  const chosen = strategies.find(s => s.extractors.some(e => e.default)) ?? strategies[0];
+  const kinds = chosen ? defaultKinds(chosen.extractors) : [];
+  return kinds.length > 0 ? kinds : undefined;
 }
 
-/** What a run without `--type` reads: `only submissions`, `every kind`, or undefined when it asks. */
+/** What a run without kinds reads: `only submissions`, `every kind`, or undefined when it asks. */
 function bareRunSummary(candidates: ExtractorMetadata[]): string | undefined {
   const kinds = bareRunKinds(candidates);
   if (!kinds) return undefined;
@@ -85,8 +89,8 @@ function bareRunSummary(candidates: ExtractorMetadata[]): string | undefined {
 }
 
 /**
- * How to pick from `--list-types`, as a runnable example: kinds a bare run
- * leaves out when there are some, with `--strategy` only when there is a
+ * How to pick from `--list-types`, as a runnable example: a kind a bare run
+ * leaves out when there is one, with `--strategy` only when there is a
  * choice. Printed as a hint on stderr, so the list on stdout still pipes.
  */
 export function recordTypesHint(
@@ -99,10 +103,17 @@ export function recordTypesHint(
   const strategy = strategies.length > 1 ? ` --strategy ${chosen.name}` : '';
   const bare = bareRunKinds(candidates) ?? [];
   const others = chosen.recordTypes.filter(kind => !bare.includes(kind));
-  const kinds = (others.length > 0 ? others : chosen.recordTypes).slice(0, 2).join(',');
+  const kinds = (others.length > 0 ? others : chosen.recordTypes).slice(0, 2).join(' ');
+  const bareKinds = bareRunKinds(candidates);
+  const all = new Set(candidates.flatMap(e => e.recordType));
+  const opening = bareKinds
+    ? bareKinds.length === all.size
+      ? 'The default is all of them.'
+      : `The default is ${bareKinds.join(', ')}.`
+    : "There's no default; you'll be asked.";
   return {
-    message: `pick kinds with --type; without it, ${bareRunSummary(candidates) ?? 'you’re asked which'}`,
-    action: `\`chronicle ${verb} ${source}${strategy} --type ${kinds}\``,
+    message: `${opening} To pick others: \`chronicle ${verb} ${source}${strategy} ${kinds}\``,
+    action: '',
   };
 }
 
@@ -150,20 +161,29 @@ export function renderSourceHelp(
   for (const name of COMMON_FLAG_KEYS) {
     const f = BASE_FLAGS[name];
     if (!f) continue;
-    const value = f.type === 'boolean' ? '' : f.options ? ` <${f.options.join('|')}>` : ' <value>';
+    const value =
+      f.type === 'boolean'
+        ? ''
+        : f.options
+          ? ` <${f.options.join('|')}>`
+          : ` ${f.helpValue ?? '<value>'}`;
+    const short = f.char ? `-${f.char}, ` : '';
     const def =
       f.default !== undefined && typeof f.default !== 'function'
         ? `  ${theme.textDim(`default: ${String(f.default)}`)}`
         : '';
-    lines.push(`  ${theme.text(`--${name}${value}`)}${def}`, `      ${theme.textDim(f.summary)}`);
+    lines.push(
+      `  ${theme.text(`${short}--${name}${value}`)}${def}`,
+      `      ${theme.textDim(f.summary)}`
+    );
   }
 
   lines.push(
     '',
     theme.textDim('usage:'),
-    `  chronicle ${verb} ${source} [--strategy <name>] [--type <kind[,kind]>] [flags]`,
+    `  chronicle ${verb} ${source} [kind...] [--strategy <name>] [flags]`,
     theme.textDim(
-      `  no --type reads ${bareRunSummary(candidates) ?? 'the kinds you pick when asked'}`
+      `  with no kinds, reads ${bareRunSummary(candidates) ?? 'the kinds you pick when asked'}; \`-t all\` reads every kind`
     )
   );
   return lines.join('\n');

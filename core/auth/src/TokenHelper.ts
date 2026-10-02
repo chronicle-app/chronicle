@@ -13,11 +13,11 @@ export const TokenHelper = {
 
       if (hasCredentials) {
         throw new AuthRequired(`${provider} credentials expired and couldn't be refreshed`, {
-          hint: `run \`chronicle auth login ${provider} --client-id <id> --client-secret <secret>\``,
+          hint: `Run \`chronicle auth login ${provider} --client-id <id> --client-secret <secret>\` with your app's credentials.`,
         });
       } else {
         throw new AuthRequired(`No ${provider} credentials`, {
-          hint: `run \`chronicle auth login ${provider} --client-id <id> --client-secret <secret>\``,
+          hint: `Run \`chronicle auth login ${provider} --client-id <id> --client-secret <secret>\` with your app's credentials.`,
         });
       }
     }

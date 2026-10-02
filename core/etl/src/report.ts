@@ -120,7 +120,7 @@ export class RunReport {
       level: 'debug',
       kind: 'progress',
       message: reading
-        ? `${number(this.read)} records read`
+        ? `${number(this.read)} records extracted`
         : `${number(this.stats.processed)} records`,
       fields,
       sensitive: ['current'],

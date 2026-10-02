@@ -67,7 +67,7 @@ export function pickCredentialFields<F extends string>(
   if (missing.length > 0) {
     throw new AuthRequired(
       options.errorMessage ?? `${provider} credentials are missing ${missing.join(', ')}`,
-      { hint: options.hint ?? `run \`chronicle auth set ${provider}\`` }
+      { hint: options.hint ?? `Run \`chronicle auth set ${provider}\` to store a token.` }
     );
   }
 

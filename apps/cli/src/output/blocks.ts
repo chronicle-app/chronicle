@@ -25,12 +25,15 @@ export type { SummaryFields } from '@chronicle.app/logging';
 const measure = (segments: Segment[]) => segments.reduce((n, [text]) => n + text.length, 0);
 
 /**
- * The line a command ends with: status, subject, counts, time, destination.
- * `✓ shell · history  1,240 commands  in 1.7s  → out.json`
+ * A run's summary, for a person: the outcome on the first line (status,
+ * title, time, where the records went), then a line per record kind, counts
+ * aligned so they scan as a column, and lines for anything failed, skipped,
+ * or written.
  *
- * When it doesn't fit, the least useful parts go first (destination,
- * written, skipped, then time), then the counts are cut; a failure count
- * always stays.
+ *   ✓ github  in 4.6s  → out.json
+ *       2 stars
+ *       3 pull requests
+ *       1 commit
  */
 export function summary(
   fields: SummaryFields,
@@ -47,73 +50,90 @@ export function summary(
         ] as Segment[])
       : []),
     [fields.title, t.strong],
-    ['  '],
-  ];
-  const counts: Segment[] = [];
-  if (fields.records === 0) counts.push(['no records', t.muted]);
-  for (const [type, n] of Object.entries(fields.counts)) {
-    if (counts.length > 0) counts.push([` ${glyphs.bullet} `, t.muted]);
-    counts.push([count(n), t.strong], [` ${plural(type, n)}`]);
-  }
-  const kept: Segment[] = failed
-    ? [[` ${glyphs.bullet} ${count(fields.failed!)} failed`, t.danger]]
-    : [];
-  const parts: { [part: string]: Segment[] } = {
-    skipped: fields.skipped
-      ? [[` ${glyphs.bullet} ${count(fields.skipped)} skipped`, t.muted]]
-      : [],
-    written:
-      fields.written === undefined
-        ? []
-        : [[` ${glyphs.bullet} ${count(fields.written)} written`, t.muted]],
-    duration: [[`  in ${duration(fields.durationMs)}`, t.muted]],
-    output: fields.output
-      ? [
+    [`  in ${duration(fields.durationMs)}`, t.muted],
+    ...(fields.output
+      ? ([
           [`  ${glyphs.arrow} `, t.muted],
           [fields.output, undefined],
-        ]
-      : [],
-  };
-  const fixed = measure(head) + measure(counts) + measure(kept);
-  const total = () => fixed + Object.values(parts).reduce((n, part) => n + measure(part), 0);
-  for (const part of ['output', 'written', 'skipped', 'duration']) {
-    if (total() <= width) break;
-    parts[part] = [];
-  }
-  if (fixed <= width) {
-    return line(
-      [
-        ...head,
-        ...counts,
-        ...parts.skipped,
-        ...kept,
-        ...parts.written,
-        ...parts.duration,
-        ...parts.output,
-      ],
-      width
-    );
-  }
-  // Still too long: cut the counts, keep the failures.
-  const room = Math.max(0, width - measure(kept));
-  return (
-    line([...head, ...counts], room) +
-    line(kept, width - Math.min(room, measure(head) + measure(counts)))
-  );
+        ] as Segment[])
+      : []),
+  ];
+  const rows: (readonly [n: number | undefined, label: string, style: Segment[1]])[] = [
+    ...(fields.records === 0 ? [[undefined, 'no records', t.muted] as const] : []),
+    ...Object.entries(fields.counts).map(
+      ([type, n]) => [n, plural(type.replaceAll('-', ' '), n), undefined] as const
+    ),
+    ...(failed ? [[fields.failed!, 'failed', t.danger] as const] : []),
+    ...(fields.skipped ? [[fields.skipped, 'skipped', t.muted] as const] : []),
+    ...(fields.written === undefined ? [] : [[fields.written, 'written', t.muted] as const]),
+  ];
+  const digits = Math.max(0, ...rows.map(([n]) => (n === undefined ? 0 : count(n).length)));
+  return [
+    line(head, width),
+    ...rows.map(([n, label, style]) =>
+      line(
+        [
+          ['    '],
+          ...(n === undefined
+            ? []
+            : ([[count(n).padStart(digits), style ?? t.strong], [' ']] as Segment[])),
+          [label, style],
+        ],
+        width
+      )
+    ),
+  ].join('\n');
 }
 
-/** A next move, dim and indented under the summary: `  stopped at --limit 100 · pass …`. */
+/**
+ * What to do next, under the line it follows: a `↳` line per line of the
+ * message and action, in plain sentences with commands inline. Wrapping never
+ * splits a command. A line that ends in a command (`To pick others:
+ * \`chronicle extract hackernews comments\``) puts it on a line of its own.
+ *
+ *   ↳ Run `chronicle extract github --list-types` to see what it has.
+ */
 export function hint(message: string, action: string | undefined, t: Tokens, width: number) {
-  const text = action ? (message ? `${message} ${glyphs.bullet} ${action}` : action) : message;
-  // A next move is worth reading whole: wrapped at spaces, not cut, and
-  // continued under its text rather than its arrow.
-  return wrap(text, width - 4)
-    .map((part, i) => {
-      const text = `${i === 0 ? `  ${glyphs.child} ` : '    '}${part}`;
-      // A command on a line of its own prints whole; the terminal wraps it.
-      return part.startsWith('`') ? t.muted(text) : line([[text, t.muted]], width);
-    })
-    .join('\n');
+  const steps = [message, ...(action ?? '').split('\n')].filter(step => step.trim() !== '');
+  const lines: string[] = [];
+  for (const step of steps) {
+    const ending = step.match(/^(.*?):?\s*`([^`]+)`$/s);
+    const [prose, command] = ending ? [ending[1].trim(), ending[2]] : [step, undefined];
+    if (prose) {
+      // Wrapped at spaces, continued under its text rather than its arrow.
+      // Spaces inside code spans held, so wrapping keeps each command whole.
+      const held = (command ? `${prose}:` : prose).replaceAll(/`[^`]*`/g, span =>
+        span.replaceAll(' ', HELD_SPACE)
+      );
+      for (const [i, part] of wrap(held, width - 4).entries()) {
+        const text = codeSpans(part.replaceAll(HELD_SPACE, ' '), t);
+        lines.push(t.muted(i === 0 ? `  ${glyphs.child} ` : '    ') + text);
+      }
+    }
+    if (command) {
+      // Never cut: a command prints whole, and the terminal wraps it.
+      lines.push(
+        prose
+          ? `      ${t.command(command)}`
+          : `${t.muted(`  ${glyphs.child} `)}${t.command(command)}`
+      );
+    }
+  }
+  return lines.join('\n');
+}
+
+const HELD_SPACE = '\u0000';
+
+/** Text with each `code span` in the code style, the rest muted. */
+function codeSpans(text: string, t: Tokens): string {
+  return text
+    .split(/(`[^`]*`)/)
+    .map(piece =>
+      piece.startsWith('`') && piece.endsWith('`') && piece.length > 1
+        ? t.code(piece.slice(1, -1))
+        : piece && t.muted(piece)
+    )
+    .join('');
 }
 
 /**

@@ -44,7 +44,7 @@ export default class AuthSet extends BaseCommand<typeof AuthSet> {
           : (await this.readToken()).trim();
     }
     if (!token) {
-      this.error('No token provided.');
+      this.fail('No token provided.');
     }
 
     // Carry forward a previously stored username when only the token is being set.
@@ -77,7 +77,7 @@ export default class AuthSet extends BaseCommand<typeof AuthSet> {
   // consume it first).
   private async readToken(): Promise<string> {
     if (!process.stdin.isTTY) {
-      this.error('No token provided. Pass --token when running non-interactively.');
+      this.fail('No token provided', { hint: 'Pass one with `--token` when not at a terminal.' });
     }
 
     const rl = readline.createInterface({ input: process.stdin, output: process.stderr });

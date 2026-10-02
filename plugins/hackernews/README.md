@@ -6,7 +6,7 @@ Read your Hacker News submissions, comments, and the replies to them through the
 
 ```sh
 chronicle extract hackernews --username you
-chronicle extract hackernews --type comments,replies --username you --since 2025-01-01
+chronicle extract hackernews comments replies --username you --since 2025-01-01
 ```
 
 Each kind is one record type:

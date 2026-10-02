@@ -193,7 +193,7 @@ export default class SpotifyProxy extends ApiProxy {
     } catch (error) {
       if (error instanceof ApiAuthError) {
         throw new ApiAuthError('Spotify rejected the stored credentials', {
-          hint: 'run `chronicle auth login spotify --client-id <id> --client-secret <secret>`; get credentials at https://developer.spotify.com/dashboard',
+          hint: "Run `chronicle auth login spotify --client-id <id> --client-secret <secret>` with your app's credentials. Get them at https://developer.spotify.com/dashboard.",
           cause: error,
         });
       }

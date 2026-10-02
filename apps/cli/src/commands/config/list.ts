@@ -1,8 +1,9 @@
-import { Command, Flags } from '@oclif/core';
+import { BaseCommand } from '../../baseCommand.js';
+import { Flags } from '@oclif/core';
 import { ConfigManager } from '../../config/index.js';
 import { renderConfigScreen } from '../../screens/index.js';
 
-export default class ConfigListCommand extends Command {
+export default class ConfigListCommand extends BaseCommand<typeof ConfigListCommand> {
   static override description = 'List all configuration values';
 
   static override examples = [
@@ -33,7 +34,7 @@ export default class ConfigListCommand extends Command {
         theme: 'default',
       });
     } catch (error) {
-      this.error(`Failed to list configuration: ${error}`);
+      this.failFrom(error, 'Failed to list configuration');
     }
   }
 }

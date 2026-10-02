@@ -1,7 +1,8 @@
-import { Args, Command } from '@oclif/core';
+import { BaseCommand } from '../../baseCommand.js';
+import { Args } from '@oclif/core';
 import { ConfigManager } from '../../config/index.js';
 
-export default class ConfigSetCommand extends Command {
+export default class ConfigSetCommand extends BaseCommand<typeof ConfigSetCommand> {
   static override description = 'Set a global configuration value';
 
   static override examples = [
@@ -36,7 +37,7 @@ export default class ConfigSetCommand extends Command {
       await configManager.setGlobalValue(args.key, parsedValue);
       this.log(`Set ${args.key} = ${JSON.stringify(parsedValue)}`);
     } catch (error) {
-      this.error(`Failed to set configuration: ${error}`);
+      this.failFrom(error, 'Failed to set configuration');
     }
   }
 }

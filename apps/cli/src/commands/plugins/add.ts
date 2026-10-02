@@ -27,7 +27,7 @@ export default class PluginsAdd extends BaseCommand<typeof PluginsAdd> {
     try {
       added = await addLocalPlugin(this.config.configDir, args.path);
     } catch (error) {
-      this.error(error instanceof Error ? error.message : String(error));
+      this.failFrom(error);
     }
 
     this.log(

@@ -1,7 +1,8 @@
-import { Args, Command, Flags } from '@oclif/core';
+import { BaseCommand } from '../../../baseCommand.js';
+import { Args, Flags } from '@oclif/core';
 import { ConfigManager } from '../../../config/index.js';
 
-export default class PresetCreateCommand extends Command {
+export default class PresetCreateCommand extends BaseCommand<typeof PresetCreateCommand> {
   static override description = 'Create a configuration preset';
 
   static override examples = [
@@ -25,12 +26,13 @@ export default class PresetCreateCommand extends Command {
 
   // Allow unknown flags to be captured
   static override strict = false;
+  static override parsesInInit = false;
 
   async run(): Promise<void> {
     // Parse manually to capture unknown flags
     const presetName = this.argv[0];
     if (!presetName) {
-      this.error('Preset name is required');
+      this.fail('Preset name is required');
     }
     const configManager = new ConfigManager(this.config.configDir);
 
@@ -82,7 +84,7 @@ export default class PresetCreateCommand extends Command {
       }
 
       if (Object.keys(presetFlags).length === 0) {
-        this.error('No flags provided for preset. At least one flag must be specified.');
+        this.fail('No flags provided for preset. At least one flag must be specified.');
       }
 
       // Check if preset already exists
@@ -110,7 +112,7 @@ export default class PresetCreateCommand extends Command {
         this.log(`  --${key}: ${JSON.stringify(value)}`);
       }
     } catch (error) {
-      this.error(`Failed to create preset: ${error}`);
+      this.failFrom(error, 'Failed to create preset');
     }
   }
 }

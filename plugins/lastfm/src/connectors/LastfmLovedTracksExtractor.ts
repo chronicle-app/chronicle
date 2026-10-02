@@ -50,7 +50,7 @@ export class LastfmLovedTracksExtractor extends Extractor<typeof LastfmLovedTrac
           '1. Run: chronicle auth login lastfm --client-id YOUR_CLIENT_ID --client-secret YOUR_CLIENT_SECRET\n' +
           '2. Or use: --api-key YOUR_API_KEY for traditional auth\n' +
           '3. Or use: --access-token TOKEN for OAuth session key',
-        hint: 'run `chronicle auth login lastfm`',
+        hint: 'Run `chronicle auth login lastfm` to sign in.',
       }
     );
 
@@ -64,7 +64,7 @@ export class LastfmLovedTracksExtractor extends Extractor<typeof LastfmLovedTrac
         overrides: { username: config.username },
         errorMessage:
           'Last.fm username is required. Either provide --username or authenticate with: chronicle auth login lastfm',
-        hint: 'run `chronicle auth login lastfm`',
+        hint: 'Run `chronicle auth login lastfm` to sign in.',
       }
     );
 

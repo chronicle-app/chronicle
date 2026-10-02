@@ -4,7 +4,9 @@ import { Readable } from 'node:stream';
 import { InputNotFound } from '@chronicle.app/logging';
 
 const NO_INPUT = () =>
-  new InputNotFound('No input provided', { hint: 'pass --input <file>, or pipe the data in' });
+  new InputNotFound('No input provided', {
+    hint: 'Pass the file with `--input`, or pipe it in.',
+  });
 
 export const ioFlags = {
   // Note: input flag removed to avoid conflict with ExtractCommand.baseFlags
