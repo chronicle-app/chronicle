@@ -53,6 +53,9 @@ test('the gallery renders every block and event within its width, in every sink 
     }
     for (const line of lines) {
       const visible = line.replaceAll(ANSI, '');
+      // A command on a line of its own prints whole: one split can't be copied.
+      const command = /^(\d\d:\d\d:\d\d)?\s*`[^`]*`\S*$/.test(visible);
+      if (command) continue;
       assert.ok(visible.length <= width, `${title}: ${visible.length} > ${width}: ${visible}`);
     }
   }

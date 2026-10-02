@@ -120,6 +120,26 @@ export const EVENTS: OutputEvent[] = [
     message: 'failed run',
     fields: failed,
   }),
+  // A run of several kinds says which it reads, and what it leaves out.
+  event({ level: 'info', kind: 'notice', scope: 'cli', message: 'extracting stars, gists' }),
+  event({
+    level: 'info',
+    kind: 'hint',
+    scope: 'cli',
+    message: 'not included: commits, issues, pull-requests, replies',
+    hint: { action: '`chronicle extract github -t all` for everything' },
+  }),
+  // A usage error, with what to do about it.
+  event({
+    level: 'error',
+    kind: 'error',
+    scope: 'cli',
+    message: 'github has no record type "likes"',
+    error: { code: 'unknown-record-type', exitCode: 2 },
+    hint: { action: 'pick from comments, commits, gists, issues, stars' },
+  }),
+  // Cancelling is a choice: said plainly.
+  event({ level: 'info', kind: 'notice', scope: 'cli', message: 'Extraction cancelled' }),
   event({ level: 'info', kind: 'summary', scope: 'runner', message: 'finished run', fields: done }),
   event({
     level: 'info',

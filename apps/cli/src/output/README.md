@@ -18,7 +18,7 @@ styled. Commands, loaders, and sinks build their text from this module.
   an error), and under a summary appear only for defaults the person didn't choose (the default `--limit` cutting a run
   short, readable columns hiding schema properties, columns that didn't fit).
 - **No boxes, no `====` underlines, no emoji.** One glyph set (`glyphs`):
-  `✓ ✗ ! · → ↳ ━ ─ …` and braille spinner frames.
+  `✓ ✗ ! · → ↳ ━ ─ …`, braille spinner frames, and `❯ ◉ ○` for pickers.
 - **Color only carries meaning** (`tokens`): status (`success`, `danger`,
   `warning`), emphasis (`strong`), de-emphasis (`muted`), and one `accent`
   (the brand red) for live elements. Never call `chalk` directly.

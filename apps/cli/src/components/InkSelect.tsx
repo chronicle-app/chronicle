@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { render, Box, Text, useInput } from 'ink';
-import { getTheme, type ChronicleTheme } from '../theme.js';
+import { glyphs, tokens, type Tokens } from '../output/index.js';
 
 export interface SelectOption {
   label: string;
@@ -12,7 +12,7 @@ interface InkSelectProps {
   message: string;
   options: SelectOption[];
   defaultValue?: string;
-  theme?: ChronicleTheme;
+  t: Tokens;
   onSelect: (value: string) => void;
   onCancel?: () => void;
 }
@@ -21,7 +21,7 @@ const InkSelectComponent: React.FC<InkSelectProps> = ({
   message,
   options,
   defaultValue,
-  theme,
+  t,
   onSelect,
   onCancel,
 }) => {
@@ -45,32 +45,22 @@ const InkSelectComponent: React.FC<InkSelectProps> = ({
     }
   });
 
-  const colors = {
-    primary: 'blue',
-    text: 'white',
-    textDim: 'gray',
-    selected: 'green',
-  };
-
   return (
     <Box flexDirection="column">
-      <Text color={colors.text} bold>
-        {message}
-      </Text>
+      <Text>{t.strong(message)}</Text>
       <Text> </Text>
-
-      {options.map((option, index) => (
-        <Box key={option.value}>
-          <Text color={index === selectedIndex ? colors.selected : colors.text}>
-            {index === selectedIndex ? '❯ ' : '  '}
-            {option.label}
-            {option.description && <Text color={colors.textDim}> - {option.description}</Text>}
+      {options.map((option, index) => {
+        const here = index === selectedIndex;
+        const row = `${here ? glyphs.pointer : ' '} ${option.label}`;
+        return (
+          <Text key={option.value}>
+            {here ? t.accent(row) : row}
+            {option.description ? t.muted(` ${option.description}`) : ''}
           </Text>
-        </Box>
-      ))}
-
+        );
+      })}
       <Text> </Text>
-      <Text color={colors.textDim}>Use ↑/↓ or j/k to navigate, Enter to select, Esc to cancel</Text>
+      <Text>{t.muted(['↑/↓ move', 'enter select', 'esc cancel'].join(` ${glyphs.bullet} `))}</Text>
     </Box>
   );
 };
@@ -87,7 +77,7 @@ export function inkSelect(
   themeOption?: string
 ): Promise<InkSelectResult> {
   return new Promise(resolve => {
-    const theme = getTheme(themeOption || 'default');
+    const t = tokens({ stream: 'stderr', theme: themeOption });
 
     const handleSelect = (value: string) => {
       app.unmount();
@@ -108,7 +98,7 @@ export function inkSelect(
         message={message}
         options={options}
         defaultValue={defaultValue}
-        theme={theme}
+        t={t}
         onSelect={handleSelect}
         onCancel={handleCancel}
       />,
