@@ -314,33 +314,53 @@ const CREATED = [
   { ...bakery, createdAt: '2023-01-01T10:00:00Z', isFork: false, parent: null },
 ];
 
-const commit = (oid, messageHeadline, authoredDate, parents, pulls = [], messageBody = '') => ({
+const commit = (
+  oid,
+  repo,
+  messageHeadline,
+  authoredDate,
+  parents,
+  pulls = [],
+  messageBody = ''
+) => ({
   oid,
   messageHeadline,
   messageBody,
-  url: `https://github.com/commit/${oid}`,
+  url: `${repo.url}/commit/${oid}`,
   authoredDate,
   parents: { nodes: parents.map(parent => ({ oid: parent })) },
   associatedPullRequests: { nodes: pulls.map(pull => ref(pull)) },
+  repository: repo,
 });
-/** Sam's commits on each repository's default branch, newest first. */
-export const COMMITS = {
-  R_bakery: [
-    commit(
-      'a1a1a1',
-      'Add an oven timer',
-      '2025-03-10T09:00:00Z',
-      ['a0a0a0'],
-      [oven],
-      'Counts down.'
-    ),
-    commit('a0a0a0', 'Start the recipes', '2023-01-02T10:00:00Z', []),
-  ],
-  // The ridge label reached Sam's fork too, and counts once.
-  R_trails: [commit('b1b1b1', 'Label the ridge', '2025-02-03T10:00:00Z', ['b0b0b0'], [map])],
-  R_fork: [commit('b1b1b1', 'Label the ridge', '2025-02-03T10:00:00Z', ['b0b0b0'], [map])],
-};
-const REPOSITORY_BY_ID = { R_bakery: bakery, R_trails: trails, R_fork: FORK };
+/** Sam's commits, newest first, as commit search finds them across repositories. */
+export const COMMITS = [
+  commit(
+    'a1a1a1',
+    bakery,
+    'Add an oven timer',
+    '2025-03-10T09:00:00Z',
+    ['a0a0a0'],
+    [oven],
+    'Counts down.'
+  ),
+  commit('b1b1b1', trails, 'Label the ridge', '2025-02-03T10:00:00Z', ['b0b0b0'], [map]),
+  commit('a0a0a0', bakery, 'Start the recipes', '2023-01-02T10:00:00Z', []),
+];
+
+/** Commit search: Sam's commits within the query's author-date bounds, newest first. */
+function searchCommits(params) {
+  const q = params.get('q');
+  const from = q.match(/author-date:>=(\S+)/)?.[1];
+  const to = q.match(/author-date:<=(\S+)/)?.[1];
+  const items = COMMITS.filter(
+    c =>
+      (!from || Date.parse(c.authoredDate) >= Date.parse(from)) &&
+      (!to || Date.parse(c.authoredDate) <= Date.parse(to))
+  ).map(c => ({ sha: c.oid, node_id: `C_${c.oid}`, commit: { author: { date: c.authoredDate } } }));
+  const page = Number(params.get('page') ?? 1);
+  const perPage = Number(params.get('per_page') ?? 30);
+  return { items: items.slice((page - 1) * perPage, page * perPage) };
+}
 
 const CONNECTIONS = {
   pullRequests: [oven, crust],
@@ -354,9 +374,6 @@ const CONNECTIONS = {
   closedPullRequests: [ended(oven), ended(crust)],
   ownedRepositories: [{ id: 'R_bakery' }],
   createdRepositories: CREATED,
-  // Sam can push to his own repositories; he committed to Trail Co's lately.
-  committableRepositories: [{ id: 'R_bakery' }, { id: 'R_fork' }],
-  contributedRepositories: [{ id: 'R_trails' }],
   starredRepositories: STARS,
   gists: GISTS,
 };
@@ -369,8 +386,6 @@ const ACTIVITY_FIELDS = {
   closedPullRequests: 'pullRequests',
   ownedRepositories: 'repositories',
   createdRepositories: 'repositories',
-  committableRepositories: 'repositories',
-  contributedRepositories: 'repositoriesContributedTo',
 };
 
 /** One item a page, so every walk pages. */
@@ -420,22 +435,9 @@ function respond(token, { query, variables }) {
       },
     ];
   }
-  if (operation === 'Repository_commits') {
-    const repo = REPOSITORY_BY_ID[variables.id];
-    const history = (COMMITS[variables.id] ?? []).filter(
-      c => !variables.since || c.authoredDate >= variables.since
-    );
-    return [
-      200,
-      {
-        data: {
-          node: repo && {
-            ...repo,
-            defaultBranchRef: { target: { history: page(history, variables.after) } },
-          },
-        },
-      },
-    ];
+  if (operation === 'Commits') {
+    const byId = id => COMMITS.find(c => `C_${c.oid}` === id) ?? null;
+    return [200, { data: { nodes: variables.ids.map(id => byId(id)) } }];
   }
   const kind = operation.match(/^Repository_(issues|pullRequests)$/)?.[1];
   if (kind) {
@@ -462,8 +464,19 @@ export async function fakeGitHub(t, { ghToken = TOKEN, env = {}, stored } = {}) 
       body += chunk;
     });
     request.on('end', () => {
-      const payload = JSON.parse(body);
       const token = request.headers.authorization?.replace(/^Bearer /, '');
+      const url = new URL(request.url, 'http://127.0.0.1');
+      if (request.method === 'GET' && url.pathname === '/search/commits') {
+        requests.push({
+          operation: 'search/commits',
+          variables: Object.fromEntries(url.searchParams),
+          token,
+        });
+        response.writeHead(200, { 'content-type': 'application/json' });
+        response.end(JSON.stringify(searchCommits(url.searchParams)));
+        return;
+      }
+      const payload = JSON.parse(body);
       requests.push({
         operation: payload.query.match(/query (\w+)/)[1],
         variables: payload.variables,

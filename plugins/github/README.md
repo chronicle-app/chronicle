@@ -10,10 +10,10 @@ chronicle extract github --type stars
 chronicle extract github --type replies --since 2025-01-01
 ```
 
-Each kind is one record type. A bare run reads your own activity, merged newest first: every kind but `commits`, `replies`, and `resolutions`, which are slow and run only when asked for with `--type`.
+Each kind is one record type. A bare run reads your own activity, merged newest first: every kind but `replies` and `resolutions`, which are slow and run only when asked for with `--type`.
 
 - `repositories`: repositories you created, forks included.
-- `commits`: commits you authored on the default branch of repositories you can push to, or committed to lately.
+- `commits`: commits you authored, on the default branch of every repository the token can see.
 - `pull-requests`: pull requests you opened.
 - `issues`: issues you opened.
 - `comments`: your comments on issues and pull requests.
@@ -79,7 +79,7 @@ gh's default scopes (`repo`, `read:org`, `gist`) cover everything. For a persona
 
 **Dates are on actions.** When a pull request was opened or a gist created is the `timestamp` of the `PublishAction` that did it; the work carries no `datePublished` of its own.
 
-**A commit is a `Revision`.** It's a version of its repository, not a change: git stores each commit as the whole tree, and the same change on another base is another commit, which is what a rebase makes. The change it made is the difference from the commits it `isBasedOn`. It's keyed by its hash with no `source`, so a clone read by the git plugin and GitHub's view of it are one node. It `isPartOf` its repository and the pull requests it came in through, and a merge's `AcceptAction` has the merge commit as its `result`. Committing is an `UpdateAction` on the repository. `commits` reads each repository's default branch, so commits only on other branches aren't read, and GitHub lists contributions to repositories you can't push to only for the past year.
+**A commit is a `Revision`.** It's a version of its repository, not a change: git stores each commit as the whole tree, and the same change on another base is another commit, which is what a rebase makes. The change it made is the difference from the commits it `isBasedOn`. It's keyed by its hash with no `source`, so a clone read by the git plugin and GitHub's view of it are one node. It `isPartOf` its repository and the pull requests it came in through, and a merge's `AcceptAction` has the merge commit as its `result`. Committing is an `UpdateAction` on the repository. `commits` uses GitHub's commit search, which finds your commits across repositories newest first; it reads default branches only, so commits only on other branches aren't read. Search answers at most a thousand results per query, so the walk restarts from the oldest date it reached, and it allows thirty searches a minute, so a full history (a hundred commits a search) waits out the limit rather than failing.
 
 **Resolutions are yours, or of your pull requests.** `resolutions` reads closed issues and pull requests among your own and those in repositories you own. It keeps the ones you resolved, and every resolution of a pull request you opened, since "my pull request was merged" is someone else's action on your work. Someone else closing an issue isn't. An issue closed, reopened, and closed again is closed twice.
 

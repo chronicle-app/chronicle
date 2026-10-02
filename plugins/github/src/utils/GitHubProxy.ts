@@ -1,5 +1,6 @@
 import {
   ApiProxy,
+  delay,
   AuthRequired,
   ExtractorError,
   PermissionDenied,
@@ -87,7 +88,18 @@ export interface GitHubCommit {
   parents: { nodes: { oid: string }[] };
   /** The pull requests it came in through. */
   associatedPullRequests: { nodes: GitHubThread[] };
+  repository: GitHubRepository;
 }
+
+/** A commit as commit search lists it. */
+interface CommitSearchItem {
+  sha: string;
+  node_id: string;
+  commit: { author: { date: string } };
+}
+
+/** Commit search answers at most this many results for one query. */
+const SEARCH_RESULT_CAP = 1000;
 
 /** A closed issue or pull request with the times it was closed or merged. */
 export interface ResolvedThread extends GitHubThread {
@@ -220,18 +232,6 @@ const VIEWER_CONNECTIONS = {
     args: 'ownerAffiliations: OWNER, orderBy: {field: CREATED_AT, direction: DESC}',
     selection: `nodes { ${REPOSITORY} createdAt isFork parent { ${REPOSITORY} } }`,
   },
-  // Repositories the viewer can commit to, and ones they committed to lately
-  // (GitHub lists only recent contributions), for commits.
-  committableRepositories: {
-    field: 'repositories',
-    args: 'affiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER], ownerAffiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]',
-    selection: 'nodes { id }',
-  },
-  contributedRepositories: {
-    field: 'repositoriesContributedTo',
-    args: 'contributionTypes: [COMMIT], includeUserRepositories: true',
-    selection: 'nodes { id }',
-  },
   // Repositories under the viewer's own account, for resolutions.
   ownedRepositories: {
     field: 'repositories',
@@ -345,46 +345,84 @@ export default class GitHubProxy extends ApiProxy {
   }
 
   /**
-   * The commits an author made to a repository's default branch, newest
-   * first, between `since` and `until` when given.
+   * The commits a user authored, newest first, across every repository the
+   * token can see: commit search, then each page's details by node id. Search
+   * answers at most a thousand results per query, so past that the query
+   * restarts at the oldest author date reached; it allows thirty searches a
+   * minute, so it waits out its limit rather than failing.
    */
-  public async *commitsIn(
-    repositoryId: string,
-    authorId: string,
+  public async *commitsBy(
+    login: string,
     { since, until }: { since?: Date; until?: Date } = {}
-  ): AsyncGenerator<GitHubCommit & { repository: GitHubRepository }> {
-    const operation = 'Repository_commits';
-    const query = `query ${operation}($id: ID!, $author: ID!, $since: GitTimestamp, $until: GitTimestamp, $after: String) {
-      node(id: $id) { ... on Repository { ${REPOSITORY}
-        defaultBranchRef { target { ... on Commit {
-          history(first: 50, after: $after, author: {id: $author}, since: $since, until: $until) {
-            ${PAGE_INFO} nodes { oid messageHeadline messageBody url authoredDate
-              parents(first: 5) { nodes { oid } }
-              associatedPullRequests(first: 3) { nodes { ${THREAD} } } } } } } } } } }`;
-    let after: string | null = null;
+  ): AsyncGenerator<GitHubCommit> {
+    const seen = new Set<string>();
+    let upTo = until;
     for (;;) {
-      const data: {
-        node:
-          | (GitHubRepository & {
-              defaultBranchRef: { target: { history?: Page<GitHubCommit> } } | null;
-            })
-          | null;
-      } = await this.graphql(operation, query, {
-        id: repositoryId,
-        author: authorId,
-        since: since?.toISOString(),
-        until: until?.toISOString(),
-        after,
-      });
-      // An empty repository has no default branch.
-      const history = data.node?.defaultBranchRef?.target.history;
-      if (!data.node || !history) return;
-      const { defaultBranchRef: _, ...repository } = data.node;
-      for (const commit of history.nodes) yield { ...commit, repository };
-      if (!history.pageInfo.hasNextPage) return;
-      after = history.pageInfo.endCursor;
+      let fresh = 0;
+      let last: string | undefined;
+      for (let page = 1; page <= SEARCH_RESULT_CAP / 100; page++) {
+        const q = [
+          `author:${login}`,
+          ...(since ? [`author-date:>=${since.toISOString()}`] : []),
+          ...(upTo ? [`author-date:<=${upTo.toISOString()}`] : []),
+        ].join(' ');
+        const { items } = await this.search<{ items: CommitSearchItem[] }>('/search/commits', {
+          q,
+          sort: 'author-date',
+          order: 'desc',
+          per_page: 100,
+          page,
+        });
+        const unseen = items.filter(item => !seen.has(item.sha));
+        for (const item of unseen) seen.add(item.sha);
+        fresh += unseen.length;
+        if (unseen.length > 0) yield* await this.commits(unseen.map(item => item.node_id));
+        if (items.length > 0) last = items.at(-1)!.commit.author.date;
+        if (items.length < 100) return;
+      }
+      // A full thousand: carry on from the oldest date reached. Commits sharing
+      // that instant come back again and are skipped; if a whole round was
+      // repeats, step past the instant.
+      if (!last) return;
+      upTo = new Date(Date.parse(last) - (fresh === 0 ? 1000 : 0));
     }
   }
+
+  /** Commits by node id, with their repositories and pull requests, in order. */
+  private async commits(ids: string[]): Promise<GitHubCommit[]> {
+    const operation = 'Commits';
+    const query = `query ${operation}($ids: [ID!]!) { nodes(ids: $ids) {
+      ... on Commit { oid messageHeadline messageBody url authoredDate
+        parents(first: 5) { nodes { oid } }
+        associatedPullRequests(first: 3) { nodes { ${THREAD} } }
+        repository { ${REPOSITORY} } } } }`;
+    const data = await this.graphql<{ nodes: (GitHubCommit | null)[] }>(operation, query, { ids });
+    return data.nodes.filter((node): node is GitHubCommit => node !== null);
+  }
+
+  /**
+   * A REST search, paced by its own rate limit: when a response says the
+   * limit is spent, the next search waits for the reset.
+   */
+  private async search<T>(url: string, params: Record<string, unknown>): Promise<T> {
+    if (this.searchResetsAt > Date.now()) await delay(this.searchResetsAt - Date.now() + 1000);
+    try {
+      const response = await this.client.request<T>({
+        url,
+        method: 'GET',
+        params,
+        headers: { Authorization: `Bearer ${this.accessToken}` },
+      });
+      const remaining = Number(response.headers['x-ratelimit-remaining']);
+      const reset = Number(response.headers['x-ratelimit-reset']);
+      if (remaining === 0 && Number.isFinite(reset)) this.searchResetsAt = reset * 1000;
+      return response.data;
+    } catch (error) {
+      throw this.mapError(error);
+    }
+  }
+
+  private searchResetsAt = 0;
 
   /** Issues and pull requests with their conversations. */
   public async discussions(ids: string[]): Promise<DiscussedThread[]> {
