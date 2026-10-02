@@ -535,28 +535,28 @@ function scopeHint(source: CredentialSource, scopes: string[]): string {
   const scope = scopes[0];
   if (source === 'gh') {
     return scope
-      ? `Add the scope: \`gh auth refresh -s ${scope}\``
-      : 'Add the scope: `gh auth refresh`';
+      ? `Run \`gh auth refresh -s ${scope}\` to add it.`
+      : 'Run `gh auth refresh` to add it.';
   }
   const which = source === 'stored' ? 'stored' : CREDENTIAL_LABELS[source];
   return scope
-    ? `Give the ${which} token the \`${scope}\` scope`
-    : `Give the ${which} token the scope GitHub asked for`;
+    ? `Give the ${which} token the \`${scope}\` scope.`
+    : `Give the ${which} token the scope GitHub asked for.`;
 }
 
 function reauthorizeHint(source: CredentialSource): string {
   switch (source) {
     case 'gh': {
-      return 'Sign in again: `gh auth login`';
+      return 'Run `gh auth login` to sign in again.';
     }
     case 'stored': {
-      return 'Store a new token: `chronicle auth set github`';
+      return 'Store a new one with `chronicle auth set github`.';
     }
     case 'flag': {
-      return 'Pass a valid token to `--token`';
+      return 'Pass a valid token to `--token`.';
     }
     default: {
-      return `Update ${source}, or unset it to use another credential`;
+      return `Update ${source}, or unset it to use another credential.`;
     }
   }
 }

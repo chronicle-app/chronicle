@@ -77,7 +77,7 @@ export default class AuthSet extends BaseCommand<typeof AuthSet> {
   // consume it first).
   private async readToken(): Promise<string> {
     if (!process.stdin.isTTY) {
-      this.fail('No token provided', { hint: 'Pass `--token` when not at a terminal' });
+      this.fail('No token provided', { hint: 'Pass one with `--token` when not at a terminal.' });
     }
 
     const rl = readline.createInterface({ input: process.stdin, output: process.stderr });

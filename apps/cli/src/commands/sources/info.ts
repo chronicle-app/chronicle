@@ -29,7 +29,7 @@ export default class SourcesInfo extends BaseCommand<typeof SourcesInfo> {
 
     if (!listing) {
       this.fail(`No source named "${args.source}"`, {
-        hint: 'See every source: `chronicle sources --all`',
+        hint: "Run `chronicle sources --all` to see what's available.",
       });
     }
 

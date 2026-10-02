@@ -161,7 +161,7 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
     const { issues } = err as { issues?: { path: (string | number)[]; message: string }[] };
     if (err?.name === 'ZodError' && Array.isArray(issues)) {
       this.fail(issues.map(issue => `--${issue.path.join('.')}: ${issue.message}`).join('; '), {
-        ...(this.helpCommand() && { hint: `See its flags: \`${this.helpCommand()}\`` }),
+        ...(this.helpCommand() && { hint: `Run \`${this.helpCommand()}\` to see its flags.` }),
       });
     }
     const described = describeError(err);
@@ -172,7 +172,7 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
     const exitCode = usage ? EXIT_CODES.usage : described.exitCode;
     const seeHelp = /\n?\s*See more help with --help\s*$/;
     const help = this.helpCommand();
-    const helpHint = seeHelp.test(message) && help ? `See its help: \`${help}\`` : undefined;
+    const helpHint = seeHelp.test(message) && help ? `Run \`${help}\` for help.` : undefined;
     this.logger.emit({
       level: 'error',
       kind: 'error',

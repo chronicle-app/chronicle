@@ -13,7 +13,7 @@ styled. Commands, loaders, and sinks build their text from this module.
   what to do as hints below. Commands stop with `this.fail(message, { hint })`
   (or `this.failFrom(error)` in a catch-all), never oclif's `this.error`;
   `BaseCommand.catch` shows anything else that escapes the same way, oclif's
-  own parse errors included. Under a summary, hints appear only for defaults
+  own parse errors included. Under a summary, notes appear only for defaults
   the person didn't choose (the default `--limit` cutting a run short,
   readable columns hiding schema properties). See
   [Writing messages](#writing-messages).
@@ -27,43 +27,41 @@ styled. Commands, loaders, and sinks build their text from this module.
   grouped (`1,240`). **Durations** as spoken (`40ms`, `4.2s`, `3m 07s`).
 - **`--quiet`** prints nothing on success; errors always print.
 - **Every block renders without a TTY and under `NO_COLOR`**, and no line
-  exceeds the width it was given, except a `url` field or a hint's command:
-  each prints whole on a line of its own, since a cut URL can't be opened and
-  a split command can't be copied.
+  exceeds the width it was given, except a `url` field, which prints whole on
+  a line of its own, since a cut URL can't be opened.
 - **No `console.*`.** Say things through a logger (`this.logger` in a
   command, `createLogger({ scope })` in a module); the command's sink decides
   where they go. Command output on stdout uses `this.log`.
 
 ## Writing messages
 
-Every message should be read at a glance. One thing per line, and anything to
-type on a line of its own.
+Write the way a person would say it at a terminal: short, plain sentences.
 
 ```
-✗ Error: github has no record type "likes"
-  ↳ See its kinds:
-      chronicle extract github --list-types
+✗ Error: hackernews has no record type "likes"
+  ↳ Run `chronicle extract hackernews --list-types` to see what it has.
 ```
 
-- **The first line says what happened**, in one plain sentence: sentence
-  case, no period, no advice. Don't repeat what the command line already says.
-- **Each next step is its own `↳` line**: a short instruction that starts
-  with a verb (Name, See, Read, Sign in, Add). One step per line, never two
-  joined by `·`; two steps at most, three only when there's no way around it.
-  In a hint string, each line is a step.
-- **A step that ends in a command** (`See its kinds: \`chronicle extract
-  github --list-types\``) prints the command on its own indented line, cyan,
-  without backticks, whole. Use it when the next move is a different command.
-- **A flag to add to the command just run is named inline** (`Add \`--limit
-  0\` to read them all`): cyan with color, in backticks without.
-- **Commands are real examples** you could run as printed (`chronicle extract
-shell`, not `chronicle extract <source>`). Only values the person alone has
-  are placeholders (`--client-id <id>`). Prefer long flags (`--type`) unless
-  the short one is the point.
-- **Lists of more than about five** get a step that lists them instead (`See
-its kinds: …`).
-- **Plain words**: say what something does rather than what it is, and
-  prefer "kinds", "sign in", "read" to jargon.
+- **The error says what happened**, in a few words, with no period and no
+  advice. Don't repeat what the command line already says.
+- **The hint is one or two plain sentences**, ending in a period. Commands go
+  inline in backticks, as real examples you could run (`chronicle extract
+shell`, not `chronicle extract <source>`); only values the person alone has
+  are placeholders (`--client-id <id>`).
+- **Use plain verbs**: run, use, pass, pick, sign in. "Run `x` to see y."
+  "Use `--flag` for z." "Did you mean `x`?"
+- **Don't describe the program** ("it reads", "it asks which") or the reader
+  ("the kinds you want"). State the fact: "The default is submissions."
+- **Short lists inline**, longer ones behind a command that prints them.
+
+| Instead of                                                     | Write                                                           |
+| -------------------------------------------------------------- | --------------------------------------------------------------- |
+| With none named, it reads only submissions                     | The default is submissions.                                     |
+| Name the kinds you want after the source: `…`                  | To pick others: `chronicle extract hackernews …`                |
+| See its kinds: `chronicle extract github --list-types`         | Run `chronicle extract github --list-types` to see what it has. |
+| Stopped at the default limit; add `--limit 0` to read them all | Showing the first 100. Use `--limit 0` for all.                 |
+| Sign in: `chronicle auth login lastfm`                         | Run `chronicle auth login lastfm` to sign in.                   |
+| github has no flag -T · Did you mean `-t`?                     | Unknown flag -T / Did you mean `-t` (`--type`)?                 |
 
 ## Events and sinks
 

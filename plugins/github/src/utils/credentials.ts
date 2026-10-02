@@ -55,10 +55,9 @@ export async function resolveGitHubCredential(
   }
 
   throw new AuthRequired('No GitHub credentials found', {
-    hint: [
-      ...(options.gh ? ['Sign in with the gh CLI: `gh auth login`'] : []),
-      'Or store a personal access token: `chronicle auth set github`',
-    ].join('\n'),
+    hint: options.gh
+      ? 'Run `gh auth login`, or store a token with `chronicle auth set github`.'
+      : 'Store a token with `chronicle auth set github`, or set GH_TOKEN.',
   });
 }
 

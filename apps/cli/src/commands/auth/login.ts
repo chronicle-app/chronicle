@@ -56,7 +56,7 @@ export default class AuthLogin extends BaseCommand<typeof AuthLogin> {
     }
 
     if (!args.provider) {
-      this.fail('No provider given', { hint: 'See the providers: `chronicle auth login --list`' });
+      this.fail('No provider given', { hint: 'Run `chronicle auth login --list` to see them.' });
     }
 
     try {
