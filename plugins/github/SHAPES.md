@@ -16,8 +16,8 @@ converted from the record. Every node also has `source`.
 PublishAction key(sourceId) {
   sourceId, timestamp
   agent: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
-  object: Changeset key(sourceId) {
-    sourceId, url, name, body?, visibility
+  object: Changeset key(isPartOf.creator.sourceId, isPartOf.name, handle) {
+    handle, url, name, body?, visibility
     author[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
     isPartOf[]: Repository key(creator.sourceId, name) {
       url, name, description, tags[], visibility
@@ -34,8 +34,8 @@ PublishAction key(sourceId) {
 PlanAction key(sourceId) {
   sourceId, timestamp
   agent: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
-  object: Task key(sourceId) {
-    sourceId, url, name, body
+  object: Task key(isPartOf.creator.sourceId, isPartOf.name, handle) {
+    handle, url, name, body
     isPartOf[]: Repository key(creator.sourceId, name) {
       url, name, description, tags[], visibility
       references[]: Entity key(url, any source) { url }
@@ -51,8 +51,8 @@ PlanAction key(sourceId) {
 RespondAction key(sourceId) {
   sourceId, timestamp
   agent: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
-  object: Changeset | Task key(sourceId) {
-    sourceId, url, name, visibility?
+  object: Changeset | Task key(isPartOf.creator.sourceId, isPartOf.name, handle) {
+    handle, url, name, visibility?
     author[]?: Person key(sourceId) { sourceId, handle, name, sameAs[]?, url }
     isPartOf[]: Repository key(creator.sourceId, name) {
       url, name, description?, tags[]?, visibility
@@ -63,7 +63,14 @@ RespondAction key(sourceId) {
   result: Comment key(sourceId) {
     sourceId, url, body, visibility
     author[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
-    about[]: Changeset | Task key(sourceId) { sourceId }
+    about[]: Changeset | Task key(isPartOf.creator.sourceId, isPartOf.name, handle) {
+      handle
+      isPartOf[]: Repository key(creator.sourceId, name) {
+        url, name, description?, tags[]?, visibility
+        references[]?: Entity key(url, any source) { url }
+        creator[]: Person | Organization key(sourceId) { sourceId, handle, name, sameAs[]?, url }
+      }
+    }
   }
 }
 ```
@@ -74,8 +81,8 @@ RespondAction key(sourceId) {
 RespondAction key(sourceId) {
   sourceId, timestamp
   agent: Person | SoftwareAgent key(sourceId) { sourceId, handle, name?, url }
-  object: Changeset | Task key(sourceId) {
-    sourceId, url, name, visibility?
+  object: Changeset | Task key(isPartOf.creator.sourceId, isPartOf.name, handle) {
+    handle, url, name, visibility?
     author[]?: Person key(sourceId) { sourceId, handle, name, sameAs[]?, url }
     isPartOf[]: Repository key(creator.sourceId, name) {
       url, name, description?, tags[]?, visibility
@@ -86,7 +93,14 @@ RespondAction key(sourceId) {
   result: Comment key(sourceId) {
     sourceId, url, body, visibility
     author[]: Person | SoftwareAgent key(sourceId) { sourceId, handle, name?, url }
-    about[]: Changeset | Task key(sourceId) { sourceId }
+    about[]: Changeset | Task key(isPartOf.creator.sourceId, isPartOf.name, handle) {
+      handle
+      isPartOf[]: Repository key(creator.sourceId, name) {
+        url, name, description?, tags[]?, visibility
+        references[]?: Entity key(url, any source) { url }
+        creator[]: Person | Organization key(sourceId) { sourceId, handle, name, sameAs[]?, url }
+      }
+    }
   }
 }
 ```
@@ -97,8 +111,8 @@ RespondAction key(sourceId) {
 AcceptAction | CompleteAction | CancelAction | RejectAction key(sourceId) {
   sourceId, timestamp
   agent: Person key(sourceId) { sourceId, handle, name, url, sameAs[]? }
-  object: Changeset | Task key(sourceId) {
-    sourceId, url, name, visibility?
+  object: Changeset | Task key(isPartOf.creator.sourceId, isPartOf.name, handle) {
+    handle, url, name, visibility?
     author[]?: Person key(sourceId) { sourceId, handle, name?, sameAs[]?, url }
     isPartOf[]: Repository key(creator.sourceId, name) {
       url, name, description, tags[], visibility

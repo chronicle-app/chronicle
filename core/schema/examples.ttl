@@ -3348,7 +3348,8 @@ You closed Riley's issue as done. An issue is a :Task filed against its
 :Repository, which it :isPartOf, so closing it as completed is a
 :CompleteAction; closing it as not planned would be a :CancelAction. Accounts
 are keyed by their numeric GitHub id, the repository by its owner (its
-:creator) and its :name, and the rest by GitHub node id.
+:creator) and its :name, the issue by its repository and its number (its
+:handle), and the closing by its GitHub node id.
 """;
   rdf:value [
     a :CompleteAction;
@@ -3367,9 +3368,9 @@ are keyed by their numeric GitHub id, the repository by its owner (its
     ];
     :object [
       a :Task;
-      doc:key ("@type" "source" "sourceId");
+      doc:key ("@type" "source" "isPartOf.creator.sourceId" "isPartOf.name" "handle");
       :source "github";
-      :sourceId "I_kwDOAbc456";
+      :handle "4";
       :url "https://github.com/trailco/trails/issues/4";
       :name "Trail signs are faded";
       :isPartOf [

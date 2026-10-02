@@ -34,6 +34,11 @@ const KEY: ['@type', 'source', 'sourceId'] = ['@type', 'source', 'sourceId'];
 const HANDLE_KEY: ['@type', 'source', 'handle'] = ['@type', 'source', 'handle'];
 /** A repository is its owner's, by name: the owner's id survives a change of login. */
 const REPOSITORY_KEY = ['@type', 'source', 'creator.sourceId', 'name'];
+/**
+ * An issue or pull request is its repository's, by number: the #12 in its URL.
+ * Issues and pull requests share one sequence, so a number is never both.
+ */
+const THREAD_KEY = ['@type', 'source', 'isPartOf.creator.sourceId', 'isPartOf.name', 'handle'];
 /** You star a repository once, so the repository identifies the star. */
 const STAR_KEY = ['@type', 'source', 'object.creator.sourceId', 'object.name'];
 
@@ -204,9 +209,9 @@ export default class GitHubTransformer extends ChronicleTransformer {
   private buildTask(issue: GitHubThread): Task {
     return {
       '@type': 'Task',
-      '@key': KEY,
+      '@key': THREAD_KEY,
       source: SOURCE,
-      sourceId: issue.id,
+      handle: String(issue.number),
       url: issue.url,
       name: issue.title,
       ...(issue.body && { body: issue.body }),
@@ -218,9 +223,9 @@ export default class GitHubTransformer extends ChronicleTransformer {
   private buildChangeset(pullRequest: GitHubThread): Changeset {
     return {
       '@type': 'Changeset',
-      '@key': KEY,
+      '@key': THREAD_KEY,
       source: SOURCE,
-      sourceId: pullRequest.id,
+      handle: String(pullRequest.number),
       url: pullRequest.url,
       name: pullRequest.title,
       ...(pullRequest.body && { body: pullRequest.body }),
@@ -239,7 +244,7 @@ export default class GitHubTransformer extends ChronicleTransformer {
       url: comment.url,
       ...(comment.body && { body: comment.body }),
       ...(comment.author && { author: [this.buildActor(comment.author)] }),
-      about: [this.ref(thread.__typename === 'PullRequest' ? 'Changeset' : 'Task', thread.id)],
+      about: [this.ref(thread)],
       visibility: VISIBILITY[thread.repository.visibility],
     };
   }
@@ -261,8 +266,15 @@ export default class GitHubTransformer extends ChronicleTransformer {
   }
 
   /** A node another record describes in full, named by its key alone. */
-  private ref<T extends 'Task' | 'Changeset'>(type: T, id: string) {
-    return { '@type': type, '@key': KEY, source: SOURCE, sourceId: id };
+  /** An issue or pull request named by its key alone: its repository and number. */
+  private ref(thread: GitHubThread) {
+    return {
+      '@type': thread.__typename === 'PullRequest' ? ('Changeset' as const) : ('Task' as const),
+      '@key': THREAD_KEY,
+      source: SOURCE,
+      handle: String(thread.number),
+      isPartOf: [this.buildRepository(thread.repository)],
+    };
   }
 
   /** A linked page: the shared `{url}` hub other sources' visits meet. */
