@@ -335,21 +335,10 @@ function page(items, after, edges = false) {
 
 /** Tokens the fake API treats specially. */
 export const TOKENS = {
-  revoked: 'revoked-token',
-  limited: 'limited-token',
   scopeless: 'scopeless-token',
 };
 
 function respond(token, { query, variables }) {
-  if (token === TOKENS.revoked) return [401, { message: 'Bad credentials' }];
-  if (token === TOKENS.limited) {
-    const reset = String(Math.floor(Date.now() / 1000) + 60);
-    return [
-      403,
-      { message: 'API rate limit exceeded' },
-      { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': reset },
-    ];
-  }
   const operation = query.match(/query (\w+)/)[1];
   if (operation === 'Viewer') return [200, { data: { viewer: VIEWER } }];
   const viewerField = operation.match(/^Viewer_(\w+)$/)?.[1];
