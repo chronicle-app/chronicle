@@ -30,7 +30,8 @@ async function extract(Extractor, config = {}) {
       for (const node of await transformer.performTransform(record)) actions.push(node.data);
     }
     const notices = events.filter(e => e.kind === 'notice').map(e => e.message);
-    return { keys: records.map(r => extractor.keyOf(r)), actions, notices };
+    const readAt = records[0]?.extraction.assertedAt;
+    return { keys: records.map(r => extractor.keyOf(r)), actions, notices, readAt };
   } finally {
     await extractor.teardown();
   }
@@ -119,7 +120,6 @@ const action = (type, sourceId, at, object, by = sam) => ({
   source,
   sourceId,
   timestamp: date(at),
-  '@assertedAt': date(at),
   agent: by,
   object,
 });
@@ -127,7 +127,8 @@ const { oven, crust, flour } = THREADS;
 
 test('resolutions: how issues and pull requests ended, by you or for your pull requests', async t => {
   await fakeGitHub(t);
-  const { keys, actions } = await extract(GitHubResolutionsExtractor);
+  const before = new Date();
+  const { keys, actions, readAt } = await extract(GitHubResolutionsExtractor);
 
   // Riley merged your timer: someone else's decision, on your pull request.
   // A merge also closes, so CE_oven and CE_rye add nothing. Your rye issue,
@@ -135,7 +136,14 @@ test('resolutions: how issues and pull requests ended, by you or for your pull r
   // mold report isn't yours.
   assert.deepEqual(keys, ['ME_oven', 'CE_flour', 'ME_rye', 'CE_mold_sam', 'CE_glaze', 'CE_crust']);
   const riley = agent(ACTORS.riley);
-  assert.deepEqual(actions, [
+  // GitHub answers with how things are now, so every record is observed when
+  // it's read, not when it happened.
+  assert.ok(new Date(readAt) >= before && new Date(readAt) <= new Date());
+  const observed = actions.map(({ '@assertedAt': assertedAt, ...rest }) => {
+    assert.equal(assertedAt, readAt);
+    return rest;
+  });
+  assert.deepEqual(observed, [
     {
       ...action('AcceptAction', 'ME_oven', '2025-03-12T00:00:00Z', changeset(oven), riley),
       result: revision('a2a2a2'),
