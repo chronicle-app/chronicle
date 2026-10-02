@@ -77,7 +77,7 @@ export default abstract class ExtractCommand<T extends typeof Command> extends B
         level: 'info',
         kind: 'hint',
         message: `--${flagName} is required`,
-        hint: { action: `pass --${flagName} <value> to skip this prompt` },
+        hint: { action: `Pass \`--${flagName}\` next time to skip this question` },
       });
 
       const result = await inkInput(`Enter value for required flag --${flagName}:`, {

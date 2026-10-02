@@ -175,6 +175,6 @@ test('a missing scope names the gh command that adds it', async t => {
   await fakeGitHub(t, { ghToken: TOKENS.scopeless });
   await assert.rejects(extract(GitHubGistsExtractor), {
     name: 'PermissionDenied',
-    hint: 'run `gh auth refresh -s gist`',
+    hint: /gh auth refresh -s gist/,
   });
 });

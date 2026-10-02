@@ -85,20 +85,39 @@ export function summary(
   ].join('\n');
 }
 
-/** A next move, dim and indented under the summary: `  stopped at --limit 100 · pass …`. */
+/**
+ * What to do next, under the line it follows: one `↳` step per line of the
+ * message and action, each a short instruction. A step that ends in a command
+ * (`See its kinds: \`chronicle extract github --list-types\``) puts the
+ * command on a line of its own, indented, to read and copy whole.
+ *
+ *   ↳ See its kinds:
+ *       chronicle extract github --list-types
+ */
 export function hint(message: string, action: string | undefined, t: Tokens, width: number) {
-  const text = action ? (message ? `${message} ${glyphs.bullet} ${action}` : action) : message;
-  // A next move is worth reading whole: wrapped at spaces, not cut, and
-  // continued under its text rather than its arrow.
-  // Wrapped with its backticks, which mark where a command can't be split,
-  // then drawn in the code style; a command on a line of its own prints whole
-  // and the terminal wraps it.
-  return wrap(text, width - 4)
-    .map((part, i) => t.muted(i === 0 ? `  ${glyphs.child} ` : '    ') + codeSpans(part, t))
-    .join('\n');
+  const steps = [message, ...(action ?? '').split('\n')].filter(step => step.trim() !== '');
+  const lines: string[] = [];
+  for (const step of steps) {
+    const ending = step.match(/^(.*?):?\s*`([^`]+)`$/s);
+    const [prose, command] = ending ? [ending[1].trim(), ending[2]] : [step, undefined];
+    if (prose) {
+      // Wrapped at spaces, continued under its text rather than its arrow.
+      for (const [i, part] of wrap(command ? `${prose}:` : prose, width - 4).entries())
+        lines.push(t.muted(i === 0 ? `  ${glyphs.child} ` : '    ') + codeSpans(part, t));
+    }
+    if (command) {
+      // Never cut: a command prints whole, and the terminal wraps it.
+      lines.push(
+        prose
+          ? `      ${t.command(command)}`
+          : `${t.muted(`  ${glyphs.child} `)}${t.command(command)}`
+      );
+    }
+  }
+  return lines.join('\n');
 }
 
-/** Text with each `code span` in the code style and the rest muted. */
+/** Text with each `code span` in the code style, the rest muted. */
 function codeSpans(text: string, t: Tokens): string {
   return text
     .split(/(`[^`]*`)/)

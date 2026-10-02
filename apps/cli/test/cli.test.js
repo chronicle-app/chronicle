@@ -97,45 +97,39 @@ test('bundled sources are discoverable from an unrelated cwd; JSON has no diagno
   assert.match(success(run('extract', 'help')), /chronicle extract <source> --help/);
   const listed = run('extract', 'shell', '--list-types');
   assert.equal(success(listed), 'commands  history\n');
-  // How to use them goes to stderr, so the list still pipes.
-  assert.match(
-    listed.stderr,
-    /↳ name kinds after the source, or `-t all`; without any, every kind · `chronicle extract shell commands`/
-  );
+  // How to use them goes to stderr, with a runnable example, so the list still pipes.
+  assert.match(listed.stderr, /chronicle extract shell commands/);
   assert.doesNotMatch(success(run('--help')), /archive|sync|serve/);
 
-  // An unknown --type is a usage error that names the kinds, not the whole help.
-  const typo = run('extract', 'shell', '--type', 'command');
-  assert.equal(typo.status, 2);
-  assert.match(typo.stderr, /✗ Error: shell has no record type "command"/);
-  assert.match(typo.stderr, /↳ did you mean `commands`\? Kinds: commands/);
-  assert.doesNotMatch(typo.stderr, /flags:/);
-  const unknownType = run('extract', 'shell', '--type', 'likes');
-  assert.match(unknownType.stderr, /↳ pick from commands/);
-
-  // So is a flag the source doesn't have, without the generic extract usage;
-  // the source help lists --type and --list-types with the common flags.
-  const badFlag = run('extract', 'shell', '-T');
-  assert.equal(badFlag.status, 2);
-  assert.match(badFlag.stderr, /✗ Error: shell has no flag -T/);
-  assert.match(badFlag.stderr, /↳ did you mean `-t` \(`--type`\)\?/);
-  assert.doesNotMatch(badFlag.stderr, /USAGE/);
+  // Usage mistakes: exit 2, a typed error, and a hint naming the way forward.
+  // The wording is the style guide's to keep, not this test's.
+  const usageError = (args, code, mentions) => {
+    const result = run(...args, '--log-format', 'json');
+    assert.equal(result.status, 2, args.join(' '));
+    const error = result.stderr
+      .split('\n')
+      .filter(line => line.startsWith('{'))
+      .map(line => JSON.parse(line))
+      .find(event => event.kind === 'error');
+    assert.ok(error, `${args.join(' ')} reports an error`);
+    if (code) assert.equal(error.error.code, code, args.join(' '));
+    if (mentions) assert.match(error.hint?.action ?? '', mentions, args.join(' '));
+  };
+  usageError(['extract', 'shell', '--type', 'command'], 'unknown-record-type', /shell commands/);
+  usageError(['extract', 'shell', '--type', 'likes'], 'unknown-record-type', /--list-types/);
+  usageError(['extract', 'shell', '-T'], 'unknown-flag', /--type/);
+  usageError(['extract', 'shell', '-t'], 'missing-flag-value', /--list-types/);
+  usageError(['extract', 'shell', 'commands', '--type', 'commands']);
+  usageError(['extract'], undefined, /chronicle sources/);
+  usageError(['sorces'], 'unknown-command', /chronicle sources/);
+  // Every error reads the same way: Chronicle's error line, never oclif's.
+  for (const args of [['extract'], ['sorces'], ['extract', 'shell', '-T']]) {
+    const { stderr } = run(...args);
+    assert.match(stderr, /✗ Error: /, args.join(' '));
+    assert.doesNotMatch(stderr, /›|USAGE/, args.join(' '));
+  }
+  // The source help lists --type and --list-types with the common flags.
   assert.match(help, /-L, --list-types/);
-  const noKind = run('extract', 'shell', '-t');
-  assert.equal(noKind.status, 2);
-  assert.match(noKind.stderr, /✗ Error: --type needs a value/);
-  assert.match(noKind.stderr, /↳ `chronicle extract shell --list-types` lists the kinds/);
-
-  // Kinds can follow the source, but not as well as --type.
-  const twice = run('extract', 'shell', 'commands', '--type', 'commands');
-  assert.equal(twice.status, 2);
-  assert.match(twice.stderr, /✗ Error: Record kinds named twice/);
-
-  // Every command's errors read the same way, with the next step as a hint.
-  const noSource = run('extract');
-  assert.equal(noSource.status, 2);
-  assert.match(noSource.stderr, /✗ Error: No source given\n.*↳ .*`chronicle sources` lists them/);
-  assert.doesNotMatch(noSource.stderr, /›/);
 });
 
 test('raw extraction, four output loaders, file output and stream mode', t => {
@@ -195,10 +189,7 @@ test('raw extraction, four output loaders, file output and stream mode', t => {
   // cut the run short.
   // Anchored to the end only: some Node versions warn on stderr first.
   // The outcome on one line, a line per kind under it.
-  assert.match(
-    result.stderr,
-    /(^|\n)\d\d:\d\d:\d\d ✓ shell · \S+ {2}in \S+\n\d\d:\d\d:\d\d {5}1 command\n$/
-  );
+  assert.match(result.stderr, /✓ shell · .*\n.*1 command\n$/);
   // A kind named after the source reads just that kind.
   const named = run('extract', 'shell', 'commands', '--input', input, '--raw', '--limit', '1');
   assert.equal(JSON.parse(success(named)).command, 'printf fixture');
@@ -222,10 +213,10 @@ test('raw extraction, four output loaders, file output and stream mode', t => {
     Array.from({ length: 101 }, (_, i) => `: ${1700000000 + i}:0;echo ${i}\n`).join('')
   );
   const capped = run('extract', 'shell', '--input', long, '--raw', '--output', 'stdout');
-  assert.match(capped.stderr, /100 commands.*\n.*first 100 · use --limit 0 for all/);
+  assert.match(capped.stderr, /100 commands\n.*↳ .*--limit 0/);
   // With a count from the source (a streamed run asks), the hint says how many there are.
   const counted = run('extract', 'shell', '--input', long, '--raw', '--stream');
-  assert.match(counted.stderr, /first 100 of 101 · use --limit 0 for all/);
+  assert.match(counted.stderr, /↳ .*101.*--limit 0/);
   // The default limit that didn't cut anything short gets no hint.
   const exact = join(dir, 'exact-history');
   writeFileSync(
@@ -572,7 +563,7 @@ test('unsupported loader and missing input file fail without success output, eve
     chmodSync(locked, 0o000);
     const refused = run('extract', 'shell', '--input', locked);
     assert.equal(refused.status, 4);
-    assert.match(refused.stderr, /Can't read the shell history.*\n.*check the file's permissions/);
+    assert.match(refused.stderr, /Can't read the shell history.*\n.*↳ .*permissions/);
   }
 });
 
@@ -702,7 +693,7 @@ test('a plugin fails with a typed error and exit code, and hints under the summa
   // Auth: exit code 3, the sign-in command as the next step, and in JSON as data.
   const auth = run.with({ FIXTURE_MODE: 'auth' })('extract', 'typed', '--raw');
   assert.equal(auth.status, 3);
-  assert.match(auth.stderr, /No typed credentials\n.*run `chronicle auth login typed`/);
+  assert.match(auth.stderr, /No typed credentials[\s\S]*chronicle auth login typed/);
   assert.equal(auth.stdout, '');
   const events = run
     .with({ FIXTURE_MODE: 'auth' })('extract', 'typed', '--raw', '--log-format', 'json')
@@ -711,12 +702,12 @@ test('a plugin fails with a typed error and exit code, and hints under the summa
     .map(line => JSON.parse(line));
   const failure = events.find(event => event.kind === 'error');
   assert.deepEqual(failure.error, { code: 'auth-required', exitCode: 3 });
-  assert.equal(failure.hint.action, 'run `chronicle auth login typed`');
+  assert.match(failure.hint.action, /chronicle auth login typed/);
   // A plugin's hint on a successful run prints under the summary.
   const hinted = run('extract', 'typed', '--raw');
   assert.equal(hinted.status, 0, hinted.stderr);
   assert.match(
     hinted.stderr,
-    /✓ typed · api {2}in \S+\n.* {4}1 row\n.*attachments skipped · grant access to include them\n/
+    /✓ typed · api.*\n.*1 row\n[\s\S]*attachments skipped[\s\S]*grant access/
   );
 });

@@ -15,12 +15,12 @@ export interface Tokens {
   muted: Style;
   strong: Style;
   /**
-   * A command or flag, written as a `code span` in hints and messages. With
-   * color it drops the backticks and stands out from the dim text around it
-   * by being plain; without color the backticks are all that mark it, so
-   * they stay.
+   * A flag or name inside a sentence, written as a `code span`: cyan with
+   * color; without, the backticks stay, since they're all that mark it.
    */
   code: Style;
+  /** A command on a line of its own, to copy: cyan with color, bare without. */
+  command: Style;
 }
 
 export type Stream = 'stdout' | 'stderr';
@@ -55,7 +55,8 @@ export function tokens({ stream = 'stderr', theme = 'default', color }: TokenOpt
     warning: c.yellow,
     muted: c.dim,
     strong: c.bold,
-    code: level > 0 ? text => text : text => `\`${text}\``,
+    code: level > 0 ? c.cyan : text => `\`${text}\``,
+    command: c.cyan,
   };
   switch (theme.toLowerCase()) {
     case 'minimal':
@@ -71,8 +72,8 @@ export function tokens({ stream = 'stderr', theme = 'default', color }: TokenOpt
         warning: c.yellowBright,
         muted: text => text,
         strong: c.bold.whiteBright,
-        // Nothing around it is dim, so a command is bright instead.
-        code: c.bold,
+        code: level > 0 ? c.cyanBright : text => `\`${text}\``,
+        command: c.cyanBright,
       };
     default:
       return base;

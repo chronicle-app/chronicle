@@ -36,12 +36,12 @@ export default class PluginsNew extends BaseCommand<typeof PluginsNew> {
 
     if (!isPluginName(name)) {
       this.fail(`"${name}" isn't a plugin name`, {
-        hint: 'use lowercase words joined by hyphens',
+        hint: 'Use lowercase words joined by hyphens, like `my-notes`',
       });
     }
     if (findEntry(await loadCatalog(), name)) {
       this.fail(`${name} is already a Chronicle plugin`, {
-        hint: 'choose another name, or add a copy of its directory with `chronicle plugins add <path>`',
+        hint: 'Choose another name\nOr add your own copy of it: `chronicle plugins add ./its-folder`',
       });
     }
     const dir = path.resolve(flags.dir ?? name);

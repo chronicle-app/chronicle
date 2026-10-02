@@ -6,38 +6,64 @@ styled. Commands, loaders, and sinks build their text from this module.
 ## The rules
 
 - **stdout carries only data.** Everything for people goes to stderr.
-- **A command ends with one summary line**: status glyph, subject, counts,
-  time, destination. `✓ shell · history  1,240 commands  in 1.7s  → out.json`
-- **Commands in hints** are written as `` `code spans` ``. With color they
-  print without the backticks, plain against the dim hint, so the part to
-  copy stands out; without color (the plain sink, `NO_COLOR`) the backticks
-  stay, since they're all that mark it. Either way a command is never split.
-  Prefer a real example to a template: `chronicle extract shell`, not
-  `chronicle extract <source>`.
-- **Errors** read `✗ Error: <message>`, the glyph and label in `danger` and the
-  message plain, with what to do about it as a hint
-  below, never folded into the message. Commands stop with `this.fail(message,
-{ hint })` (or `this.failFrom(error)` in a catch-all), never oclif's
-  `this.error`; `BaseCommand.catch` shows anything else that escapes, oclif's
-  own parse errors included, the same way.
-- **Hints** are dim, marked `↳`, under the line they follow (the summary, or
-  an error), and under a summary appear only for defaults the person didn't choose (the default `--limit` cutting a run
-  short, readable columns hiding schema properties, columns that didn't fit).
+- **A command ends with a summary**: the outcome on one line (status glyph,
+  subject, time, destination), then a line per record kind, and lines for
+  anything failed, skipped, or written.
+- **Errors** read `✗ Error: <message>`, the glyph and label in `danger`, with
+  what to do as hints below. Commands stop with `this.fail(message, { hint })`
+  (or `this.failFrom(error)` in a catch-all), never oclif's `this.error`;
+  `BaseCommand.catch` shows anything else that escapes the same way, oclif's
+  own parse errors included. Under a summary, hints appear only for defaults
+  the person didn't choose (the default `--limit` cutting a run short,
+  readable columns hiding schema properties). See
+  [Writing messages](#writing-messages).
 - **No boxes, no `====` underlines, no emoji.** One glyph set (`glyphs`):
   `✓ ✗ ! · → ↳ ━ ─ …`, braille spinner frames, and `❯ ◉ ○` for pickers.
 - **Color only carries meaning** (`tokens`): status (`success`, `danger`,
-  `warning`), emphasis (`strong`), de-emphasis (`muted`), and one `accent`
-  (the brand red) for live elements. Never call `chalk` directly.
+  `warning`), emphasis (`strong`), de-emphasis (`muted`), one `accent` (the
+  brand red) for live elements, and cyan for something to type (`code`,
+  `command`). Never call `chalk` directly.
 - **Dates** in local time to the minute in tables; ISO in data. **Numbers**
   grouped (`1,240`). **Durations** as spoken (`40ms`, `4.2s`, `3m 07s`).
 - **`--quiet`** prints nothing on success; errors always print.
 - **Every block renders without a TTY and under `NO_COLOR`**, and no line
-  exceeds the width it was given, except a `url` field or a `` `command` `` in a
-  hint: each prints whole on a line of its own, since a cut URL can't be
-  opened and a split command can't be copied.
+  exceeds the width it was given, except a `url` field or a hint's command:
+  each prints whole on a line of its own, since a cut URL can't be opened and
+  a split command can't be copied.
 - **No `console.*`.** Say things through a logger (`this.logger` in a
   command, `createLogger({ scope })` in a module); the command's sink decides
   where they go. Command output on stdout uses `this.log`.
+
+## Writing messages
+
+Every message should be read at a glance. One thing per line, and anything to
+type on a line of its own.
+
+```
+✗ Error: github has no record type "likes"
+  ↳ See its kinds:
+      chronicle extract github --list-types
+```
+
+- **The first line says what happened**, in one plain sentence: sentence
+  case, no period, no advice. Don't repeat what the command line already says.
+- **Each next step is its own `↳` line**: a short instruction that starts
+  with a verb (Name, See, Read, Sign in, Add). One step per line, never two
+  joined by `·`; two steps at most, three only when there's no way around it.
+  In a hint string, each line is a step.
+- **A step that ends in a command** (`See its kinds: \`chronicle extract
+  github --list-types\``) prints the command on its own indented line, cyan,
+  without backticks, whole. Use it when the next move is a different command.
+- **A flag to add to the command just run is named inline** (`Add \`--limit
+  0\` to read them all`): cyan with color, in backticks without.
+- **Commands are real examples** you could run as printed (`chronicle extract
+shell`, not `chronicle extract <source>`). Only values the person alone has
+  are placeholders (`--client-id <id>`). Prefer long flags (`--type`) unless
+  the short one is the point.
+- **Lists of more than about five** get a step that lists them instead (`See
+its kinds: …`).
+- **Plain words**: say what something does rather than what it is, and
+  prefer "kinds", "sign in", "read" to jargon.
 
 ## Events and sinks
 

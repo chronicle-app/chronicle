@@ -96,6 +96,9 @@
       "frequency": 1,
       "frequencyUnit": "days",
       "message": "<%= config.name %> <%= chalk.greenBright(latest) %> is available (you have <%= config.version %>). Update with: <%= config.root.includes(\"_npx\") ? \"npx @chronicle.app/cli@latest\" : \"npm install -g @chronicle.app/cli\" %>"
+    },
+    "hooks": {
+      "command_not_found": "./dist/hooks/commandNotFound.js"
     }
   },
   "repository": {

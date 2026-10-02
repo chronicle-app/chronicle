@@ -127,7 +127,7 @@ export const EVENTS: OutputEvent[] = [
     kind: 'hint',
     scope: 'cli',
     message: 'not included: commits, issues, pull-requests, replies',
-    hint: { action: '`chronicle extract github -t all` for everything' },
+    hint: { action: 'Read every kind: `chronicle extract github -t all`' },
   }),
   // A usage error, with what to do about it.
   event({
@@ -136,7 +136,7 @@ export const EVENTS: OutputEvent[] = [
     scope: 'cli',
     message: 'github has no record type "likes"',
     error: { code: 'unknown-record-type', exitCode: 2 },
-    hint: { action: 'pick from comments, commits, gists, issues, stars' },
+    hint: { action: 'See its kinds: `chronicle extract github --list-types`' },
   }),
   // Cancelling is a choice: said plainly.
   event({ level: 'info', kind: 'notice', scope: 'cli', message: 'Extraction cancelled' }),
@@ -145,8 +145,7 @@ export const EVENTS: OutputEvent[] = [
     level: 'info',
     kind: 'hint',
     scope: 'runner',
-    message: 'stopped at --limit 100',
-    hint: { action: 'pass --limit 0 to extract everything' },
+    message: 'Stopped at the default limit; add `--limit 0` to read them all',
     fields: { limit: 100 },
   }),
 ];
@@ -167,7 +166,12 @@ function blocks(theme: string, width: number): string[] {
     ...list(['shell · history', 'claude-code · sessions', 'imessage · chat-db'], t, width),
     ...summary(done, t, width).split('\n'),
     ...summary(failed, t, width).split('\n'),
-    ...hint('stopped at --limit 100', 'pass --limit 0 to extract everything', t, width).split('\n'),
+    ...hint(
+      'Stopped at the default limit; add `--limit 0` to read them all',
+      undefined,
+      t,
+      width
+    ).split('\n'),
     ...progress(running, t, width, 3),
     ...progress({ ...running, total: 0 }, t, width, 7),
     ...progress({ ...running, phase: 'reading', total: 0 }, t, width, 11),

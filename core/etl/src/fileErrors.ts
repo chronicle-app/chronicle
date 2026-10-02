@@ -2,7 +2,7 @@ import { closeSync, openSync } from 'node:fs';
 import { InputNotFound, PermissionDenied } from '@chronicle.app/logging';
 
 const FULL_DISK_ACCESS =
-  'grant Full Disk Access to your terminal app (System Settings → Privacy & Security → Full Disk Access), then restart it';
+  'Grant Full Disk Access to your terminal app, then restart it\nIt’s in System Settings → Privacy & Security → Full Disk Access';
 
 /**
  * A filesystem error from reading `path` as the typed error it stands for:
@@ -23,7 +23,7 @@ export function fileError(error: unknown, path: string, what = 'input'): unknown
       {
         path,
         cause: error,
-        hint: macOSPrivacy ? FULL_DISK_ACCESS : "check the file's permissions",
+        hint: macOSPrivacy ? FULL_DISK_ACCESS : "Check the file's permissions",
       }
     );
   }

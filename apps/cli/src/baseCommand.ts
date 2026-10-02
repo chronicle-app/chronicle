@@ -8,7 +8,7 @@ import {
   type Logger,
 } from '@chronicle.app/logging';
 import { ConfigManager, FlagResolver, FlagSource } from './config/index.js';
-import { outputFlagsIn, sinkFor, type OutputFlags } from './output/index.js';
+import { LOG_FORMATS, outputFlagsIn, sinkFor, type OutputFlags } from './output/index.js';
 
 /**
  * Reading stdin drains it to EOF, so a parent that spawns the CLI with a pipe
@@ -59,6 +59,15 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
       description: 'Color theme for output (default, minimal, high-contrast)',
       helpGroup: 'GLOBAL',
       options: ['default', 'minimal', 'high-contrast'],
+    }),
+    'log-format': Flags.option({
+      options: LOG_FORMATS,
+      helpGroup: 'GLOBAL',
+      summary: 'How stderr reports: pretty on a terminal, else plain; json for supervisors',
+    })(),
+    'log-personal': Flags.boolean({
+      helpGroup: 'GLOBAL',
+      summary: 'Keep personal values in --log-format json instead of redacting them',
     }),
   };
 
@@ -152,13 +161,18 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
     const { issues } = err as { issues?: { path: (string | number)[]; message: string }[] };
     if (err?.name === 'ZodError' && Array.isArray(issues)) {
       this.fail(issues.map(issue => `--${issue.path.join('.')}: ${issue.message}`).join('; '), {
-        ...(this.helpCommand() && { hint: `run \`${this.helpCommand()}\`` }),
+        ...(this.helpCommand() && { hint: `See its flags: \`${this.helpCommand()}\`` }),
       });
     }
-    const { message, code, exitCode, hint, stack } = describeError(err);
+    const described = describeError(err);
+    // oclif's own failures (a bad flag, a missing argument) are usage errors.
+    const usage = described.code === 'internal' && exit === EXIT_CODES.usage;
+    const { message, hint, stack } = described;
+    const code = usage ? 'usage' : described.code;
+    const exitCode = usage ? EXIT_CODES.usage : described.exitCode;
     const seeHelp = /\n?\s*See more help with --help\s*$/;
     const help = this.helpCommand();
-    const helpHint = seeHelp.test(message) && help ? `run \`${help}\`` : undefined;
+    const helpHint = seeHelp.test(message) && help ? `See its help: \`${help}\`` : undefined;
     this.logger.emit({
       level: 'error',
       kind: 'error',
