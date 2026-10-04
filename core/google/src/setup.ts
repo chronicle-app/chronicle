@@ -96,6 +96,7 @@ export async function setupGoogleClient(
   // Access added to a client set up before: just turn its APIs on.
   if (state.client && state.projectId) {
     await enableApis(missingApis);
+    await signOut();
     return state.client;
   }
 
@@ -191,6 +192,8 @@ export async function setupGoogleClient(
   await context.openUrl(`${CONSOLE}/auth/clients/create?project=${projectId}`);
   state.client = await askClient(context);
   await save();
+  // Setup is done: its gcloud sign-in isn't needed until access is added.
+  await signOut();
 
   guide(
     'Your app is ready',
@@ -218,7 +221,7 @@ export async function setupGoogleClient(
         ? []
         : [
             'First, sign in to Google Cloud with the account that will own the app. Your personal account is a good choice. Any of your Google accounts, personal or work, can use the app later.',
-            'If you already use gcloud, this sign-in is kept separate and won’t change it.',
+            'If you already use gcloud, this sign-in is kept separate and won’t change it. Chronicle signs out again when setup is done.',
           ]),
     ]);
     if (!account) {
@@ -358,6 +361,11 @@ export async function setupGoogleClient(
     }
   }
 
+  /** Sign out of the gcloud setup used, if it signed in. */
+  async function signOut() {
+    if (state.account && (await gcloud.available())) await gcloud.signOut();
+  }
+
   /** Turn on APIs: with gcloud when it's there, otherwise on a console page. */
   async function enableApis(wanted: string[]) {
     const projectId = state.projectId!;
@@ -366,6 +374,13 @@ export async function setupGoogleClient(
       .map(service => service.label);
     if (wanted.length === 0) return;
     if (state.account && (await gcloud.available())) {
+      if (!(await gcloud.account())) {
+        guide(`Sign in to Google Cloud to turn on the ${list(labels)} APIs`, [
+          `Use ${state.account}, the account that owns the project. Chronicle signs out again when they’re on.`,
+        ]);
+        await context.ask('Press Enter to open the sign-in page.');
+        await gcloud.login();
+      }
       logger.info(`Turning on the ${list(labels)} APIs`, { project: projectId });
       try {
         await gcloud.enableApis(projectId, wanted);

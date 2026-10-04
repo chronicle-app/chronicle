@@ -48,6 +48,10 @@ function fakeGcloud({ installed = true, account, atQuota = false } = {}) {
       }
     },
     enableApis: async (id, apis) => calls.push(`enable ${apis.join(' ')}`),
+    async signOut() {
+      calls.push('sign out');
+      account = undefined;
+    },
   };
 }
 
@@ -107,6 +111,8 @@ test('setup makes the project with gcloud, walks through the console, and reuses
     'login',
     'create chronicle-test01',
     'enable gmail.googleapis.com calendar-json.googleapis.com',
+    // Done: the gcloud sign-in isn't kept.
+    'sign out',
   ]);
   // The consent screen, publishing it, then the client.
   assert.deepEqual(first.opened, [
@@ -129,7 +135,8 @@ test('setup makes the project with gcloud, walks through the console, and reuses
   // Adding Drive only turns its API on.
   const drive = person(paths, { scopeSets: ['gmail', 'calendar', 'drive'] });
   assert.deepEqual(await setupGoogleClient(drive.context, options(paths, gcloud)), client);
-  assert.equal(gcloud.calls.at(-1), 'enable drive.googleapis.com');
+  // Adding Drive signs in to gcloud again just to turn its API on.
+  assert.deepEqual(gcloud.calls.slice(-3), ['login', 'enable drive.googleapis.com', 'sign out']);
   assert.deepEqual(drive.opened, []);
 });
 
@@ -141,7 +148,7 @@ test('setup confirms the new project, or takes one you already have', async t =>
   await setupGoogleClient(walk.context, options(paths, gcloud));
 
   // Nothing was created; the APIs went on in the project picked.
-  assert.deepEqual(gcloud.calls, ['enable gmail.googleapis.com']);
+  assert.deepEqual(gcloud.calls, ['enable gmail.googleapis.com', 'sign out']);
   const confirm = walk.events.find(e => e.kind === 'guide' && e.message === 'Confirm the project');
   assert.match(confirm.guide.text[0], /chronicle-test01.*owner@example\.com/);
   assert.match(confirm.guide.text[1], /old-project/);
@@ -156,7 +163,11 @@ test('at the project limit, setup puts the app in a project you pick', async t =
 
   await setupGoogleClient(walk.context, options(paths, gcloud));
 
-  assert.deepEqual(gcloud.calls, ['create chronicle-test01', 'enable gmail.googleapis.com']);
+  assert.deepEqual(gcloud.calls, [
+    'create chronicle-test01',
+    'enable gmail.googleapis.com',
+    'sign out',
+  ]);
   const state = JSON.parse(readFileSync(join(paths.configDir, 'google', 'setup.json'), 'utf8'));
   assert.equal(state.projectId, 'old-project');
   assert.ok(walk.events.some(e => e.kind === 'guide' && /project limit/.test(e.message)));

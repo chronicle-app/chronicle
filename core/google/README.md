@@ -48,7 +48,7 @@ chronicle auth login google --add drive
 
 - **The client and the setup's progress**: `google/setup.json` in Chronicle's config directory (`~/.config/chronicle`), readable only by you.
 - **Tokens**, one entry per account: Chronicle's `credentials.json`, beside it.
-- **gcloud's sign-in**: `google/gcloud`, a gcloud configuration of Chronicle's own (`CLOUDSDK_CONFIG`). Your usual gcloud accounts, project, and application default credentials stay as they were.
+- **gcloud's sign-in, only while setup runs**: `google/gcloud`, a gcloud configuration of Chronicle's own (`CLOUDSDK_CONFIG`), so your usual gcloud accounts, project, and application default credentials stay as they were. Its sign-in can do far more than Chronicle needs, so when setup is done Chronicle signs out (`gcloud auth revoke`) and removes it. `--add` signs in again just to turn the new API on, then signs out. A setup that stops partway keeps it, so the next run picks up without another sign-in.
 
 ## For sources
 

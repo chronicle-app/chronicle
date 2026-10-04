@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { rm } from 'node:fs/promises';
 
 /** What setup needs from Google Cloud's command line. */
 export interface Gcloud {
@@ -12,6 +13,8 @@ export interface Gcloud {
   /** IDs of the projects the signed-in account can see. */
   listProjects(): Promise<string[]>;
   enableApis(projectId: string, apis: string[]): Promise<void>;
+  /** Sign out and remove gcloud's state: its sign-in can do far more than setup needs. */
+  signOut(): Promise<void>;
 }
 
 /** A gcloud command that failed, with what it said. */
@@ -96,6 +99,13 @@ export class CommandLineGcloud implements Gcloud {
 
   async enableApis(projectId: string, apis: string[]): Promise<void> {
     await this.run(['services', 'enable', ...apis, `--project=${projectId}`]);
+  }
+
+  async signOut(): Promise<void> {
+    // Revoking tells Google the token is done; removing the directory takes
+    // the rest. A failed revoke (already signed out, offline) still removes it.
+    await this.run(['auth', 'revoke', '--all']).catch(() => {});
+    await rm(this.configDir, { recursive: true, force: true });
   }
 
   private run(args: string[], { interactive = false } = {}): Promise<string> {
