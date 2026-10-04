@@ -17,11 +17,11 @@ A run reads every calendar shown in your Google Calendar list, except the ones G
 
 ## Schema
 
-| Calendar thing         | Chronicle node | Key                                         | Properties                                                                                                                           |
-| ---------------------- | -------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| An event on a calendar | `PlanAction`   | `@type`, `source`, `sourceId`               | `agent` (the organizer), `object` (the `Event`), `timestamp` (when it was put on the calendar)                                       |
-| The event              | `Event`        | `@type`, `source`, `sourceId`               | `name`, `description` (Markdown), `startTime`, `endTime`, `location` (a `Location` with the `address` as written), `url`, `attendee` |
-| A person on it         | `Agent`        | `@type`, `handle` (their email, lowercased) | `name`; you are `sameAs` `@me`                                                                                                       |
+| Calendar thing         | Chronicle node | Key                                                             | Properties                                                                                                                           |
+| ---------------------- | -------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| An event on a calendar | `PlanAction`   | `@type`, `source`, `sourceId`                                   | `agent` (the organizer), `object` (the `Event`), `timestamp` (when it was put on the calendar)                                       |
+| The event              | `Event`        | `@type`, `source`, `sourceId`                                   | `name`, `description` (Markdown), `startTime`, `endTime`, `location` (a `Location` with the `address` as written), `url`, `attendee` |
+| A person on it         | `Agent`        | `@type`, `source` (`email`), `handle` (their email, lowercased) | `name`; you are `sameAs` `@me`                                                                                                       |
 
 `SHAPES.md` sketches the output, generated from the tests.
 
@@ -31,7 +31,7 @@ A run reads every calendar shown in your Google Calendar list, except the ones G
 
 **A timed event has instants; an all-day event has dates.** `startTime` and `endTime` are instants for a timed event, and the civil dates (`2025-03-14`) for an all-day one, with Google's exclusive end date.
 
-**A person is their email address, wherever it's seen.** People are keyed by address alone, with no source, as the mail plugins key them, so a guest at your meeting and the person who emails you are one node.
+**A person is their email address, wherever it's seen.** People are keyed by lowercased address in the `email` namespace, as the mail plugins key them, so a guest at your meeting and the person who emails you are one node.
 
 **A description is Markdown.** Google keeps an event's description as the HTML its editor wrote; it's converted to Markdown, with tracking parameters taken off links and long click-tracking redirects dropped.
 

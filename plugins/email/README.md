@@ -73,10 +73,9 @@ Messages are built by [@chronicle.app/mail](../../core/mail/README.md), the same
 - Each address is an `Agent` whose `handle` is the email address, lowercased,
   and whose `name` is the display name, or the address when there is none.
 
-Messages and people are keyed with no source: a message by its Message-ID and
-a person by their address, so the same email read from an mbox and from Gmail
-is one node. A message without a Message-ID is identified by its sender, date
-and subject.
+A message is keyed by its Message-ID with no source, so the same email read
+from an mbox and from Gmail is one node. A person is their address, lowercased,
+in the `email` namespace other plugins link an address to.
 
 ## Tests
 

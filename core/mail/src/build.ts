@@ -9,8 +9,12 @@ const MESSAGE_KEY = ['@type', 'sourceId'];
 /** Without a Message-ID: who sent it, when, and under what subject. */
 const KEYLESS_MESSAGE_KEY = ['@type', 'action.timestamp', 'action.agent.handle', 'name'];
 const KEYLESS_ACTION_KEY = ['@type', 'timestamp', 'agent.handle', 'object.name'];
-/** A person is their email address, wherever it's seen. */
-const ADDRESS_KEY = ['@type', 'handle'];
+/**
+ * A person is their email address, in the `email` namespace: the identity
+ * other plugins link a person's address to (iMessage, LinkedIn, Timing, …),
+ * so every mail source and every link meets on one node.
+ */
+const ADDRESS_KEY = ['@type', 'source', 'handle'];
 
 /**
  * Joins the parts of a composite identity. A control character that header
@@ -100,6 +104,7 @@ function agent(address: MailAddress, me: boolean): Agent {
   return {
     '@type': 'Agent',
     '@key': ADDRESS_KEY,
+    source: 'email',
     handle,
     name: address.name || handle,
     ...(me && { sameAs: ['@me'] }),

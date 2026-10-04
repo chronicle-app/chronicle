@@ -12,7 +12,7 @@ What Chronicle's mail sources share: reading an mbox, parsing an email, identify
 - `identityOf(message)` is its Message-ID, or else its sender, date, and subject; null when it has neither, and a source skips it.
 - `messageAction(message, options)` is the sending of it: a `MessageAction` by the sender on a `Message`, with its recipients and the message it replies to, and a source's thread and labels when it has them.
 
-Messages and people are keyed with no source, a message by its Message-ID and a person by their address, so the same email read by any mail source is one node.
+A message is keyed by its Message-ID with no source, so the same email read by any mail source is one node. A person is their lowercased address in the `email` namespace (`source: 'email'`), the identity other plugins already link an address to, so every mail source, a calendar, and those links meet on one node.
 
 ## Tests
 

@@ -53,16 +53,17 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
   }
 
   /**
-   * A person on the event by their email address, keyed as mail keys them
-   * (no source, lowercased), so a guest and the person who emails you are
-   * one node. Marked as the owner when it's the signed-in account.
+   * A person on the event by their email address, in the `email` namespace
+   * as mail keys them (lowercased), so a guest and the person who emails you
+   * are one node. Marked as the owner when it's the signed-in account.
    */
   private buildAgent(person: EventPerson | undefined): Agent | null {
     if (!person?.email) return null;
     const handle = person.email.toLowerCase();
     return {
       '@type': 'Agent',
-      '@key': ['@type', 'handle'],
+      '@key': ['@type', 'source', 'handle'],
+      source: 'email',
       handle,
       name: person.displayName || handle,
       ...(person.self && { sameAs: ['@me'] }),

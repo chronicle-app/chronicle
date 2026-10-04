@@ -15,10 +15,10 @@ converted from the record. Every node also has `source`.
 ```ts
 PlanAction key(sourceId) {
   sourceId, timestamp
-  agent: Agent key(handle, any source) { handle, name, sameAs[]? }
+  agent: Agent key(handle) { handle, name, sameAs[]? }
   object: Event key(sourceId) {
     sourceId, name, startTime, endTime, description?, url?
-    attendee[]?: Agent key(handle, any source) { handle, name, sameAs[]? }
+    attendee[]?: Agent key(handle) { handle, name, sameAs[]? }
     location?: Location { address }
   }
 }

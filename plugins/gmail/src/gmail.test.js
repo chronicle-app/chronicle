@@ -19,7 +19,8 @@ async function extract(Extractor, config = {}) {
 
 const person = (handle, name, me = false) => ({
   '@type': 'Agent',
-  '@key': ['@type', 'handle'],
+  '@key': ['@type', 'source', 'handle'],
+  source: 'email',
   handle,
   name: name ?? handle,
   ...(me && { sameAs: ['@me'] }),

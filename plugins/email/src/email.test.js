@@ -96,7 +96,8 @@ async function transform(records) {
 // is the same wherever it's read.
 const agent = (handle, name) => ({
   '@type': 'Agent',
-  '@key': ['@type', 'handle'],
+  '@key': ['@type', 'source', 'handle'],
+  source: 'email',
   handle,
   name: name ?? handle,
 });

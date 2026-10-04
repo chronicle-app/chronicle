@@ -25,7 +25,8 @@ async function extract(config = {}) {
 // correspondent are one person.
 const person = (handle, name, extra = {}) => ({
   '@type': 'Agent',
-  '@key': ['@type', 'handle'],
+  '@key': ['@type', 'source', 'handle'],
+  source: 'email',
   handle,
   name,
   ...extra,
