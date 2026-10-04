@@ -6,6 +6,8 @@ import { FRIEND, OWNER, THREAD, TOKEN, fakeGmail, takeout } from './fixture.test
 // API runs get the token outright, so no test reads stored credentials.
 async function extract(Extractor, config = {}) {
   const extractor = new Extractor({ accessToken: TOKEN, quiet: true, ...config });
+  const events = [];
+  extractor.useOutput({ emit: event => events.push(event) });
   await extractor.setup();
   const records = [];
   for await (const record of extractor.extract()) records.push(record);
@@ -14,19 +16,26 @@ async function extract(Extractor, config = {}) {
   for (const record of records) {
     for (const node of await transformer.performTransform(record)) actions.push(node.data);
   }
-  return { extractor, records, actions };
+  return { extractor, records, actions, events };
 }
 
-const person = (handle, name, me = false) => ({
+const identity = (source, handle) => ({
   '@type': 'Agent',
   '@key': ['@type', 'source', 'handle'],
-  source: 'email',
+  source,
   handle,
-  name: name ?? handle,
-  ...(me && { sameAs: ['@me'] }),
 });
-const owner = person(OWNER, 'Test Owner', true);
-const friend = person(FRIEND, 'Test Friend');
+const person = (handle, name, sameAs = []) => ({
+  ...identity('email', handle),
+  name: name ?? handle,
+  ...(sameAs.length > 0 && { sameAs }),
+});
+const owner = person(OWNER, 'Test Owner', ['@me']);
+// Your contact for the friend links their other address and their number.
+const friend = person(FRIEND, 'Test Friend', [
+  identity('email', 'friend@home.example'),
+  identity('phone', '+14165550100'),
+]);
 const thread = {
   '@type': 'Thread',
   '@key': ['@type', 'source', 'sourceId'],
@@ -72,7 +81,8 @@ test('Gmail messages become emails in their thread, with labels, newest first', 
   // A quoted-printable body is decoded; you, as a recipient, are you; your
   // labels go by name, and read state isn't one.
   assert.equal(plans.object.body, 'Café this weekend?');
-  assert.deepEqual(plans.object.recipient, [person(OWNER, OWNER, true)]);
+  assert.deepEqual(plans.object.recipient, [person(OWNER, OWNER, ['@me'])]);
+  assert.deepEqual(plans.agent, friend);
   assert.deepEqual(plans.object.tags, ['Inbox', 'Starred', 'Work', 'Café']);
   assert.deepEqual(plans.object.isPartOf, [thread]);
   // An HTML-only message's text, without the markup.
@@ -139,6 +149,7 @@ test('a Takeout becomes the same messages, threads, and labels', async t => {
 });
 
 test('a Takeout run filters each message itself', async t => {
+  await fakeGmail(t);
   const input = takeout(t);
   const subjects = async config =>
     (await extract(GmailTakeoutExtractor, { input, ...config })).records.map(
@@ -161,4 +172,12 @@ test('a Takeout run filters each message itself', async t => {
     code: 'unsupported-flag',
   });
   await assert.rejects(extract(GmailTakeoutExtractor, {}), { code: 'input-not-found' });
+});
+
+test('without Contacts access, people go unlinked and the run says how to link them', async t => {
+  await fakeGmail(t, { noContacts: true });
+  const { actions, events } = await extract(GmailApiExtractor, { sent: true });
+  assert.deepEqual(actions[0].object.recipient, [person(FRIEND, 'Test Friend')]);
+  const hint = events.find(event => event.kind === 'hint');
+  assert.match(hint.hint.action, /chronicle auth login google --add contacts/);
 });

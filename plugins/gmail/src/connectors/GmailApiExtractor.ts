@@ -1,5 +1,5 @@
 import { Extractor, Record } from '@chronicle.app/etl';
-import { GoogleApi, googleAccountOptions } from '@chronicle.app/google';
+import { ContactDirectory, GoogleApi, googleAccountOptions } from '@chronicle.app/google';
 import { identityOf, parseMessage } from '@chronicle.app/mail';
 import { EXIT_CODES, ExtractorError } from '@chronicle.app/logging';
 import { z } from 'zod';
@@ -57,6 +57,7 @@ export class GmailApiExtractor extends Extractor<typeof GmailApiExtractor> {
   });
 
   private api!: GoogleApi;
+  private contacts = ContactDirectory.empty;
   private labelNames = new Map<string, string>();
   private owner: string | null = null;
 
@@ -90,6 +91,13 @@ export class GmailApiExtractor extends Extractor<typeof GmailApiExtractor> {
     ]);
     this.owner = profile.emailAddress ?? null;
     for (const label of labels.labels ?? []) this.labelNames.set(label.id, label.name);
+    const { directory, missing } = await ContactDirectory.load({ account, accessToken });
+    this.contacts = directory;
+    if (missing) {
+      this.hint('Your contacts aren’t linked to these people', {
+        action: 'Run `chronicle auth login google --add contacts` to link them.',
+      });
+    }
   }
 
   override async determineCount(): Promise<number | null> {
@@ -192,6 +200,11 @@ export class GmailApiExtractor extends Extractor<typeof GmailApiExtractor> {
         receivedAt: new Date(Number(message.internalDate)).toISOString(),
         owner: this.owner,
       },
+      contacts: this.contacts.linksFor(
+        [mail.from, ...mail.to, ...mail.cc, ...mail.bcc].flatMap(person =>
+          person ? [person.address] : []
+        )
+      ),
     };
   }
 

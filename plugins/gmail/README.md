@@ -45,6 +45,8 @@ Messages are built by [@chronicle.app/mail](../../core/mail/README.md), the same
 
 **A body is what was written, not what was sent.** It's plain text or Markdown, never HTML: the text part, or the HTML part converted to Markdown. Quoted history, signatures, newsletter footers, images, and tracking parameters are left out; see [@chronicle.app/mail](../../core/mail/README.md).
 
+**Your contacts link people.** With Contacts access (asked for at sign-in), a person on one of your contacts is `sameAs` the contact's other addresses and phone numbers, so the person who emails you is the person who texts or calls you. A Takeout run links them too when you're signed in.
+
 **A draft isn't a message.** Drafts are left out, from the API and a Takeout alike: they were never sent.
 
 **Mail in Sent is yours.** Its sender is `sameAs` `@me`, whatever address it came from. Gmail also says the mailbox's own address (the API's profile, or the `Delivered-To` header in a Takeout), so you are `@me` as a recipient too.

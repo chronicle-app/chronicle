@@ -9,6 +9,7 @@
   "references": [
     { "path": "../auth/tsconfig.lib.json" },
     { "path": "../etl/tsconfig.lib.json" },
-    { "path": "../logging/tsconfig.lib.json" }
+    { "path": "../logging/tsconfig.lib.json" },
+    { "path": "../schema/tsconfig.lib.json" }
   ]
 }

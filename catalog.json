@@ -67,12 +67,6 @@
       "summary": "Google Calendar events"
     },
     {
-      "name": "google-contacts",
-      "package": "@chronicle.app/google-contacts",
-      "tier": "official",
-      "summary": "Google Contacts"
-    },
-    {
       "name": "github",
       "package": "@chronicle.app/github",
       "tier": "official",

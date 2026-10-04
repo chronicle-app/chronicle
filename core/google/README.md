@@ -32,7 +32,7 @@ A Workspace admin can block apps their organization hasn't approved from Gmail a
 
 ### More access
 
-The first sign-in asks for Gmail and Calendar. `--add` asks for more, keeping what you have, and turns the API on in your project:
+The first sign-in asks for Gmail, Calendar, and Contacts. `--add` asks for more, keeping what you have, and turns the API on in your project:
 
 ```sh
 chronicle auth login google --add drive
@@ -50,6 +50,10 @@ chronicle auth login google --add drive
 - **Tokens**, one entry per account: Chronicle's `credentials.json`, beside it.
 - **gcloud's sign-in, only while setup runs**: `google/gcloud`, a gcloud configuration of Chronicle's own (`CLOUDSDK_CONFIG`), so your usual gcloud accounts, project, and application default credentials stay as they were. Its sign-in can do far more than Chronicle needs, so when setup is done Chronicle signs out (`gcloud auth revoke`) and removes it. `--add` signs in again just to turn the new API on, then signs out. A setup that stops partway keeps it, so the next run picks up without another sign-in.
 
+### Contacts link people; they aren't extracted
+
+Contacts isn't a source of its own. Gmail and Calendar read your contacts once a run and look up each address they see: a person on one of your contacts is `sameAs` the contact's other addresses (in the `email` namespace) and phone numbers (in the `phone` namespace, E.164), the identities iMessage and call history key people by. Without Contacts access, they go on unlinked and say how to add it.
+
 ## For sources
 
 A Google source imports this package, which registers the `google` provider. It reads through `GoogleApi`, with `googleAccountOptions` in its schema:
@@ -60,7 +64,7 @@ await api.initialize();
 for await (const item of api.pages('/users/me/calendarList')) …
 ```
 
-`GoogleApi` turns Google's refusals into errors that say what to run. A missing scope says to run `chronicle auth login google --add <service>`, an API that's off in the project says the same (which turns it on), and a rejected token says to sign in again. Services, their scopes, and their APIs are listed in `GOOGLE_SERVICES`.
+`GoogleApi` turns Google's refusals into errors that say what to run. A missing scope says to run `chronicle auth login google --add <service>`, an API that's off in the project says the same (which turns it on), and a rejected token says to sign in again. Services, their scopes, and their APIs are listed in `GOOGLE_SERVICES`. `ContactDirectory.load()` reads your contacts for a run, `linksFor(addresses)` gives the links for the addresses on a record, and `contactIdentities(address, links)` turns them into `sameAs` identities.
 
 ## Tests
 

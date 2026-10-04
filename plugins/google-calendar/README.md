@@ -33,6 +33,8 @@ A run reads every calendar shown in your Google Calendar list, except the ones G
 
 **A person is their email address, wherever it's seen.** People are keyed by lowercased address in the `email` namespace, as the mail plugins key them, so a guest at your meeting and the person who emails you are one node.
 
+**Your contacts link guests.** With Contacts access (asked for at sign-in), a guest on one of your contacts is `sameAs` the contact's other addresses and phone numbers.
+
 **A description is Markdown.** Google keeps an event's description as the HTML its editor wrote; it's converted to Markdown, with tracking parameters taken off links and long click-tracking redirects dropped.
 
 **Guests are attendees, whatever they answered.** Rooms and equipment booked for the event are left out. Answers (accepted, declined) aren't recorded yet: Google doesn't say when someone answered, so they can't be dated actions.

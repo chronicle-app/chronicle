@@ -17,7 +17,9 @@ export class GoogleOAuthProvider extends OAuthProvider {
     Object.entries(GOOGLE_SERVICES).map(([name, service]) => [name, [...service.scopes]])
   );
 
-  static override defaultScopeSets = ['gmail', 'calendar'];
+  // Contacts links the people in mail and calendars to their other addresses
+  // and numbers, so it's asked for with them.
+  static override defaultScopeSets = ['gmail', 'calendar', 'contacts'];
   static override requiresClientSecret = true;
   static override pkce = true;
   // Without offline access + forced consent Google issues no refresh token,

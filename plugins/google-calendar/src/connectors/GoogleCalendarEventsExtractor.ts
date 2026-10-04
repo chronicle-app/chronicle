@@ -1,5 +1,5 @@
 import { Extractor, Record } from '@chronicle.app/etl';
-import { GoogleApi, googleAccountOptions } from '@chronicle.app/google';
+import { ContactDirectory, GoogleApi, googleAccountOptions } from '@chronicle.app/google';
 import { z } from 'zod';
 import GoogleCalendarTransformer from './GoogleCalendarTransformer.js';
 import type { CalendarEvent, CalendarListEntry, EventRecord } from '../types.js';
@@ -43,6 +43,7 @@ export class GoogleCalendarEventsExtractor extends Extractor<typeof GoogleCalend
 
   private api!: GoogleApi;
   private calendars: CalendarListEntry[] = [];
+  private contacts = ContactDirectory.empty;
 
   override keyOf(record: Record): string {
     const { calendar, event } = record.data as EventRecord;
@@ -72,6 +73,16 @@ export class GoogleCalendarEventsExtractor extends Extractor<typeof GoogleCalend
     this.calendars = named
       ? all.filter(calendar => named.includes(calendar.id))
       : all.filter(calendar => calendar.selected && !GENERATED_CALENDAR.test(calendar.id));
+    const { directory, missing } = await ContactDirectory.load({
+      account: config.account,
+      accessToken: config.accessToken,
+    });
+    this.contacts = directory;
+    if (missing) {
+      this.hint('Your contacts aren’t linked to these guests', {
+        action: 'Run `chronicle auth login google --add contacts` to link them.',
+      });
+    }
     this.logger.debug('Calendars to extract', {
       calendars: this.calendars.map(calendar => calendar.summary),
     });
@@ -152,7 +163,11 @@ export class GoogleCalendarEventsExtractor extends Extractor<typeof GoogleCalend
   }
 
   private recordOf(event: CalendarEvent, calendar: CalendarListEntry): EventRecord {
+    const people = [event.organizer, event.creator, ...(event.attendees ?? [])];
     return {
+      contacts: this.contacts.linksFor(
+        people.flatMap(person => (person?.email ? [person.email] : []))
+      ),
       event,
       calendar: {
         id: calendar.id,

@@ -32,7 +32,17 @@ const person = (handle, name, extra = {}) => ({
   ...extra,
 });
 const owner = person(OWNER, 'Test Owner', { sameAs: ['@me'] });
-const guest = person('guest@example.com', 'Test Guest');
+// Your contact for the guest links their number.
+const guest = person('guest@example.com', 'Test Guest', {
+  sameAs: [
+    {
+      '@type': 'Agent',
+      '@key': ['@type', 'source', 'handle'],
+      source: 'phone',
+      handle: '+14165550199',
+    },
+  ],
+});
 
 test('events on the shown calendars become plans for named events, with their guests', async t => {
   const requests = await fakeCalendar(t);

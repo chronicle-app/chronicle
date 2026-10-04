@@ -1,3 +1,4 @@
+import type { ContactLinks } from '@chronicle.app/google';
 import type { MailMessage } from '@chronicle.app/mail';
 
 /** One extracted record: the message, and what Gmail knows about it. */
@@ -15,4 +16,6 @@ export interface GmailRecord {
     /** The mailbox's own address: the API's profile, or a Takeout's Delivered-To. */
     owner: string | null;
   };
+  /** What your contacts link each address on it to (API only). */
+  contacts?: { [address: string]: ContactLinks };
 }

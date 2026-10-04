@@ -49,6 +49,11 @@ export interface MessageNodeOptions {
   thread?: Thread;
   /** The source's labels or folders for it. */
   tags?: string[];
+  /**
+   * Other identities of the person at an address (an address book's other
+   * addresses and phone numbers for them), linked by `sameAs`.
+   */
+  identitiesOf?: (address: string) => Agent[];
 }
 
 /**
@@ -66,9 +71,14 @@ export function messageAction(mail: MailMessage, options: MessageNodeOptions = {
   if (!sentAt) {
     throw new Error(`Email ${mail.messageId ?? '(no Message-ID)'} has no date`);
   }
-  const sender = agent(mail.from, options.sentByMe || isMe(mail.from.address));
+  const identities = options.identitiesOf ?? (() => []);
+  const sender = agent(
+    mail.from,
+    options.sentByMe || isMe(mail.from.address),
+    identities(mail.from.address)
+  );
   const recipients = dedupe([...mail.to, ...mail.cc, ...mail.bcc]).map(address =>
-    agent(address, isMe(address.address))
+    agent(address, isMe(address.address), identities(address.address))
   );
 
   const message: Message = {
@@ -99,15 +109,16 @@ export function messageAction(mail: MailMessage, options: MessageNodeOptions = {
 }
 
 /** A person by their address, lowercased so one person is one node. */
-function agent(address: MailAddress, me: boolean): Agent {
+function agent(address: MailAddress, me: boolean, identities: Agent[] = []): Agent {
   const handle = address.address.toLowerCase();
+  const sameAs: NonNullable<Agent['sameAs']> = [...(me ? ['@me'] : []), ...identities];
   return {
     '@type': 'Agent',
     '@key': ADDRESS_KEY,
     source: 'email',
     handle,
     name: address.name || handle,
-    ...(me && { sameAs: ['@me'] }),
+    ...(sameAs.length > 0 && { sameAs }),
   };
 }
 

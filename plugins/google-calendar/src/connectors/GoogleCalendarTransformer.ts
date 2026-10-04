@@ -1,15 +1,18 @@
 import { ChronicleTransformer, Record, htmlToMarkdown, tidyText } from '@chronicle.app/etl';
+import { contactIdentities, type ContactLinks } from '@chronicle.app/google';
 import { ActionAndChildren, Agent, Event, PlanAction } from '@chronicle.app/schema';
 import type { CalendarEvent, EventPerson, EventRecord, EventTime } from '../types.js';
 
 const source = 'google-calendar';
 
+type Contacts = { [address: string]: ContactLinks };
+
 export default class GoogleCalendarTransformer extends ChronicleTransformer {
   override async transform(record: Record): Promise<ActionAndChildren[]> {
     if (record.extraction.recordType !== 'events') return [];
-    const { event } = record.data as EventRecord;
+    const { event, contacts = {} } = record.data as EventRecord;
 
-    const organizer = this.buildAgent(event.organizer ?? event.creator);
+    const organizer = this.buildAgent(event.organizer ?? event.creator, contacts);
     if (!organizer) {
       throw new Error(`Event ${event.id} has no organizer or creator with an email`);
     }
@@ -22,16 +25,16 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
       // When it was put on the calendar; the event carries when it happens.
       timestamp: new Date(event.created ?? event.updated ?? startOf(event.start)!),
       agent: organizer,
-      object: this.buildEvent(event),
+      object: this.buildEvent(event, contacts),
     };
     return [plan];
   }
 
-  private buildEvent(event: CalendarEvent): Event {
+  private buildEvent(event: CalendarEvent, contacts: Contacts): Event {
     const attendees = (event.attendees ?? [])
       // Rooms and equipment booked for the event aren't guests.
       .filter(attendee => !attendee.resource)
-      .map(attendee => this.buildAgent(attendee))
+      .map(attendee => this.buildAgent(attendee, contacts))
       .filter((agent): agent is Agent => agent !== null);
     // Google keeps a description as the HTML its editor wrote; Markdown here.
     const description = tidyText(htmlToMarkdown(event.description) ?? '');
@@ -57,16 +60,21 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
    * as mail keys them (lowercased), so a guest and the person who emails you
    * are one node. Marked as the owner when it's the signed-in account.
    */
-  private buildAgent(person: EventPerson | undefined): Agent | null {
+  private buildAgent(person: EventPerson | undefined, contacts: Contacts): Agent | null {
     if (!person?.email) return null;
     const handle = person.email.toLowerCase();
+    // You, and the other addresses and numbers your contacts have for them.
+    const sameAs: NonNullable<Agent['sameAs']> = [
+      ...(person.self ? ['@me'] : []),
+      ...contactIdentities(handle, contacts[handle]),
+    ];
     return {
       '@type': 'Agent',
       '@key': ['@type', 'source', 'handle'],
       source: 'email',
       handle,
       name: person.displayName || handle,
-      ...(person.self && { sameAs: ['@me'] }),
+      ...(sameAs.length > 0 && { sameAs }),
     };
   }
 }

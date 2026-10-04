@@ -1,5 +1,5 @@
 import { Extractor, InputNotFound, Record } from '@chronicle.app/etl';
-import { googleAccountOptions } from '@chronicle.app/google';
+import { ContactDirectory, googleAccountOptions } from '@chronicle.app/google';
 import { countMbox, identityOf, parseMessage, readMbox } from '@chronicle.app/mail';
 import { EXIT_CODES, ExtractorError } from '@chronicle.app/logging';
 import { z } from 'zod';
@@ -29,6 +29,18 @@ export class GmailTakeoutExtractor extends Extractor<typeof GmailTakeoutExtracto
     ...filterOptions,
     input: z.string().optional().describe('Path to the Gmail mbox from Google Takeout'),
   });
+
+  private contacts = ContactDirectory.empty;
+
+  /**
+   * A Takeout needs no sign-in; when there is one, your contacts link the
+   * people in it as the API's do.
+   */
+  override async setup(): Promise<void> {
+    await super.setup();
+    const { account, accessToken } = this.options;
+    this.contacts = (await ContactDirectory.load({ account, accessToken })).directory;
+  }
 
   override keyOf(record: Record): string | null {
     return identityOf((record.data as GmailRecord).mail);
@@ -99,6 +111,11 @@ export class GmailTakeoutExtractor extends Extractor<typeof GmailTakeoutExtracto
           // Gmail writes the mailbox's own address on every message it delivers.
           owner: addressIn(mail.headers['delivered-to']),
         },
+        contacts: this.contacts.linksFor(
+          [mail.from, ...mail.to, ...mail.cc, ...mail.bcc].flatMap(person =>
+            person ? [person.address] : []
+          )
+        ),
       };
       yield this.createRecord(record, { recordType: 'messages' });
       if (this.shouldStopExtracting(++count)) break;

@@ -15,11 +15,20 @@ converted from the record. Every node also has `source`.
 ```ts
 MessageAction key(sourceId, any source) {
   sourceId, timestamp
-  agent: Agent key(handle) { handle, name, sameAs[]? }
+  agent: Agent key(handle) {
+    handle, name
+    sameAs[]?: Agent key(handle) { handle }
+  }
   object: Message key(sourceId, any source) {
     sourceId, name, body, tags[]
-    author[]: Agent key(handle) { handle, name, sameAs[]? }
-    recipient[]: Agent key(handle) { handle, name, sameAs[]? }
+    author[]: Agent key(handle) {
+      handle, name
+      sameAs[]?: Agent key(handle) { handle }
+    }
+    recipient[]: Agent key(handle) {
+      handle, name
+      sameAs[]: Agent key(handle) { handle }
+    }
     inReplyTo[]?: Message key(sourceId, any source) { sourceId }
     isPartOf[]: Thread key(sourceId) { sourceId }
   }

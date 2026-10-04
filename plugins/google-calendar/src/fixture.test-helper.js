@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { ContactDirectory } from '@chronicle.app/google';
 import { GoogleCalendarEventsExtractor } from '../dist/index.js';
 
 /** Synthetic calendars and people; nothing here is anyone's real data. */
@@ -108,6 +109,17 @@ export async function fakeCalendar(t) {
       response.end(JSON.stringify(body));
     };
     if (request.headers.authorization !== `Bearer ${TOKEN}`) return reply(401, { error: {} });
+    // Your contact for the guest: their number.
+    if (url.pathname === '/people/me/connections') {
+      return reply(200, {
+        connections: [
+          {
+            emailAddresses: [{ value: 'guest@example.com' }],
+            phoneNumbers: [{ canonicalForm: '+14165550199' }],
+          },
+        ],
+      });
+    }
     if (url.pathname === '/users/me/calendarList') {
       return reply(
         200,
@@ -123,9 +135,12 @@ export async function fakeCalendar(t) {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 
   const { apiBaseURL } = GoogleCalendarEventsExtractor;
+  const contactsBaseURL = ContactDirectory.apiBaseURL;
   GoogleCalendarEventsExtractor.apiBaseURL = `http://127.0.0.1:${server.address().port}`;
+  ContactDirectory.apiBaseURL = GoogleCalendarEventsExtractor.apiBaseURL;
   t.after(() => {
     GoogleCalendarEventsExtractor.apiBaseURL = apiBaseURL;
+    ContactDirectory.apiBaseURL = contactsBaseURL;
     server.close();
   });
   return requests;

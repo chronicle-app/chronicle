@@ -116,9 +116,6 @@
       "path": "plugins/google-calendar/tsconfig.lib.json"
     },
     {
-      "path": "plugins/google-contacts/tsconfig.lib.json"
-    },
-    {
       "path": "plugins/gmail/tsconfig.lib.json"
     },
     {

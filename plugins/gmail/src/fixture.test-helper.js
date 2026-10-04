@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { ContactDirectory } from '@chronicle.app/google';
 import { GmailApiExtractor } from '../dist/index.js';
 
 /** Synthetic mail between made-up people; nothing here is anyone's real data. */
@@ -124,6 +125,12 @@ export const MESSAGES = [
   },
 ];
 
+/** Your contact for the friend: another address, and a number. */
+export const FRIEND_CONTACT = {
+  emailAddresses: [{ value: 'Friend@Example.com' }, { value: 'friend@home.example' }],
+  phoneNumbers: [{ value: '416 555 0100', canonicalForm: '+14165550100' }],
+};
+
 /** Labels you made, as the API lists them. */
 const USER_LABELS = [
   { id: 'Label_1', name: 'Work' },
@@ -135,7 +142,7 @@ const USER_LABELS = [
  * filtered by `labelIds` and Spam and Trash as Gmail does. The search (`q`)
  * is recorded, not applied: what it asks for is the test's to check.
  */
-export async function fakeGmail(t) {
+export async function fakeGmail(t, options = {}) {
   const requests = [];
   const server = createServer((request, response) => {
     const url = new URL(request.url, 'http://127.0.0.1');
@@ -149,6 +156,15 @@ export async function fakeGmail(t) {
       response.end(JSON.stringify(body));
     };
     if (request.headers.authorization !== `Bearer ${TOKEN}`) return reply(401, { error: {} });
+    if (url.pathname === '/people/me/connections') {
+      // Without Contacts access, Google refuses with this reason.
+      if (options.noContacts) {
+        return reply(403, {
+          error: { code: 403, details: [{ reason: 'ACCESS_TOKEN_SCOPE_INSUFFICIENT' }] },
+        });
+      }
+      return reply(200, { connections: [FRIEND_CONTACT] });
+    }
     if (url.pathname === '/users/me/profile') {
       return reply(200, { emailAddress: OWNER, messagesTotal: MESSAGES.length });
     }
@@ -184,10 +200,13 @@ export async function fakeGmail(t) {
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const { apiBaseURL, batchIntervalMs } = GmailApiExtractor;
+  const contactsBaseURL = ContactDirectory.apiBaseURL;
   GmailApiExtractor.apiBaseURL = `http://127.0.0.1:${server.address().port}`;
+  ContactDirectory.apiBaseURL = GmailApiExtractor.apiBaseURL;
   GmailApiExtractor.batchIntervalMs = 0;
   t.after(() => {
     GmailApiExtractor.apiBaseURL = apiBaseURL;
+    ContactDirectory.apiBaseURL = contactsBaseURL;
     GmailApiExtractor.batchIntervalMs = batchIntervalMs;
     server.close();
   });

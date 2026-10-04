@@ -1,3 +1,5 @@
+import type { ContactLinks } from '@chronicle.app/google';
+
 /** The parts of the Calendar API's resources the plugin reads. */
 
 export interface CalendarListEntry {
@@ -53,4 +55,6 @@ export interface CalendarEvent {
 export interface EventRecord {
   event: CalendarEvent;
   calendar: { id: string; summary: string; primary: boolean };
+  /** What your contacts link each guest's address to. */
+  contacts?: { [address: string]: ContactLinks };
 }
