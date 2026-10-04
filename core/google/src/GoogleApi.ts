@@ -136,10 +136,14 @@ export class GoogleApi extends ApiProxy {
         });
       }
       if (reasons.has('SERVICE_DISABLED') || reasons.has('accessNotConfigured')) {
+        // Google says where to turn it on; that page is the quickest way.
+        const page = activationUrl(error.response.data);
         return new ExtractorError(`The ${label} API is off in your Google Cloud project`, {
           code: 'api-disabled',
           exitCode: EXIT_CODES.auth,
-          hint: `Run \`chronicle auth login google --add ${this.service}\` to turn it on.`,
+          hint: page
+            ? `Turn it on here, then run this again: ${page}\nOr run \`chronicle auth login google --add ${this.service}\` to turn it on.`
+            : `Run \`chronicle auth login google --add ${this.service}\` to turn it on.`,
         });
       }
     }
@@ -184,4 +188,15 @@ function googleReasons(body: any): Set<string> {
 function googleMessage(body: any): string | undefined {
   const message = body?.error?.message;
   return typeof message === 'string' && message ? message : undefined;
+}
+
+/** The page that turns an API on, from a Google "service disabled" error. */
+function activationUrl(body: any): string | undefined {
+  for (const detail of body?.error?.details ?? []) {
+    const url = detail?.metadata?.activationUrl;
+    if (typeof url === 'string') return url;
+  }
+  return body?.error?.message?.match(
+    /https:\/\/console\.developers\.google\.com\/\S+?(?=\s|$)/
+  )?.[0];
 }

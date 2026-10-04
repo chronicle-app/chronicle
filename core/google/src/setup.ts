@@ -66,13 +66,18 @@ export async function setupGoogleClient(
       state.client = { clientId: stored.clientId, clientSecret: stored.clientSecret };
     }
   }
+  // A client ID starts with its project's number, which gcloud and the
+  // console take in place of the ID: a client found without its setup state
+  // still has a project to turn APIs on in.
+  if (state.client && !state.projectId) {
+    state.projectId = state.client.clientId.match(/^(\d+)-/)?.[1];
+  }
 
   const services = context.scopeSets.filter(set => isGoogleService(set));
   const apis = services.map(service => GOOGLE_SERVICES[service].api);
   const missingApis = state.projectId ? apis.filter(api => !state.apis?.includes(api)) : [];
 
-  // Set up before: nothing to do, unless access was added since. A client
-  // made by hand has no project on record, so its APIs are the person's.
+  // Set up before: nothing to do, unless access was added since.
   if (state.client && missingApis.length === 0) {
     logger.debug('Using the Google client set up before', { project: state.projectId });
     return state.client;

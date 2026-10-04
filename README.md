@@ -60,6 +60,7 @@ other source by name, for example `chronicle plugins install lastfm`, or let
 | Foursquare/Swarm check-ins                                            | [foursquare](plugins/foursquare/README.md)                 | api                             |
 | Goodreads shelves and reading history                                 | [goodreads](plugins/goodreads/README.md)                   | csv (export)                    |
 | Google Calendar events                                                | [google-calendar](plugins/google-calendar/README.md)       | api                             |
+| Google Contacts                                                       | [google-contacts](plugins/google-contacts/README.md)       | api                             |
 | GitHub pull requests, issues, comments, reviews, stars, and gists     | [github](plugins/github/README.md)                         | api                             |
 | Gmail messages, threads, and labels                                   | [gmail](plugins/gmail/README.md)                           | api, takeout (export)           |
 | Hacker News submissions, comments, and replies                        | [hackernews](plugins/hackernews/README.md)                 | api                             |

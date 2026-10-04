@@ -14,6 +14,11 @@ export const GOOGLE_SERVICES = {
     scopes: ['https://www.googleapis.com/auth/calendar.readonly'],
     api: 'calendar-json.googleapis.com',
   },
+  contacts: {
+    label: 'Google Contacts',
+    scopes: ['https://www.googleapis.com/auth/contacts.readonly'],
+    api: 'people.googleapis.com',
+  },
   drive: {
     label: 'Google Drive',
     scopes: ['https://www.googleapis.com/auth/drive.readonly'],

@@ -290,6 +290,22 @@ test('Google refusals say what to run', async t => {
     }
     if (reason === 'busy') return reply(200, { ok: true });
     if (reason === 'expired') return reply(401, { error: { code: 401 } });
+    if (reason === 'off') {
+      return reply(403, {
+        error: {
+          code: 403,
+          details: [
+            {
+              reason: 'SERVICE_DISABLED',
+              metadata: {
+                activationUrl:
+                  'https://console.developers.google.com/apis/api/gmail.googleapis.com/overview?project=123',
+              },
+            },
+          ],
+        },
+      });
+    }
     if (reason === 'other')
       return reply(403, { error: { code: 403, message: 'The caller does not have permission' } });
     reply(403, { error: { code: 403, details: [{ reason }] } });
@@ -322,6 +338,13 @@ test('Google refusals say what to run', async t => {
     'auth-required',
     'Run `chronicle auth login google` to sign in again.',
   ]);
+
+  // Google's own link to turn an API on comes first.
+  const [, offHint] = await refusal('off');
+  assert.match(
+    offHint,
+    /^Turn it on here.*overview\?project=123\nOr run `chronicle auth login google --add gmail`/
+  );
 
   // A rate limit is waited out, and said plainly when it lasts.
   busy = 2;
@@ -407,4 +430,35 @@ test('a token refused partway through a run is refreshed, and the request tried 
   const unattended = person(paths, { scopeSets: ['gmail'], interactive: false });
   const client = await setupGoogleClient(unattended.context, options(paths, fakeGcloud()));
   assert.equal(client.clientId, 'stored-client');
+});
+
+test('a client found without setup state turns APIs on in its own project', async t => {
+  const paths = machine(t);
+  // Signed in before, but setup.json is gone: the client ID names the project.
+  mkdirSync(paths.configDir, { recursive: true });
+  writeFileSync(
+    join(paths.configDir, 'credentials.json'),
+    JSON.stringify({
+      google: [
+        {
+          accessToken: 'a',
+          tokenType: 'Bearer',
+          createdAt: new Date().toISOString(),
+          clientId: '123456789012-abc.apps.googleusercontent.com',
+          clientSecret: 's',
+        },
+      ],
+    })
+  );
+  const walk = person(paths, { scopeSets: ['gmail', 'contacts'] });
+  const client = await setupGoogleClient(
+    walk.context,
+    options(paths, fakeGcloud({ installed: false }))
+  );
+
+  assert.equal(client.clientId, '123456789012-abc.apps.googleusercontent.com');
+  assert.deepEqual(walk.opened, ['https://console.cloud.google.com/flows/enableapi']);
+  const state = JSON.parse(readFileSync(join(paths.configDir, 'google', 'setup.json'), 'utf8'));
+  assert.equal(state.projectId, '123456789012');
+  assert.ok(state.apis.includes('people.googleapis.com'));
 });
