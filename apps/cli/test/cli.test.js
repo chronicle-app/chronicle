@@ -101,7 +101,8 @@ test('bundled sources are discoverable from an unrelated cwd; JSON has no diagno
   assert.equal(success(listed), 'commands  history\n');
   // With one kind there's nothing to pick, so no hint. With several, how to
   // pick goes to stderr, with a runnable example, so the list still pipes.
-  assert.equal(listed.stderr, '');
+  // (Older Node versions warn about SQLite on stderr; that isn't a hint.)
+  assert.doesNotMatch(listed.stderr, /chronicle extract shell/);
   assert.match(run('extract', 'github', '--list-types').stderr, /chronicle extract github \w+/);
   assert.doesNotMatch(success(run('--help')), /archive|sync|serve/);
 
