@@ -27,7 +27,13 @@ export function formatPlain(event: OutputEvent): string {
   const level = event.level === 'info' ? '' : `${event.level} `;
   const fields = formatFields(event.fields);
   const hint = event.hint ? ` · ${event.hint.action}` : '';
-  return `${timeOfDay(event.time)} ${level}${event.scope}: ${event.message}${hint}${fields ? ` ${fields}` : ''}`;
+  const guide = event.guide
+    ? [
+        ...(event.guide.text ?? []),
+        ...(event.guide.steps ?? []).map((step, i) => `${i + 1}. ${step}`),
+      ].map(part => `\n  ${part}`)
+    : [];
+  return `${timeOfDay(event.time)} ${level}${event.scope}: ${event.message}${hint}${fields ? ` ${fields}` : ''}${guide.join('')}`;
 }
 
 /** How often a sink checks for roll-ups that came due while nothing else arrived. */
@@ -158,6 +164,7 @@ export function toJson(event: OutputEvent): Record<string, unknown> {
     ...(fields && { fields }),
     ...(event.error && { error: event.error }),
     ...(event.hint && { hint: event.hint }),
+    ...(event.guide && { guide: event.guide }),
     ...(event.sensitive?.length && { sensitive: event.sensitive }),
     ...(event.key && { key: event.key }),
   };

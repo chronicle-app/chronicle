@@ -1,7 +1,8 @@
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 /** What an event is, apart from how loud it is. */
-export type EventKind = 'progress' | 'notice' | 'hint' | 'summary' | 'error' | 'diagnostic';
+export type EventKind =
+  'progress' | 'notice' | 'hint' | 'summary' | 'error' | 'diagnostic' | 'guide';
 
 /** The run an event belongs to; a daemon groups events by it, like a trace id. */
 export interface RunContext {
@@ -28,6 +29,12 @@ export interface OutputEvent {
   error?: { code?: string; cause?: string; stack?: string; exitCode?: number };
   /** A next move for a person. */
   hint?: { action: string; when?: string };
+  /**
+   * A `guide` event's body: a section of a walkthrough a person follows,
+   * titled by `message`. `text` is a few plain sentences; `steps` are what to
+   * do, in order.
+   */
+  guide?: { text?: string[]; steps?: string[] };
   /** Names of `fields` that carry personal data. */
   sensitive?: string[];
   /** Events sharing a key aggregate: the first few print, the rest are counted. */

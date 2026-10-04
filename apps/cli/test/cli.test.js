@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import {
   existsSync,
   mkdtempSync,
@@ -99,8 +99,10 @@ test('bundled sources are discoverable from an unrelated cwd; JSON has no diagno
   assert.match(success(run('extract', 'help')), /chronicle extract <source> --help/);
   const listed = run('extract', 'shell', '--list-types');
   assert.equal(success(listed), 'commands  history\n');
-  // How to use them goes to stderr, with a runnable example, so the list still pipes.
-  assert.match(listed.stderr, /chronicle extract shell commands/);
+  // With one kind there's nothing to pick, so no hint. With several, how to
+  // pick goes to stderr, with a runnable example, so the list still pipes.
+  assert.equal(listed.stderr, '');
+  assert.match(run('extract', 'github', '--list-types').stderr, /chronicle extract github \w+/);
   assert.doesNotMatch(success(run('--help')), /archive|sync|serve/);
 
   // Usage mistakes: exit 2, a typed error, and a hint naming the way forward.
@@ -302,6 +304,75 @@ test('auth stores and removes synthetic credentials; missing token fails promptl
   const result = run('auth', 'set', 'missing');
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /--token/);
+});
+
+test('Google sign-in needs its setup at a terminal, or a client file', t => {
+  const { dir, run } = fixture(t);
+  // No terminal to walk through the setup in.
+  const unattended = run('auth', 'login', 'google');
+  assert.equal(unattended.status, 3);
+  assert.match(unattended.stderr, /chronicle auth login google/);
+
+  const typo = run('auth', 'login', 'google', '--add', 'mail');
+  assert.equal(typo.status, 2);
+  assert.match(typo.stderr, /gmail/);
+
+  // A downloaded client goes straight to Google's sign-in page, with PKCE and
+  // the default access; nobody signs in, so it times out.
+  const file = join(dir, 'client_secret_synthetic.json');
+  writeFileSync(
+    file,
+    JSON.stringify({ installed: { client_id: 'synthetic-id', client_secret: 's' } })
+  );
+  const login = run(
+    'auth',
+    'login',
+    'google',
+    '--client-file',
+    file,
+    '--no-browser',
+    '--timeout',
+    '1',
+    '--port',
+    '0'
+  );
+  assert.notEqual(login.status, 0);
+  const url = new URL(login.stderr.match(/https:\/\/accounts\.google\.com\S+/)[0]);
+  assert.equal(url.searchParams.get('client_id'), 'synthetic-id');
+  assert.equal(url.searchParams.get('code_challenge_method'), 'S256');
+  assert.ok(url.searchParams.get('state'));
+  assert.match(url.searchParams.get('scope'), /gmail\.readonly.*calendar\.readonly/);
+});
+
+test('a sign-in reply for another sign-in is refused', async t => {
+  const { dir, env } = fixture(t);
+  const file = join(dir, 'client.json');
+  writeFileSync(
+    file,
+    JSON.stringify({ installed: { client_id: 'synthetic-id', client_secret: 's' } })
+  );
+  const child = spawn(
+    process.execPath,
+    [bin, 'auth', 'login', 'google', '--client-file', file, '--no-browser', '--port', '0'],
+    { cwd: dir, env }
+  );
+  let stderr = '';
+  const exited = new Promise(resolve => child.on('close', resolve));
+  const url = await new Promise((resolve, reject) => {
+    child.stderr.on('data', chunk => {
+      stderr += chunk;
+      const found = stderr.match(/https:\/\/accounts\.google\.com\S+/);
+      if (found) resolve(new URL(found[0]));
+    });
+    child.on('close', () => reject(new Error(stderr)));
+  });
+  // A reply with a state this sign-in didn't send: another page's, or forged.
+  const callback = new URL(url.searchParams.get('redirect_uri'));
+  callback.searchParams.set('code', 'synthetic-code');
+  callback.searchParams.set('state', 'not-this-one');
+  await fetch(callback);
+  assert.notEqual(await exited, 0);
+  assert.match(stderr, /different sign-in/);
 });
 
 test('plugins install a local plugin that shares the CLI’s etl and auth, and uninstall it', t => {

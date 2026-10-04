@@ -14,6 +14,9 @@ Chronicle extracts personal history into a shared vocabulary.
   which (`-t all` and `-t defaults` name every kind and the defaults). Give
   extractors `occurredAt(record)` so several kinds merge newest first; without
   it they run one after another.
+- A `body` or `description` is plain text or Markdown, never HTML: convert
+  markup with `htmlToMarkdown` and clean it with `tidyText` (both in
+  `@chronicle.app/etl`). The SHAPES test fails on HTML in either.
 - A plugin keeps a generated `SHAPES.md`: its `shapes.test.js` runs every
   extractor over the fixtures and sketches each record type as a tree of the
   nodes it becomes, with their keys and properties (`sampleTransform`,

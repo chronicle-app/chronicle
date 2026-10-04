@@ -157,17 +157,19 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     }
     if (this.argv.includes('--list-types') || this.argv.includes('-L')) {
       this.log(renderRecordTypes(candidates));
-      const { message, action } = recordTypesHint(
+      const hint = recordTypesHint(
         positional,
         candidates,
         (this.constructor as any).id || 'extract'
       );
-      this.logger.emit({
-        level: 'info',
-        kind: 'hint',
-        message,
-        ...(action && { hint: { action } }),
-      });
+      if (hint) {
+        this.logger.emit({
+          level: 'info',
+          kind: 'hint',
+          message: hint.message,
+          ...(hint.action && { hint: { action: hint.action } }),
+        });
+      }
       this.exit(0);
     }
 

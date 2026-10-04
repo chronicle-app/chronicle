@@ -92,12 +92,14 @@ function bareRunSummary(candidates: ExtractorMetadata[]): string | undefined {
  * How to pick from `--list-types`, as a runnable example: a kind a bare run
  * leaves out when there is one, with `--strategy` only when there is a
  * choice. Printed as a hint on stderr, so the list on stdout still pipes.
+ * A source with one kind has nothing to pick, and gets no hint.
  */
 export function recordTypesHint(
   source: string,
   candidates: ExtractorMetadata[],
   verb = 'extract'
-): { message: string; action: string } {
+): { message: string; action: string } | undefined {
+  if (new Set(candidates.flatMap(e => e.recordType)).size <= 1) return undefined;
   const strategies = strategiesOf(candidates);
   const chosen = strategies.find(s => s.extractors.some(e => e.default)) ?? strategies[0];
   const strategy = strategies.length > 1 ? ` --strategy ${chosen.name}` : '';

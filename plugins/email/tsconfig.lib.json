@@ -8,6 +8,9 @@
   "include": ["src/**/*.ts"],
   "references": [
     {
+      "path": "../../core/mail/tsconfig.lib.json"
+    },
+    {
       "path": "../../core/etl/tsconfig.lib.json"
     },
     {

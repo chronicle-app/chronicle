@@ -39,8 +39,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "dependencies": {
-    "emailjs-addressparser": "^2.0.3",
-    "libmime": "^5.3.7",
+    "@chronicle.app/mail": "0.3.0",
     "zod": "^3.24.1"
   },
   "peerDependencies": {

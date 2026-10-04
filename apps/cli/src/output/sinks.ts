@@ -9,7 +9,7 @@ import {
   type OutputEvent,
   type Sink,
 } from '@chronicle.app/logging';
-import { hint, line, summary, type Segment, type SummaryFields } from './blocks.js';
+import { guide, hint, line, summary, type Segment, type SummaryFields } from './blocks.js';
 import { count } from './format.js';
 import { glyphs } from './glyphs.js';
 import { LiveView, type ProgressFields } from './live.js';
@@ -88,6 +88,8 @@ export function render(
           );
     case 'hint':
       return hint(event.message, event.hint?.action, t, width);
+    case 'guide':
+      return guide(event.message, event.guide ?? {}, t, width);
   }
   const [glyph, glyphStyle, textStyle] =
     event.level === 'error'

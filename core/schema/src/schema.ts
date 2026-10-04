@@ -1046,6 +1046,7 @@ export const EpubCfiSelectorSchema: z.ZodType<EpubCfiSelector> = z
 // Event, child of https://schema.chronicle.app/Entity
 export interface Event extends Omit<Entity, '@type'> {
   '@type': 'Event';
+  attendee?: AgentAndChildren[];
   endTime?: Date | string;
   location?: LocationAndChildren | PlaceAndChildren;
   startTime?: Date | string;
@@ -1055,6 +1056,7 @@ export type EventAndChildren = Event;
 
 const EventProperties = {
   ...EntityProperties,
+  attendee: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
   endTime: z.lazy(() => z.union([z.date(), z.string()])).optional(),
   location: z.lazy(() => z.union([LocationAndChildrenSchema, PlaceAndChildrenSchema])).optional(),
   startTime: z.lazy(() => z.union([z.date(), z.string()])).optional(),

@@ -24,7 +24,8 @@ export interface ShapeSample {
 /** Run an extractor to the end and pair each record with its transformation. */
 export async function sampleTransform(
   extractor: Extractor,
-  transformer: Transformer = extractor.instantiateDefaultTransformer()
+  transformer: Transformer = extractor.instantiateDefaultTransformer(),
+  { allowMarkup = false }: { allowMarkup?: boolean } = {}
 ): Promise<ShapeSample[]> {
   const samples: ShapeSample[] = [];
   await extractor.setup();
@@ -32,6 +33,9 @@ export async function sampleTransform(
     for await (const record of extractor.extract()) {
       const outputs = await transformer.performTransform(record);
       const { recordType, key: _key, occurredAt: _at, ...context } = record.context ?? {};
+      if (!allowMarkup) {
+        for (const output of outputs) assertNoMarkup(output.data, record.extraction.recordType);
+      }
       samples.push({
         recordType: record.extraction.recordType ?? recordType ?? 'records',
         input: record.data,
@@ -43,6 +47,38 @@ export async function sampleTransform(
     await extractor.teardown();
   }
   return samples;
+}
+
+/** Tags that only markup has: what a body holding HTML gives itself away by. */
+const MARKUP =
+  /<\/?(p|div|span|br|table|tr|td|a|b|i|strong|em|ul|ol|li|h[1-6]|img|font|html|body)(\s[^>]*)?\/?>/i;
+
+/**
+ * A `body` or `description` is what someone wrote, as plain text or
+ * Markdown, never the HTML it was delivered in: convert it with
+ * `htmlToMarkdown`. Checked on every sample, so a plugin's own tests catch
+ * it. A plugin whose text is code that may contain tags (a shell command)
+ * passes `allowMarkup`.
+ */
+function assertNoMarkup(node: unknown, recordType: string | undefined): void {
+  if (Array.isArray(node)) {
+    for (const item of node) assertNoMarkup(item, recordType);
+    return;
+  }
+  if (!node || typeof node !== 'object') return;
+  for (const [key, value] of Object.entries(node)) {
+    if ((key === 'body' || key === 'description') && typeof value === 'string') {
+      const markup = value.match(MARKUP);
+      if (markup) {
+        const type = (node as { '@type'?: string })['@type'] ?? 'node';
+        throw new Error(
+          `${recordType ?? 'A record'}: ${type}.${key} holds HTML (${markup[0]}). Convert it with htmlToMarkdown.`
+        );
+      }
+    } else {
+      assertNoMarkup(value, recordType);
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------

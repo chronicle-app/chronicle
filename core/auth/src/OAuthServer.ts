@@ -10,11 +10,13 @@ export class OAuthServer {
   private failure?: Error;
   private resolve?: (result: AuthorizationResult) => void;
   private reject?: (error: Error) => void;
+  private pending?: Promise<AuthorizationResult>;
 
   async start(preferredPort = 0, timeoutMs = 5 * 60 * 1000): Promise<number> {
     if (this.server) throw new Error('OAuth server already started');
     this.result = undefined;
     this.failure = undefined;
+    this.pending = undefined;
     const server = http.createServer((request, response) => {
       const url = new URL(request.url || '/', 'http://127.0.0.1');
       if (url.pathname !== '/callback') {
@@ -59,14 +61,16 @@ export class OAuthServer {
     }
   }
 
+  /** The callback, however many callers wait for it: they share one promise. */
   async waitForCallback(): Promise<AuthorizationResult> {
     if (this.result) return this.result;
     if (this.failure) throw this.failure;
     if (!this.server) throw new Error('Server not started');
-    return new Promise((resolve, reject) => {
+    this.pending ??= new Promise((resolve, reject) => {
       this.resolve = resolve;
       this.reject = reject;
     });
+    return this.pending;
   }
 
   stop(error = new Error('OAuth authorization cancelled')): void {
@@ -78,6 +82,7 @@ export class OAuthServer {
     }
     this.resolve = undefined;
     this.reject = undefined;
+    this.pending = undefined;
     this.server?.closeAllConnections();
     this.server?.close();
     this.server = undefined;

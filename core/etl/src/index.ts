@@ -65,6 +65,7 @@ export {
   tokenizeHtml,
   type HtmlToken,
 } from './utils/html.js';
+export { tidyText, withoutInvisible, withoutTracking } from './utils/text.js';
 
 export { MergingExtractor } from './MergingExtractor.js';
 export {
