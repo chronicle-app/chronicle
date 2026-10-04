@@ -59,8 +59,15 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
       sourceId: identityOf(event),
       ...(event.summary && { name: event.summary }),
       ...(description && { description }),
-      ...(startTime && { startTime }),
-      ...(endTime && { endTime }),
+      // When it's planned for: a declared interval, not something that
+      // happened. Times that happen belong to actions.
+      ...((startTime || endTime) && {
+        scheduledTime: {
+          '@type': 'Interval',
+          ...(startTime && { startTime }),
+          ...(endTime && { endTime }),
+        },
+      }),
       ...(event.location && { location: { '@type': 'Location', address: event.location } }),
       // Google's link opens one calendar's copy, so it isn't the event's:
       // the event is on each calendar it was read from instead.

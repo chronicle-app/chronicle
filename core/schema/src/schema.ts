@@ -540,6 +540,7 @@ export const CallActionSchema: z.ZodType<CallAction> = z
 export interface Session extends Omit<Entity, '@type'> {
   '@type': 'Session';
   references?: EntityAndChildren[];
+  scheduledTime?: IntervalAndChildren;
   subject?: EntityAndChildren[];
   workingDirectory?: DirectoryAndChildren;
 }
@@ -556,6 +557,7 @@ export type SessionAndChildren =
 const SessionProperties = {
   ...EntityProperties,
   references: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
+  scheduledTime: z.lazy(() => IntervalAndChildrenSchema).optional(),
   subject: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
   workingDirectory: z.lazy(() => DirectoryAndChildrenSchema).optional(),
 };
@@ -1047,9 +1049,8 @@ export const EpubCfiSelectorSchema: z.ZodType<EpubCfiSelector> = z
 export interface Event extends Omit<Entity, '@type'> {
   '@type': 'Event';
   attendee?: AgentAndChildren[];
-  endTime?: Date | string;
   location?: LocationAndChildren | PlaceAndChildren;
-  startTime?: Date | string;
+  scheduledTime?: IntervalAndChildren;
 }
 
 export type EventAndChildren = Event;
@@ -1057,9 +1058,8 @@ export type EventAndChildren = Event;
 const EventProperties = {
   ...EntityProperties,
   attendee: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
-  endTime: z.lazy(() => z.union([z.date(), z.string()])).optional(),
   location: z.lazy(() => z.union([LocationAndChildrenSchema, PlaceAndChildrenSchema])).optional(),
-  startTime: z.lazy(() => z.union([z.date(), z.string()])).optional(),
+  scheduledTime: z.lazy(() => IntervalAndChildrenSchema).optional(),
 };
 
 export const EventSchema: z.ZodType<Event> = z

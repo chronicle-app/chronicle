@@ -84,8 +84,11 @@ test('events on the shown calendars become plans for named events, with their gu
       name: 'Planning',
       // Google's HTML as Markdown, the tracking off its link.
       description: 'Agenda in [the doc](https://docs.example.com/agenda).\n\n**Bring** notes.',
-      startTime: new Date('2025-03-10T14:00:00Z'),
-      endTime: new Date('2025-03-10T15:00:00Z'),
+      scheduledTime: {
+        '@type': 'Interval',
+        startTime: new Date('2025-03-10T14:00:00Z'),
+        endTime: new Date('2025-03-10T15:00:00Z'),
+      },
       location: { '@type': 'Location', address: '1 Example Street' },
       isPartOf: [calendar(OWNER, OWNER)],
       // The room booked for it isn't a guest.
@@ -99,8 +102,8 @@ test('events on the shown calendars become plans for named events, with their gu
   assert.deepEqual(copy.object.isPartOf, [calendar(TEAM, 'Work')]);
 
   // An all-day event keeps its dates as dates.
-  assert.equal(trip.object.startTime, '2025-03-14');
-  assert.equal(trip.object.endTime, '2025-03-16');
+  assert.equal(trip.object.scheduledTime.startTime, '2025-03-14');
+  assert.equal(trip.object.scheduledTime.endTime, '2025-03-16');
   assert.equal(trip.object.attendee, undefined);
 
   // Each instance of a recurring event is its own event, planned by its organizer.

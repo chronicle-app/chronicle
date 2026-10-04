@@ -17,91 +17,139 @@ export interface JsonColorTheme {
   Comma: typeof chalk.dim;
 }
 
-// Simple JSON colorizer using Chalk (same as json-colorizer but using Chalk directly)
-export function colorizeJson(obj: any, theme?: JsonColorTheme, singleLine?: boolean): string {
-  const colors = theme || {
-    StringLiteral: chalk.green,
-    NumberLiteral: chalk.cyan,
-    BooleanLiteral: chalk.yellow,
-    NullLiteral: chalk.gray,
-    StringKey: chalk.blue,
-    Whitespace: chalk.white,
-    Brace: chalk.dim,
-    Bracket: chalk.dim,
-    Colon: chalk.dim,
-    Comma: chalk.dim,
-  };
+const defaultTheme: JsonColorTheme = {
+  StringLiteral: chalk.green,
+  NumberLiteral: chalk.cyan,
+  BooleanLiteral: chalk.yellow,
+  NullLiteral: chalk.gray,
+  StringKey: chalk.blue,
+  Whitespace: chalk.white,
+  Brace: chalk.dim,
+  Bracket: chalk.dim,
+  Colon: chalk.dim,
+  Comma: chalk.dim,
+};
 
-  function colorizeValue(value: any, indent = 0): string {
-    const spaces = '  '.repeat(indent);
+const noColor = (text: string) => text;
+const plainTheme = Object.fromEntries(
+  Object.keys(defaultTheme).map(key => [key, noColor])
+) as unknown as JsonColorTheme;
 
-    if (value === null) {
-      return colors.NullLiteral('null');
-    }
+/** Lines no longer than this put short arrays and objects on one line. */
+const WIDTH = 100;
 
-    if (typeof value === 'string') {
-      return colors.StringLiteral(JSON.stringify(value));
-    }
+// What JSON.stringify would write for a value: dates as ISO strings (null if
+// invalid), and undefined or functions left out of objects and null in arrays.
+function jsonValue(value: unknown): unknown {
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.toISOString();
+  return value;
+}
 
-    if (typeof value === 'number') {
-      return colors.NumberLiteral(value.toString());
-    }
+const omitted = (value: unknown) => value === undefined || typeof value === 'function';
 
-    if (typeof value === 'boolean') {
-      return colors.BooleanLiteral(value.toString());
-    }
+function entries(value: object): [string, unknown][] {
+  return Object.entries(value)
+    .map(([key, item]) => [key, jsonValue(item)] as [string, unknown])
+    .filter(([, item]) => !omitted(item));
+}
 
-    // Dates have no enumerable keys, so the object branch below would render
-    // them as `{}`. Match JSON.stringify: ISO string, or null if invalid.
-    if (value instanceof Date) {
-      return Number.isNaN(value.getTime())
-        ? colors.NullLiteral('null')
-        : colors.StringLiteral(`"${value.toISOString()}"`);
-    }
-
-    if (Array.isArray(value)) {
-      if (value.length === 0) {
-        return colors.Bracket('[]');
-      }
-
-      if (singleLine) {
-        const items = value.map(item => colorizeValue(item, indent + 1)).join(colors.Comma(', '));
-        return colors.Bracket('[') + items + colors.Bracket(']');
-      }
-      const items = value
-        .map(item => `${spaces}  ${colorizeValue(item, indent + 1)}`)
-        .join(colors.Comma(',\n'));
-      return colors.Bracket('[') + '\n' + items + '\n' + spaces + colors.Bracket(']');
-    }
-
-    if (typeof value === 'object') {
-      const keys = Object.keys(value);
-      if (keys.length === 0) {
-        return colors.Brace('{}');
-      }
-
-      if (singleLine) {
-        const items = keys
-          .map(
-            key =>
-              `${colors.StringKey(JSON.stringify(key))}${colors.Colon(': ')}${colorizeValue(value[key], indent + 1)}`
-          )
-          .join(colors.Comma(', '));
-        return colors.Brace('{') + items + colors.Brace('}');
-      }
-      const items = keys
-        .map(
-          key =>
-            `${spaces}  ${colors.StringKey(JSON.stringify(key))}${colors.Colon(': ')}${colorizeValue(value[key], indent + 1)}`
-        )
-        .join(colors.Comma(',\n'));
-      return colors.Brace('{') + '\n' + items + '\n' + spaces + colors.Brace('}');
-    }
-
-    return String(value);
+function scalar(value: unknown, c: JsonColorTheme): string {
+  if (value === null || omitted(value)) return c.NullLiteral('null');
+  if (typeof value === 'string') return c.StringLiteral(JSON.stringify(value));
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? c.NumberLiteral(String(value)) : c.NullLiteral('null');
   }
+  if (typeof value === 'boolean') return c.BooleanLiteral(String(value));
+  return c.StringLiteral(JSON.stringify(String(value)));
+}
 
-  return colorizeValue(obj);
+/** A value on one line: `["a", "b"]`, `{ "@type": "Realm", "handle": "am5" }`. */
+function inline(value: unknown, c: JsonColorTheme): string {
+  value = jsonValue(value);
+  if (Array.isArray(value)) {
+    if (value.length === 0) return c.Bracket('[]');
+    const items = value.map(item => inline(jsonValue(item), c)).join(c.Comma(', '));
+    return c.Bracket('[') + items + c.Bracket(']');
+  }
+  if (typeof value === 'object' && value !== null) {
+    const fields = entries(value);
+    if (fields.length === 0) return c.Brace('{}');
+    const items = fields
+      .map(([key, item]) => c.StringKey(JSON.stringify(key)) + c.Colon(': ') + inline(item, c))
+      .join(c.Comma(', '));
+    return c.Brace('{ ') + items + c.Brace(' }');
+  }
+  return scalar(value, c);
+}
+
+const isContainer = (value: unknown) => typeof value === 'object' && value !== null;
+
+/** Strings, numbers and the like packed onto as few lines as fit, as a list of `@key` paths. */
+function fill(items: unknown[], c: JsonColorTheme, indent: string): string[] {
+  const lines: string[] = [];
+  let line = '';
+  let used = 0;
+  for (const item of items) {
+    const text = scalar(jsonValue(item), c);
+    const width = scalar(jsonValue(item), plainTheme).length;
+    // Each item but the last on a line is followed by `, `; the last by `,`.
+    if (line !== '' && used + 2 + width + 1 > WIDTH) {
+      lines.push(line);
+      line = '';
+    }
+    if (line === '') {
+      line = indent + text;
+      used = indent.length + width;
+    } else {
+      line += c.Comma(', ') + text;
+      used += 2 + width;
+    }
+  }
+  lines.push(line);
+  return lines;
+}
+
+/**
+ * A value laid out over lines, two-space indented. An array or object that
+ * fits in what's left of its line stays on that line; the record itself
+ * (`depth` 0) always opens up, so each record starts its own block.
+ */
+function block(value: unknown, c: JsonColorTheme, indent: string, used: number, depth = 0): string {
+  value = jsonValue(value);
+  if (typeof value !== 'object' || value === null) return scalar(value, c);
+  // The trailing comma a nested value may need counts against the width.
+  if (depth > 0 && used + inline(value, plainTheme).length + 1 <= WIDTH) return inline(value, c);
+  const inner = `${indent}  `;
+  if (Array.isArray(value)) {
+    if (value.length === 0) return c.Bracket('[]');
+    const lines = value.every(item => !isContainer(jsonValue(item)))
+      ? fill(value, c, inner)
+      : value.map(item => inner + block(item, c, inner, inner.length, depth + 1));
+    return `${c.Bracket('[')}\n${lines.join(c.Comma(',\n'))}\n${indent}${c.Bracket(']')}`;
+  }
+  const fields = entries(value);
+  if (fields.length === 0) return c.Brace('{}');
+  const items = fields.map(([key, item]) => {
+    const name = `${JSON.stringify(key)}: `;
+    const rendered = block(item, c, inner, inner.length + name.length, depth + 1);
+    return inner + c.StringKey(JSON.stringify(key)) + c.Colon(': ') + rendered;
+  });
+  return `${c.Brace('{')}\n${items.join(c.Comma(',\n'))}\n${indent}${c.Brace('}')}`;
+}
+
+/**
+ * JSON for reading: indented like `JSON.stringify(value, null, 2)`, but
+ * arrays and objects that fit within 100 columns stay on one line, so
+ * `@key` lists and small nodes don't take a line per item. Parses to the
+ * same value. Pass a theme to color it.
+ */
+export function formatJson(value: unknown, theme: JsonColorTheme = plainTheme): string {
+  return block(value, theme, '', 0);
+}
+
+export function colorizeJson(obj: unknown, theme?: JsonColorTheme, singleLine?: boolean): string {
+  const colors = theme || defaultTheme;
+  return singleLine ? inline(obj, colors) : formatJson(obj, colors);
 }
 
 export class JsonLoader extends Loader<typeof JsonLoader> {
@@ -127,7 +175,7 @@ export class JsonLoader extends Loader<typeof JsonLoader> {
   }
 
   async load(record: Record): Promise<LoadResult> {
-    const jsonText = JSON.stringify(record.data, null, 2) + '\n';
+    const jsonText = formatJson(record.data) + '\n';
 
     if (this.config.output) {
       // Write to file - overwrite on first write, append afterwards

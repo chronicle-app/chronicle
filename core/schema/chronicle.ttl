@@ -217,7 +217,6 @@
   rdfs:comment "The start time of an action, or the start bound of an interval value. A :DateTime is an anchored instant; a :Date is a civil whole-day bound (e.g. an all-day event).";
   owl:maxCardinality 1;
   :domainIncludes :Action,
-    :Event,
     :Interval;
   :rangeIncludes :Date,
     :DateTime .
@@ -225,7 +224,6 @@
   rdfs:comment "The end time of an action, or the end bound of an interval value. A :DateTime is an anchored instant; a :Date is a civil whole-day bound (e.g. an all-day event).";
   owl:maxCardinality 1;
   :domainIncludes :Action,
-    :Event,
     :Interval;
   :rangeIncludes :Date,
     :DateTime .
@@ -335,6 +333,12 @@
 :Interval a rdfs:Class;
   rdfs:comment "A bounded stretch of time — a start and an end, each at its own precision. A structured value with no identity of its own, like :Location; it carries the declared extent of an event or session (its :scheduledTime), as distinct from an action's occurrence.";
   rdfs:subClassOf :StructuredValue .
+:scheduledTime a rdf:Property;
+  rdfs:comment "The declared or planned interval an event or session is scheduled for — its purported extent, as a single :Interval value. Distinct from its actual extent, which derives from the activity that constitutes it.";
+  owl:maxCardinality 1;
+  :domainIncludes :Event,
+    :Session;
+  :rangeIncludes :Interval .
 :relation a rdf:Property;
   rdfs:comment "Any edge from an entity to another entity.";
   :abstract true;
