@@ -150,6 +150,52 @@ test('an event exactly on the edge between two reads is read once', async t => {
   assert.equal(new Set(keys).size, keys.length);
 });
 
+test('a long event comes out by its start, after later events, and one with no organizer has its calendar', async t => {
+  await fakeCalendar(t);
+  // Reads go back 90 days from June 1, so one edge falls on March 3. The trip
+  // starts before it and ends after: the newer read returns it too.
+  const trip = {
+    id: 'long1',
+    iCalUID: 'long@example.com',
+    summary: 'Long trip',
+    start: { date: '2025-02-20' },
+    end: { date: '2025-03-10' },
+    organizer: { email: OWNER, self: true },
+  };
+  // Copied in from elsewhere: no organizer, no creator.
+  const orphan = {
+    id: 'orphan1',
+    iCalUID: 'orphan@example.com',
+    summary: 'Copied',
+    start: { dateTime: '2025-02-25T10:00:00Z' },
+    end: { dateTime: '2025-02-25T11:00:00Z' },
+  };
+  EVENTS[OWNER].push(trip, orphan);
+  t.after(() => EVENTS[OWNER].splice(-2));
+
+  const { records, actions } = await extract({
+    since: new Date('2025-01-01T00:00:00Z'),
+    until: new Date('2025-06-01T00:00:00Z'),
+  });
+  const starts = records.map(record => {
+    const { start } = record.data.event;
+    return new Date(start.dateTime ?? start.date).getTime();
+  });
+  assert.deepEqual(
+    starts,
+    starts.toSorted((a, b) => b - a)
+  );
+  const copied = actions.find(action => action.object.name === 'Copied');
+  assert.deepEqual(copied.agent, {
+    '@type': 'Agent',
+    '@key': ['@type', 'source', 'sourceId'],
+    source: 'google-calendar',
+    sourceId: OWNER,
+    name: OWNER,
+    sameAs: ['@me'],
+  });
+});
+
 test('a rejected token says to sign in again', async t => {
   await fakeCalendar(t);
   await assert.rejects(extract({ accessToken: 'stale' }), error => {

@@ -10,12 +10,14 @@ type Contacts = { [address: string]: ContactLinks };
 export default class GoogleCalendarTransformer extends ChronicleTransformer {
   override async transform(record: Record): Promise<ActionAndChildren[]> {
     if (record.extraction.recordType !== 'events') return [];
-    const { event, contacts = {} } = record.data as EventRecord;
+    const { event, calendar, contacts = {} } = record.data as EventRecord;
 
-    const organizer = this.buildAgent(event.organizer ?? event.creator, contacts);
-    if (!organizer) {
-      throw new Error(`Event ${event.id} has no organizer or creator with an email`);
-    }
+    // Who put it on the calendar: its organizer, else its creator, else (an
+    // event with neither, like one copied in) the calendar itself.
+    const organizer =
+      this.buildAgent(event.organizer, contacts) ??
+      this.buildAgent(event.creator, contacts) ??
+      this.calendarAgent(calendar);
 
     const plan: PlanAction = {
       '@type': 'PlanAction',
@@ -52,6 +54,18 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
       ...(event.location && { location: { '@type': 'Location', address: event.location } }),
       ...(event.htmlLink && { url: event.htmlLink }),
       ...(attendees.length > 0 && { attendee: attendees }),
+    };
+  }
+
+  /** A calendar as the agent of its own event: yours (`@me`) when it's your primary one. */
+  private calendarAgent(calendar: EventRecord['calendar']): Agent {
+    return {
+      '@type': 'Agent',
+      '@key': ['@type', 'source', 'sourceId'],
+      source,
+      sourceId: calendar.id,
+      name: calendar.summary,
+      ...(calendar.primary && { sameAs: ['@me'] }),
     };
   }
 

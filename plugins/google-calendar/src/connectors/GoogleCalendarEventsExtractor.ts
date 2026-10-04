@@ -110,12 +110,16 @@ export class GoogleCalendarEventsExtractor extends Extractor<typeof GoogleCalend
     const seen = new Set<string>();
     const reach = (at: number) =>
       new Date(Math.min(until.getTime(), Math.max(since.getTime(), at)));
+    // A read returns every event that overlaps it, including a long one
+    // that started further back. It waits here until the walk reaches its
+    // start, so the whole run is newest first by start.
+    let waiting: Record[] = [];
+    const startOfRecord = (record: Record) => this.occurredAt(record)!.getTime();
 
     for (let end = until; end > since;) {
       const start = new Date(Math.max(since.getTime(), end.getTime() - WINDOW_DAYS * DAY_MS));
       const from = reach(start.getTime() - DAY_MS);
       const to = reach(end.getTime() + DAY_MS);
-      const records: Record[] = [];
       for (const calendar of this.calendars) {
         for await (const event of this.eventsIn(calendar, from, to)) {
           const record = this.createRecord(this.recordOf(event, calendar), {
@@ -124,12 +128,18 @@ export class GoogleCalendarEventsExtractor extends Extractor<typeof GoogleCalend
           const key = this.keyOf(record);
           if (seen.has(key)) continue;
           seen.add(key);
-          records.push(record);
+          waiting.push(record);
         }
       }
-      // Stable, so events starting together keep the calendars' order.
-      records.sort((a, b) => this.occurredAt(b)!.getTime() - this.occurredAt(a)!.getTime());
-      for (const record of records) {
+      // Every event starting from `from` on has been read: those go out, in
+      // order. Stable, so events starting together keep the calendars' order.
+      waiting.sort((a, b) => startOfRecord(b) - startOfRecord(a));
+      const last = start.getTime() <= since.getTime();
+      const ready = last
+        ? waiting
+        : waiting.filter(record => startOfRecord(record) >= from.getTime());
+      waiting = last ? [] : waiting.filter(record => startOfRecord(record) < from.getTime());
+      for (const record of ready) {
         yield record;
         if (this.shouldStopExtracting(++count)) return;
       }
