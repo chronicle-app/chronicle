@@ -32,6 +32,13 @@ const person = (handle, name, extra = {}) => ({
   ...extra,
 });
 const owner = person(OWNER, 'Test Owner', { sameAs: ['@me'] });
+const calendar = (sourceId, name) => ({
+  '@type': 'Collection',
+  '@key': ['@type', 'source', 'sourceId'],
+  source: 'google-calendar',
+  sourceId,
+  name,
+});
 const guest = person('guest@example.com', 'Test Guest');
 
 test('events on the shown calendars become plans for named events, with their guests', async t => {
@@ -65,14 +72,14 @@ test('events on the shown calendars become plans for named events, with their gu
   assert.deepEqual(planning, {
     '@type': 'PlanAction',
     '@key': ['@type', 'source', 'sourceId'],
-    source: 'google-calendar',
+    source: 'icalendar',
     sourceId: 'planning@example.com',
     timestamp: new Date('2025-03-01T09:00:00Z'),
     agent: owner,
     object: {
       '@type': 'Event',
       '@key': ['@type', 'source', 'sourceId'],
-      source: 'google-calendar',
+      source: 'icalendar',
       sourceId: 'planning@example.com',
       name: 'Planning',
       // Google's HTML as Markdown, the tracking off its link.
@@ -80,14 +87,16 @@ test('events on the shown calendars become plans for named events, with their gu
       startTime: new Date('2025-03-10T14:00:00Z'),
       endTime: new Date('2025-03-10T15:00:00Z'),
       location: { '@type': 'Location', address: '1 Example Street' },
-      url: 'https://calendar.google.com/event?eid=planning1',
+      isPartOf: [calendar(OWNER, OWNER)],
       // The room booked for it isn't a guest.
       attendee: [owner, guest],
     },
     '@assertedAt': new Date('2025-03-01T09:00:00Z'),
   });
   // The same meeting on another calendar is the same event.
-  assert.deepEqual(copy, planning);
+  // The same meeting on another calendar is the same event, on both calendars.
+  assert.deepEqual(copy.object.sourceId, planning.object.sourceId);
+  assert.deepEqual(copy.object.isPartOf, [calendar(TEAM, 'Work')]);
 
   // An all-day event keeps its dates as dates.
   assert.equal(trip.object.startTime, '2025-03-14');

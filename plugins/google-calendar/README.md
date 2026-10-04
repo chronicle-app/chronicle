@@ -17,17 +17,19 @@ A run reads every calendar shown in your Google Calendar list, except the ones G
 
 ## Schema
 
-| Calendar thing         | Chronicle node | Key                                                             | Properties                                                                                                                           |
-| ---------------------- | -------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| An event on a calendar | `PlanAction`   | `@type`, `source`, `sourceId`                                   | `agent` (the organizer), `object` (the `Event`), `timestamp` (when it was put on the calendar)                                       |
-| The event              | `Event`        | `@type`, `source`, `sourceId`                                   | `name`, `description` (Markdown), `startTime`, `endTime`, `location` (a `Location` with the `address` as written), `url`, `attendee` |
-| A person on it         | `Agent`        | `@type`, `source` (`email`), `handle` (their email, lowercased) | `name`; you are `sameAs` `@me`                                                                                                       |
+| Calendar thing         | Chronicle node | Key                                                             | Properties                                                                                                                                                        |
+| ---------------------- | -------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| An event on a calendar | `PlanAction`   | `@type`, `source`, `sourceId`                                   | `agent` (the organizer), `object` (the `Event`), `timestamp` (when it was put on the calendar)                                                                    |
+| The event              | `Event`        | `@type`, `source` (`icalendar`), `sourceId` (the UID)           | `name`, `description` (Markdown), `startTime`, `endTime`, `location` (a `Location` with the `address` as written), `attendee`, `isPartOf` (each calendar it's on) |
+| A person on it         | `Agent`        | `@type`, `source` (`email`), `handle` (their email, lowercased) | `name`; you are `sameAs` `@me`                                                                                                                                    |
 
 `SHAPES.md` sketches the output, generated from the tests.
 
 ### Decisions
 
-**An event is keyed by its iCalendar UID.** The UID is the same on every guest's calendar, so a meeting on two of your calendars is one event. Each occurrence of a recurring event has the series' UID and is keyed by it and when that occurrence was due (`<uid>@<original start>`), so moving one occurrence keeps it the same event.
+**An event is keyed by its iCalendar UID, in the `icalendar` namespace.** The UID is defined by the protocol (RFC 5545) and is the same on every guest's calendar and in every provider an invitation reaches, so a meeting on two of your calendars, in two of your accounts, or later from another calendar provider is one event. Each occurrence of a recurring event has the series' UID and is keyed by it and when that occurrence was due (`<uid>@<original start>`), so moving one occurrence keeps it the same event.
+
+**An event has no URL; it's on its calendars.** Google's event link encodes one calendar's copy (its event ID and calendar ID), so the same meeting has a different link on each calendar, and only someone who can see that calendar can open it. The event is instead `isPartOf` a `Collection` for each calendar it was read from, keyed by Google's calendar ID. The link stays in the raw record.
 
 **A timed event has instants; an all-day event has dates.** `startTime` and `endTime` are instants for a timed event, and the civil dates (`2025-03-14`) for an all-day one, with Google's exclusive end date.
 

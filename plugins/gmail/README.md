@@ -39,7 +39,7 @@ Messages are built by [@chronicle.app/email-core](../../core/email/README.md), t
 
 ### Decisions
 
-**A message is its Message-ID, wherever it's read.** A message carries no source in its key, so a message from the API, the same message in a Takeout, and a copy in another mbox are one node. A person is their lowercased address in the `email` namespace, the identity other plugins link an address to, so a person seen in Gmail, any other mail, or a calendar is one node. A message without a Message-ID is identified by its sender, date, and subject.
+**A message is its Message-ID, wherever it's read.** A message is keyed by its Message-ID in the `email` namespace, the protocol's own, so a message from the API, the same message in a Takeout, and a copy in another mbox are one node. A person is their lowercased address in the `email` namespace, the identity other plugins link an address to, so a person seen in Gmail, any other mail, or a calendar is one node. A message without a Message-ID is identified by its sender, date, and subject.
 
 **Threads and labels come from Gmail either way.** The API gives a message's thread ID and label IDs; a Takeout writes the same thread ID in decimal (`X-GM-THRID`) and the labels by name (`X-Gmail-Labels`). Both become the same `Thread` and the same label names, as Gmail shows them. Read state (Unread, Opened) changes as you read, so it isn't kept as a label.
 

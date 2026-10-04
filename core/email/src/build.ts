@@ -2,13 +2,16 @@ import type { Agent, Message, MessageAction, Thread } from '@chronicle.app/schem
 import type { MailAddress, MailMessage } from './parse.js';
 
 /**
- * A message is named by its Message-ID wherever it's read, with no source:
- * the same email from Gmail, a Takeout, or any mbox is one node.
+ * A message is named by its Message-ID in the `email` namespace: the
+ * protocol's own identity, so the same email from Gmail, a Takeout, or any
+ * mbox is one node, whichever plugin read it.
  */
-const MESSAGE_KEY = ['@type', 'sourceId'];
+const MESSAGE_KEY = ['@type', 'source', 'sourceId'];
 /** Without a Message-ID: who sent it, when, and under what subject. */
-const KEYLESS_MESSAGE_KEY = ['@type', 'action.timestamp', 'action.agent.handle', 'name'];
-const KEYLESS_ACTION_KEY = ['@type', 'timestamp', 'agent.handle', 'object.name'];
+const KEYLESS_MESSAGE_KEY = ['@type', 'source', 'action.timestamp', 'action.agent.handle', 'name'];
+const KEYLESS_ACTION_KEY = ['@type', 'source', 'timestamp', 'agent.handle', 'object.name'];
+/** Identifiers defined by the email protocol (RFC 5322) live in its namespace. */
+const EMAIL = 'email';
 /**
  * A person is their email address, in the `email` namespace: the identity
  * other plugins link a person's address to (iMessage, LinkedIn, Timing, …),
@@ -84,14 +87,16 @@ export function messageAction(mail: MailMessage, options: MessageNodeOptions = {
   const message: Message = {
     '@type': 'Message',
     ...(mail.messageId
-      ? { '@key': MESSAGE_KEY, sourceId: mail.messageId }
-      : { '@key': KEYLESS_MESSAGE_KEY }),
+      ? { '@key': MESSAGE_KEY, source: EMAIL, sourceId: mail.messageId }
+      : { '@key': KEYLESS_MESSAGE_KEY, source: EMAIL }),
     name: mail.subject,
     ...(mail.text && { body: mail.text }),
     author: [sender],
     ...(recipients.length > 0 && { recipient: recipients }),
     ...(mail.inReplyTo && {
-      inReplyTo: [{ '@type': 'Message', '@key': MESSAGE_KEY, sourceId: mail.inReplyTo }],
+      inReplyTo: [
+        { '@type': 'Message', '@key': MESSAGE_KEY, source: EMAIL, sourceId: mail.inReplyTo },
+      ],
     }),
     ...(options.thread && { isPartOf: [options.thread] }),
     ...(options.tags?.length && { tags: options.tags }),
@@ -100,8 +105,8 @@ export function messageAction(mail: MailMessage, options: MessageNodeOptions = {
   return {
     '@type': 'MessageAction',
     ...(mail.messageId
-      ? { '@key': MESSAGE_KEY, sourceId: mail.messageId }
-      : { '@key': KEYLESS_ACTION_KEY }),
+      ? { '@key': MESSAGE_KEY, source: EMAIL, sourceId: mail.messageId }
+      : { '@key': KEYLESS_ACTION_KEY, source: EMAIL }),
     timestamp: new Date(sentAt),
     agent: sender,
     object: message,
@@ -115,7 +120,7 @@ function agent(address: MailAddress, me: boolean, identities: Agent[] = []): Age
   return {
     '@type': 'Agent',
     '@key': ADDRESS_KEY,
-    source: 'email',
+    source: EMAIL,
     handle,
     name: address.name || handle,
     ...(sameAs.length > 0 && { sameAs }),

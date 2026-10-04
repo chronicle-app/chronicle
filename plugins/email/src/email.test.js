@@ -112,14 +112,16 @@ test('messages become schema-valid MessageActions keyed on the Message-ID', asyn
   const alice = agent('alice@example.test', 'Alice Example');
   assert.deepEqual(action, {
     '@type': 'MessageAction',
-    '@key': ['@type', 'sourceId'],
+    '@key': ['@type', 'source', 'sourceId'],
+    source: 'email',
     sourceId: '<keyed-1@example.test>',
     timestamp: new Date('2025-01-06T10:00:00Z'),
     '@assertedAt': new Date('2025-01-06T10:00:00Z'),
     agent: alice,
     object: {
       '@type': 'Message',
-      '@key': ['@type', 'sourceId'],
+      '@key': ['@type', 'source', 'sourceId'],
+      source: 'email',
       sourceId: '<keyed-1@example.test>',
       name: 'Café plans',
       // The text/plain alternative; the HTML one is left out.
@@ -163,13 +165,15 @@ test('a message without a Message-ID is keyed on From, Date, and Subject', async
   const carol = agent('carol@example.test', 'Carol');
   assert.deepEqual(action, {
     '@type': 'MessageAction',
-    '@key': ['@type', 'timestamp', 'agent.handle', 'object.name'],
+    '@key': ['@type', 'source', 'timestamp', 'agent.handle', 'object.name'],
+    source: 'email',
     timestamp: new Date('2025-01-06T11:00:00Z'),
     '@assertedAt': new Date('2025-01-06T11:00:00Z'),
     agent: carol,
     object: {
       '@type': 'Message',
-      '@key': ['@type', 'action.timestamp', 'action.agent.handle', 'name'],
+      '@key': ['@type', 'source', 'action.timestamp', 'action.agent.handle', 'name'],
+      source: 'email',
       name: 'Keyless',
       body: 'No Message-ID header.',
       author: [carol],

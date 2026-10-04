@@ -13,14 +13,14 @@ converted from the record. Every node also has `source`.
 ## messages
 
 ```ts
-MessageAction key(sourceId, any source) {
+MessageAction key(sourceId) {
   sourceId, timestamp
   agent: Agent key(handle) { handle, name, sameAs[]? }
-  object: Message key(sourceId, any source) {
+  object: Message key(sourceId) {
     sourceId, name, body, tags[]
     author[]: Agent key(handle) { handle, name, sameAs[]? }
     recipient[]: Agent key(handle) { handle, name, sameAs[]? }
-    inReplyTo[]?: Message key(sourceId, any source) { sourceId }
+    inReplyTo[]?: Message key(sourceId) { sourceId }
     isPartOf[]: Thread key(sourceId) { sourceId }
   }
 }

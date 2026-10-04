@@ -1,9 +1,15 @@
 import { ChronicleTransformer, Record, htmlToMarkdown, tidyText } from '@chronicle.app/etl';
 import { contactIdentities, type ContactLinks } from '@chronicle.app/google';
-import { ActionAndChildren, Agent, Event, PlanAction } from '@chronicle.app/schema';
+import { ActionAndChildren, Agent, Collection, Event, PlanAction } from '@chronicle.app/schema';
 import type { CalendarEvent, EventPerson, EventRecord, EventTime } from '../types.js';
 
 const source = 'google-calendar';
+/**
+ * Events and their planning are keyed by the iCalendar UID in the protocol's
+ * own namespace (RFC 5545), so a meeting is one node whichever account or
+ * calendar provider it was read from.
+ */
+const ICALENDAR = 'icalendar';
 
 type Contacts = { [address: string]: ContactLinks };
 
@@ -22,17 +28,21 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
     const plan: PlanAction = {
       '@type': 'PlanAction',
       '@key': ['@type', 'source', 'sourceId'],
-      source,
+      source: ICALENDAR,
       sourceId: identityOf(event),
       // When it was put on the calendar; the event carries when it happens.
       timestamp: new Date(event.created ?? event.updated ?? startOf(event.start)!),
       agent: organizer,
-      object: this.buildEvent(event, contacts),
+      object: this.buildEvent(event, calendar, contacts),
     };
     return [plan];
   }
 
-  private buildEvent(event: CalendarEvent, contacts: Contacts): Event {
+  private buildEvent(
+    event: CalendarEvent,
+    calendar: EventRecord['calendar'],
+    contacts: Contacts
+  ): Event {
     const attendees = (event.attendees ?? [])
       // Rooms and equipment booked for the event aren't guests.
       .filter(attendee => !attendee.resource)
@@ -45,14 +55,16 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
     return {
       '@type': 'Event',
       '@key': ['@type', 'source', 'sourceId'],
-      source,
+      source: ICALENDAR,
       sourceId: identityOf(event),
       ...(event.summary && { name: event.summary }),
       ...(description && { description }),
       ...(startTime && { startTime }),
       ...(endTime && { endTime }),
       ...(event.location && { location: { '@type': 'Location', address: event.location } }),
-      ...(event.htmlLink && { url: event.htmlLink }),
+      // Google's link opens one calendar's copy, so it isn't the event's:
+      // the event is on each calendar it was read from instead.
+      isPartOf: [calendarCollection(calendar)],
       ...(attendees.length > 0 && { attendee: attendees }),
     };
   }
@@ -112,4 +124,15 @@ const startOf = (time: EventTime | undefined) => time?.dateTime ?? time?.date;
 function timeOf(time: EventTime | undefined): Date | string | undefined {
   if (time?.dateTime) return new Date(time.dateTime);
   return time?.date;
+}
+
+/** A calendar as the collection its events are on, by Google's calendar ID. */
+function calendarCollection(calendar: EventRecord['calendar']): Collection {
+  return {
+    '@type': 'Collection',
+    '@key': ['@type', 'source', 'sourceId'],
+    source,
+    sourceId: calendar.id,
+    name: calendar.summary,
+  };
 }
