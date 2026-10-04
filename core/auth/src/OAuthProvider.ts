@@ -1,5 +1,13 @@
 import axios from 'axios';
-import { OAuthParams, TokenResponse, OAuthConfig } from './types.js';
+import { EXIT_CODES, ExtractorError } from '@chronicle.app/logging';
+import { createHash, randomBytes } from 'node:crypto';
+import {
+  ClientCredentials,
+  OAuthParams,
+  OAuthConfig,
+  ProviderSetupContext,
+  TokenResponse,
+} from './types.js';
 
 /**
  * Base OAuth2 authorization-code flow. A standard provider only declares the
@@ -16,6 +24,10 @@ import { OAuthParams, TokenResponse, OAuthConfig } from './types.js';
  *
  * A provider whose protocol deviates from OAuth2 (e.g. Last.fm's signed
  * auth.getSession) overrides buildAuthUrl / exchangeCodeForToken instead.
+ *
+ * A provider whose people register their own OAuth client can walk them
+ * through it in `setup()`, which `chronicle auth login` runs when no client
+ * is given on the command line.
  */
 export abstract class OAuthProvider {
   static providerId: string;
@@ -31,6 +43,24 @@ export abstract class OAuthProvider {
   static tokenAuthStyle: 'basic-header' | 'body' = 'body';
   /** Provider-specific additions to the authorization URL. */
   static extraAuthParams: Record<string, string> = {};
+  /** Send a PKCE challenge with the authorization and its verifier with the exchange. */
+  static pkce: boolean = false;
+  /**
+   * Scopes by a name a person can pass to `chronicle auth login --add`, for
+   * a provider whose sources each need their own (`gmail`, `calendar`).
+   * Every login also asks for `scopes`.
+   */
+  static scopeSets: Record<string, string[]> = {};
+  /** The sets a first login asks for when none are named. */
+  static defaultScopeSets: string[] = [];
+  /** Printed under the sign-in summary: what to run next. */
+  static signedInHint?: string;
+  /**
+   * Find or make the OAuth client to sign in with, walking the person
+   * through whatever the provider's console needs. Run by `chronicle auth
+   * login` when no `--client-id` is given.
+   */
+  static setup?(context: ProviderSetupContext): Promise<ClientCredentials>;
 
   protected params: OAuthParams;
 
@@ -46,6 +76,42 @@ export abstract class OAuthProvider {
       scopes: this.scopes,
       requiresClientSecret: this.requiresClientSecret,
     };
+  }
+
+  /** The scopes for the named sets, with the provider's own, without repeats. */
+  static scopesFor(sets: string[]): string[] {
+    const unknown = sets.filter(set => !this.scopeSets[set]);
+    if (unknown.length > 0) {
+      const known = Object.keys(this.scopeSets);
+      throw new ExtractorError(`Unknown access "${unknown[0]}" for ${this.providerId}`, {
+        code: 'unknown-scope-set',
+        exitCode: EXIT_CODES.usage,
+        hint: `Use ${known.length > 1 ? `${known.slice(0, -1).join(', ')}, or ${known.at(-1)}` : known[0]}.`,
+      });
+    }
+    return [...new Set([...this.scopes, ...sets.flatMap(set => this.scopeSets[set])])];
+  }
+
+  /** The named sets a granted scope string covers in full. */
+  static scopeSetsIn(granted: string | undefined): string[] {
+    const have = new Set((granted ?? '').split(/\s+/).filter(Boolean));
+    return Object.entries(this.scopeSets)
+      .filter(([, scopes]) => scopes.every(scope => have.has(scope)))
+      .map(([set]) => set);
+  }
+
+  /** A PKCE verifier: 43 URL-safe characters. */
+  static createCodeVerifier(): string {
+    return randomBytes(32).toString('base64url');
+  }
+
+  /**
+   * Which account signed in, from the token response, for a provider that
+   * says (an OpenID `id_token`). Several accounts of one provider are kept
+   * apart by it.
+   */
+  protected accountFrom(_response: any): string | undefined {
+    return undefined;
   }
 
   private get providerClass(): typeof OAuthProvider {
@@ -70,6 +136,13 @@ export abstract class OAuthProvider {
 
     Object.assign(params, cls.extraAuthParams);
 
+    if (cls.pkce && this.params.codeVerifier) {
+      params.code_challenge = createHash('sha256')
+        .update(this.params.codeVerifier)
+        .digest('base64url');
+      params.code_challenge_method = 'S256';
+    }
+
     if (this.params.state) {
       params.state = this.params.state;
     }
@@ -88,6 +161,9 @@ export abstract class OAuthProvider {
         code,
         redirect_uri: this.params.redirectUri,
       });
+      if (cls.pkce && this.params.codeVerifier) {
+        data.set('code_verifier', this.params.codeVerifier);
+      }
       const headers: Record<string, string> = {
         'Content-Type': 'application/x-www-form-urlencoded',
       };
@@ -103,6 +179,7 @@ export abstract class OAuthProvider {
       }
 
       const response = await this.postToken(cls.tokenUrl, data, { headers });
+      const account = this.accountFrom(response);
 
       return {
         provider: cls.providerId,
@@ -113,6 +190,8 @@ export abstract class OAuthProvider {
         expires_in: response.expires_in,
         scope: response.scope,
         created_at: new Date().toISOString(),
+        ...(account && { account }),
+        tokenUrl: cls.tokenUrl,
       };
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -137,8 +216,8 @@ export abstract class OAuthProvider {
   /**
    * Generate a random state parameter for CSRF protection
    */
-  protected generateState(): string {
-    return Math.random().toString(36).slice(2, 15) + Math.random().toString(36).slice(2, 15);
+  static generateState(): string {
+    return randomBytes(16).toString('base64url');
   }
 
   /**

@@ -1,6 +1,6 @@
 import { Args } from '@oclif/core';
 import { BaseCommand } from '../../baseCommand.js';
-import { CredentialManager, TokenHelper } from '../../auth/index.js';
+import { CredentialManager } from '../../auth/index.js';
 
 export default class AuthStatus extends BaseCommand<typeof AuthStatus> {
   static override description = 'Show stored credential status for a source';
@@ -20,37 +20,47 @@ export default class AuthStatus extends BaseCommand<typeof AuthStatus> {
     const { provider } = args;
 
     try {
-      const credentials = await CredentialManager.getCredentials(provider);
+      const entries = await CredentialManager.getAllCredentials(provider);
 
-      if (!credentials) {
+      if (entries.length === 0) {
         this.log(`No credentials stored for ${provider}`);
-        this.log(
-          `Authenticate using: chronicle auth login ${provider} --client-id YOUR_ID --client-secret YOUR_SECRET`
-        );
+        this.log(`Run \`chronicle auth login ${provider}\` to sign in.`);
         return;
       }
 
-      const isExpired = CredentialManager.isTokenExpired(credentials);
-      const hasValid = await TokenHelper.hasValidCredentials(provider);
+      // One block per signed-in account.
+      for (const credentials of entries) {
+        const { account } = credentials;
+        // Each entry by its own expiry: checking one doesn't refresh another.
+        const isExpired = CredentialManager.isTokenExpired(credentials);
+        const status = isExpired
+          ? credentials.refreshToken
+            ? 'Expired (refreshes on next use)'
+            : '⚠️  Expired/Invalid'
+          : '✅ Valid';
 
-      this.log(`${provider} credentials:`);
-      this.log(`  Status: ${hasValid ? '✅ Valid' : '⚠️  Expired/Invalid'}`);
-      this.log(`  Token Type: ${credentials.tokenType}`);
-      this.log(`  Created: ${new Date(credentials.createdAt).toLocaleString()}`);
+        this.log(`${provider} credentials:`);
+        if (account) {
+          this.log(`  Account: ${account}`);
+        }
+        this.log(`  Status: ${status}`);
+        this.log(`  Token Type: ${credentials.tokenType}`);
+        this.log(`  Created: ${new Date(credentials.createdAt).toLocaleString()}`);
 
-      if (credentials.expiresIn) {
-        const expiresAt = new Date(
-          new Date(credentials.createdAt).getTime() + credentials.expiresIn * 1000
-        );
-        this.log(`  Expires: ${expiresAt.toLocaleString()}`);
-        this.log(`  Expired: ${isExpired ? 'Yes' : 'No'}`);
+        if (credentials.expiresIn) {
+          const expiresAt = new Date(
+            new Date(credentials.createdAt).getTime() + credentials.expiresIn * 1000
+          );
+          this.log(`  Expires: ${expiresAt.toLocaleString()}`);
+          this.log(`  Expired: ${isExpired ? 'Yes' : 'No'}`);
+        }
+
+        if (credentials.scope) {
+          this.log(`  Scopes: ${credentials.scope}`);
+        }
+
+        this.log(`  Has Refresh Token: ${credentials.refreshToken ? 'Yes' : 'No'}`);
       }
-
-      if (credentials.scope) {
-        this.log(`  Scopes: ${credentials.scope}`);
-      }
-
-      this.log(`  Has Refresh Token: ${credentials.refreshToken ? 'Yes' : 'No'}`);
     } catch (error) {
       this.failFrom(error, `Failed to check status for ${provider}`);
     }

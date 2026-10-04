@@ -61,10 +61,22 @@
       "summary": "Goodreads shelves and reading history"
     },
     {
+      "name": "google-calendar",
+      "package": "@chronicle.app/google-calendar",
+      "tier": "official",
+      "summary": "Google Calendar events"
+    },
+    {
       "name": "github",
       "package": "@chronicle.app/github",
       "tier": "official",
       "summary": "GitHub pull requests, issues, comments, reviews, stars, and gists"
+    },
+    {
+      "name": "gmail",
+      "package": "@chronicle.app/gmail",
+      "tier": "official",
+      "summary": "Gmail messages, threads, and labels"
     },
     {
       "name": "google-reader",

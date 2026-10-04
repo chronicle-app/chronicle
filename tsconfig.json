@@ -107,6 +107,18 @@
       "path": "core/icloud/tsconfig.lib.json"
     },
     {
+      "path": "core/email/tsconfig.lib.json"
+    },
+    {
+      "path": "core/google/tsconfig.lib.json"
+    },
+    {
+      "path": "plugins/google-calendar/tsconfig.lib.json"
+    },
+    {
+      "path": "plugins/gmail/tsconfig.lib.json"
+    },
+    {
       "path": "plugins/claude-code/tsconfig.lib.json"
     },
     {

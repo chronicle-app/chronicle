@@ -15,6 +15,10 @@ export interface StoredCredentials {
   clientId?: string;
   clientSecret?: string;
   username?: string;
+  /** Which account signed in, for a provider with several. */
+  account?: string;
+  /** Where the refresh token is exchanged. */
+  tokenUrl?: string;
   [key: string]: any; // Allow additional fields from TokenResponse
 }
 
@@ -85,7 +89,9 @@ export class FileCredentialManager {
   }
 
   /**
-   * Store OAuth credentials for a provider
+   * Store OAuth credentials for a provider. A provider keeps one entry per
+   * account: signing in again replaces that account's entry, and a provider
+   * that doesn't name accounts keeps just one.
    */
   async storeCredentials(
     provider: string,
@@ -94,11 +100,6 @@ export class FileCredentialManager {
     clientSecret?: string
   ): Promise<void> {
     const credentials = await this.loadCredentials();
-
-    // Initialize provider array if it doesn't exist
-    if (!credentials[provider]) {
-      credentials[provider] = [];
-    }
 
     const newCredential: StoredCredentials = {
       accessToken: tokenResponse.access_token,
@@ -126,37 +127,59 @@ export class FileCredentialManager {
       ),
     };
 
-    // Add new credential to the array
-    credentials[provider].push(newCredential);
+    const kept = (credentials[provider] ?? []).filter(
+      existing => newCredential.account && existing.account !== newCredential.account
+    );
+    // Google sends a refresh token only on the first consent for a client;
+    // a later sign-in keeps the one already stored for that account.
+    const previous = (credentials[provider] ?? []).find(
+      existing => existing.account === newCredential.account
+    );
+    if (!newCredential.refreshToken && previous?.refreshToken) {
+      newCredential.refreshToken = previous.refreshToken;
+    }
+    credentials[provider] = [...kept, newCredential];
 
     await this.saveCredentials(credentials);
   }
 
   /**
-   * Update stored credentials directly (used for token refresh)
+   * Replace the stored entry that `previous` was read from (used for token
+   * refresh), matched on its account, else its refresh token.
    */
   private async updateStoredCredentials(
     provider: string,
+    previous: StoredCredentials,
     updatedCredentials: StoredCredentials
   ): Promise<void> {
     const credentials = await this.loadCredentials();
-    if (!credentials[provider] || credentials[provider].length === 0) {
-      credentials[provider] = [updatedCredentials];
-    } else {
-      credentials[provider][0] = updatedCredentials;
-    }
+    const entries = credentials[provider] ?? [];
+    const index = entries.findIndex(entry =>
+      previous.account
+        ? entry.account === previous.account
+        : entry.refreshToken === previous.refreshToken
+    );
+    if (index === -1) entries.push(updatedCredentials);
+    else entries[index] = updatedCredentials;
+    credentials[provider] = entries;
     await this.saveCredentials(credentials);
   }
 
   /**
-   * Retrieve stored credentials for a provider (returns most recent credential)
+   * Retrieve stored credentials for a provider: the given account's, or the
+   * most recent sign-in.
    */
-  async getCredentials(provider: string): Promise<StoredCredentials | null> {
+  async getCredentials(
+    provider: string,
+    { account }: { account?: string } = {}
+  ): Promise<StoredCredentials | null> {
     const credentials = await this.loadCredentials();
-    const providerCredentials = credentials[provider];
-    return providerCredentials && providerCredentials.length > 0
-      ? (providerCredentials.at(-1) ?? null)
-      : null;
+    const providerCredentials = credentials[provider] ?? [];
+    if (account) {
+      const wanted = account.toLowerCase();
+      return providerCredentials.find(entry => entry.account?.toLowerCase() === wanted) ?? null;
+    }
+    return providerCredentials.at(-1) ?? null;
   }
 
   /**
@@ -196,14 +219,17 @@ export class FileCredentialManager {
   /**
    * Get valid access token, checking expiration
    */
-  async getValidToken(provider: string): Promise<string | null> {
-    const credentials = await this.getCredentials(provider);
+  async getValidToken(
+    provider: string,
+    options: { account?: string; refresh?: boolean } = {}
+  ): Promise<string | null> {
+    const credentials = await this.getCredentials(provider, options);
     if (!credentials) {
       return null;
     }
 
-    // If token is not expired, return it
-    if (!this.isTokenExpired(credentials)) {
+    // If token is not expired, return it, unless the caller saw it refused.
+    if (!options.refresh && !this.isTokenExpired(credentials)) {
       return credentials.accessToken;
     }
 
@@ -235,7 +261,7 @@ export class FileCredentialManager {
       return null;
     }
 
-    const refreshUrl = this.getRefreshUrl(provider);
+    const refreshUrl = credentials.tokenUrl ?? this.getRefreshUrl(provider);
     if (!refreshUrl) {
       return null;
     }
@@ -266,10 +292,11 @@ export class FileCredentialManager {
         accessToken: tokenData.access_token,
         refreshToken: tokenData.refresh_token || credentials.refreshToken,
         expiresIn: tokenData.expires_in,
+        scope: tokenData.scope ?? credentials.scope,
         createdAt: new Date().toISOString(),
       };
 
-      await this.updateStoredCredentials(provider, updatedCredentials);
+      await this.updateStoredCredentials(provider, credentials, updatedCredentials);
       return tokenData.access_token;
     } catch (error) {
       throw new Error(`Token refresh failed: ${error instanceof Error ? error.message : error}`);
@@ -277,7 +304,8 @@ export class FileCredentialManager {
   }
 
   /**
-   * Get the token refresh URL for a specific provider
+   * The token refresh URL for credentials stored before the token URL was
+   * saved with them.
    */
   private getRefreshUrl(provider: string): string | null {
     const refreshUrls: Record<string, string> = {

@@ -12,6 +12,8 @@ const ALICE = 'Alice Example <alice@example.test>';
 const CAROL = 'Carol <carol@example.test>';
 const KEYED_DATE = 'Mon, 6 Jan 2025 10:00:00 +0000';
 const KEYLESS_DATE = 'Mon, 6 Jan 2025 11:00:00 +0000';
+const KEYLESS_ISO = '2025-01-06T11:00:00.000Z';
+const CAROL_ADDRESS = 'carol@example.test';
 
 /** Render message specs as one mbox; an omitted field omits its header. */
 function mbox(specs) {
@@ -90,10 +92,11 @@ async function transform(records) {
   return out;
 }
 
-const agentKey = ['@type', 'source', 'handle'];
+// People and messages are keyed with no source: an address, or a Message-ID,
+// is the same wherever it's read.
 const agent = (handle, name) => ({
   '@type': 'Agent',
-  '@key': agentKey,
+  '@key': ['@type', 'source', 'handle'],
   source: 'email',
   handle,
   name: name ?? handle,
@@ -109,28 +112,24 @@ test('messages become schema-valid MessageActions keyed on the Message-ID', asyn
   const alice = agent('alice@example.test', 'Alice Example');
   assert.deepEqual(action, {
     '@type': 'MessageAction',
-    '@key': ['source', 'sourceId', '@type'],
-    source: 'email',
+    '@key': ['@type', 'sourceId'],
     sourceId: '<keyed-1@example.test>',
     timestamp: new Date('2025-01-06T10:00:00Z'),
     '@assertedAt': new Date('2025-01-06T10:00:00Z'),
     agent: alice,
     object: {
       '@type': 'Message',
-      '@key': ['@type', 'source', 'sourceId'],
-      source: 'email',
+      '@key': ['@type', 'sourceId'],
       sourceId: '<keyed-1@example.test>',
       name: 'Café plans',
-      // The multipart parser reads each part's leading newline as the end of
-      // its headers, so it finds no text/plain part and the body is empty.
-      // Kept as the original plugin behaves.
-      description: '',
+      // The text/plain alternative; the HTML one is left out.
+      body: 'Lunch at noon?',
+      author: [alice],
       recipient: [
         agent('bob@example.test', 'Bob'),
         agent('dana@example.test'),
         agent('erin@example.test', 'Erin'),
       ],
-      author: [alice],
     },
   });
 });
@@ -147,11 +146,11 @@ test('a message without a Message-ID is keyed on From, Date, and Subject', async
   const keys = first.records.map(r => first.extractor.keyOf(r));
   assert.deepEqual(keys, [
     '<keyed-1@example.test>',
-    [CAROL, KEYLESS_DATE, 'Keyless'].join(DELIM),
-    [CAROL, KEYLESS_DATE, 'Keyless, but another'].join(DELIM),
-    [CAROL, KEYLESS_DATE, 'Keyless'].join(DELIM),
+    [CAROL_ADDRESS, KEYLESS_ISO, 'Keyless'].join(DELIM),
+    [CAROL_ADDRESS, KEYLESS_ISO, 'Keyless, but another'].join(DELIM),
+    [CAROL_ADDRESS, KEYLESS_ISO, 'Keyless'].join(DELIM),
     // An empty Subject still takes part.
-    [CAROL, KEYLESS_DATE, ''].join(DELIM),
+    [CAROL_ADDRESS, KEYLESS_ISO, ''].join(DELIM),
   ]);
   // A second run over the same file agrees exactly.
   const second = await extract(input);
@@ -164,24 +163,22 @@ test('a message without a Message-ID is keyed on From, Date, and Subject', async
   const carol = agent('carol@example.test', 'Carol');
   assert.deepEqual(action, {
     '@type': 'MessageAction',
-    '@key': ['@type', 'source', 'timestamp', 'agent.handle', 'object.name'],
-    source: 'email',
+    '@key': ['@type', 'timestamp', 'agent.handle', 'object.name'],
     timestamp: new Date('2025-01-06T11:00:00Z'),
     '@assertedAt': new Date('2025-01-06T11:00:00Z'),
     agent: carol,
     object: {
       '@type': 'Message',
-      '@key': ['@type', 'source', 'action.timestamp', 'action.agent.handle', 'name'],
-      source: 'email',
+      '@key': ['@type', 'action.timestamp', 'action.agent.handle', 'name'],
       name: 'Keyless',
-      description: 'No Message-ID header.',
-      recipient: [agent('bob@example.test')],
+      body: 'No Message-ID header.',
       author: [carol],
+      recipient: [agent('bob@example.test')],
     },
   });
 });
 
-test('a keyless message with no From, no Date, or an unparseable Date is skipped and counted', async t => {
+test('a message without a usable Date takes its From line’s; one with no sender is skipped', async t => {
   const input = fixture(t, [
     keyed,
     { ...keyless, from: undefined },
@@ -192,24 +189,40 @@ test('a keyless message with no From, no Date, or an unparseable Date is skipped
   const warnings = [];
   extractor.logger.warn = message => warnings.push(message);
   const records = await Array.fromAsync(extractor.extract());
+  // The fixture's From lines say Mon Jan  6 10:00:00 2025, read as UTC.
   assert.deepEqual(
-    records.map(r => r.data.subject),
-    ['Café plans']
+    records.map(r => [r.data.subject, r.data.date]),
+    [
+      ['Café plans', '2025-01-06T10:00:00.000Z'],
+      ['Keyless', '2025-01-06T10:00:00.000Z'],
+      ['Keyless', '2025-01-06T10:00:00.000Z'],
+    ]
   );
   assert.deepEqual(warnings, [
-    'Skipped 3 message(s) with no Message-ID and no From + Date to key on',
+    'Skipped 1 message(s) with no Message-ID and no From + Date to key on',
   ]);
 });
 
-test('the transformer refuses a keyless record whose Date cannot anchor the key', async () => {
+test('the transformer refuses a record with no date to time it by', async () => {
   // The extractor never emits such a record; build one by hand.
   const transformer = new EmailTransformer();
-  for (const date of ['', 'not a date']) {
-    const record = {
-      extraction: { source: 'email', recordType: 'emails' },
-      context: { strategy: 'mbox' },
-      data: { from: CAROL, to: [], cc: [], bcc: [], subject: 'Keyless', date, messageId: null },
-    };
-    await assert.rejects(transformer.transform(record), /needs a parseable Date/);
-  }
+  const record = {
+    extraction: { source: 'email', recordType: 'emails' },
+    context: { strategy: 'mbox' },
+    data: {
+      messageId: null,
+      date: null,
+      subject: 'Keyless',
+      from: { address: 'carol@example.test', name: 'Carol' },
+      to: [],
+      cc: [],
+      bcc: [],
+      inReplyTo: null,
+      references: [],
+      text: '',
+      attachments: [],
+      headers: {},
+    },
+  };
+  await assert.rejects(transformer.transform(record), /has no date/);
 });

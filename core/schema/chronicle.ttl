@@ -98,7 +98,7 @@
   :domainIncludes :Entity;
   :rangeIncludes :Entity, :Text .
 :description a rdf:Property;
-  rdfs:comment "Descriptive text supplied by the source about an entity, such as a task's notes or a project's summary.";
+  rdfs:comment "Descriptive text supplied by the source about an entity, such as a task's notes or a project's summary: plain text or Markdown, never HTML.";
   owl:maxCardinality 1;
   :domainIncludes :Entity;
   :rangeIncludes :Text .
@@ -129,7 +129,7 @@
   rdfs:subClassOf :Action;
   rdfs:comment "The execution of a command or software resource. The :object identifies what was executed; :agent identifies the doer when known." .
 :body a rdf:Property;
-  rdfs:comment "The textual content of an entity, such as a shell command or message, as supplied by the source.";
+  rdfs:comment "The textual content of an entity, such as a shell command or message, as supplied by the source: plain text or Markdown, never the HTML it was delivered in.";
   owl:maxCardinality 1;
   :domainIncludes :Entity;
   :rangeIncludes :Text .
@@ -327,6 +327,11 @@
 :Event a rdfs:Class;
   rdfs:comment "A named happening with a declared :scheduledTime — a calendar entry, a concert, a picnic. Carries its :location and :attendee values; the :object of an :AttendAction. Its actual extent derives from the activity that constitutes it.";
   rdfs:subClassOf :Entity .
+:attendee a rdf:Property;
+  rdfs:comment "An agent invited to the event — a guest on a calendar entry, whatever they answered.";
+  rdfs:subPropertyOf :involvement;
+  :domainIncludes :Event;
+  :rangeIncludes :Agent .
 :Interval a rdfs:Class;
   rdfs:comment "A bounded stretch of time — a start and an end, each at its own precision. A structured value with no identity of its own, like :Location; it carries the declared extent of an event or session (its :scheduledTime), as distinct from an action's occurrence.";
   rdfs:subClassOf :StructuredValue .

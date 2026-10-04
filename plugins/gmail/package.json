@@ -1,0 +1,85 @@
+{
+  "name": "@chronicle.app/gmail",
+  "version": "0.3.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.lib.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint src --ext .ts,.js",
+    "test": "node --test src/*.test.js",
+    "shapes": "node src/shapes.test.js --update"
+  },
+  "keywords": [
+    "chronicle",
+    "google",
+    "gmail",
+    "email"
+  ],
+  "author": "Andrew Louis",
+  "license": "MIT",
+  "type": "module",
+  "description": "Chronicle plugin for your Gmail: messages, threads, and labels",
+  "dependencies": {
+    "@chronicle.app/google": "0.3.0",
+    "@chronicle.app/logging": "0.3.0",
+    "@chronicle.app/email-core": "0.3.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@chronicle.app/etl": "0.3.0",
+    "@chronicle.app/schema": "0.3.0",
+    "@chronicle.app/tsconfig": "0.3.0",
+    "@types/node": "^22.10.1",
+    "typescript": "^5.7.2"
+  },
+  "homepage": "https://chronicle.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chronicle-app/chronicle.git",
+    "directory": "plugins/gmail"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "peerDependencies": {
+    "@chronicle.app/etl": ">=0.1.0 <1.0.0",
+    "@chronicle.app/schema": ">=0.1.0 <1.0.0"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "chronicle": {
+    "plugin": true,
+    "sources": {
+      "gmail": {
+        "strategies": {
+          "api": {
+            "delivery": "api",
+            "recordTypes": [
+              "messages"
+            ],
+            "default": true
+          },
+          "takeout": {
+            "delivery": "export",
+            "recordTypes": [
+              "messages"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

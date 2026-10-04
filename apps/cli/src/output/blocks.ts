@@ -124,14 +124,14 @@ export function hint(message: string, action: string | undefined, t: Tokens, wid
 
 const HELD_SPACE = '\u0000';
 
-/** Text with each `code span` in the code style, the rest muted. */
-function codeSpans(text: string, t: Tokens): string {
+/** Text with each `code span` in the code style, the rest muted (or plain). */
+function codeSpans(text: string, t: Tokens, muted = true): string {
   return text
     .split(/(`[^`]*`)/)
     .map(piece =>
       piece.startsWith('`') && piece.endsWith('`') && piece.length > 1
         ? t.code(piece.slice(1, -1))
-        : piece && t.muted(piece)
+        : piece && (muted ? t.muted(piece) : piece)
     )
     .join('');
 }
@@ -161,6 +161,32 @@ export function wrap(text: string, width: number): string[] {
 
 /** A section title. Emphasis only: no rules, no boxes. */
 export const heading = (text: string, t: Tokens, width: number) => line([[text, t.strong]], width);
+
+/**
+ * A section of a walkthrough: its title, strong, after a blank line; a few
+ * plain sentences; then numbered steps. Unlike a hint, it's read in full, so
+ * the text isn't muted. Commands stay whole, in the code style.
+ */
+export function guide(
+  title: string,
+  { text = [], steps = [] }: { text?: string[]; steps?: string[] },
+  t: Tokens,
+  width: number
+): string {
+  const lines = ['', heading(title, t, width)];
+  for (const paragraph of text) {
+    for (const part of wrap(paragraph, width - 2)) lines.push(`  ${codeSpans(part, t, false)}`);
+  }
+  if (steps.length > 0 && text.length > 0) lines.push('');
+  for (const [i, step] of steps.entries()) {
+    const number = `${i + 1}.`.padEnd(3);
+    for (const [j, part] of wrap(step, width - 5).entries()) {
+      const lead = j === 0 ? `  ${t.muted(number)}` : '     ';
+      lines.push(lead + codeSpans(part, t, false));
+    }
+  }
+  return lines.join('\n');
+}
 
 /** Items one per line under a bullet. */
 export const list = (items: string[], t: Tokens, width: number) =>

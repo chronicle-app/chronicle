@@ -108,13 +108,17 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
    */
   protected fail(
     message: string,
-    { hint, exitCode = EXIT_CODES.usage }: { hint?: string; exitCode?: number } = {}
+    {
+      hint,
+      exitCode = EXIT_CODES.usage,
+      code = 'command-failed',
+    }: { hint?: string; exitCode?: number; code?: string } = {}
   ): never {
     this.logger.emit({
       level: 'error',
       kind: 'error',
       message,
-      error: { code: 'command-failed', exitCode },
+      error: { code, exitCode },
       ...(hint && { hint: { action: hint } }),
     });
     this.logger.flush();
@@ -133,7 +137,9 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
    */
   protected failFrom(error: unknown, context?: string): never {
     if (error instanceof Errors.ExitError || isReported(error)) throw error;
-    const { message, hint } = describeError(error);
+    const { message, hint, code, exitCode } = describeError(error);
+    // A typed error says what happened on its own, and keeps its code and exit code.
+    if (code !== 'internal') this.fail(message, { ...(hint && { hint }), code, exitCode });
     this.fail(context ? `${context}: ${message}` : message, { ...(hint && { hint }) });
   }
 
