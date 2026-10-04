@@ -32,17 +32,7 @@ const person = (handle, name, extra = {}) => ({
   ...extra,
 });
 const owner = person(OWNER, 'Test Owner', { sameAs: ['@me'] });
-// Your contact for the guest links their number.
-const guest = person('guest@example.com', 'Test Guest', {
-  sameAs: [
-    {
-      '@type': 'Agent',
-      '@key': ['@type', 'source', 'handle'],
-      source: 'phone',
-      handle: '+14165550199',
-    },
-  ],
-});
+const guest = person('guest@example.com', 'Test Guest');
 
 test('events on the shown calendars become plans for named events, with their guests', async t => {
   const requests = await fakeCalendar(t);
@@ -107,6 +97,20 @@ test('events on the shown calendars become plans for named events, with their gu
   // Each instance of a recurring event is its own event, planned by its organizer.
   assert.equal(standup.object.sourceId, 'standup@example.com@2025-03-11T13:00:00.000Z');
   assert.deepEqual(standup.agent, guest);
+});
+
+test('--link-contacts links guests to your contacts', async t => {
+  await fakeCalendar(t);
+  const { actions } = await extract({ linkContacts: true });
+  const standup = actions.find(action => action.object.name === 'Standup');
+  assert.deepEqual(standup.agent.sameAs, [
+    {
+      '@type': 'Agent',
+      '@key': ['@type', 'source', 'handle'],
+      source: 'phone',
+      handle: '+14165550199',
+    },
+  ]);
 });
 
 test('the window and calendars can be narrowed', async t => {

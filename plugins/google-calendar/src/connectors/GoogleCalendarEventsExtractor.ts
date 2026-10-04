@@ -1,5 +1,10 @@
 import { Extractor, Record } from '@chronicle.app/etl';
-import { ContactDirectory, GoogleApi, googleAccountOptions } from '@chronicle.app/google';
+import {
+  ContactDirectory,
+  GoogleApi,
+  contactOptions,
+  googleAccountOptions,
+} from '@chronicle.app/google';
 import { z } from 'zod';
 import GoogleCalendarTransformer from './GoogleCalendarTransformer.js';
 import type { CalendarEvent, CalendarListEntry, EventRecord } from '../types.js';
@@ -35,6 +40,7 @@ export class GoogleCalendarEventsExtractor extends Extractor<typeof GoogleCalend
 
   static override schema = Extractor.schema.extend({
     ...googleAccountOptions,
+    ...contactOptions,
     calendar: z
       .string()
       .optional()
@@ -76,6 +82,7 @@ export class GoogleCalendarEventsExtractor extends Extractor<typeof GoogleCalend
     const { directory, missing } = await ContactDirectory.load({
       account: config.account,
       accessToken: config.accessToken,
+      linkContacts: config.linkContacts,
     });
     this.contacts = directory;
     if (missing) {

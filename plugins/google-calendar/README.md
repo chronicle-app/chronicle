@@ -33,7 +33,7 @@ A run reads every calendar shown in your Google Calendar list, except the ones G
 
 **A person is their email address, wherever it's seen.** People are keyed by lowercased address in the `email` namespace, as the mail plugins key them, so a guest at your meeting and the person who emails you are one node.
 
-**Your contacts link guests.** With Contacts access (asked for at sign-in), a guest on one of your contacts is `sameAs` the contact's other addresses and phone numbers.
+**Your contacts can link guests.** With `--link-contacts` (and `chronicle auth login google --add contacts`), a guest on one of your contacts is `sameAs` the contact's other addresses and phone numbers.
 
 **A description is Markdown.** Google keeps an event's description as the HTML its editor wrote; it's converted to Markdown, with tracking parameters taken off links and long click-tracking redirects dropped.
 

@@ -10,4 +10,9 @@ export { GoogleApi, googleAccountOptions, type GoogleApiOptions } from './Google
 export { GOOGLE_SERVICES, isGoogleService, type GoogleService } from './services.js';
 export { setupGoogleClient, type SetupOptions } from './setup.js';
 export { CommandLineGcloud, GcloudError, type Gcloud } from './gcloud.js';
-export { ContactDirectory, contactIdentities, type ContactLinks } from './contacts.js';
+export {
+  ContactDirectory,
+  contactIdentities,
+  contactOptions,
+  type ContactLinks,
+} from './contacts.js';

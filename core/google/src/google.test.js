@@ -377,8 +377,6 @@ test('the Google sign-in asks for each source’s scopes and names the account',
     'email',
     'https://www.googleapis.com/auth/gmail.readonly',
     'https://www.googleapis.com/auth/calendar.readonly',
-    // Asked for with them: it links the people in mail and calendars.
-    'https://www.googleapis.com/auth/contacts.readonly',
   ]);
   assert.equal((await provider.exchangeCodeForToken('code')).account, 'ada@example.com');
 });

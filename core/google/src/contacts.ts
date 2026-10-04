@@ -1,5 +1,6 @@
 import { normalizePhoneNumber } from '@chronicle.app/etl';
 import type { Agent } from '@chronicle.app/schema';
+import { z } from 'zod';
 import { GoogleApi } from './GoogleApi.js';
 
 /**
@@ -17,6 +18,16 @@ interface Connection {
   phoneNumbers?: { value?: string; canonicalForm?: string }[];
 }
 
+/** The option a Google source takes to link people to your contacts. Off unless asked for. */
+export const contactOptions = {
+  linkContacts: z
+    .boolean()
+    .optional()
+    .describe(
+      'Link people to the other addresses and phone numbers your Google Contacts have for them'
+    ),
+};
+
 /**
  * Your Google Contacts as a lookup, not a source: Gmail and Calendar ask it
  * about each address they see, and link the person to the contact's other
@@ -32,18 +43,22 @@ export class ContactDirectory {
   static readonly empty = new ContactDirectory(new Map());
 
   /**
-   * Your contacts, read once for a run. Without Contacts access, or with the
-   * People API off, it's empty and says why: linking is a bonus, so the run
-   * goes on.
+   * Your contacts, read once for a run with `linkContacts`. Without Contacts
+   * access, or with the People API off, it's empty and says why: linking is
+   * a bonus, so the run goes on.
    */
   static async load(options: {
     account?: string;
     accessToken?: string;
+    linkContacts?: boolean;
   }): Promise<{ directory: ContactDirectory; missing?: unknown }> {
+    // Not asked for: your address book isn't read at all.
+    if (!options.linkContacts) return { directory: ContactDirectory.empty };
     const api = new GoogleApi({
       service: 'contacts',
       baseURL: ContactDirectory.apiBaseURL,
-      ...options,
+      account: options.account,
+      accessToken: options.accessToken,
     });
     const byAddress = new Map<string, ContactLinks>();
     try {

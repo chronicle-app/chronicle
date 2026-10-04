@@ -31,8 +31,10 @@ const person = (handle, name, sameAs = []) => ({
   ...(sameAs.length > 0 && { sameAs }),
 });
 const owner = person(OWNER, 'Test Owner', ['@me']);
-// Your contact for the friend links their other address and their number.
-const friend = person(FRIEND, 'Test Friend', [
+const friend = person(FRIEND, 'Test Friend');
+// With --link-contacts, your contact for the friend links their other address
+// and their number.
+const linkedFriend = person(FRIEND, 'Test Friend', [
   identity('email', 'friend@home.example'),
   identity('phone', '+14165550100'),
 ]);
@@ -174,9 +176,18 @@ test('a Takeout run filters each message itself', async t => {
   await assert.rejects(extract(GmailTakeoutExtractor, {}), { code: 'input-not-found' });
 });
 
-test('without Contacts access, people go unlinked and the run says how to link them', async t => {
+test('--link-contacts links people to your contacts; without access, the run says how', async t => {
+  const requests = await fakeGmail(t);
+  // Off by default: your address book isn't read.
+  await extract(GmailApiExtractor, { sent: true });
+  assert.ok(!requests.some(r => r.path === '/people/me/connections'));
+  const linked = await extract(GmailApiExtractor, { sent: true, linkContacts: true });
+  assert.deepEqual(linked.actions[0].object.recipient, [linkedFriend]);
+});
+
+test('without Contacts access, linked people go unlinked and the run says how to link them', async t => {
   await fakeGmail(t, { noContacts: true });
-  const { actions, events } = await extract(GmailApiExtractor, { sent: true });
+  const { actions, events } = await extract(GmailApiExtractor, { sent: true, linkContacts: true });
   assert.deepEqual(actions[0].object.recipient, [person(FRIEND, 'Test Friend')]);
   const hint = events.find(event => event.kind === 'hint');
   assert.match(hint.hint.action, /chronicle auth login google --add contacts/);

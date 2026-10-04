@@ -1,5 +1,10 @@
 import { Extractor, Record } from '@chronicle.app/etl';
-import { ContactDirectory, GoogleApi, googleAccountOptions } from '@chronicle.app/google';
+import {
+  ContactDirectory,
+  GoogleApi,
+  contactOptions,
+  googleAccountOptions,
+} from '@chronicle.app/google';
 import { identityOf, parseMessage } from '@chronicle.app/mail';
 import { EXIT_CODES, ExtractorError } from '@chronicle.app/logging';
 import { z } from 'zod';
@@ -51,6 +56,7 @@ export class GmailApiExtractor extends Extractor<typeof GmailApiExtractor> {
 
   static override schema = Extractor.schema.extend({
     ...googleAccountOptions,
+    ...contactOptions,
     ...filterOptions,
     // A Takeout's; listed here too, since a source's flags are shared.
     input: z.string().optional().describe('Path to the Gmail mbox from Google Takeout'),
@@ -91,7 +97,11 @@ export class GmailApiExtractor extends Extractor<typeof GmailApiExtractor> {
     ]);
     this.owner = profile.emailAddress ?? null;
     for (const label of labels.labels ?? []) this.labelNames.set(label.id, label.name);
-    const { directory, missing } = await ContactDirectory.load({ account, accessToken });
+    const { directory, missing } = await ContactDirectory.load({
+      account,
+      accessToken,
+      linkContacts: this.options.linkContacts,
+    });
     this.contacts = directory;
     if (missing) {
       this.hint('Your contacts aren’t linked to these people', {

@@ -32,7 +32,7 @@ A Workspace admin can block apps their organization hasn't approved from Gmail a
 
 ### More access
 
-The first sign-in asks for Gmail, Calendar, and Contacts. `--add` asks for more, keeping what you have, and turns the API on in your project:
+The first sign-in asks for Gmail and Calendar. `--add` asks for more, keeping what you have, and turns the API on in your project:
 
 ```sh
 chronicle auth login google --add drive
@@ -52,7 +52,7 @@ chronicle auth login google --add drive
 
 ### Contacts link people; they aren't extracted
 
-Contacts isn't a source of its own. Gmail and Calendar read your contacts once a run and look up each address they see: a person on one of your contacts is `sameAs` the contact's other addresses (in the `email` namespace) and phone numbers (in the `phone` namespace, E.164), the identities iMessage and call history key people by. Without Contacts access, they go on unlinked and say how to add it.
+Contacts isn't a source of its own, and it's off unless you ask for it. With `--link-contacts`, Gmail and Calendar read your contacts once a run and look up each address they see: a person on one of your contacts is `sameAs` the contact's other addresses (in the `email` namespace) and phone numbers (in the `phone` namespace, E.164), the identities iMessage and call history key people by. Add the access with `chronicle auth login google --add contacts`; without it, a run with `--link-contacts` goes on unlinked and says how to add it.
 
 ## For sources
 
@@ -64,7 +64,7 @@ await api.initialize();
 for await (const item of api.pages('/users/me/calendarList')) …
 ```
 
-`GoogleApi` turns Google's refusals into errors that say what to run. A missing scope says to run `chronicle auth login google --add <service>`, an API that's off in the project says the same (which turns it on), and a rejected token says to sign in again. Services, their scopes, and their APIs are listed in `GOOGLE_SERVICES`. `ContactDirectory.load()` reads your contacts for a run, `linksFor(addresses)` gives the links for the addresses on a record, and `contactIdentities(address, links)` turns them into `sameAs` identities.
+`GoogleApi` turns Google's refusals into errors that say what to run. A missing scope says to run `chronicle auth login google --add <service>`, an API that's off in the project says the same (which turns it on), and a rejected token says to sign in again. Services, their scopes, and their APIs are listed in `GOOGLE_SERVICES`. `ContactDirectory.load()` reads your contacts for a run when `linkContacts` (from `contactOptions`) is set, `linksFor(addresses)` gives the links for the addresses on a record, and `contactIdentities(address, links)` turns them into `sameAs` identities.
 
 ## Tests
 

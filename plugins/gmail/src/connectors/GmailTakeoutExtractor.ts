@@ -1,5 +1,5 @@
 import { Extractor, InputNotFound, Record } from '@chronicle.app/etl';
-import { ContactDirectory, googleAccountOptions } from '@chronicle.app/google';
+import { ContactDirectory, contactOptions, googleAccountOptions } from '@chronicle.app/google';
 import { countMbox, identityOf, parseMessage, readMbox } from '@chronicle.app/mail';
 import { EXIT_CODES, ExtractorError } from '@chronicle.app/logging';
 import { z } from 'zod';
@@ -26,6 +26,7 @@ export class GmailTakeoutExtractor extends Extractor<typeof GmailTakeoutExtracto
   // flags are shared, so a schema-required flag here would also gate the API.
   static override schema = Extractor.schema.extend({
     ...googleAccountOptions,
+    ...contactOptions,
     ...filterOptions,
     input: z.string().optional().describe('Path to the Gmail mbox from Google Takeout'),
   });
@@ -33,13 +34,13 @@ export class GmailTakeoutExtractor extends Extractor<typeof GmailTakeoutExtracto
   private contacts = ContactDirectory.empty;
 
   /**
-   * A Takeout needs no sign-in; when there is one, your contacts link the
-   * people in it as the API's do.
+   * A Takeout needs no sign-in; with `--link-contacts` and a sign-in, your
+   * contacts link the people in it as the API's do.
    */
   override async setup(): Promise<void> {
     await super.setup();
-    const { account, accessToken } = this.options;
-    this.contacts = (await ContactDirectory.load({ account, accessToken })).directory;
+    const { account, accessToken, linkContacts } = this.options;
+    this.contacts = (await ContactDirectory.load({ account, accessToken, linkContacts })).directory;
   }
 
   override keyOf(record: Record): string | null {
