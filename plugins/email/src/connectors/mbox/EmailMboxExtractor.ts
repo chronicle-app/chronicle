@@ -5,7 +5,7 @@ import {
   parseMessage,
   readMbox,
   type MailMessage,
-} from '@chronicle.app/mail';
+} from '@chronicle.app/email-core';
 import { z } from 'zod';
 import EmailTransformer from '../EmailTransformer.js';
 

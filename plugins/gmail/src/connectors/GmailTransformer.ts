@@ -1,6 +1,6 @@
 import { ChronicleTransformer, Record } from '@chronicle.app/etl';
 import { contactIdentities } from '@chronicle.app/google';
-import { messageAction } from '@chronicle.app/mail';
+import { messageAction } from '@chronicle.app/email-core';
 import { ActionAndChildren, Thread } from '@chronicle.app/schema';
 import type { GmailRecord } from '../types.js';
 

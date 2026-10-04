@@ -1,4 +1,4 @@
-import type { MailMessage } from '@chronicle.app/mail';
+import type { MailMessage } from '@chronicle.app/email-core';
 import { z } from 'zod';
 
 /**

@@ -1,5 +1,5 @@
 ---
-'@chronicle.app/mail': minor
+'@chronicle.app/email-core': minor
 '@chronicle.app/gmail': minor
 '@chronicle.app/email': minor
 ---

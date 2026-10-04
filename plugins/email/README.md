@@ -63,7 +63,7 @@ The extractor parses the following email components:
 
 ## Schema
 
-Messages are built by [@chronicle.app/mail](../../core/mail/README.md), the same way the Gmail plugin builds them:
+Messages are built by [@chronicle.app/email-core](../../core/email/README.md), the same way the Gmail plugin builds them:
 
 - Each email is a `MessageAction` by the sender whose object is a `Message`.
   The message's `name` is the subject, its `recipient`s are the To, Cc and Bcc

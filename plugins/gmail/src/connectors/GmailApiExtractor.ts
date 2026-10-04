@@ -5,7 +5,7 @@ import {
   contactOptions,
   googleAccountOptions,
 } from '@chronicle.app/google';
-import { identityOf, parseMessage } from '@chronicle.app/mail';
+import { identityOf, parseMessage } from '@chronicle.app/email-core';
 import { EXIT_CODES, ExtractorError } from '@chronicle.app/logging';
 import { z } from 'zod';
 import {

@@ -1,5 +1,5 @@
 import type { ContactLinks } from '@chronicle.app/google';
-import type { MailMessage } from '@chronicle.app/mail';
+import type { MailMessage } from '@chronicle.app/email-core';
 
 /** One extracted record: the message, and what Gmail knows about it. */
 export interface GmailRecord {

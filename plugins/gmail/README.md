@@ -26,7 +26,7 @@ The API reads newest first. A Takeout reads in the order the mbox has, and needs
 
 ## Schema
 
-Messages are built by [@chronicle.app/mail](../../core/mail/README.md), the same way the email plugin builds them from an mbox, with Gmail's thread and labels added.
+Messages are built by [@chronicle.app/email-core](../../core/email/README.md), the same way the email plugin builds them from an mbox, with Gmail's thread and labels added.
 
 | Gmail thing       | Chronicle node  | Key                                                               | Properties                                                                                                                                       |
 | ----------------- | --------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -43,7 +43,7 @@ Messages are built by [@chronicle.app/mail](../../core/mail/README.md), the same
 
 **Threads and labels come from Gmail either way.** The API gives a message's thread ID and label IDs; a Takeout writes the same thread ID in decimal (`X-GM-THRID`) and the labels by name (`X-Gmail-Labels`). Both become the same `Thread` and the same label names, as Gmail shows them. Read state (Unread, Opened) changes as you read, so it isn't kept as a label.
 
-**A body is what was written, not what was sent.** It's plain text or Markdown, never HTML: the text part, or the HTML part converted to Markdown. Quoted history, signatures, newsletter footers, images, and tracking parameters are left out; see [@chronicle.app/mail](../../core/mail/README.md).
+**A body is what was written, not what was sent.** It's plain text or Markdown, never HTML: the text part, or the HTML part converted to Markdown. Quoted history, signatures, newsletter footers, images, and tracking parameters are left out; see [@chronicle.app/email-core](../../core/email/README.md).
 
 **Your contacts can link people.** With `--link-contacts` (and `chronicle auth login google --add contacts`), a person on one of your contacts is `sameAs` the contact's other addresses and phone numbers, so the person who emails you is the person who texts or calls you. A Takeout run links them too when you're signed in.
 

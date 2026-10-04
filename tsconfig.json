@@ -107,7 +107,7 @@
       "path": "core/icloud/tsconfig.lib.json"
     },
     {
-      "path": "core/mail/tsconfig.lib.json"
+      "path": "core/email/tsconfig.lib.json"
     },
     {
       "path": "core/google/tsconfig.lib.json"

@@ -1,6 +1,6 @@
 import { Extractor, InputNotFound, Record } from '@chronicle.app/etl';
 import { ContactDirectory, contactOptions, googleAccountOptions } from '@chronicle.app/google';
-import { countMbox, identityOf, parseMessage, readMbox } from '@chronicle.app/mail';
+import { countMbox, identityOf, parseMessage, readMbox } from '@chronicle.app/email-core';
 import { EXIT_CODES, ExtractorError } from '@chronicle.app/logging';
 import { z } from 'zod';
 import { filterOptions, matches, narrows } from '../filters.js';

@@ -1,4 +1,4 @@
-# @chronicle.app/mail
+# @chronicle.app/email-core
 
 What Chronicle's mail sources share: reading an mbox, parsing an email, identifying it, and the nodes it becomes. The [email](../../plugins/email/README.md) plugin reads any mbox with it; the [gmail](../../plugins/gmail/README.md) plugin reads Gmail's API and Takeouts with it.
 

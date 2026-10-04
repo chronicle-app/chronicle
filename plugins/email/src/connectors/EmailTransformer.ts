@@ -1,5 +1,5 @@
 import { ChronicleTransformer, Record } from '@chronicle.app/etl';
-import { messageAction, type MailMessage } from '@chronicle.app/mail';
+import { messageAction, type MailMessage } from '@chronicle.app/email-core';
 import { ActionAndChildren } from '@chronicle.app/schema';
 
 export default class EmailTransformer extends ChronicleTransformer {
