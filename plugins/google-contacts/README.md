@@ -27,7 +27,7 @@ Contacts come most recently edited first. `--since` reads the contacts you've ed
 
 ### Decisions
 
-**There's no history to read, so each run reads what's there now.** Google keeps no record of when you added, edited, or last contacted someone: a contact says only when it was last edited. Each contact arrives on the `UpdateAction` of that edit, and a later edit is a new action, so running the extraction over time builds a history of your edits. (The People API's sync tokens list what changed since the last read, deletions included, but expire after 7 days; Chronicle doesn't keep a cursor for them yet.)
+**There's no history to read, so each run reads what's there now.** Google keeps no record of when you added, edited, or last contacted someone: a contact says only when your card for it last changed. That includes bulk changes (an import, a phone sync, a merge), so many contacts can share one date. The person's own Google profile changes on its own, when they change their photo or name, so its time isn't used. Each contact arrives on the `UpdateAction` of that edit, and a later edit is a new action, so running the extraction over time builds a history of your edits. (The People API's sync tokens list what changed since the last read, deletions included, but expire after 7 days; Chronicle doesn't keep a cursor for them yet.)
 
 **A contact links to the people other sources see.** Its email addresses, lowercased, are `sameAs` the `email` identities mail, calendars, and messages key people by, and its phone numbers, in E.164, are `sameAs` the `phone` identities messages and calls use. That's what puts a contact's name on the person who emails you, invites you, or texts you.
 

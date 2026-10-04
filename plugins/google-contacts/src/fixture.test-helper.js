@@ -20,7 +20,13 @@ const member = group => ({ contactGroupMembership: { contactGroupResourceName: g
 export const CONTACTS = [
   {
     resourceName: 'people/c111',
-    metadata: { sources: [{ type: 'CONTACT', id: '111', updateTime: '2025-03-01T10:00:00Z' }] },
+    metadata: {
+      sources: [
+        { type: 'CONTACT', id: '111', updateTime: '2025-03-01T10:00:00Z' },
+        // Ada changed her own Google profile since: that isn't an edit of yours.
+        { type: 'PROFILE', id: '999', updateTime: '2026-09-01T00:00:00Z' },
+      ],
+    },
     names: [{ displayName: 'Ada Example', metadata: { primary: true } }],
     emailAddresses: [{ value: 'Ada@Example.com' }, { value: 'ada@work.example' }],
     phoneNumbers: [{ value: '(416) 555-0100', canonicalForm: '+14165550100' }],

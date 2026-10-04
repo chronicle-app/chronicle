@@ -108,9 +108,14 @@ export class GoogleContactsExtractor extends Extractor<typeof GoogleContactsExtr
   }
 }
 
-/** When the contact was last edited: the latest of its sources' update times. */
+/**
+ * When you last edited the contact: your own card's update time. A contact
+ * also carries the person's own Google profile as a source, whose time moves
+ * when they change their photo or name, which says nothing about you.
+ */
 export function lastEdited(person: ContactPerson): string | undefined {
   return (person.metadata?.sources ?? [])
+    .filter(source => source.type === 'CONTACT')
     .map(source => source.updateTime)
     .flatMap(time => (time ? [time] : []))
     .sort()
