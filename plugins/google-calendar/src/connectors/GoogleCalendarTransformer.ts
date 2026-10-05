@@ -17,6 +17,8 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
   override async transform(record: Record): Promise<ActionAndChildren[]> {
     if (record.extraction.recordType !== 'events') return [];
     const { event, calendar, contacts = {} } = record.data as EventRecord;
+    // Without a start, it isn't an event on a calendar (the extractor skips it).
+    if (!startOf(event.start)) return [];
 
     // Who put it on the calendar: its organizer, else its creator, else (an
     // event with neither, like one copied in) the calendar itself.
@@ -50,8 +52,7 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
       .filter((agent): agent is Agent => agent !== null);
     // Google keeps a description as the HTML its editor wrote; Markdown here.
     const description = tidyText(htmlToMarkdown(event.description) ?? '');
-    const startTime = timeOf(event.start);
-    const endTime = timeOf(event.end);
+    const { startTime, endTime } = scheduleOf(event);
     return {
       '@type': 'Event',
       '@key': ['@type', 'source', 'sourceId'],
@@ -61,13 +62,7 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
       ...(description && { description }),
       // When it's planned for: a declared interval, not something that
       // happened. Times that happen belong to actions.
-      ...((startTime || endTime) && {
-        scheduledTime: {
-          '@type': 'Interval',
-          ...(startTime && { startTime }),
-          ...(endTime && { endTime }),
-        },
-      }),
+      scheduledTime: { '@type': 'Interval', startTime, endTime },
       ...(event.location && { location: { '@type': 'Location', address: event.location } }),
       // Google's link opens one calendar's copy, so it isn't the event's:
       // the event is on each calendar it was read from instead.
@@ -127,10 +122,30 @@ function identityOf(event: CalendarEvent): string {
 
 const startOf = (time: EventTime | undefined) => time?.dateTime ?? time?.date;
 
-/** An instant for a timed event; the civil date string for an all-day one. */
-function timeOf(time: EventTime | undefined): Date | string | undefined {
-  if (time?.dateTime) return new Date(time.dateTime);
-  return time?.date;
+/**
+ * When an event is planned for, both bounds always: instants for a timed
+ * event, civil dates for an all-day one. Google (like iCalendar) writes an
+ * all-day event's end as the day after its last; a `Date` end bound is the
+ * last day included, so a one-day event is that day to that day. With no end,
+ * iCalendar's rule: an all-day event lasts its one day, a timed one ends as it
+ * starts.
+ */
+function scheduleOf(event: CalendarEvent): { startTime: Date | string; endTime: Date | string } {
+  if (event.start?.dateTime) {
+    const startTime = new Date(event.start.dateTime);
+    const endTime = event.end?.dateTime ? new Date(event.end.dateTime) : startTime;
+    return { startTime, endTime };
+  }
+  const startTime = event.start!.date!;
+  const lastDay = event.end?.date ? dayBefore(event.end.date) : startTime;
+  return { startTime, endTime: lastDay < startTime ? startTime : lastDay };
+}
+
+/** The civil date before `date` (YYYY-MM-DD), by the calendar, not a clock. */
+function dayBefore(date: string): string {
+  const day = new Date(`${date}T00:00:00Z`);
+  day.setUTCDate(day.getUTCDate() - 1);
+  return day.toISOString().slice(0, 10);
 }
 
 /** A calendar as the collection its events are on, by Google's calendar ID. */

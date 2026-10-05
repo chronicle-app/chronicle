@@ -31,7 +31,7 @@ A run reads every calendar shown in your Google Calendar list, except the ones G
 
 **An event has no URL; it's on its calendars.** Google's event link encodes one calendar's copy (its event ID and calendar ID), so the same meeting has a different link on each calendar, and only someone who can see that calendar can open it. The event is instead `isPartOf` a `Collection` for each calendar it was read from, keyed by Google's calendar ID. The link stays in the raw record.
 
-**When it's planned for is a declared interval.** An event's `scheduledTime` is an `Interval`: instants for a timed event, and civil dates (`2025-03-14`) for an all-day one, with Google's exclusive end date. `startTime` and `endTime` belong to actions, things that happened; a calendar entry only says when something is planned.
+**When it's planned for is a declared interval.** An event's `scheduledTime` is an `Interval` with both bounds: instants for a timed event, and civil dates for an all-day one, ending on its last day (Google writes the day after, so a March 14 event is `2025-03-14` to `2025-03-14`). An event with no end gets iCalendar's: an all-day event lasts its one day, and a timed one ends as it starts. An event with no start isn't on a calendar, and is skipped. `startTime` and `endTime` belong to actions, things that happened; a calendar entry only says when something is planned.
 
 **A person is their email address, wherever it's seen.** People are keyed by lowercased address in the `email` namespace, as the mail plugins key them, so a guest at your meeting and the person who emails you are one node.
 

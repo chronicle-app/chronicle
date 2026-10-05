@@ -101,9 +101,10 @@ test('events on the shown calendars become plans for named events, with their gu
   assert.deepEqual(copy.object.sourceId, planning.object.sourceId);
   assert.deepEqual(copy.object.isPartOf, [calendar(TEAM, 'Work')]);
 
-  // An all-day event keeps its dates as dates.
+  // An all-day event keeps its dates as dates, March 14 through 15.
   assert.equal(trip.object.scheduledTime.startTime, '2025-03-14');
-  assert.equal(trip.object.scheduledTime.endTime, '2025-03-16');
+  // Google's end is the day after the last; the interval ends on the last day.
+  assert.equal(trip.object.scheduledTime.endTime, '2025-03-15');
   assert.equal(trip.object.attendee, undefined);
 
   // Each instance of a recurring event is its own event, planned by its organizer.
@@ -206,6 +207,49 @@ test('a long event comes out by its start, after later events, and one with no o
     name: OWNER,
     sameAs: ['@me'],
   });
+});
+
+test('an event without an end gets iCalendar’s; one without a start is skipped', async t => {
+  await fakeCalendar(t);
+  const organizer = { email: OWNER, self: true };
+  EVENTS[TEAM].push(
+    {
+      id: 'day1',
+      iCalUID: 'day@example.com',
+      summary: 'Day',
+      start: { date: '2025-03-05' },
+      organizer,
+    },
+    {
+      id: 'due1',
+      iCalUID: 'due@example.com',
+      summary: 'Due',
+      start: { dateTime: '2025-03-06T17:00:00Z' },
+      organizer,
+    },
+    { id: 'none1', iCalUID: 'none@example.com', summary: 'Nowhen', organizer }
+  );
+  t.after(() => EVENTS[TEAM].splice(-3));
+
+  const { actions, extractor } = await extract({
+    since: new Date('2025-03-01T00:00:00Z'),
+    until: new Date('2025-03-31T00:00:00Z'),
+  });
+  const schedule = name =>
+    actions.find(action => action.object.name === name)?.object.scheduledTime;
+  // An all-day event with no end lasts its one day; a timed one ends as it starts.
+  assert.deepEqual(schedule('Day'), {
+    '@type': 'Interval',
+    startTime: '2025-03-05',
+    endTime: '2025-03-05',
+  });
+  assert.deepEqual(schedule('Due'), {
+    '@type': 'Interval',
+    startTime: new Date('2025-03-06T17:00:00Z'),
+    endTime: new Date('2025-03-06T17:00:00Z'),
+  });
+  assert.equal(schedule('Nowhen'), undefined);
+  assert.equal(extractor.unscheduled.size, 1);
 });
 
 test('a rejected token says to sign in again', async t => {

@@ -50,6 +50,7 @@ export class GoogleCalendarEventsExtractor extends Extractor<typeof GoogleCalend
   private api!: GoogleApi;
   private calendars: CalendarListEntry[] = [];
   private contacts = ContactDirectory.empty;
+  private unscheduled = new Set<string>();
 
   override keyOf(record: Record): string {
     const { calendar, event } = record.data as EventRecord;
@@ -145,6 +146,9 @@ export class GoogleCalendarEventsExtractor extends Extractor<typeof GoogleCalend
       }
       end = start;
     }
+    if (this.unscheduled.size > 0) {
+      this.logger.warn(`Skipped ${this.unscheduled.size} event(s) with no start`);
+    }
   }
 
   /** The start of the earliest event on any calendar, where a full read stops. */
@@ -175,7 +179,14 @@ export class GoogleCalendarEventsExtractor extends Extractor<typeof GoogleCalend
       timeMax: end.toISOString(),
     });
     for await (const event of events) {
-      if (event.status !== 'cancelled') yield event;
+      if (event.status === 'cancelled') continue;
+      // iCalendar requires a start for an event on a calendar; one without
+      // has nothing to place it by.
+      if (!event.start?.dateTime && !event.start?.date) {
+        this.unscheduled.add(event.id);
+        continue;
+      }
+      yield event;
     }
   }
 

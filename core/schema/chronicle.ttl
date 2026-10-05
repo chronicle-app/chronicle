@@ -221,7 +221,7 @@
   :rangeIncludes :Date,
     :DateTime .
 :endTime a rdf:Property;
-  rdfs:comment "The end time of an action, or the end bound of an interval value. A :DateTime is an anchored instant; a :Date is a civil whole-day bound (e.g. an all-day event).";
+  rdfs:comment "The end time of an action, or the end bound of an interval value. A :DateTime is an anchored instant; a :Date is a civil whole-day bound (e.g. an all-day event), the last whole day included.";
   owl:maxCardinality 1;
   :domainIncludes :Action,
     :Interval;

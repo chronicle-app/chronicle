@@ -86,10 +86,13 @@ const endOf = event => new Date(event.end?.dateTime ?? event.end?.date ?? startO
  * As Google lists them: events overlapping `[timeMin, timeMax)` (ending after
  * one, starting before the other), oldest first, at most `maxResults`.
  */
+/** An event with no start (malformed) comes back in every window. */
+const undated = event => !event.start;
+
 function eventsBetween(events, { timeMin, timeMax, maxResults }) {
   return events
-    .filter(event => !timeMin || endOf(event) > new Date(timeMin))
-    .filter(event => !timeMax || startOf(event) < new Date(timeMax))
+    .filter(event => undated(event) || !timeMin || endOf(event) > new Date(timeMin))
+    .filter(event => undated(event) || !timeMax || startOf(event) < new Date(timeMax))
     .toSorted((a, b) => startOf(a) - startOf(b))
     .slice(0, maxResults ? Number(maxResults) : undefined);
 }

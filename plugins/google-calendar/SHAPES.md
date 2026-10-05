@@ -18,7 +18,7 @@ PlanAction key(sourceId) {
   agent: Agent key(handle) { handle, name, sameAs[]? }
   object: Event key(sourceId) {
     sourceId, name, description?
-    scheduledTime: Interval { startTime, endTime }
+    scheduledTime: Interval { startTime, endTime* }
     isPartOf[]: Collection key(sourceId) { sourceId, name }
     attendee[]?: Agent key(handle) { handle, name, sameAs[]? }
     location?: Location { address }
