@@ -5,9 +5,9 @@ import type { CalendarEvent, EventPerson, EventRecord, EventTime } from '../type
 
 const source = 'google-calendar';
 /**
- * Events and their planning are keyed by the iCalendar UID in the protocol's
- * own namespace (RFC 5545), so a meeting is one node whichever account or
- * calendar provider it was read from.
+ * The iCalendar UID's namespace (RFC 5545): the identity every copy of a
+ * meeting shares, in any account or calendar provider. The planning, which
+ * happened once, is keyed by it; each calendar's copy is `sameAs` it.
  */
 const ICALENDAR = 'icalendar';
 
@@ -53,11 +53,21 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
     // Google keeps a description as the HTML its editor wrote; Markdown here.
     const description = tidyText(htmlToMarkdown(event.description) ?? '');
     const { startTime, endTime } = scheduleOf(event);
+    // This calendar's copy of the event, by Google's own ID for it (the `eid`
+    // its links carry), `sameAs` the iCalendar UID every copy shares.
     return {
       '@type': 'Event',
       '@key': ['@type', 'source', 'sourceId'],
-      source: ICALENDAR,
-      sourceId: identityOf(event),
+      source,
+      sourceId: eidOf(event, calendar),
+      sameAs: [
+        {
+          '@type': 'Event',
+          '@key': ['@type', 'source', 'sourceId'],
+          source: ICALENDAR,
+          sourceId: identityOf(event),
+        },
+      ],
       ...(event.summary && { name: event.summary }),
       ...(description && { description }),
       // When it's planned for: facts about the plan, not something that
@@ -65,8 +75,6 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
       scheduledStart: startTime,
       scheduledEnd: endTime,
       ...(event.location && { location: { '@type': 'Location', address: event.location } }),
-      // Google's link opens one calendar's copy, so it isn't the event's:
-      // the event is on each calendar it was read from instead.
       isPartOf: [calendarCollection(calendar)],
       ...(attendees.length > 0 && { attendee: attendees }),
     };
@@ -147,6 +155,16 @@ function dayBefore(date: string): string {
   const day = new Date(`${date}T00:00:00Z`);
   day.setUTCDate(day.getUTCDate() - 1);
   return day.toISOString().slice(0, 10);
+}
+
+/**
+ * Google's ID for one calendar's copy of an event: the `eid` in its link,
+ * base64 of the event ID and the calendar ID. Read from the link, or made the
+ * same way when there's none.
+ */
+function eidOf(event: CalendarEvent, calendar: EventRecord['calendar']): string {
+  const fromLink = event.htmlLink && new URL(event.htmlLink).searchParams.get('eid');
+  return fromLink || Buffer.from(`${event.id} ${calendar.id}`).toString('base64url');
 }
 
 /** A calendar as the collection its events are on, by Google's calendar ID. */

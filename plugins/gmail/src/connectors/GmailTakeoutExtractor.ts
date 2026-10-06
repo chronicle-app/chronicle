@@ -109,8 +109,11 @@ export class GmailTakeoutExtractor extends Extractor<typeof GmailTakeoutExtracto
           threadId: hexId(mail.headers['x-gm-thrid']),
           labels,
           receivedAt: envelopeDate,
-          // Gmail writes the mailbox's own address on every message it delivers.
-          owner: addressIn(mail.headers['delivered-to']),
+          // Gmail writes the mailbox's own address on every message it
+          // delivers; a message you sent has none, but it's from you.
+          owner:
+            addressIn(mail.headers['delivered-to']) ??
+            (labels.includes('Sent') ? (mail.from?.address.toLowerCase() ?? null) : null),
         },
         contacts: this.contacts.linksFor(
           [mail.from, ...mail.to, ...mail.cc, ...mail.bcc].flatMap(person =>

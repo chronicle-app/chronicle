@@ -65,7 +65,14 @@ export const EVENTS = {
     { id: 'gone1', iCalUID: 'gone@example.com', status: 'cancelled' },
   ],
   // The same meeting, on a second calendar.
-  [TEAM]: [{ ...planning, id: 'planning-copy' }],
+  // Each calendar's copy has its own ID and link.
+  [TEAM]: [
+    {
+      ...planning,
+      id: 'planning-copy',
+      htmlLink: 'https://calendar.google.com/event?eid=planning2',
+    },
+  ],
   [HOLIDAYS]: [
     { id: 'h1', iCalUID: 'h1@example.com', summary: 'Holiday', start: { date: '2025-01-01' } },
   ],

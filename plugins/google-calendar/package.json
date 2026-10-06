@@ -71,6 +71,11 @@
           }
         }
       }
+    },
+    "deepLinks": {
+      "google-calendar": {
+        "Event": "https://www.google.com/calendar/event?eid={sourceId}"
+      }
     }
   }
 }

@@ -76,11 +76,21 @@ test('events on the shown calendars become plans for named events, with their gu
     sourceId: 'planning@example.com',
     timestamp: new Date('2025-03-01T09:00:00Z'),
     agent: owner,
+    // This calendar's copy, by Google's ID for it (its link's eid), the
+    // same event as every copy with its UID.
     object: {
       '@type': 'Event',
       '@key': ['@type', 'source', 'sourceId'],
-      source: 'icalendar',
-      sourceId: 'planning@example.com',
+      source: 'google-calendar',
+      sourceId: 'planning1',
+      sameAs: [
+        {
+          '@type': 'Event',
+          '@key': ['@type', 'source', 'sourceId'],
+          source: 'icalendar',
+          sourceId: 'planning@example.com',
+        },
+      ],
       name: 'Planning',
       // Google's HTML as Markdown, the tracking off its link.
       description: 'Agenda in [the doc](https://docs.example.com/agenda).\n\n**Bring** notes.',
@@ -93,19 +103,22 @@ test('events on the shown calendars become plans for named events, with their gu
     },
     '@assertedAt': new Date('2025-03-01T09:00:00Z'),
   });
-  // The same meeting on another calendar is the same event.
-  // The same meeting on another calendar is the same event, on both calendars.
-  assert.deepEqual(copy.object.sourceId, planning.object.sourceId);
+  // The same meeting on another calendar is that calendar's copy: one
+  // planning, and the same event by its UID.
+  assert.equal(copy.sourceId, planning.sourceId);
+  assert.equal(copy.object.sourceId, 'planning2');
+  assert.deepEqual(copy.object.sameAs, planning.object.sameAs);
   assert.deepEqual(copy.object.isPartOf, [calendar(TEAM, 'Work')]);
 
   // An all-day event keeps its dates as dates, March 14 through 15.
   assert.equal(trip.object.scheduledStart, '2025-03-14');
-  // Google's end is the day after the last; the interval ends on the last day.
+  // Google's end is the day after the last; the event ends on the last day.
   assert.equal(trip.object.scheduledEnd, '2025-03-15');
   assert.equal(trip.object.attendee, undefined);
 
   // Each instance of a recurring event is its own event, planned by its organizer.
-  assert.equal(standup.object.sourceId, 'standup@example.com@2025-03-11T13:00:00.000Z');
+  assert.equal(standup.object.sameAs[0].sourceId, 'standup@example.com@2025-03-11T13:00:00.000Z');
+  assert.equal(standup.sourceId, standup.object.sameAs[0].sourceId);
   assert.deepEqual(standup.agent, guest);
 });
 

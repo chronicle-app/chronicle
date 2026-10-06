@@ -38,12 +38,20 @@ const linkedFriend = person(FRIEND, 'Test Friend', [
   identity('email', 'friend@home.example'),
   identity('phone', '+14165550100'),
 ]);
-const thread = {
-  '@type': 'Thread',
-  '@key': ['@type', 'source', 'sourceId'],
+// Gmail's IDs are scoped to the mailbox they're in.
+const mailbox = {
+  '@type': 'Realm',
+  '@key': ['@type', 'source', 'handle'],
   source: 'gmail',
-  sourceId: THREAD,
+  handle: OWNER,
 };
+const inMailbox = sourceId => ({
+  '@key': ['@type', 'source', 'inRealm.handle', 'sourceId'],
+  source: 'gmail',
+  sourceId,
+  inRealm: mailbox,
+});
+const thread = { '@type': 'Thread', ...inMailbox(THREAD) };
 
 test('Gmail messages become emails in their thread, with labels, newest first', async t => {
   const requests = await fakeGmail(t);
@@ -66,11 +74,19 @@ test('Gmail messages become emails in their thread, with labels, newest first', 
     timestamp: new Date('2025-03-02T09:00:00Z'),
     '@assertedAt': new Date('2025-03-02T09:00:00Z'),
     agent: owner,
+    // This mailbox's copy, by Gmail's ID, the same message as every copy
+    // with its Message-ID.
     object: {
       '@type': 'Message',
-      '@key': ['@type', 'source', 'sourceId'],
-      source: 'email',
-      sourceId: '<reply@example.com>',
+      ...inMailbox('18c1f0a2b3c4d5e7'),
+      sameAs: [
+        {
+          '@type': 'Message',
+          '@key': ['@type', 'source', 'sourceId'],
+          source: 'email',
+          sourceId: '<reply@example.com>',
+        },
+      ],
       name: 'Re: Plans',
       body: 'Saturday works.',
       author: [owner],

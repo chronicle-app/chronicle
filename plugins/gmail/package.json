@@ -80,6 +80,12 @@
           }
         }
       }
+    },
+    "deepLinks": {
+      "gmail": {
+        "Message": "https://mail.google.com/mail/#all/{sourceId}",
+        "Thread": "https://mail.google.com/mail/#all/{sourceId}"
+      }
     }
   }
 }
