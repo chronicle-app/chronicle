@@ -84,11 +84,8 @@ test('events on the shown calendars become plans for named events, with their gu
       name: 'Planning',
       // Google's HTML as Markdown, the tracking off its link.
       description: 'Agenda in [the doc](https://docs.example.com/agenda).\n\n**Bring** notes.',
-      scheduledTime: {
-        '@type': 'Interval',
-        startTime: new Date('2025-03-10T14:00:00Z'),
-        endTime: new Date('2025-03-10T15:00:00Z'),
-      },
+      scheduledStart: new Date('2025-03-10T14:00:00Z'),
+      scheduledEnd: new Date('2025-03-10T15:00:00Z'),
       location: { '@type': 'Location', address: '1 Example Street' },
       isPartOf: [calendar(OWNER, OWNER)],
       // The room booked for it isn't a guest.
@@ -102,9 +99,9 @@ test('events on the shown calendars become plans for named events, with their gu
   assert.deepEqual(copy.object.isPartOf, [calendar(TEAM, 'Work')]);
 
   // An all-day event keeps its dates as dates, March 14 through 15.
-  assert.equal(trip.object.scheduledTime.startTime, '2025-03-14');
+  assert.equal(trip.object.scheduledStart, '2025-03-14');
   // Google's end is the day after the last; the interval ends on the last day.
-  assert.equal(trip.object.scheduledTime.endTime, '2025-03-15');
+  assert.equal(trip.object.scheduledEnd, '2025-03-15');
   assert.equal(trip.object.attendee, undefined);
 
   // Each instance of a recurring event is its own event, planned by its organizer.
@@ -235,18 +232,15 @@ test('an event without an end gets iCalendar’s; one without a start is skipped
     since: new Date('2025-03-01T00:00:00Z'),
     until: new Date('2025-03-31T00:00:00Z'),
   });
-  const schedule = name =>
-    actions.find(action => action.object.name === name)?.object.scheduledTime;
+  const schedule = name => {
+    const event = actions.find(action => action.object.name === name)?.object;
+    return event && { start: event.scheduledStart, end: event.scheduledEnd };
+  };
   // An all-day event with no end lasts its one day; a timed one ends as it starts.
-  assert.deepEqual(schedule('Day'), {
-    '@type': 'Interval',
-    startTime: '2025-03-05',
-    endTime: '2025-03-05',
-  });
+  assert.deepEqual(schedule('Day'), { start: '2025-03-05', end: '2025-03-05' });
   assert.deepEqual(schedule('Due'), {
-    '@type': 'Interval',
-    startTime: new Date('2025-03-06T17:00:00Z'),
-    endTime: new Date('2025-03-06T17:00:00Z'),
+    start: new Date('2025-03-06T17:00:00Z'),
+    end: new Date('2025-03-06T17:00:00Z'),
   });
   assert.equal(schedule('Nowhen'), undefined);
   assert.equal(extractor.unscheduled.size, 1);

@@ -214,17 +214,15 @@
   rdfs:comment "A numeric value, integral or decimal.";
   rdfs:subClassOf :DataType .
 :startTime a rdf:Property;
-  rdfs:comment "The start time of an action, or the start bound of an interval value. A :DateTime is an anchored instant; a :Date is a civil whole-day bound (e.g. an all-day event).";
+  rdfs:comment "When an action started. A :DateTime is an anchored instant; a :Date is a civil whole-day bound.";
   owl:maxCardinality 1;
-  :domainIncludes :Action,
-    :Interval;
+  :domainIncludes :Action;
   :rangeIncludes :Date,
     :DateTime .
 :endTime a rdf:Property;
-  rdfs:comment "The end time of an action, or the end bound of an interval value. A :DateTime is an anchored instant; a :Date is a civil whole-day bound (e.g. an all-day event), the last whole day included.";
+  rdfs:comment "When an action ended. A :DateTime is an anchored instant; a :Date is a civil whole-day bound, the last whole day included.";
   owl:maxCardinality 1;
-  :domainIncludes :Action,
-    :Interval;
+  :domainIncludes :Action;
   :rangeIncludes :Date,
     :DateTime .
 :result a rdf:Property;
@@ -234,7 +232,7 @@
   :rangeIncludes :Entity .
 
 :StructuredValue a rdfs:Class;
-  rdfs:comment "A value made of several fields — a position, an interval — that describes something without being an identified entity of its own." .
+  rdfs:comment "A value made of several fields that are one fact — a position with its address — that describes something without being an identified entity of its own." .
 :Location a rdfs:Class;
   rdfs:comment "A geographic position and address — coordinates (:latitude, :longitude, :elevation) and address parts (:address, :locality, :region, :country, :postalCode). A structured value with no identity of its own; the identified place it describes is a :Place.";
   rdfs:subClassOf :StructuredValue .
@@ -323,22 +321,27 @@
   rdfs:comment "A civil calendar date — a day in wall-clock time with no time of day and no zone, kept as an ISO date string rather than an instant. The whole-day counterpart of :DateTime: an all-day event, a date-only life event, a bare year.";
   rdfs:subClassOf :DataType .
 :Event a rdfs:Class;
-  rdfs:comment "A named happening with a declared :scheduledTime — a calendar entry, a concert, a picnic. Carries its :location and :attendee values; the :object of an :AttendAction. Its actual extent derives from the activity that constitutes it.";
+  rdfs:comment "A named happening with a declared :scheduledStart and :scheduledEnd — a calendar entry, a concert, a picnic. Carries its :location and :attendee values; the :object of an :AttendAction. Its actual extent derives from the activity that constitutes it.";
   rdfs:subClassOf :Entity .
 :attendee a rdf:Property;
   rdfs:comment "An agent invited to the event — a guest on a calendar entry, whatever they answered.";
   rdfs:subPropertyOf :involvement;
   :domainIncludes :Event;
   :rangeIncludes :Agent .
-:Interval a rdfs:Class;
-  rdfs:comment "A bounded stretch of time — a start and an end, each at its own precision. A structured value with no identity of its own, like :Location; it carries the declared extent of an event or session (its :scheduledTime), as distinct from an action's occurrence.";
-  rdfs:subClassOf :StructuredValue .
-:scheduledTime a rdf:Property;
-  rdfs:comment "The declared or planned interval an event or session is scheduled for — its purported extent, as a single :Interval value. Distinct from its actual extent, which derives from the activity that constitutes it.";
+:scheduledStart a rdf:Property;
+  rdfs:comment "When an event or session is planned to start — a fact about the plan, not something that happened, which is an action's :startTime. A :DateTime for a timed plan; a :Date for an all-day one.";
   owl:maxCardinality 1;
   :domainIncludes :Event,
     :Session;
-  :rangeIncludes :Interval .
+  :rangeIncludes :Date,
+    :DateTime .
+:scheduledEnd a rdf:Property;
+  rdfs:comment "When an event or session is planned to end: the same kind of value as its :scheduledStart, and not before it. A :Date is the last whole day included, so a one-day event ends on the day it starts.";
+  owl:maxCardinality 1;
+  :domainIncludes :Event,
+    :Session;
+  :rangeIncludes :Date,
+    :DateTime .
 :relation a rdf:Property;
   rdfs:comment "Any edge from an entity to another entity.";
   :abstract true;
@@ -358,7 +361,7 @@
   rdfs:comment "A phone or video call. :agent is the caller when known; the :result is the :CallSession the call constitutes, which carries the receiver as its :recipient and, for a group call, the :Channel it is :isPartOf.";
   rdfs:subClassOf :CommunicateAction .
 :Session a rdfs:Class;
-  rdfs:comment "A described segment of time — a bounded, characterized interval of the subject's logged activity (an app-usage block, a manual time block, a call). A sibling of :Event (a named happening); both carry a declared :scheduledTime, while their actual aliveness derives from the activity that constitutes them. A session constituted by an action (:DeviceSession, :CallSession) takes its occurrence from that action; an atomic session (a manual time block) carries its own :startTime/:endTime, like :Event.";
+  rdfs:comment "A described segment of time — a bounded, characterized interval of the subject's logged activity (an app-usage block, a manual time block, a call). A sibling of :Event (a named happening); both carry a declared :scheduledStart and :scheduledEnd, while their actual aliveness derives from the activity that constitutes them. A session takes its occurrence from the action that records it (an app-usage block, a call, a manual time entry).";
   rdfs:subClassOf :Entity .
 :CallSession a rdfs:Class;
   rdfs:comment "A phone or FaceTime call as a described segment of time — the :result of a :CallAction. Carries the :recipient (the receiver) and, for group calls, :isPartOf a :Channel whose :member is the roster. A missed call is a zero-length span; a connected call a non-zero one.";
