@@ -6,35 +6,19 @@ export interface ChromeAccount {
   email?: string;
 }
 
-/** One of the sync client ids this profile has had, and the day it was added. */
-interface DeviceGuid {
-  guid: string;
-  /** Days since Jan 1, 1601 UTC, as Chrome stores it. */
-  day: number;
-}
-
-export interface ChromeProfile {
-  account: ChromeAccount | null;
-  /** Oldest first. Empty when the profile never set up sync. */
-  deviceGuids: DeviceGuid[];
-}
-
-const MS_PER_DAY = 86_400_000;
-// Days from Jan 1, 1601 to Jan 1, 1970.
-const CHROME_EPOCH_OFFSET_DAYS = 134_774;
-
 /**
- * Read the profile's `Preferences` JSON. A missing or unreadable file gives an
- * empty profile: visits are still readable, with no agent or instrument.
+ * Read the profile's account from its `Preferences` JSON. A signed-out
+ * profile, or a missing or unreadable file, has none: visits are still
+ * readable, with no agent.
  */
-export function readChromeProfile(preferencesPath: string): ChromeProfile {
+export function readChromeAccount(preferencesPath: string): ChromeAccount | null {
   let prefs: any;
   try {
     prefs = JSON.parse(readFileSync(preferencesPath, 'utf8'));
   } catch {
-    return { account: null, deviceGuids: [] };
+    return null;
   }
-  return { account: readAccount(prefs), deviceGuids: readDeviceGuids(prefs) };
+  return readAccount(prefs);
 }
 
 // `account_info` lists every Google account signed in on the web as well, so
@@ -47,30 +31,4 @@ function readAccount(prefs: any): ChromeAccount | null {
     : undefined;
   const email = typeof info?.email === 'string' && info.email !== '' ? info.email : undefined;
   return { gaiaId, ...(email && { email }) };
-}
-
-// A new sync client id is added when sync is set up again, so the list holds
-// this profile's ids over time.
-function readDeviceGuids(prefs: any): DeviceGuid[] {
-  const entries = prefs?.sync?.local_device_guids_with_timestamp;
-  if (!Array.isArray(entries)) return [];
-  return entries
-    .filter((e: any) => typeof e?.cache_guid === 'string' && typeof e?.timestamp === 'number')
-    .map((e: any) => ({ guid: e.cache_guid, day: e.timestamp }))
-    .sort((a, b) => a.day - b.day);
-}
-
-/**
- * The sync client id this profile had at a time: the newest one added on or
- * before that day, or the oldest one for visits older than all of them.
- */
-export function deviceGuidAt(profile: ChromeProfile, unixMs: number): string | null {
-  const { deviceGuids } = profile;
-  if (deviceGuids.length === 0) return null;
-  const day = Math.floor(unixMs / MS_PER_DAY) + CHROME_EPOCH_OFFSET_DAYS;
-  let current = deviceGuids[0];
-  for (const entry of deviceGuids) {
-    if (entry.day <= day) current = entry;
-  }
-  return current.guid;
 }

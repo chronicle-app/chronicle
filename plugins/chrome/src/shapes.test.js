@@ -10,7 +10,7 @@ const file = new URL('../SHAPES.md', import.meta.url);
 
 test('SHAPES.md describes what every record type becomes', async t => {
   const samples = [];
-  // A signed-in, synced profile, and a signed-out one without sync.
+  // A signed-in profile, and a signed-out one.
   for (const prefs of [undefined, null]) {
     const { input } = fixture(t, { prefs });
     samples.push(...(await sampleTransform(new ChromeExtractor({ input }))));

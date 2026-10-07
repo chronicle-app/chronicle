@@ -13,7 +13,7 @@ import {
 } from '@chronicle.app/etl-sqlite';
 import { z } from 'zod';
 import ChromeTransformer from './ChromeTransformer.js';
-import { type ChromeProfile, deviceGuidAt, readChromeProfile } from './profile.js';
+import { type ChromeAccount, readChromeAccount } from './profile.js';
 
 // visits.transition: the low byte is the core type, the high bits qualifiers.
 // CHAIN_END marks the visit a redirect chain landed on (a visit with no
@@ -64,7 +64,7 @@ export class ChromeExtractor extends SqliteExtractor<typeof ChromeExtractor> {
 
   static override defaultTransformer = ChromeTransformer;
 
-  private profile: ChromeProfile = { account: null, deviceGuids: [] };
+  private account: ChromeAccount | null = null;
   private cloneDir: string | null = null;
 
   /** visits.id — Chrome's own visit id, AUTOINCREMENT so never reused. */
@@ -94,7 +94,7 @@ export class ChromeExtractor extends SqliteExtractor<typeof ChromeExtractor> {
       this.db = this.openDatabase(clone);
     }
 
-    this.profile = readChromeProfile(join(dirname(cfg.input), 'Preferences'));
+    this.account = readChromeAccount(join(dirname(cfg.input), 'Preferences'));
   }
 
   override async teardown(): Promise<void> {
@@ -150,8 +150,7 @@ export class ChromeExtractor extends SqliteExtractor<typeof ChromeExtractor> {
              urls.url,
              urls.title,
              ${visitTime} AS unix_ms,
-             visits.transition,
-             visits.originator_cache_guid
+             visits.transition
       ${ChromeExtractor.FROM}
       WHERE ${where}
       ORDER BY visits.visit_time DESC`;
@@ -160,25 +159,19 @@ export class ChromeExtractor extends SqliteExtractor<typeof ChromeExtractor> {
       values.push(limit);
     }
 
-    const { account } = this.profile;
+    const { account } = this;
     for (const row of iterateRows<any>(this.db.prepare(sql), ...values)) {
       yield this.createRecord(this.processRow(row), { source: 'chrome', account });
     }
   }
 
   private processRow(row: any): any {
-    // A synced visit names the sync client that recorded it; a local one was
-    // recorded by this profile, under the id it had at the time.
-    const synced =
-      typeof row.originator_cache_guid === 'string' && row.originator_cache_guid !== '';
     return {
       visit_id: row.visit_id,
       url: row.url,
       title: row.title || null,
       unix_ms: row.unix_ms,
       transition: row.transition,
-      synced,
-      device_guid: synced ? row.originator_cache_guid : deviceGuidAt(this.profile, row.unix_ms),
     };
   }
 

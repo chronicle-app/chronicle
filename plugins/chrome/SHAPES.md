@@ -19,7 +19,6 @@ ViewAction key(timestamp) {
     sourceId
     sameAs[]: Agent key(handle) { handle }
   }
-  instrument?: SoftwareApplication key(sourceId) { sourceId, name }
   object: Entity key(url, any source) { url, name }
 }
 ```

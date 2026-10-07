@@ -30,22 +30,18 @@ test('visits become schema-valid ViewActions, newest first', async t => {
     [8, 7, 3, 1]
   );
 
-  const [latest, synced, redirected, first] = await views(records);
+  const [, synced, redirected, first] = await views(records);
   // SHAPES.md shows the full shape; these are the values it can't show.
   assert.deepEqual(first.timestamp, new Date('2025-01-01T00:00:01Z'));
   // The profile's own account, not another one signed in on the web.
   assert.equal(first.agent.sourceId, 'gaia-1');
   assert.equal(first.agent.sameAs[0].handle, 'you@example.com');
-  // Recorded here before the newer sync client id was added.
-  assert.equal(first.instrument.sourceId, 'mac-old');
   assert.equal(first.object.name, 'Page A');
 
   // Sub-millisecond Chrome times truncate to the millisecond.
   assert.deepEqual(redirected.timestamp, new Date('2025-01-01T00:00:02Z'));
-  // A synced visit names the install that recorded it; an untitled page its URL.
-  assert.equal(synced.instrument.sourceId, 'phone-guid');
+  // An untitled page is named by its URL.
   assert.equal(synced.object.name, 'https://example.com/b');
-  assert.equal(latest.instrument.sourceId, 'mac-new');
 
   // since/until are converted to Chrome's visit times.
   const since = new Date(JAN_1 + 2500);
@@ -63,12 +59,11 @@ test('visits become schema-valid ViewActions, newest first', async t => {
   }
 });
 
-test('a signed-out profile without sync has no agent or instrument', async t => {
+test('a signed-out profile has no agent', async t => {
   for (const prefs of [{ account_info: [] }, null]) {
     const { input } = fixture(t, { prefs });
     const [view] = await views(await extract({ input, limit: 1 }));
     assert.equal('agent' in view, false);
-    assert.equal('instrument' in view, false);
   }
 });
 

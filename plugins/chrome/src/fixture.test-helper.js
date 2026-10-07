@@ -8,8 +8,6 @@ import { join } from 'node:path';
 // Unix ms for 2025-01-01T00:00:00Z, and Chrome's microseconds since 1601 for it.
 export const JAN_1 = 1_735_689_600_000;
 const chrome = ms => (ms + 11_644_473_600_000) * 1000;
-// Days since 1601, as Preferences stores when a sync client id was added.
-const day = ms => Math.floor(ms / 86_400_000) + 134_774;
 export const DAY_MS = 86_400_000;
 
 // visits.transition: core type in the low byte, chain qualifiers above.
@@ -26,12 +24,6 @@ const preferences = {
     { gaia: 'gaia-2', email: 'other@example.com' },
     { gaia: 'gaia-1', email: 'you@example.com' },
   ],
-  sync: {
-    local_device_guids_with_timestamp: [
-      { cache_guid: 'mac-new', timestamp: day(JAN_1 + DAY_MS) },
-      { cache_guid: 'mac-old', timestamp: day(JAN_1 - 10 * DAY_MS) },
-    ],
-  },
 };
 
 /** A profile's `History` and `Preferences`; `prefs: null` leaves out `Preferences`. */

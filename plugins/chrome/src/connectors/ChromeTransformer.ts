@@ -1,12 +1,5 @@
 import { ChronicleTransformer, Record, selfAgent } from '@chronicle.app/etl';
-import {
-  ActionAndChildren,
-  Agent,
-  Entity,
-  Person,
-  SoftwareApplication,
-  ViewAction,
-} from '@chronicle.app/schema';
+import { ActionAndChildren, Agent, Entity, Person, ViewAction } from '@chronicle.app/schema';
 import type { ChromeAccount } from './profile.js';
 
 export default class ChromeTransformer extends ChronicleTransformer {
@@ -22,7 +15,6 @@ export default class ChromeTransformer extends ChronicleTransformer {
 
   private buildViewAction(record: Record): ViewAction {
     const user = this.buildUser(record.context.account);
-    const install = this.buildInstall(record.data.device_guid);
 
     return {
       '@type': 'ViewAction',
@@ -31,7 +23,6 @@ export default class ChromeTransformer extends ChronicleTransformer {
       source: 'chrome',
       // A signed-out profile can't identify the viewer, so omit them.
       ...(user && { agent: user }),
-      ...(install && { instrument: install }),
       object: this.buildWebPage(record),
     };
   }
@@ -54,22 +45,6 @@ export default class ChromeTransformer extends ChronicleTransformer {
         ]
       : [];
     return selfAgent({ source: 'google-account', sourceId: account.gaiaId, sameAs });
-  }
-
-  /**
-   * The Chrome install that recorded the visit: a profile's sync client, keyed
-   * on its id. It names the install, not the hardware, so the same visit synced
-   * to several machines names the same install on each.
-   */
-  private buildInstall(guid: string | null): SoftwareApplication | null {
-    if (!guid) return null;
-    return {
-      '@type': 'SoftwareApplication',
-      '@key': ['@type', 'source', 'sourceId'],
-      source: 'chrome',
-      sourceId: guid,
-      name: 'Chrome',
-    };
   }
 
   private buildWebPage(record: Record): Entity {
