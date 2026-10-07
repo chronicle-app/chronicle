@@ -14,15 +14,15 @@ converted from the record. Every node also has `source`.
 
 ```ts
 MessageAction key(sourceId) {
-  sourceId, timestamp
+  sourceId*, timestamp
   agent: Agent key(handle) { handle, name, sameAs[]? }
   object: Message key(inRealm.handle, sourceId) {
     sourceId, name, body, tags[]
     inRealm: Realm key(handle) { handle }
-    sameAs[]: Message key(sourceId) { sourceId }
+    sameAs[]: Message key(sourceId) { sourceId* }
     author[]: Agent key(handle) { handle, name, sameAs[]? }
     recipient[]: Agent key(handle) { handle, name, sameAs[]? }
-    inReplyTo[]?: Message key(sourceId) { sourceId }
+    inReplyTo[]?: Message key(sourceId) { sourceId* }
     isPartOf[]: Thread key(inRealm.handle, sourceId) {
       sourceId
       inRealm: Realm key(handle) { handle }

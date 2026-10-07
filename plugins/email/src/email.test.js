@@ -114,7 +114,8 @@ test('messages become schema-valid MessageActions keyed on the Message-ID', asyn
     '@type': 'MessageAction',
     '@key': ['@type', 'source', 'sourceId'],
     source: 'email',
-    sourceId: '<keyed-1@example.test>',
+    // The Message-ID, without its angle brackets.
+    sourceId: 'keyed-1@example.test',
     timestamp: new Date('2025-01-06T10:00:00Z'),
     '@assertedAt': new Date('2025-01-06T10:00:00Z'),
     agent: alice,
@@ -122,7 +123,7 @@ test('messages become schema-valid MessageActions keyed on the Message-ID', asyn
       '@type': 'Message',
       '@key': ['@type', 'source', 'sourceId'],
       source: 'email',
-      sourceId: '<keyed-1@example.test>',
+      sourceId: 'keyed-1@example.test',
       name: 'Café plans',
       // The text/plain alternative; the HTML one is left out.
       body: 'Lunch at noon?',

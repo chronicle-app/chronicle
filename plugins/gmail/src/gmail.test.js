@@ -70,12 +70,12 @@ test('Gmail messages become emails in their thread, with labels, newest first', 
     '@type': 'MessageAction',
     '@key': ['@type', 'source', 'sourceId'],
     source: 'email',
-    sourceId: '<reply@example.com>',
+    sourceId: 'reply@example.com',
     timestamp: new Date('2025-03-02T09:00:00Z'),
     '@assertedAt': new Date('2025-03-02T09:00:00Z'),
     agent: owner,
     // This mailbox's copy, by Gmail's ID, the same message as every copy
-    // with its Message-ID.
+    // with its Message-ID, keyed without its angle brackets.
     object: {
       '@type': 'Message',
       ...inMailbox('18c1f0a2b3c4d5e7'),
@@ -84,7 +84,7 @@ test('Gmail messages become emails in their thread, with labels, newest first', 
           '@type': 'Message',
           '@key': ['@type', 'source', 'sourceId'],
           source: 'email',
-          sourceId: '<reply@example.com>',
+          sourceId: 'reply@example.com',
         },
       ],
       name: 'Re: Plans',
@@ -96,7 +96,7 @@ test('Gmail messages become emails in their thread, with labels, newest first', 
           '@type': 'Message',
           '@key': ['@type', 'source', 'sourceId'],
           source: 'email',
-          sourceId: '<plans@example.com>',
+          sourceId: 'plans@example.com',
         },
       ],
       isPartOf: [thread],
@@ -169,8 +169,8 @@ test('a Takeout becomes the same messages, threads, and labels', async t => {
   // Every message is the same node either way: same thread, same labels, and
   // you are you as a recipient too, by the Takeout's Delivered-To.
   assert.deepEqual(local, api);
-  assert.deepEqual(local['<plans@example.com>'].object.isPartOf, [thread]);
-  assert.deepEqual(local['<plans@example.com>'].object.tags, ['Inbox', 'Starred', 'Work', 'Café']);
+  assert.deepEqual(local['plans@example.com'].object.isPartOf, [thread]);
+  assert.deepEqual(local['plans@example.com'].object.tags, ['Inbox', 'Starred', 'Work', 'Café']);
 });
 
 test('a Takeout run filters each message itself', async t => {

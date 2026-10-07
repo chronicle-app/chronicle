@@ -27,6 +27,14 @@ const ADDRESS_KEY = ['@type', 'source', 'handle'];
 const COMPOSITE_DELIMITER = '\u001F';
 
 /**
+ * A Message-ID as an identifier: without the angle brackets RFC 5322 writes
+ * around it, as JMAP and `mid:` URIs give it, so every source keys it alike.
+ */
+function msgId(header: string): string {
+  return header.replace(/^<(.*)>$/, '$1');
+}
+
+/**
  * A message's own identity: its Message-ID; without one, its sender, sent
  * time, and subject. Null when it has neither a Message-ID nor a sender and a
  * date: nothing real identifies it, and a made-up id would mint a new message
@@ -93,8 +101,9 @@ export function messageAction(mail: MailMessage, options: MessageNodeOptions = {
     agent(address, isMe(address.address), identities(address.address))
   );
 
-  const shared: Message | undefined = mail.messageId
-    ? { '@type': 'Message', '@key': MESSAGE_KEY, source: EMAIL, sourceId: mail.messageId }
+  const messageId = mail.messageId && msgId(mail.messageId);
+  const shared: Message | undefined = messageId
+    ? { '@type': 'Message', '@key': MESSAGE_KEY, source: EMAIL, sourceId: messageId }
     : undefined;
   const { identity } = options;
   const message: Message = {
@@ -110,7 +119,7 @@ export function messageAction(mail: MailMessage, options: MessageNodeOptions = {
           ...(shared && { sameAs: [shared] }),
         }
       : shared
-        ? { '@key': MESSAGE_KEY, source: EMAIL, sourceId: mail.messageId! }
+        ? { '@key': MESSAGE_KEY, source: EMAIL, sourceId: messageId! }
         : { '@key': KEYLESS_MESSAGE_KEY, source: EMAIL }),
     name: mail.subject,
     ...(mail.text && { body: mail.text }),
@@ -118,7 +127,7 @@ export function messageAction(mail: MailMessage, options: MessageNodeOptions = {
     ...(recipients.length > 0 && { recipient: recipients }),
     ...(mail.inReplyTo && {
       inReplyTo: [
-        { '@type': 'Message', '@key': MESSAGE_KEY, source: EMAIL, sourceId: mail.inReplyTo },
+        { '@type': 'Message', '@key': MESSAGE_KEY, source: EMAIL, sourceId: msgId(mail.inReplyTo) },
       ],
     }),
     ...(options.thread && { isPartOf: [options.thread] }),
@@ -127,8 +136,8 @@ export function messageAction(mail: MailMessage, options: MessageNodeOptions = {
 
   return {
     '@type': 'MessageAction',
-    ...(mail.messageId
-      ? { '@key': MESSAGE_KEY, source: EMAIL, sourceId: mail.messageId }
+    ...(messageId
+      ? { '@key': MESSAGE_KEY, source: EMAIL, sourceId: messageId }
       : { '@key': KEYLESS_ACTION_KEY, source: EMAIL }),
     timestamp: new Date(sentAt),
     agent: sender,
