@@ -146,12 +146,12 @@ test('food entries become schema-valid EatActions and DrankActions, newest first
   assert.equal(soup.context.mealType.sortIndex, '-9223372036854775806');
 
   const transformer = new FoodNomsTransformer();
-  // The timestamp is the extractor's date string, passed through as is.
+  // The extractor's UTC date string becomes the instant it names.
   const [eat] = await transformer.performTransform(soup);
   assert.deepEqual(eat.data, {
     '@type': 'EatAction',
-    timestamp: '2025-01-02 17:30:00.000Z',
-    '@assertedAt': '2025-01-02 17:30:00.000Z',
+    timestamp: new Date('2025-01-02T17:30:00.000Z'),
+    '@assertedAt': new Date('2025-01-02T17:30:00.000Z'),
     '@key': ['source', 'sourceId'],
     source: 'foodnoms',
     sourceId: '3f6c2a9e-1b4d-4c8e-9a7f-2d5e8b1c4a60',
@@ -170,8 +170,8 @@ test('food entries become schema-valid EatActions and DrankActions, newest first
   const [drank] = await transformer.performTransform(latte);
   assert.deepEqual(drank.data, {
     '@type': 'DrankAction',
-    timestamp: '2025-01-02 14:05:00.000Z',
-    '@assertedAt': '2025-01-02 14:05:00.000Z',
+    timestamp: new Date('2025-01-02T14:05:00.000Z'),
+    '@assertedAt': new Date('2025-01-02T14:05:00.000Z'),
     '@key': ['source', 'sourceId'],
     source: 'foodnoms',
     sourceId: '8b1e4d7a-2c9f-4e3b-b6a1-5f0d3c7e9a24',

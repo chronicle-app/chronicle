@@ -42,3 +42,43 @@ test('rejects missing identity, invalid values, and types outside the vocabulary
     assert.equal(schema.safeParse(record).success, false, JSON.stringify(record));
   }
 });
+
+test('a time is an instant, or a date at the precision the source knows', () => {
+  for (const timestamp of [
+    new Date('2024-03-02T14:05:00Z'),
+    '2024-03-02T14:05:00.000Z',
+    '2026-10-06T19:00:00-04:00',
+    '1987',
+    '1987-06',
+    '1987-06-12',
+    '198X',
+    '1987-XX',
+    'XXXX-03-12',
+    'XXXX-02-29',
+    '1987?',
+    '1950-06~',
+    '198X%',
+  ]) {
+    assert.deepEqual(ActionSchema.parse({ ...action, timestamp }).timestamp, timestamp);
+  }
+  for (const timestamp of [
+    new Date('not a date'),
+    '2024-03-02T14:05:00',
+    '2024-03-02T14:05Z',
+    '2024-03-02T14:05:00Z?',
+    '1987/1990',
+    '1987-13',
+    '1987-02-29',
+    '1987-XX-12',
+    'XXXX',
+    '19X7',
+    'March 1987',
+    '',
+  ]) {
+    assert.equal(
+      ActionSchema.safeParse({ ...action, timestamp }).success,
+      false,
+      String(timestamp)
+    );
+  }
+});

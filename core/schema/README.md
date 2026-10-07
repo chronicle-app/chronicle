@@ -27,7 +27,9 @@ visits, trips, places, and journeys; WhatsApp adds group channels, members, and
 quoted replies. Shared properties cover source identity,
 event time, agents, membership, authors, and recipients.
 
-`Text`, `URL`, `DateTime`, `Date`, and `Number` are literal datatypes, under `DataType`. Cardinality in
+`Text`, `URL`, `DateTime`, and `Number` are literal datatypes, under `DataType`. A
+`DateTime` is a `Date` or an EDTF string at the source's precision, such as `1987` or
+`XXXX-03-12`; `isDateTime` checks a string. Cardinality in
 `chronicle.ttl` defines each property's constraints: `owl:minCardinality 1` makes
 it required, and `owl:maxCardinality 1` makes it single-valued; otherwise it is a list. Records carry `@type` and at least one of `@key` (a nonempty list of
 identity fields or computed key entries) or `@id` (an existing identity). A

@@ -46,7 +46,7 @@
 
 :DateTime a rdfs:Class;
   rdfs:subClassOf :DataType;
-  rdfs:comment "An instant anchored in time, including a date and time of day. Represented as a JavaScript Date in extracted records; use only when the source provides enough information to identify an instant." .
+  rdfs:comment "A point in time at the precision the source knows, written in a subset of EDTF (ISO 8601-2): a full instant with its zone (`2024-03-02T14:05:00Z`, `2026-10-06T19:00:00-04:00`); a year, month, or day (`1987`, `1987-06`, `1987-06-12`), with no time of day and no zone; trailing year digits, the month, or the day left unspecified (`198X`, `1987-XX`, `XXXX-03-12`); and, on a date, one qualifier for the whole value: `?` uncertain, `~` approximate, `%` both (`1987?`). A value covers its whole period, so `1987` is a point somewhere in that year, and a more precise value narrows it. Never an interval: a span is a start and an end. An extracted record may carry a JavaScript Date for an instant; never widen a date to midnight to make one." .
 :Agent a rdfs:Class;
   rdfs:subClassOf :Entity;
   rdfs:comment "An entity capable of performing an action, such as a person, organization, or software agent. An action's :agent identifies its doer when known." .
@@ -83,11 +83,10 @@
   :domainIncludes :Base;
   :rangeIncludes :Text .
 :timestamp a rdf:Property;
-  rdfs:comment "The instant when the action occurred, as reported by the source. Records occurrence time, not the time Chronicle extracted the record.";
+  rdfs:comment "When the action occurred, at the precision the source reports. Records occurrence time, not the time Chronicle extracted the record.";
   owl:maxCardinality 1;
   :domainIncludes :Action;
-  :rangeIncludes :Date,
-    :DateTime .
+  :rangeIncludes :DateTime .
 :agent a rdf:Property;
   rdfs:comment "The doer of the action, when identified by the source. Omit when no doer is known; an occurrence can be recorded without an agent.";
   owl:maxCardinality 1;
@@ -214,17 +213,15 @@
   rdfs:comment "A numeric value, integral or decimal.";
   rdfs:subClassOf :DataType .
 :startTime a rdf:Property;
-  rdfs:comment "When an action started. A :DateTime is an anchored instant; a :Date is a civil whole-day bound.";
+  rdfs:comment "When an action started. A date is a bound at its own precision.";
   owl:maxCardinality 1;
   :domainIncludes :Action;
-  :rangeIncludes :Date,
-    :DateTime .
+  :rangeIncludes :DateTime .
 :endTime a rdf:Property;
-  rdfs:comment "When an action ended. A :DateTime is an anchored instant; a :Date is a civil whole-day bound, the last whole day included.";
+  rdfs:comment "When an action ended. A date is a bound at its own precision, the whole period included.";
   owl:maxCardinality 1;
   :domainIncludes :Action;
-  :rangeIncludes :Date,
-    :DateTime .
+  :rangeIncludes :DateTime .
 :result a rdf:Property;
   rdfs:comment "What the action produced — the artifact or session that came into being through it.";
   owl:maxCardinality 1;
@@ -316,10 +313,7 @@
   :rangeIncludes :Message .
 
 :DataType a rdfs:Class;
-  rdfs:comment "A simple literal value: text, a number, a date, a date-time." .
-:Date a rdfs:Class;
-  rdfs:comment "A civil calendar date — a day in wall-clock time with no time of day and no zone, kept as an ISO date string rather than an instant. The whole-day counterpart of :DateTime: an all-day event, a date-only life event, a bare year.";
-  rdfs:subClassOf :DataType .
+  rdfs:comment "A simple literal value: text, a number, a point in time." .
 :Event a rdfs:Class;
   rdfs:comment "A named happening with a declared :scheduledStart and :scheduledEnd — a calendar entry, a concert, a picnic. Carries its :location and :attendee values; the :object of an :AttendAction. Its actual extent derives from the activity that constitutes it.";
   rdfs:subClassOf :Entity .
@@ -329,19 +323,17 @@
   :domainIncludes :Event;
   :rangeIncludes :Agent .
 :scheduledStart a rdf:Property;
-  rdfs:comment "When an event or session is planned to start — a fact about the plan, not something that happened, which is an action's :startTime. A :DateTime for a timed plan; a :Date for an all-day one.";
+  rdfs:comment "When an event or session is planned to start — a fact about the plan, not something that happened, which is an action's :startTime. An instant for a timed plan; a day for an all-day one.";
   owl:maxCardinality 1;
   :domainIncludes :Event,
     :Session;
-  :rangeIncludes :Date,
-    :DateTime .
+  :rangeIncludes :DateTime .
 :scheduledEnd a rdf:Property;
-  rdfs:comment "When an event or session is planned to end: the same kind of value as its :scheduledStart, and not before it. A :Date is the last whole day included, so a one-day event ends on the day it starts.";
+  rdfs:comment "When an event or session is planned to end: the same kind of value as its :scheduledStart, and not before it. A date is the last whole day included, so a one-day event ends on the day it starts.";
   owl:maxCardinality 1;
   :domainIncludes :Event,
     :Session;
-  :rangeIncludes :Date,
-    :DateTime .
+  :rangeIncludes :DateTime .
 :relation a rdf:Property;
   rdfs:comment "Any edge from an entity to another entity.";
   :abstract true;
@@ -516,12 +508,11 @@
     :AudioObject;
   :rangeIncludes :Text .
 :datePublished a rdf:Property;
-  rdfs:comment "When the work was published or released, at whatever precision the source knows (a bare year is a year-precision date). A date on the work's own timeline: the moment its :PublishAction occurred.";
+  rdfs:comment "When the work was published or released, at whatever precision the source knows. A date on the work's own timeline: the moment its :PublishAction occurred.";
   owl:maxCardinality 1;
   owl:equivalentProperty schemaorg:datePublished;
   :domainIncludes :CreativeWork;
-  :rangeIncludes :Date,
-    :DateTime .
+  :rangeIncludes :DateTime .
 :target a rdf:Property;
   rdfs:comment "What an action is directed toward, as opposed to what it is carried out on (:object). A collection operation targets the collection it adds to or removes from; a movement verb targets where it ended up, with :object naming where it began (:NavigateAction from one page to the next, :TravelAction from one place to the next).";
   owl:maxCardinality 1;

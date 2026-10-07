@@ -49,7 +49,7 @@ A field holds either another record or a plain value. Plain values have one of t
 
 - :Text for names, identifiers, and content.
 - :URL for an absolute address, such as `https://example.com/page`.
-- :DateTime for an instant in time. In TypeScript it is a `Date`; the examples show it as an ISO string.
+- :DateTime for a point in time, as precise as the source knows it: an instant such as `2026-03-14T09:26:00Z`, or a date such as `2026-03-14`, `2026-03`, or `1987?`. In TypeScript an instant can also be a `Date`.
 
 ## Using the reference
 

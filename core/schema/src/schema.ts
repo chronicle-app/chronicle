@@ -1,9 +1,20 @@
 export const SCHEMA_VERSION = '0.3.0' as const;
 // Generated from chronicle.ttl. Do not edit; run npm run schema:generate.
 import { z } from 'zod';
+import { isDateTime } from './datetime.js';
 
 // Record identity key field: a property path, or a computed {key, value} entry
 export type KeyField = string | { key: string; value: string };
+
+const DateTimeSchema = z.union([
+  z.date(),
+  z
+    .string()
+    .refine(
+      isDateTime,
+      'Not a date or time. Use EDTF, such as 2026-03-14T09:26:00Z, 2026-03-14, or 1987.'
+    ),
+]);
 
 function requireNodeIdentity(
   node: { '@key'?: unknown; '@id'?: unknown },
@@ -88,14 +99,14 @@ export type ActionAndChildren =
 const ActionProperties = {
   ...BaseProperties,
   agent: z.lazy(() => AgentAndChildrenSchema).optional(),
-  endTime: z.lazy(() => z.union([z.date(), z.string()])).optional(),
+  endTime: z.lazy(() => DateTimeSchema).optional(),
   instrument: z.lazy(() => EntityAndChildrenSchema).optional(),
   location: z.lazy(() => z.union([LocationAndChildrenSchema, PlaceAndChildrenSchema])).optional(),
   object: z.lazy(() => EntityAndChildrenSchema).optional(),
   result: z.lazy(() => EntityAndChildrenSchema).optional(),
-  startTime: z.lazy(() => z.union([z.date(), z.string()])).optional(),
+  startTime: z.lazy(() => DateTimeSchema).optional(),
   target: z.lazy(() => EntityAndChildrenSchema).optional(),
-  timestamp: z.lazy(() => z.union([z.date(), z.string()])).optional(),
+  timestamp: z.lazy(() => DateTimeSchema).optional(),
 };
 
 export const ActionSchema: z.ZodType<Action> = z
@@ -318,7 +329,7 @@ const CreativeWorkProperties = {
   ...EntityProperties,
   author: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
   creator: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
-  datePublished: z.lazy(() => z.union([z.date(), z.string()])).optional(),
+  datePublished: z.lazy(() => DateTimeSchema).optional(),
   genre: z.lazy(() => z.array(z.string())).optional(),
   isBasedOn: z.lazy(() => z.array(CreativeWorkAndChildrenSchema)).optional(),
   publisher: z.lazy(() => z.array(OrganizationAndChildrenSchema)).optional(),
@@ -558,8 +569,8 @@ export type SessionAndChildren =
 const SessionProperties = {
   ...EntityProperties,
   references: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
-  scheduledEnd: z.lazy(() => z.union([z.date(), z.string()])).optional(),
-  scheduledStart: z.lazy(() => z.union([z.date(), z.string()])).optional(),
+  scheduledEnd: z.lazy(() => DateTimeSchema).optional(),
+  scheduledStart: z.lazy(() => DateTimeSchema).optional(),
   subject: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
   workingDirectory: z.lazy(() => DirectoryAndChildrenSchema).optional(),
 };
@@ -1062,8 +1073,8 @@ const EventProperties = {
   ...EntityProperties,
   attendee: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
   location: z.lazy(() => z.union([LocationAndChildrenSchema, PlaceAndChildrenSchema])).optional(),
-  scheduledEnd: z.lazy(() => z.union([z.date(), z.string()])).optional(),
-  scheduledStart: z.lazy(() => z.union([z.date(), z.string()])).optional(),
+  scheduledEnd: z.lazy(() => DateTimeSchema).optional(),
+  scheduledStart: z.lazy(() => DateTimeSchema).optional(),
 };
 
 export const EventSchema: z.ZodType<Event> = z

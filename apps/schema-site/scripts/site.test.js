@@ -14,25 +14,8 @@ const schema = await readSchema(DATA_DIRECTORIES.schema);
 
 test('every documentation example is a valid Chronicle record', () => {
   assert.ok(schema.examples.length > 0);
-  // Chronicle JSON shows dates as ISO strings; plugins emit Date objects.
-  const dates = new Set(
-    [...schema.properties.values()]
-      .filter(property => property.range.includes('DateTime'))
-      .map(property => property.name)
-  );
-  const revive = value =>
-    Array.isArray(value)
-      ? value.map(item => revive(item))
-      : value && typeof value === 'object'
-        ? Object.fromEntries(
-            Object.entries(value).map(([key, item]) => [
-              key,
-              dates.has(key) ? new Date(item) : revive(item),
-            ])
-          )
-        : value;
   for (const example of schema.examples) {
-    const record = revive(example.chronicle);
+    const record = example.chronicle;
     const result = BaseAndChildrenSchema.safeParse(record);
     assert.ok(result.success, `${example.id}: ${result.error?.message}`);
     // Zod strips undeclared fields, so a lossless parse means every field is declared.
