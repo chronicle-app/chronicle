@@ -67,9 +67,8 @@ export interface MessageNodeOptions {
   identitiesOf?: (address: string) => Agent[];
   /**
    * The source's own identity for its copy of the message (Gmail's message
-   * ID in a mailbox). The message node is then the source's: keyed by it and
-   * carrying what the source reported, `sameAs` the Message-ID that every
-   * copy shares.
+   * ID in a mailbox), linked by `sameAs`. The message stays keyed by its
+   * Message-ID, which every copy shares.
    */
   identity?: { source: string; sourceId: string; inRealm?: Realm };
 }
@@ -78,8 +77,8 @@ export interface MessageNodeOptions {
  * The sending of a message: a `MessageAction` by its sender, whose object is
  * the `Message`, with its recipients, the message it replies to, and its
  * thread and labels when the source has them. The sending happened once, so
- * the action is keyed by the Message-ID wherever the message is read; the
- * message node may be one source's copy (see `identity`).
+ * the action is keyed by the Message-ID wherever the message is read, as the
+ * message is.
  */
 export function messageAction(mail: MailMessage, options: MessageNodeOptions = {}): MessageAction {
   const me = new Set((options.me ?? []).map(address => address.toLowerCase()));
@@ -102,25 +101,22 @@ export function messageAction(mail: MailMessage, options: MessageNodeOptions = {
   );
 
   const messageId = mail.messageId && msgId(mail.messageId);
-  const shared: Message | undefined = messageId
-    ? { '@type': 'Message', '@key': MESSAGE_KEY, source: EMAIL, sourceId: messageId }
-    : undefined;
   const { identity } = options;
+  const copy: Message | undefined = identity && {
+    '@type': 'Message',
+    '@key': identity.inRealm
+      ? ['@type', 'source', 'inRealm.handle', 'sourceId']
+      : ['@type', 'source', 'sourceId'],
+    source: identity.source,
+    sourceId: identity.sourceId,
+    ...(identity.inRealm && { inRealm: identity.inRealm }),
+  };
   const message: Message = {
     '@type': 'Message',
-    ...(identity
-      ? {
-          '@key': identity.inRealm
-            ? ['@type', 'source', 'inRealm.handle', 'sourceId']
-            : ['@type', 'source', 'sourceId'],
-          source: identity.source,
-          sourceId: identity.sourceId,
-          ...(identity.inRealm && { inRealm: identity.inRealm }),
-          ...(shared && { sameAs: [shared] }),
-        }
-      : shared
-        ? { '@key': MESSAGE_KEY, source: EMAIL, sourceId: messageId! }
-        : { '@key': KEYLESS_MESSAGE_KEY, source: EMAIL }),
+    ...(messageId
+      ? { '@key': MESSAGE_KEY, source: EMAIL, sourceId: messageId }
+      : { '@key': KEYLESS_MESSAGE_KEY, source: EMAIL }),
+    ...(copy && { sameAs: [copy] }),
     name: mail.subject,
     ...(mail.text && { body: mail.text }),
     author: [sender],

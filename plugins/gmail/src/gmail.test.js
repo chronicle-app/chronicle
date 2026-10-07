@@ -74,19 +74,14 @@ test('Gmail messages become emails in their thread, with labels, newest first', 
     timestamp: new Date('2025-03-02T09:00:00Z'),
     '@assertedAt': new Date('2025-03-02T09:00:00Z'),
     agent: owner,
-    // This mailbox's copy, by Gmail's ID, the same message as every copy
-    // with its Message-ID, keyed without its angle brackets.
+    // Keyed by its Message-ID, without the angle brackets, as every copy is;
+    // `sameAs` Gmail's ID for it in this mailbox.
     object: {
       '@type': 'Message',
-      ...inMailbox('18c1f0a2b3c4d5e7'),
-      sameAs: [
-        {
-          '@type': 'Message',
-          '@key': ['@type', 'source', 'sourceId'],
-          source: 'email',
-          sourceId: 'reply@example.com',
-        },
-      ],
+      '@key': ['@type', 'source', 'sourceId'],
+      source: 'email',
+      sourceId: 'reply@example.com',
+      sameAs: [{ '@type': 'Message', ...inMailbox('18c1f0a2b3c4d5e7') }],
       name: 'Re: Plans',
       body: 'Saturday works.',
       author: [owner],

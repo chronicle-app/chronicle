@@ -5,10 +5,9 @@ import { ActionAndChildren, Realm, Thread } from '@chronicle.app/schema';
 import type { GmailRecord } from '../types.js';
 
 /**
- * A Gmail message is this mailbox's copy of an email: keyed by Gmail's own
- * ID in the mailbox (a `Realm` for the account), carrying what Gmail reported,
- * and `sameAs` the Message-ID every copy shares, so copies in other
- * mailboxes and mbox files are one message. It `isPartOf` its `Thread` and
+ * A Gmail message is keyed by its Message-ID, so copies in other mailboxes
+ * and mbox files are one message, and is `sameAs` Gmail's own ID for it in
+ * the mailbox (a `Realm` for the account). It `isPartOf` its `Thread` and
  * its labels are its `tags`. Mail in Sent is
  * yours. A person on one of your contacts is `sameAs` the contact's other
  * addresses and phone numbers.
@@ -47,8 +46,7 @@ export default class GmailTransformer extends ChronicleTransformer {
         tags: gmail.labels,
         // Your contacts link a person to their other addresses and numbers.
         identitiesOf: address => contactIdentities(address, contacts?.[address.toLowerCase()]),
-        // The message is this mailbox's copy, with Gmail's own ID; it's
-        // `sameAs` the Message-ID every copy shares.
+        // Gmail's own ID for the message in this mailbox, linked by `sameAs`.
         ...(gmail.id &&
           mailbox && {
             identity: { source: 'gmail', sourceId: gmail.id, inRealm: mailbox },
