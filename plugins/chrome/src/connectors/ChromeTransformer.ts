@@ -1,6 +1,7 @@
 import { ChronicleTransformer, Record, selfAgent } from '@chronicle.app/etl';
 import {
   ActionAndChildren,
+  Agent,
   Entity,
   Person,
   SoftwareApplication,
@@ -37,14 +38,15 @@ export default class ChromeTransformer extends ChronicleTransformer {
 
   /**
    * The profile's Google account, keyed on its Gaia id in the namespace other
-   * Google sources share, with its email as a second identity.
+   * Google sources share, with its email as a second identity: an `Agent` in
+   * the `email` namespace, as every source keys an address.
    */
   private buildUser(account: ChromeAccount | null | undefined): Person | null {
     if (!account) return null;
-    const sameAs: Person[] = account.email
+    const sameAs: Agent[] = account.email
       ? [
           {
-            '@type': 'Person',
+            '@type': 'Agent',
             '@key': ['@type', 'source', 'handle'],
             source: 'email',
             handle: account.email,

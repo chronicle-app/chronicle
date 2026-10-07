@@ -6,8 +6,8 @@ Records are visits, newest first. Redirect hops, pages loaded in frames, the ext
 
 Each `ViewAction` is keyed by its timestamp, to the millisecond. The visited page is an `Entity` keyed by its URL and named after the page title, or the URL when there is none. Chrome keeps one title per URL, not per visit, so every visit to a page carries its latest title.
 
-The agent is the Google account the profile is signed in to, read from the profile's `Preferences`: a `google-account` Person keyed by its Gaia id, with the account's email as a `sameAs`. It is omitted for a signed-out profile.
+The agent is the Google account the profile is signed in to, read from the profile's `Preferences`: a `google-account` Person keyed by its Gaia id, `sameAs` the account's email address, an `email` Agent as other sources key it. It is omitted for a signed-out profile.
 
 The instrument is the Chrome install that recorded the visit, a `SoftwareApplication` keyed by its sync client id. A synced visit names the install it came from. A local visit names this profile's id at the time; Chrome adds a new id when sync is set up again. Profiles that never set up sync have no instrument.
 
-Tests use a synthetic history database and `Preferences` file and never read the host's browsing history.
+[SHAPES.md](SHAPES.md) shows what each record type becomes; run `npm run shapes` to update it after changing the transformer. Tests use a synthetic history database and `Preferences` file and never read the host's browsing history.
