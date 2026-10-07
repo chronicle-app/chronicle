@@ -160,6 +160,7 @@
   rdfs:comment "A document artifact, such as a PDF, text file, or document attachment." .
 :recipient a rdf:Property;
   rdfs:comment "An agent the message was directed to. A message can have multiple recipients, such as the other participants in a group conversation.";
+  rdfs:subPropertyOf :involvement;
   :domainIncludes :Message;
   :rangeIncludes :Agent .
 :contains a rdf:Property;
@@ -341,6 +342,7 @@
 :involvement a rdf:Property;
   rdfs:comment "An agent involved in an entity as addressee, attendee, or member.";
   rdfs:subPropertyOf :relation;
+  :abstract true;
   :rangeIncludes :Agent .
 
 :InteractAction a rdfs:Class;
