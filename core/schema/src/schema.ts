@@ -94,6 +94,7 @@ export type ActionAndChildren =
   | FindActionAndChildren
   | InteractActionAndChildren
   | MessageActionAndChildren
+  | MoveActionAndChildren
   | OrganizeActionAndChildren
   | PlanActionAndChildren
   | RejectActionAndChildren
@@ -1416,6 +1417,24 @@ export const MessageActionSchema: z.ZodType<MessageAction> = z
   })
   .superRefine(requireNodeIdentity);
 
+// MoveAction, child of https://schema.chronicle.app/Action
+export interface MoveAction extends Omit<Action, '@type'> {
+  '@type': 'MoveAction';
+}
+
+export type MoveActionAndChildren = MoveAction | NavigateActionAndChildren;
+
+const MoveActionProperties = {
+  ...ActionProperties,
+};
+
+export const MoveActionSchema: z.ZodType<MoveAction> = z
+  .object({
+    '@type': z.literal('MoveAction'),
+    ...MoveActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // MusicAlbum, child of https://schema.chronicle.app/CreativeWork
 export interface MusicAlbum extends Omit<CreativeWork, '@type'> {
   '@type': 'MusicAlbum';
@@ -1515,6 +1534,24 @@ export const MusicRecordingSchema: z.ZodType<MusicRecording> = z
   .object({
     '@type': z.literal('MusicRecording'),
     ...MusicRecordingProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// NavigateAction, child of https://schema.chronicle.app/MoveAction
+export interface NavigateAction extends Omit<MoveAction, '@type'> {
+  '@type': 'NavigateAction';
+}
+
+export type NavigateActionAndChildren = NavigateAction;
+
+const NavigateActionProperties = {
+  ...MoveActionProperties,
+};
+
+export const NavigateActionSchema: z.ZodType<NavigateAction> = z
+  .object({
+    '@type': z.literal('NavigateAction'),
+    ...NavigateActionProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -2169,6 +2206,8 @@ export const PersonAndChildrenSchema = PersonSchema;
 
 export const PageSelectorAndChildrenSchema = PageSelectorSchema;
 
+export const NavigateActionAndChildrenSchema = NavigateActionSchema;
+
 export const MusicRecordingAndChildrenSchema = MusicRecordingSchema;
 
 export const MusicGroupAndChildrenSchema = MusicGroupSchema;
@@ -2206,6 +2245,19 @@ export const OrganizationAndChildrenSchema: z.ZodType<OrganizationAndChildren> =
   .superRefine(requireNodeIdentity);
 export const MusicAlbumAndChildrenSchema = MusicAlbumSchema;
 
+export const MoveActionAndChildrenSchema: z.ZodType<MoveActionAndChildren> = z
+  .discriminatedUnion('@type', [
+    z.object({
+      '@type': z.literal('MoveAction'),
+      ...MoveActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('NavigateAction'),
+      ...NavigateActionProperties,
+    }),
+  ])
+  .superRefine(requireNodeIdentity);
 export const MessageActionAndChildrenSchema = MessageActionSchema;
 
 export const MessageAndChildrenSchema = MessageSchema;
@@ -3158,6 +3210,16 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('MoveAction'),
+      ...MoveActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('NavigateAction'),
+      ...NavigateActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('MessageAction'),
       ...MessageActionProperties,
     }),
@@ -3648,6 +3710,16 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('PlanAction'),
       ...PlanActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('MoveAction'),
+      ...MoveActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('NavigateAction'),
+      ...NavigateActionProperties,
     }),
 
     z.object({

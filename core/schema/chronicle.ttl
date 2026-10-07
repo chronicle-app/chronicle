@@ -267,6 +267,12 @@
   :domainIncludes :Entity;
   :rangeIncludes :Text .
 
+:MoveAction a rdfs:Class;
+  rdfs:comment "The agent moved from the :object to the :target. The subclasses name the kind of movement.";
+  rdfs:subClassOf :Action .
+:NavigateAction a rdfs:Class;
+  rdfs:comment "The agent took one step through an information space, from the :object to the :target, such as following a link from one web page to another. A path through several pages is a sequence of these steps.";
+  rdfs:subClassOf :MoveAction .
 :VisitAction a rdfs:Class;
   rdfs:comment "The agent stayed at the :object place from :startTime to :endTime. Travel between stays is a :TravelAction.";
   rdfs:subClassOf :Action .

@@ -1,5 +1,13 @@
 import { ChronicleTransformer, Record, selfAgent } from '@chronicle.app/etl';
-import { ActionAndChildren, Agent, Entity, Person, ViewAction } from '@chronicle.app/schema';
+import {
+  ActionAndChildren,
+  Agent,
+  Entity,
+  NavigateAction,
+  Person,
+  ViewAction,
+} from '@chronicle.app/schema';
+import type { ChromeNavigation } from './ChromeExtractor.js';
 import type { ChromeAccount } from './profile.js';
 
 export default class ChromeTransformer extends ChronicleTransformer {
@@ -7,15 +15,16 @@ export default class ChromeTransformer extends ChronicleTransformer {
     const actions: ActionAndChildren[] = [];
 
     if (record.extraction.recordType === 'views') {
-      actions.push(this.buildViewAction(record));
+      const user = this.buildUser(record.context.account);
+      actions.push(this.buildViewAction(record, user));
+      const navigation = record.data.navigation as ChromeNavigation | null;
+      if (navigation) actions.push(this.buildNavigateAction(record, navigation, user));
     }
 
     return actions;
   }
 
-  private buildViewAction(record: Record): ViewAction {
-    const user = this.buildUser(record.context.account);
-
+  private buildViewAction(record: Record, user: Person | null): ViewAction {
     return {
       '@type': 'ViewAction',
       timestamp: new Date(record.data.unix_ms),
@@ -24,6 +33,33 @@ export default class ChromeTransformer extends ChronicleTransformer {
       // A signed-out profile can't identify the viewer, so omit them.
       ...(user && { agent: user }),
       object: this.buildWebPage(record),
+    };
+  }
+
+  /**
+   * The step from the page you followed a link or submitted a form on to the
+   * page you landed on, at the same moment as the visit. Both pages are the
+   * bare URL nodes the visits name. A followed link is also evidence that its
+   * page links to the URL followed, before any redirects, so that page
+   * `references` it. A form's address is not a link on the page.
+   */
+  private buildNavigateAction(
+    record: Record,
+    navigation: ChromeNavigation,
+    user: Person | null
+  ): NavigateAction {
+    const followed = this.pageByUrl(navigation.followed_url);
+    return {
+      '@type': 'NavigateAction',
+      timestamp: new Date(record.data.unix_ms),
+      '@key': ['@type', 'source', 'timestamp'],
+      source: 'chrome',
+      ...(user && { agent: user }),
+      object: {
+        ...this.pageByUrl(navigation.from_url),
+        ...(!navigation.form_submit && { references: [followed] }),
+      },
+      target: this.pageByUrl(record.data.url),
     };
   }
 
@@ -49,10 +85,12 @@ export default class ChromeTransformer extends ChronicleTransformer {
 
   private buildWebPage(record: Record): Entity {
     return {
-      '@type': 'Entity',
-      '@key': ['url'],
-      url: record.data.url,
+      ...this.pageByUrl(record.data.url),
       name: record.data.title || record.data.url,
     };
+  }
+
+  private pageByUrl(url: string): Entity {
+    return { '@type': 'Entity', '@key': ['url'], url };
   }
 }

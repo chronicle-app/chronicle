@@ -226,8 +226,15 @@ interface NodeShape {
 }
 
 interface RecordTypeShape {
-  /** Output nodes by where they sit: `''` is the action, `object.author[]` an author of its object. */
+  /**
+   * Output nodes by where they sit: `''` is the action, `object.author[]` an
+   * author of its object, and `+NavigateAction` a further action a record
+   * becomes beside the first.
+   */
   output: Map<string, NodeShape>;
+  records: number;
+  /** For each further action, how many records became one. */
+  further: Map<string, number>;
 }
 
 export interface Shapes {
@@ -243,13 +250,25 @@ export function shapesOf(samples: ShapeSample[]): Shapes {
   for (const sample of samples) {
     let shape = shapes.recordTypes.get(sample.recordType);
     if (!shape) {
-      shape = { output: new Map() };
+      shape = { output: new Map(), records: 0, further: new Map() };
       shapes.recordTypes.set(sample.recordType, shape);
     }
+    shape.records++;
     const inputs = new Map<string, unknown[]>();
     leaves(sample.input, '', inputs);
     leaves(sample.context ?? {}, 'context', inputs);
-    for (const output of sample.outputs) addNode(shape.output, output, '', inputs);
+    // The first action is the record's; one record type's records may become
+    // different ones. Each further action a record becomes is its own node.
+    const [first, ...rest] = sample.outputs;
+    addNode(shape.output, first, '', inputs);
+    const further = new Set<string>();
+    for (const output of rest) {
+      if (!isNode(output)) continue;
+      const root = `+${String(output['@type'])}`;
+      addNode(shape.output, output, root, inputs);
+      further.add(root);
+    }
+    for (const root of further) shape.further.set(root, (shape.further.get(root) ?? 0) + 1);
   }
   return shapes;
 }
@@ -339,6 +358,10 @@ export function renderShapes(shapes: Shapes, { title }: { title: string }): stri
       '',
       '```ts',
       ...renderNode(shape.output, '', constants),
+      ...[...shape.further].flatMap(([root, records]) => [
+        records < shape.records ? '// Some records also become:' : '// Every record also becomes:',
+        ...renderNode(shape.output, root, constants),
+      ]),
       '```'
     );
   }

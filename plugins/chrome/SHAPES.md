@@ -21,4 +21,17 @@ ViewAction key(timestamp) {
   }
   object: Entity key(url, any source) { url, name }
 }
+// Some records also become:
+NavigateAction key(timestamp) {
+  timestamp*
+  agent?: Person key(sourceId) {
+    sourceId
+    sameAs[]: Agent key(handle) { handle }
+  }
+  object: Entity key(url, any source) {
+    url
+    references[]?: Entity key(url, any source) { url }
+  }
+  target: Entity key(url, any source) { url }
+}
 ```

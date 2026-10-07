@@ -1,9 +1,11 @@
 import { constants as fsConstants, copyFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import type { StatementSync } from 'node:sqlite';
 import { Record } from '@chronicle.app/etl';
 import {
   SqliteExtractor,
+  allRows,
   chromeToUnixMsSql,
   getRow,
   isSqliteBusy,
@@ -30,6 +32,37 @@ const SKIPPED_TYPES = [3, 4, 10];
 const IMPORTED_SOURCES = [3, 4, 5, 6];
 // Browser pages and extension pages, not the web.
 const INTERNAL_URL_PREFIXES = ['chrome://', 'chrome-extension://'];
+// A redirect chain's first visit: its transition says how the navigation
+// began, and its from_visit is the page it began on.
+const CHAIN_START = 0x10_00_00_00;
+const MAX_REDIRECTS = 20;
+// Core types for following something on a page: a link (0) or a form (7).
+const LINK = 0;
+const FORM_SUBMIT = 7;
+// Qualifiers for going back or forward (0x01000000) and for a URL entered in
+// the address bar (0x02000000): not a step from the page before.
+const NOT_FOLLOWED = 0x03_00_00_00;
+
+/** The columns of a visit that say where it came from. */
+interface VisitRow {
+  url: string;
+  transition: number;
+  /** The transition's parts, split in SQL. */
+  core_type: number;
+  chain_start: number;
+  not_followed: number;
+  from_visit: number;
+  opener_visit: number;
+  external_referrer_url: string | null;
+}
+
+/** A link followed or a form submitted, from one page to the visit's. */
+export interface ChromeNavigation {
+  from_url: string;
+  /** The URL followed: the redirect chain's first, before any redirects. */
+  followed_url: string;
+  form_submit: boolean;
+}
 
 const visitTime = chromeToUnixMsSql('visits.visit_time');
 
@@ -65,6 +98,8 @@ export class ChromeExtractor extends SqliteExtractor<typeof ChromeExtractor> {
   static override defaultTransformer = ChromeTransformer;
 
   private account: ChromeAccount | null = null;
+  private referrerColumns = '';
+  private visitById: StatementSync | null = null;
   private cloneDir: string | null = null;
 
   /** visits.id — Chrome's own visit id, AUTOINCREMENT so never reused. */
@@ -95,6 +130,26 @@ export class ChromeExtractor extends SqliteExtractor<typeof ChromeExtractor> {
     }
 
     this.account = readChromeAccount(join(dirname(cfg.input), 'Preferences'));
+
+    // History files from before 2022 have no opener or external referrer.
+    const columns = new Set(
+      allRows<{ name: string }>(this.db!.prepare('PRAGMA table_info(visits)')).map(c => c.name)
+    );
+    this.referrerColumns = [
+      'visits.transition',
+      `visits.transition & ${CORE_MASK} AS core_type`,
+      `(visits.transition & ${CHAIN_START}) != 0 AS chain_start`,
+      `(visits.transition & ${NOT_FOLLOWED}) != 0 AS not_followed`,
+      'visits.from_visit',
+      columns.has('opener_visit') ? 'visits.opener_visit' : '0 AS opener_visit',
+      columns.has('external_referrer_url')
+        ? 'visits.external_referrer_url'
+        : 'NULL AS external_referrer_url',
+    ].join(', ');
+    this.visitById = this.db!.prepare(`
+      SELECT urls.url, ${this.referrerColumns}
+      FROM visits JOIN urls ON urls.id = visits.url
+      WHERE visits.id = ?`);
   }
 
   override async teardown(): Promise<void> {
@@ -150,7 +205,7 @@ export class ChromeExtractor extends SqliteExtractor<typeof ChromeExtractor> {
              urls.url,
              urls.title,
              ${visitTime} AS unix_ms,
-             visits.transition
+             ${this.referrerColumns}
       ${ChromeExtractor.FROM}
       WHERE ${where}
       ORDER BY visits.visit_time DESC`;
@@ -172,7 +227,44 @@ export class ChromeExtractor extends SqliteExtractor<typeof ChromeExtractor> {
       title: row.title || null,
       unix_ms: row.unix_ms,
       transition: row.transition,
+      navigation: this.navigation(row),
     };
+  }
+
+  /**
+   * How the visit was reached by following a link or submitting a form: from
+   * the page before it in its tab, else the page in the tab that opened it,
+   * else a referrer Chrome keeps only as a URL. Read from the first visit of
+   * its redirect chain, as Chrome's own history features do. Null for a typed
+   * URL, a bookmark, a reload, going back or forward, or a page reached from
+   * itself or from a browser page.
+   */
+  private navigation(row: VisitRow): ChromeNavigation | null {
+    let start = row;
+    for (let hops = 0; !start.chain_start; hops++) {
+      const previous = hops < MAX_REDIRECTS ? this.visit(start.from_visit) : undefined;
+      if (!previous) return null;
+      start = previous;
+    }
+    if (start.core_type !== LINK && start.core_type !== FORM_SUBMIT) return null;
+    if (start.not_followed) return null;
+
+    const from =
+      this.visit(start.from_visit)?.url ??
+      this.visit(start.opener_visit)?.url ??
+      (start.external_referrer_url || null);
+    if (!from || from === row.url || INTERNAL_URL_PREFIXES.some(p => from.startsWith(p))) {
+      return null;
+    }
+    return {
+      from_url: from,
+      followed_url: start.url,
+      form_submit: start.core_type === FORM_SUBMIT,
+    };
+  }
+
+  private visit(id: number): VisitRow | undefined {
+    return id ? getRow<VisitRow>(this.visitById!, id) : undefined;
   }
 
   override async determineCount(): Promise<number | null> {
