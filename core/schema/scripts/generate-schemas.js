@@ -187,7 +187,16 @@ const writeSchemaFile = (classes, properties, version) =>
     schemaFile.write(`export const SCHEMA_VERSION = ${JSON.stringify(version)} as const;\n`);
 
     schemaFile.write(
-      "// Generated from chronicle.ttl. Do not edit; run npm run schema:generate.\nimport { z } from 'zod';\n\n// Record identity key field: a property path, or a computed {key, value} entry\nexport type KeyField = string | { key: string; value: string };\n\n"
+      "// Generated from chronicle.ttl. Do not edit; run npm run schema:generate.\nimport { z } from 'zod';\nimport { isDateTime, isInstant } from './datetime.js';\n\n// Record identity key field: a property path, or a computed {key, value} entry\nexport type KeyField = string | { key: string; value: string };\n\n"
+    );
+
+    // A Date is an instant; a string is kept verbatim, never coerced, so a
+    // date like "2026-06-03" stays a day rather than becoming UTC midnight.
+    schemaFile.write(
+      'const DateTimeSchema = z.union([\n' +
+        '  z.date(),\n' +
+        "  z.string().refine(isDateTime, 'Not a date or time. Use EDTF, such as 2026-03-14T09:26:00Z, 2026-03-14, or 1987.'),\n" +
+        ']);\n\n'
     );
 
     // Identity comes from the source, expressed as @key or @id, including nested nodes.
@@ -224,7 +233,6 @@ const writeSchemaFile = (classes, properties, version) =>
       const literalTypes = [
         'Boolean',
         'DataType',
-        'Date',
         'DateTime',
         'Float',
         'Integer',
@@ -254,8 +262,7 @@ const writeSchemaFile = (classes, properties, version) =>
             const typeMappings = {
               Text: 'string',
               Integer: 'bigint',
-              DateTime: 'Date',
-              Date: 'string',
+              DateTime: 'Date | string',
               Float: 'number',
               Number: 'number',
               Boolean: 'boolean',
@@ -294,14 +301,6 @@ ${shortName === 'Base' ? '"@key"?: KeyField[];\n"@id"?: string;\n"@asserts"?: st
         .map(property => {
           const { shortName, range, isMany, isRequired } = property;
 
-          // A range that also admits a civil :Date (a verbatim string) must not
-          // greedily coerce strings into instants — a date-only string like
-          // "2026-06-03" would otherwise be anchored to UTC midnight. So the
-          // :DateTime branch validates as a bare Date object here and lets every
-          // string fall through to the :Date `z.string()`, preserving it. A
-          // :DateTime-only property keeps coercion (no string fallback).
-          const rangeAdmitsCivilDate = range.some(r => r.split('/').pop() === 'Date');
-
           const zodTypes = range.map(r => {
             const rangeShortName = r.split('/').pop();
 
@@ -324,10 +323,7 @@ ${shortName === 'Base' ? '"@key"?: KeyField[];\n"@id"?: string;\n"@asserts"?: st
               return 'z.number()';
             }
             if (rangeShortName === 'DateTime') {
-              return rangeAdmitsCivilDate ? 'z.date()' : 'z.coerce.date()';
-            }
-            if (rangeShortName === 'Date') {
-              return 'z.string()';
+              return 'DateTimeSchema';
             }
             return `${rangeShortName}AndChildrenSchema`;
           });
@@ -350,7 +346,7 @@ ${shortName === 'Base' ? '"@key"?: KeyField[];\n"@id"?: string;\n"@asserts"?: st
     })
     .join('\n')}
 ${attributes.filter(Boolean).join(',\n')}
-${shortName === 'Base' ? ',"@key": z.array(z.union([z.string(), z.object({ key: z.string(), value: z.string() })])).optional(),\n"@id": z.string().optional(),\n"@asserts": z.array(z.string()).optional(),\n"@assertedAt": z.union([z.coerce.date(), z.string()]).optional(),' : ''}
+${shortName === 'Base' ? ',"@key": z.array(z.union([z.string(), z.object({ key: z.string(), value: z.string() })])).optional(),\n"@id": z.string().optional(),\n"@asserts": z.array(z.string()).optional(),\n"@assertedAt": z.union([z.date(), z.string().refine(isInstant, "Not an instant. Use a UTC time, such as 2026-03-14T09:26:00Z.")]).optional(),' : ''}
 };
 \n\n`;
 
@@ -372,7 +368,6 @@ ${shortName === 'Base' ? ',"@key": z.array(z.union([z.string(), z.object({ key: 
       const literalTypes = [
         'Boolean',
         'DataType',
-        'Date',
         'DateTime',
         'Float',
         'Integer',

@@ -12,16 +12,24 @@ export interface StoredCredentials {
   clientId?: string;
   clientSecret?: string;
   username?: string;
+  /** Which account signed in, for a provider with several. */
+  account?: string;
+  /** Where the refresh token is exchanged. */
+  tokenUrl?: string;
 }
 
 export class CredentialManager {
   private static fileManager: FileCredentialManager | null = null;
+  private static fileManagerDir: string | null = null;
 
   private static getFileManager(): FileCredentialManager {
-    if (!this.fileManager) {
-      // The same config directory oclif resolves, so the file matches what
-      // `chronicle auth set` writes from inside a command.
-      this.fileManager = new FileCredentialManager(chronicleConfigDir());
+    // The same config directory oclif resolves, so the file matches what
+    // `chronicle auth set` writes from inside a command. Looked up each time,
+    // so a change to CHRONICLE_CONFIG_DIR (a test's own directory) is seen.
+    const dir = chronicleConfigDir();
+    if (!this.fileManager || this.fileManagerDir !== dir) {
+      this.fileManager = new FileCredentialManager(dir);
+      this.fileManagerDir = dir;
     }
     return this.fileManager;
   }
@@ -40,11 +48,23 @@ export class CredentialManager {
   }
 
   /**
-   * Retrieve stored credentials from file
+   * Retrieve stored credentials from file: the given account's, or the most
+   * recent sign-in
    */
-  static async getCredentials(provider: string): Promise<StoredCredentials | null> {
+  static async getCredentials(
+    provider: string,
+    options: { account?: string } = {}
+  ): Promise<StoredCredentials | null> {
     const fileManager = this.getFileManager();
-    return fileManager.getCredentials(provider);
+    return fileManager.getCredentials(provider, options);
+  }
+
+  /**
+   * Every account's stored credentials for a provider
+   */
+  static async getAllCredentials(provider: string): Promise<StoredCredentials[]> {
+    const fileManager = this.getFileManager();
+    return fileManager.getAllCredentials(provider);
   }
 
   /**
@@ -66,9 +86,12 @@ export class CredentialManager {
   /**
    * Get valid access token, checking expiration
    */
-  static async getValidToken(provider: string): Promise<string | null> {
+  static async getValidToken(
+    provider: string,
+    options: { account?: string; refresh?: boolean } = {}
+  ): Promise<string | null> {
     const fileManager = this.getFileManager();
-    return fileManager.getValidToken(provider);
+    return fileManager.getValidToken(provider, options);
   }
 
   /**

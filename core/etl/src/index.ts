@@ -9,7 +9,7 @@ export { Loader } from './loader.js';
 export { z } from 'zod';
 export { Runner, type RunnerConfig } from './runner.js';
 export { RunReport, type RunStats } from './report.js';
-export { JsonLoader, colorizeJson, type JsonColorTheme } from './json-loader.js';
+export { JsonLoader, colorizeJson, formatJson, type JsonColorTheme } from './json-loader.js';
 export { CsvLoader } from './connectors/loaders/CsvLoader.js';
 export { YamlLoader } from './connectors/loaders/YamlLoader.js';
 export {
@@ -65,6 +65,7 @@ export {
   tokenizeHtml,
   type HtmlToken,
 } from './utils/html.js';
+export { tidyText, withoutInvisible, withoutTracking } from './utils/text.js';
 
 export { MergingExtractor } from './MergingExtractor.js';
 export {

@@ -44,7 +44,7 @@ selectable on its own:
   anything beyond the subject's name, holds the session's `name`.
 - **Time entry → `ExperienceAction` + `Session`.** A manually-logged block of
   real time (Timing's "time entries"; each belongs to a project). The action
-  carries the real occurrence (`startTime`/`endTime`, not `scheduledTime`); the
+  carries the real occurrence (`startTime`/`endTime`, not `scheduledStart`/`scheduledEnd`); the
   lean `Session` object carries `isPartOf` → Project, `name` (title), and `description` (notes).
 - **Project ancestry** is nested via `isPartOf` on the session (leaf → parent →
   …), not emitted as standalone records.

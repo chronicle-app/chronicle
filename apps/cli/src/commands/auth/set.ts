@@ -52,9 +52,7 @@ export default class AuthSet extends BaseCommand<typeof AuthSet> {
 
     // A static token has no OAuth lifecycle, so it's stored as a single
     // `accessToken` with `token_type: 'static'` and no expiry. Replace any
-    // existing credential rather than appending, so `auth set` is idempotent
-    // (storeCredentials pushes onto the provider's array; getCredentials reads
-    // the most recent).
+    // existing credential, so `auth set` is idempotent.
     await CredentialManager.removeCredentials(provider);
     await CredentialManager.storeCredentials(provider, {
       provider,

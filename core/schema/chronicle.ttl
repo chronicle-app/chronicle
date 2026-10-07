@@ -46,7 +46,7 @@
 
 :DateTime a rdfs:Class;
   rdfs:subClassOf :DataType;
-  rdfs:comment "An instant anchored in time, including a date and time of day. Represented as a JavaScript Date in extracted records; use only when the source provides enough information to identify an instant." .
+  rdfs:comment "A point in time, written in a subset of EDTF (ISO 8601-2). It takes one of four forms. An instant in UTC, with optional fractional seconds: `2024-03-02T14:05:00Z`, `2024-03-02T14:05:00.250Z`. A date at year, month, or day precision, with no time and no zone: `1987`, `1987-06`, `1987-06-12`. A date with unspecified digits written as `X`: the last one to four digits of the year, the month, or the day (`198X`, `19XX`, `1987-XX`, `1987-06-XX`, `XXXX-03-12`). Any of these dates followed by one qualifier: `?` uncertain, `~` approximate, `%` both (`1987?`, `1987-06~`, `198X%`). A date stands for its whole period: `1987` is some moment in 1987. Not allowed: an interval (`1987/1990`), an offset other than `Z` (`2024-03-02T09:05:00-05:00`), a time without a zone (`2024-03-02T14:05:00`), a qualifier on an instant, a day that does not exist (`1987-02-29`), a known day in an unspecified month (`1987-XX-12`), or no known digit at all (`XXXX`, `XXXX-XX`)." .
 :Agent a rdfs:Class;
   rdfs:subClassOf :Entity;
   rdfs:comment "An entity capable of performing an action, such as a person, organization, or software agent. An action's :agent identifies its doer when known." .
@@ -83,11 +83,10 @@
   :domainIncludes :Base;
   :rangeIncludes :Text .
 :timestamp a rdf:Property;
-  rdfs:comment "The instant when the action occurred, as reported by the source. Records occurrence time, not the time Chronicle extracted the record.";
+  rdfs:comment "When the action occurred, at the precision the source reports. Records occurrence time, not the time Chronicle extracted the record.";
   owl:maxCardinality 1;
   :domainIncludes :Action;
-  :rangeIncludes :Date,
-    :DateTime .
+  :rangeIncludes :DateTime .
 :agent a rdf:Property;
   rdfs:comment "The doer of the action, when identified by the source. Omit when no doer is known; an occurrence can be recorded without an agent.";
   owl:maxCardinality 1;
@@ -98,7 +97,7 @@
   :domainIncludes :Entity;
   :rangeIncludes :Entity, :Text .
 :description a rdf:Property;
-  rdfs:comment "Descriptive text supplied by the source about an entity, such as a task's notes or a project's summary.";
+  rdfs:comment "Descriptive text supplied by the source about an entity, such as a task's notes or a project's summary: plain text or Markdown, never HTML.";
   owl:maxCardinality 1;
   :domainIncludes :Entity;
   :rangeIncludes :Text .
@@ -129,7 +128,7 @@
   rdfs:subClassOf :Action;
   rdfs:comment "The execution of a command or software resource. The :object identifies what was executed; :agent identifies the doer when known." .
 :body a rdf:Property;
-  rdfs:comment "The textual content of an entity, such as a shell command or message, as supplied by the source.";
+  rdfs:comment "The textual content of an entity, such as a shell command or message, as supplied by the source: plain text or Markdown, never the HTML it was delivered in.";
   owl:maxCardinality 1;
   :domainIncludes :Entity;
   :rangeIncludes :Text .
@@ -161,6 +160,7 @@
   rdfs:comment "A document artifact, such as a PDF, text file, or document attachment." .
 :recipient a rdf:Property;
   rdfs:comment "An agent the message was directed to. A message can have multiple recipients, such as the other participants in a group conversation.";
+  rdfs:subPropertyOf :involvement;
   :domainIncludes :Message;
   :rangeIncludes :Agent .
 :contains a rdf:Property;
@@ -214,21 +214,15 @@
   rdfs:comment "A numeric value, integral or decimal.";
   rdfs:subClassOf :DataType .
 :startTime a rdf:Property;
-  rdfs:comment "The start time of an action, or the start bound of an interval value. A :DateTime is an anchored instant; a :Date is a civil whole-day bound (e.g. an all-day event).";
+  rdfs:comment "When an action started. A date is a bound at its own precision.";
   owl:maxCardinality 1;
-  :domainIncludes :Action,
-    :Event,
-    :Interval;
-  :rangeIncludes :Date,
-    :DateTime .
+  :domainIncludes :Action;
+  :rangeIncludes :DateTime .
 :endTime a rdf:Property;
-  rdfs:comment "The end time of an action, or the end bound of an interval value. A :DateTime is an anchored instant; a :Date is a civil whole-day bound (e.g. an all-day event).";
+  rdfs:comment "When an action ended. A date is a bound at its own precision, the whole period included.";
   owl:maxCardinality 1;
-  :domainIncludes :Action,
-    :Event,
-    :Interval;
-  :rangeIncludes :Date,
-    :DateTime .
+  :domainIncludes :Action;
+  :rangeIncludes :DateTime .
 :result a rdf:Property;
   rdfs:comment "What the action produced — the artifact or session that came into being through it.";
   owl:maxCardinality 1;
@@ -236,7 +230,7 @@
   :rangeIncludes :Entity .
 
 :StructuredValue a rdfs:Class;
-  rdfs:comment "A value made of several fields — a position, an interval — that describes something without being an identified entity of its own." .
+  rdfs:comment "A value made of several fields that are one fact — a position with its address — that describes something without being an identified entity of its own." .
 :Location a rdfs:Class;
   rdfs:comment "A geographic position and address — coordinates (:latitude, :longitude, :elevation) and address parts (:address, :locality, :region, :country, :postalCode). A structured value with no identity of its own; the identified place it describes is a :Place.";
   rdfs:subClassOf :StructuredValue .
@@ -320,16 +314,27 @@
   :rangeIncludes :Message .
 
 :DataType a rdfs:Class;
-  rdfs:comment "A simple literal value: text, a number, a date, a date-time." .
-:Date a rdfs:Class;
-  rdfs:comment "A civil calendar date — a day in wall-clock time with no time of day and no zone, kept as an ISO date string rather than an instant. The whole-day counterpart of :DateTime: an all-day event, a date-only life event, a bare year.";
-  rdfs:subClassOf :DataType .
+  rdfs:comment "A simple literal value: text, a number, a point in time." .
 :Event a rdfs:Class;
-  rdfs:comment "A named happening with a declared :scheduledTime — a calendar entry, a concert, a picnic. Carries its :location and :attendee values; the :object of an :AttendAction. Its actual extent derives from the activity that constitutes it.";
+  rdfs:comment "A named happening with a declared :scheduledStart and :scheduledEnd — a calendar entry, a concert, a picnic. Carries its :location and :attendee values; the :object of an :AttendAction. Its actual extent derives from the activity that constitutes it.";
   rdfs:subClassOf :Entity .
-:Interval a rdfs:Class;
-  rdfs:comment "A bounded stretch of time — a start and an end, each at its own precision. A structured value with no identity of its own, like :Location; it carries the declared extent of an event or session (its :scheduledTime), as distinct from an action's occurrence.";
-  rdfs:subClassOf :StructuredValue .
+:attendee a rdf:Property;
+  rdfs:comment "An agent invited to the event — a guest on a calendar entry, whatever they answered.";
+  rdfs:subPropertyOf :involvement;
+  :domainIncludes :Event;
+  :rangeIncludes :Agent .
+:scheduledStart a rdf:Property;
+  rdfs:comment "When an event or session is planned to start — a fact about the plan, not something that happened, which is an action's :startTime. An instant for a timed plan; a day for an all-day one.";
+  owl:maxCardinality 1;
+  :domainIncludes :Event,
+    :Session;
+  :rangeIncludes :DateTime .
+:scheduledEnd a rdf:Property;
+  rdfs:comment "When an event or session is planned to end: the same kind of value as its :scheduledStart, and not before it. A date is the last whole day included, so a one-day event ends on the day it starts.";
+  owl:maxCardinality 1;
+  :domainIncludes :Event,
+    :Session;
+  :rangeIncludes :DateTime .
 :relation a rdf:Property;
   rdfs:comment "Any edge from an entity to another entity.";
   :abstract true;
@@ -337,6 +342,7 @@
 :involvement a rdf:Property;
   rdfs:comment "An agent involved in an entity as addressee, attendee, or member.";
   rdfs:subPropertyOf :relation;
+  :abstract true;
   :rangeIncludes :Agent .
 
 :InteractAction a rdfs:Class;
@@ -349,7 +355,7 @@
   rdfs:comment "A phone or video call. :agent is the caller when known; the :result is the :CallSession the call constitutes, which carries the receiver as its :recipient and, for a group call, the :Channel it is :isPartOf.";
   rdfs:subClassOf :CommunicateAction .
 :Session a rdfs:Class;
-  rdfs:comment "A described segment of time — a bounded, characterized interval of the subject's logged activity (an app-usage block, a manual time block, a call). A sibling of :Event (a named happening); both carry a declared :scheduledTime, while their actual aliveness derives from the activity that constitutes them. A session constituted by an action (:DeviceSession, :CallSession) takes its occurrence from that action; an atomic session (a manual time block) carries its own :startTime/:endTime, like :Event.";
+  rdfs:comment "A described segment of time — a bounded, characterized interval of the subject's logged activity (an app-usage block, a manual time block, a call). A sibling of :Event (a named happening); both carry a declared :scheduledStart and :scheduledEnd, while their actual aliveness derives from the activity that constitutes them. A session takes its occurrence from the action that records it (an app-usage block, a call, a manual time entry).";
   rdfs:subClassOf :Entity .
 :CallSession a rdfs:Class;
   rdfs:comment "A phone or FaceTime call as a described segment of time — the :result of a :CallAction. Carries the :recipient (the receiver) and, for group calls, :isPartOf a :Channel whose :member is the roster. A missed call is a zero-length span; a connected call a non-zero one.";
@@ -504,12 +510,11 @@
     :AudioObject;
   :rangeIncludes :Text .
 :datePublished a rdf:Property;
-  rdfs:comment "When the work was published or released, at whatever precision the source knows (a bare year is a year-precision date). A date on the work's own timeline: the moment its :PublishAction occurred.";
+  rdfs:comment "When the work was published or released, at whatever precision the source knows. A date on the work's own timeline: the moment its :PublishAction occurred.";
   owl:maxCardinality 1;
   owl:equivalentProperty schemaorg:datePublished;
   :domainIncludes :CreativeWork;
-  :rangeIncludes :Date,
-    :DateTime .
+  :rangeIncludes :DateTime .
 :target a rdf:Property;
   rdfs:comment "What an action is directed toward, as opposed to what it is carried out on (:object). A collection operation targets the collection it adds to or removes from; a movement verb targets where it ended up, with :object naming where it began (:NavigateAction from one page to the next, :TravelAction from one place to the next).";
   owl:maxCardinality 1;

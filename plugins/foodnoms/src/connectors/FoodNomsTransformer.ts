@@ -84,7 +84,7 @@ export default class FoodNomsTransformer extends ChronicleTransformer {
     // action. This also keeps FoodNoms consumptions shaped like the historical
     // `ate X` / `drank X` log so the two can sit on one timeline.
     const shared = {
-      timestamp: record.data.date,
+      timestamp: new Date(record.data.date),
       '@key': ['source', 'sourceId'],
       source: 'foodnoms',
       sourceId: record.data.entryID,

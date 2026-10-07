@@ -53,6 +53,11 @@ shell`, not `chronicle extract <source>`); only values the person alone has
 - **Don't describe the program** ("it reads", "it asks which") or the reader
   ("the kinds you want"). State the fact: "The default is submissions."
 - **Short lists inline**, longer ones behind a command that prints them.
+- **A walkthrough is a `guide`**, not a stack of hints: when a person has to
+  follow along (setting up an account, a page to click through), each section
+  is one `guide` event, with a title, a few plain sentences, and numbered
+  steps. It prints in full, not muted, after a blank line. A hint stays a
+  single next move.
 
 | Instead of                                                     | Write                                                           |
 | -------------------------------------------------------------- | --------------------------------------------------------------- |
@@ -67,7 +72,7 @@ shell`, not `chronicle extract <source>`); only values the person alone has
 
 Every line on stderr is the rendering of an `OutputEvent` from
 `@chronicle.app/logging`: a `kind` (`progress`, `notice`, `hint`, `summary`,
-`error`, `diagnostic`), a `level`, a `scope`, the `run` it belongs to, a plain
+`error`, `diagnostic`, `guide`), a `level`, a `scope`, the `run` it belongs to, a plain
 `message`, and `fields` that hold the facts. `--log-format` picks the sink:
 
 | sink     | time                                                      | progress                    | personal fields |
@@ -95,8 +100,8 @@ redacted.
 - Formatters: `count`, `duration`, `clock`, `plural`, `date`, `truncate`,
   `relativePath`.
 - Blocks, each returning strings cut to a width: `line`, `summary`, `hint`,
-  `heading`, `list`, `caption`, `card`, `table`, and `progress` (the live
-  line).
+  `guide`, `heading`, `list`, `caption`, `card`, `table`, and `progress` (the
+  live line).
 - Sinks: `createSink`, `PrettySink`, `PlainSink`, and `render`, their shared
   look.
 

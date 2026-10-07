@@ -35,7 +35,7 @@ function explain(issue, record) {
     case 'invalid_string':
       return issue.validation === 'url' ? 'Not an absolute URL.' : issue.message;
     case 'invalid_date':
-      return 'Not a date and time. Use an ISO 8601 string, such as 2026-03-14T09:26:00Z.';
+      return 'Not a date or time. Use EDTF, such as 2026-03-14T09:26:00Z, 2026-03-14, or 1987.';
     default:
       return issue.message;
   }

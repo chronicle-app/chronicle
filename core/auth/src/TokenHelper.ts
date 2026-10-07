@@ -1,25 +1,42 @@
 import { AuthRequired } from '@chronicle.app/logging';
 import { CredentialManager } from './CredentialManager.js';
+import { OAuthProviderRegistry } from './ProviderRegistry.js';
 
 export const TokenHelper = {
   /**
-   * Get a valid access token for a provider, with user-friendly error messages
+   * A valid access token for a provider, with user-friendly error messages.
+   * `refresh` gets a new one even when the stored one looks current: the
+   * source refused it.
    */
-  async getValidToken(provider: string): Promise<string> {
-    const token = await CredentialManager.getValidToken(provider);
+  async getValidToken(
+    provider: string,
+    { account, refresh }: { account?: string; refresh?: boolean } = {}
+  ): Promise<string> {
+    const token = await CredentialManager.getValidToken(provider, { account, refresh });
 
     if (!token) {
-      const hasCredentials = await CredentialManager.hasCredentials(provider);
+      const stored = await CredentialManager.getCredentials(provider, { account });
+      // A client stored from an earlier sign-in is reused, and a provider
+      // with guided setup makes one, so the command needs no client flags then.
+      const login =
+        stored?.clientId || OAuthProviderRegistry.get(provider)?.setup
+          ? `chronicle auth login ${provider}`
+          : `chronicle auth login ${provider} --client-id <id> --client-secret <secret>`;
 
-      if (hasCredentials) {
+      if (stored) {
         throw new AuthRequired(`${provider} credentials expired and couldn't be refreshed`, {
-          hint: `Run \`chronicle auth login ${provider} --client-id <id> --client-secret <secret>\` with your app's credentials.`,
-        });
-      } else {
-        throw new AuthRequired(`No ${provider} credentials`, {
-          hint: `Run \`chronicle auth login ${provider} --client-id <id> --client-secret <secret>\` with your app's credentials.`,
+          hint: `Run \`${login}\` to sign in again.`,
         });
       }
+      if (account && (await CredentialManager.hasCredentials(provider))) {
+        throw new AuthRequired(`No ${provider} credentials for that account`, {
+          hint: `Run \`chronicle auth login ${provider}\` and sign in with that account.`,
+          fields: { account },
+        });
+      }
+      throw new AuthRequired(`No ${provider} credentials`, {
+        hint: `Run \`${login}\` to sign in.`,
+      });
     }
 
     return token;
@@ -41,9 +58,12 @@ export const TokenHelper = {
   /**
    * Check if valid credentials exist for a provider
    */
-  async hasValidCredentials(provider: string): Promise<boolean> {
+  async hasValidCredentials(
+    provider: string,
+    options: { account?: string } = {}
+  ): Promise<boolean> {
     try {
-      const token = await CredentialManager.getValidToken(provider);
+      const token = await CredentialManager.getValidToken(provider, options);
       return token !== null;
     } catch {
       return false;

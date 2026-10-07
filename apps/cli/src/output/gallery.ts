@@ -128,6 +128,17 @@ export const EVENTS: OutputEvent[] = [
     scope: 'cli',
     message: 'Also available: commits, issues. Use `-t all` to get everything.',
   }),
+  // A section of a walkthrough a person follows along with.
+  event({
+    level: 'info',
+    kind: 'guide',
+    scope: 'auth',
+    message: 'Step 2 of 3: Set up the sign-in screen',
+    guide: {
+      text: ['This is the Google page you’ll see when you sign in.'],
+      steps: ['Click Get started.', 'Pick External for the audience and click Next.'],
+    },
+  }),
   // A usage error, with what to do about it.
   event({
     level: 'error',

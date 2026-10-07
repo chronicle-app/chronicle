@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { CsvLoader, JsonLoader } from '../dist/index.js';
+import { CsvLoader, JsonLoader, formatJson } from '../dist/index.js';
 
 function record(data) {
   return {
@@ -85,4 +85,43 @@ test('JSON and CSV file output escape quotes, controls and delimiters and render
     await fileOutput(CsvLoader, [{ a: 1, b: 2 }], { headers: false, delimiter: ';' }),
     '1;2\n'
   );
+});
+
+test('JSON keeps what fits on one line, packs long lists of values, and parses the same', () => {
+  const long = 'x'.repeat(100);
+  const data = node({
+    when: new Date('2020-01-01T00:00:00Z'),
+    skipped: undefined,
+    tags: [long],
+    paths: Array.from({ length: 6 }, (_, i) => `agent.memberOf[${i}].handle`),
+    empty: {},
+  });
+  const text = formatJson(data);
+  assert.equal(
+    text,
+    `{
+  "@type": "ExecuteAction",
+  "@key": ["@type", "source"],
+  "source": "shell",
+  "agent": {
+    "@type": "Person",
+    "@key": ["handle"],
+    "source": "shell",
+    "handle": "me",
+    "sameAs": ["@me"]
+  },
+  "object": { "@type": "Command", "body": "echo hi" },
+  "when": "2020-01-01T00:00:00.000Z",
+  "tags": [
+    "${long}"
+  ],
+  "paths": [
+    "agent.memberOf[0].handle", "agent.memberOf[1].handle", "agent.memberOf[2].handle",
+    "agent.memberOf[3].handle", "agent.memberOf[4].handle", "agent.memberOf[5].handle"
+  ],
+  "empty": {}
+}`
+  );
+  assert.deepEqual(JSON.parse(text), JSON.parse(JSON.stringify(data)));
+  assert.ok(text.split('\n').every(line => line.length <= 100 || line.includes(long)));
 });
