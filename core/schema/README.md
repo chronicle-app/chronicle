@@ -4,7 +4,8 @@ A deliberately small extraction vocabulary with generated TypeScript interfaces
 and Zod validators. The canonical file is [chronicle.ttl](chronicle.ttl); edit it and run
 `npm run schema:generate` from the repository root to regenerate the TypeScript/Zod
 schemas. `npm run schema:check` verifies that the committed output matches the
-ontology without rewriting it.
+ontology without rewriting it. Write each term's `rdfs:comment` by the rules in
+[WRITING.md](WRITING.md).
 
 ## Documentation site
 

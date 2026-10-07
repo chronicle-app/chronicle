@@ -8,7 +8,8 @@ Chronicle extracts personal history into a shared vocabulary.
   read-only.
 - Keep the schema small. Add terms only when a plugin needs them. Edit
   `core/schema/chronicle.ttl`, then run `npm run schema:generate`; do not hand-edit
-  generated schema code.
+  generated schema code. Write term definitions by the rules in
+  `core/schema/WRITING.md`.
 - A source's default record types are the plugin's call: mark the extractors
   a bare run reads with `static default = true`, or none, and a bare run asks
   which (`-t all` and `-t defaults` name every kind and the defaults). Give
