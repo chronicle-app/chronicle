@@ -346,7 +346,7 @@ ${shortName === 'Base' ? '"@key"?: KeyField[];\n"@id"?: string;\n"@asserts"?: st
     })
     .join('\n')}
 ${attributes.filter(Boolean).join(',\n')}
-${shortName === 'Base' ? ',"@key": z.array(z.union([z.string(), z.object({ key: z.string(), value: z.string() })])).optional(),\n"@id": z.string().optional(),\n"@asserts": z.array(z.string()).optional(),\n"@assertedAt": z.union([z.date(), z.string().refine(isInstant, "Not an instant. Use a time with its zone, such as 2026-03-14T09:26:00Z.")]).optional(),' : ''}
+${shortName === 'Base' ? ',"@key": z.array(z.union([z.string(), z.object({ key: z.string(), value: z.string() })])).optional(),\n"@id": z.string().optional(),\n"@asserts": z.array(z.string()).optional(),\n"@assertedAt": z.union([z.date(), z.string().refine(isInstant, "Not an instant. Use a UTC time, such as 2026-03-14T09:26:00Z.")]).optional(),' : ''}
 };
 \n\n`;
 

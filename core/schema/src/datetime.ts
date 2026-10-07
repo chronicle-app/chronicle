@@ -7,7 +7,7 @@ const DATE = new RegExp(
   String.raw`^(?<year>${YEAR})(?:-(?<month>\d{2}|XX)(?:-(?<day>\d{2}|XX))?)?(?<qualifier>[?~%])?$`
 );
 const INSTANT =
-  /^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})T(?<hour>\d{2}):(?<minute>\d{2}):(?<second>\d{2})(?:\.\d+)?(?:Z|[+-](?<offsetHour>\d{2}):(?<offsetMinute>\d{2}))$/;
+  /^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})T(?<hour>\d{2}):(?<minute>\d{2}):(?<second>\d{2})(?:\.\d+)?Z$/;
 
 const daysIn = (year: number, month: number): number =>
   new Date(Date.UTC(year, month, 0)).getUTCDate();
@@ -18,24 +18,23 @@ const validDay = (year: string, month: string, day: string): boolean => {
   return Number(day) >= 1 && Number(day) <= days;
 };
 
-/** Whether `value` is a full instant with its zone, such as `2024-03-02T14:05:00Z`. */
+/** Whether `value` is a full instant in UTC, such as `2024-03-02T14:05:00Z`. */
 export function isInstant(value: string): boolean {
   const instant = INSTANT.exec(value)?.groups;
   if (!instant) return false;
-  const { year, month, day, hour, minute, second, offsetHour, offsetMinute } = instant;
+  const { year, month, day, hour, minute, second } = instant;
   return (
     Number(month) >= 1 &&
     Number(month) <= 12 &&
     validDay(year, month, day) &&
     Number(hour) <= 23 &&
     Number(minute) <= 59 &&
-    Number(second) <= 59 &&
-    (offsetHour === undefined || (Number(offsetHour) <= 23 && Number(offsetMinute) <= 59))
+    Number(second) <= 59
   );
 }
 
 /**
- * Whether `value` is a :DateTime string: a full instant with a zone
+ * Whether `value` is a :DateTime string: a full instant in UTC
  * (`2024-03-02T14:05:00Z`), or a date at year, month, or day precision that
  * may leave trailing year digits, the month, or the day unspecified with `X`
  * and may end in one qualifier (`?` uncertain, `~` approximate, `%` both).

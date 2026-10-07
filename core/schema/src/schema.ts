@@ -54,12 +54,7 @@ const BaseProperties = {
   '@assertedAt': z
     .union([
       z.date(),
-      z
-        .string()
-        .refine(
-          isInstant,
-          'Not an instant. Use a time with its zone, such as 2026-03-14T09:26:00Z.'
-        ),
+      z.string().refine(isInstant, 'Not an instant. Use a UTC time, such as 2026-03-14T09:26:00Z.'),
     ])
     .optional(),
 };
