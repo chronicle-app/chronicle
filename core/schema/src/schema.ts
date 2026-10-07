@@ -1,7 +1,7 @@
 export const SCHEMA_VERSION = '0.3.0' as const;
 // Generated from chronicle.ttl. Do not edit; run npm run schema:generate.
 import { z } from 'zod';
-import { isDateTime } from './datetime.js';
+import { isDateTime, isInstant } from './datetime.js';
 
 // Record identity key field: a property path, or a computed {key, value} entry
 export type KeyField = string | { key: string; value: string };
@@ -51,7 +51,17 @@ const BaseProperties = {
     .optional(),
   '@id': z.string().optional(),
   '@asserts': z.array(z.string()).optional(),
-  '@assertedAt': z.union([z.coerce.date(), z.string()]).optional(),
+  '@assertedAt': z
+    .union([
+      z.date(),
+      z
+        .string()
+        .refine(
+          isInstant,
+          'Not an instant. Use a time with its zone, such as 2026-03-14T09:26:00Z.'
+        ),
+    ])
+    .optional(),
 };
 
 export const BaseSchema: z.ZodType<Base> = z

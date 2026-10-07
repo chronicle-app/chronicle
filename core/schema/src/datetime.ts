@@ -18,6 +18,22 @@ const validDay = (year: string, month: string, day: string): boolean => {
   return Number(day) >= 1 && Number(day) <= days;
 };
 
+/** Whether `value` is a full instant with its zone, such as `2024-03-02T14:05:00Z`. */
+export function isInstant(value: string): boolean {
+  const instant = INSTANT.exec(value)?.groups;
+  if (!instant) return false;
+  const { year, month, day, hour, minute, second, offsetHour, offsetMinute } = instant;
+  return (
+    Number(month) >= 1 &&
+    Number(month) <= 12 &&
+    validDay(year, month, day) &&
+    Number(hour) <= 23 &&
+    Number(minute) <= 59 &&
+    Number(second) <= 59 &&
+    (offsetHour === undefined || (Number(offsetHour) <= 23 && Number(offsetMinute) <= 59))
+  );
+}
+
 /**
  * Whether `value` is a :DateTime string: a full instant with a zone
  * (`2024-03-02T14:05:00Z`), or a date at year, month, or day precision that
@@ -25,19 +41,7 @@ const validDay = (year: string, month: string, day: string): boolean => {
  * and may end in one qualifier (`?` uncertain, `~` approximate, `%` both).
  */
 export function isDateTime(value: string): boolean {
-  const instant = INSTANT.exec(value)?.groups;
-  if (instant) {
-    const { year, month, day, hour, minute, second, offsetHour, offsetMinute } = instant;
-    return (
-      Number(month) >= 1 &&
-      Number(month) <= 12 &&
-      validDay(year, month, day) &&
-      Number(hour) <= 23 &&
-      Number(minute) <= 59 &&
-      Number(second) <= 59 &&
-      (offsetHour === undefined || (Number(offsetHour) <= 23 && Number(offsetMinute) <= 59))
-    );
-  }
+  if (INSTANT.test(value)) return isInstant(value);
   const date = DATE.exec(value)?.groups;
   if (!date) return false;
   const { year, month, day } = date;

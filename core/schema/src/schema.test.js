@@ -38,6 +38,7 @@ test('rejects missing identity, invalid values, and types outside the vocabulary
     [ActionSchema, { ...action, object: [entity] }],
     [BaseAndChildrenSchema, { ...entity, '@type': 'Spaceship' }],
     [ActionSchema, { ...action, object: { '@type': 'Action', '@id': 'fixture-5' } }],
+    [ActionSchema, { ...action, '@assertedAt': '1987' }],
   ]) {
     assert.equal(schema.safeParse(record).success, false, JSON.stringify(record));
   }

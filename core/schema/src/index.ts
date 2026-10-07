@@ -1,2 +1,2 @@
 export * from './schema.js';
-export { isDateTime } from './datetime.js';
+export { isDateTime, isInstant } from './datetime.js';

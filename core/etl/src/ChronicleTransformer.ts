@@ -1,6 +1,6 @@
 import { Transformer } from './transformer.js';
 import { Record } from './types.js';
-import { BaseAndChildren, BaseAndChildrenSchema } from '@chronicle.app/schema';
+import { BaseAndChildren, BaseAndChildrenSchema, isInstant } from '@chronicle.app/schema';
 
 /**
  * Mark every entity node in a payload as a complete snapshot of its predicates
@@ -84,9 +84,12 @@ export abstract class ChronicleTransformer extends Transformer {
       // implicit-now (wall-clock) and a re-extraction of the same event would mint
       // a fresh sighting. Precedence mirrors the retired ingest fallback, so
       // event-native plugins are behavior-preserving. An occurrence-less event
-      // node carries none and is correctly sighted implicit-now at ingest.
+      // node carries none and is correctly sighted implicit-now at ingest, as is
+      // one dated only partly (`1987?`, `XXXX-03-12`): an observation is an
+      // instant, and a date names none.
       const occurrence = top.timestamp ?? top.startTime ?? top.endTime;
-      if (occurrence !== undefined) top['@assertedAt'] = occurrence;
+      if (occurrence instanceof Date || (typeof occurrence === 'string' && isInstant(occurrence)))
+        top['@assertedAt'] = occurrence;
     }
     if (record.extraction.temporality === 'snapshot') {
       // Completeness axis: a state re-read enumerates the whole set, so every

@@ -123,9 +123,9 @@ test('extracts, transforms, validates and serializes with the minimal schema and
 
     // An event is asserted at its own time; a snapshot at the extraction's time.
     const transformer = new FixtureTransformer({ quiet: true });
-    const stamp = async extraction => {
+    const stamp = async (extraction, timestamp = '2026-01-01T00:00:00Z') => {
       const [{ data }] = await transformer.performTransform({
-        data: { id: 'fixture-2', url: 'https://example.com/2', timestamp: '2026-01-01T00:00:00Z' },
+        data: { id: 'fixture-2', url: 'https://example.com/2', timestamp },
         schema: 'raw',
         transformations: [],
         extraction: { source: 'fixture', delivery: 'export', ...extraction },
@@ -135,6 +135,8 @@ test('extracts, transforms, validates and serializes with the minimal schema and
       return data['@assertedAt'];
     };
     assert.equal(await stamp({ temporality: 'event' }), '2026-01-01T00:00:00Z');
+    // An observation is an instant, so a partly known occurrence leaves it unset.
+    assert.equal(await stamp({ temporality: 'event' }, '1987?'), undefined);
     assert.equal(
       await stamp({ temporality: 'snapshot', assertedAt: '2026-02-01T00:00:00.000Z' }),
       '2026-02-01T00:00:00.000Z'
