@@ -6,7 +6,7 @@ import {
   googleAccountOptions,
 } from '@chronicle.app/google';
 import { z } from 'zod';
-import GoogleCalendarTransformer from './GoogleCalendarTransformer.js';
+import GoogleCalendarTransformer, { plannedAt } from './GoogleCalendarTransformer.js';
 import type { CalendarEvent, CalendarListEntry, EventRecord } from '../types.js';
 
 /**
@@ -17,14 +17,11 @@ const GENERATED_CALENDAR = /@group\.v\.calendar\.google\.com$/;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** How far past today a run reads by default: upcoming plans are history too. */
-const DEFAULT_LOOKAHEAD_DAYS = 365;
-
 /**
- * How much time each read covers, walking back from the newest. Google only
- * sorts events oldest first, so each window is read whole and reversed.
+ * How far past today events are read: plans already made for the coming
+ * year are history too, and recurring events need an end to stop expanding.
  */
-const WINDOW_DAYS = 90;
+const LOOKAHEAD_DAYS = 365;
 
 export class GoogleCalendarEventsExtractor extends Extractor<typeof GoogleCalendarEventsExtractor> {
   static override source = 'google-calendar';
@@ -57,8 +54,9 @@ export class GoogleCalendarEventsExtractor extends Extractor<typeof GoogleCalend
     return `${calendar.id}/${event.id}`;
   }
 
+  /** When the event was put on its calendar, as its planning is dated. */
   override occurredAt(record: Record): Date | undefined {
-    return startOf((record.data as EventRecord).event);
+    return plannedAt((record.data as EventRecord).event);
   }
 
   override async setup(): Promise<void> {
@@ -96,86 +94,47 @@ export class GoogleCalendarEventsExtractor extends Extractor<typeof GoogleCalend
     });
   }
 
-  /** Events newest first, across every calendar, by when they start. */
+  /**
+   * Events newest first by when they were put on a calendar, across every
+   * calendar. Google lists events only by when they start or were changed,
+   * so each calendar is read whole and the run sorted before anything goes
+   * out; `--since` and `--until` bound when an event was created.
+   */
   async *extract(): AsyncGenerator<Record> {
     const config = this.config as z.infer<typeof GoogleCalendarEventsExtractor.schema>;
-    const until = config.until ?? new Date(Date.now() + DEFAULT_LOOKAHEAD_DAYS * DAY_MS);
-    const since = config.since ?? (await this.earliestStart());
-    if (!since) return;
+    const until = new Date(Date.now() + LOOKAHEAD_DAYS * DAY_MS);
+    const records: Record[] = [];
+    for (const calendar of this.calendars) {
+      for await (const event of this.eventsUntil(calendar, until)) {
+        const at = plannedAt(event);
+        if (config.since && at < config.since) continue;
+        if (config.until && at >= config.until) continue;
+        records.push(this.createRecord(this.recordOf(event, calendar), { recordType: 'events' }));
+      }
+    }
+    // Occurrences of a recurring event share when it was created; the latest
+    // goes first. Stable, so the rest keep the calendars' order.
+    const created = (record: Record) => this.occurredAt(record)!.getTime();
+    const starts = (record: Record) => startOf((record.data as EventRecord).event)!.getTime();
+    records.sort((a, b) => created(b) - created(a) || starts(b) - starts(a));
     let count = 0;
-    // Each window's read reaches a day past it on either side, inside the
-    // run's own bounds: Google places an all-day event by the calendar's
-    // time zone, and an event that ends where it starts by its start, so a
-    // read that stops exactly at a window's edge can miss one. An event read
-    // in two windows is kept from the first.
-    const seen = new Set<string>();
-    const reach = (at: number) =>
-      new Date(Math.min(until.getTime(), Math.max(since.getTime(), at)));
-    // A read returns every event that overlaps it, including a long one
-    // that started further back. It waits here until the walk reaches its
-    // start, so the whole run is newest first by start.
-    let waiting: Record[] = [];
-    const startOfRecord = (record: Record) => this.occurredAt(record)!.getTime();
-
-    for (let end = until; end > since;) {
-      const start = new Date(Math.max(since.getTime(), end.getTime() - WINDOW_DAYS * DAY_MS));
-      const from = reach(start.getTime() - DAY_MS);
-      const to = reach(end.getTime() + DAY_MS);
-      for (const calendar of this.calendars) {
-        for await (const event of this.eventsIn(calendar, from, to)) {
-          const record = this.createRecord(this.recordOf(event, calendar), {
-            recordType: 'events',
-          });
-          const key = this.keyOf(record);
-          if (seen.has(key)) continue;
-          seen.add(key);
-          waiting.push(record);
-        }
-      }
-      // Every event starting from `from` on has been read: those go out, in
-      // order. Stable, so events starting together keep the calendars' order.
-      waiting.sort((a, b) => startOfRecord(b) - startOfRecord(a));
-      const last = start.getTime() <= since.getTime();
-      const ready = last
-        ? waiting
-        : waiting.filter(record => startOfRecord(record) >= from.getTime());
-      waiting = last ? [] : waiting.filter(record => startOfRecord(record) < from.getTime());
-      for (const record of ready) {
-        yield record;
-        if (this.shouldStopExtracting(++count)) return;
-      }
-      end = start;
+    for (const record of records) {
+      yield record;
+      if (this.shouldStopExtracting(++count)) return;
     }
     if (this.unscheduled.size > 0) {
       this.logger.warn(`Skipped ${this.unscheduled.size} event(s) with no start`);
     }
   }
 
-  /** The start of the earliest event on any calendar, where a full read stops. */
-  private async earliestStart(): Promise<Date | undefined> {
-    let earliest: Date | undefined;
-    for (const calendar of this.calendars) {
-      const page = await this.api.get<{ items?: CalendarEvent[] }>(eventsPath(calendar), {
-        singleEvents: true,
-        orderBy: 'startTime',
-        maxResults: 1,
-      });
-      const at = page.items?.[0] && startOf(page.items[0]);
-      if (at && (!earliest || at < earliest)) earliest = at;
-    }
-    return earliest;
-  }
-
   /**
-   * A calendar's events overlapping `[start, end)`. singleEvents expands
+   * A calendar's events starting before `end`. singleEvents expands
    * recurring events into their occurrences, each with its own start.
    */
-  private async *eventsIn(calendar: CalendarListEntry, start: Date, end: Date) {
+  private async *eventsUntil(calendar: CalendarListEntry, end: Date) {
     const events = this.api.pages<CalendarEvent>(eventsPath(calendar), {
       singleEvents: true,
-      orderBy: 'startTime',
       maxResults: 2500,
-      timeMin: start.toISOString(),
       timeMax: end.toISOString(),
     });
     for await (const event of events) {

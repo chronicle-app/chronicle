@@ -13,7 +13,7 @@ chronicle extract google-calendar --calendar you@example.com --account you@examp
 
 Sign in first: see [@chronicle.app/google](../../core/google/README.md), which walks you through making your own Google client.
 
-A run reads every calendar shown in your Google Calendar list, except the ones Google adds for you (holidays, contacts' birthdays). `--calendar` names others, comma-separated, by their IDs. Each recurring event is read as its separate occurrences. Without `--until`, a run reads a year ahead, since upcoming plans are history too. Cancelled events are left out.
+A run reads every calendar shown in your Google Calendar list, except the ones Google adds for you (holidays, contacts' birthdays). `--calendar` names others, comma-separated, by their IDs. Each recurring event is read as its separate occurrences. Events come out newest first by when they were put on a calendar, as their planning is dated, and `--since` and `--until` bound that date. Google lists events only by when they start or were changed, so a run reads each calendar whole, up to a year ahead (upcoming plans are history too), and sorts before the first event comes out. The occurrences of a recurring event share when it was created. Cancelled events are left out.
 
 ## Schema
 

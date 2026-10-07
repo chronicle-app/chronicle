@@ -45,15 +45,15 @@ test('events on the shown calendars become plans for named events, with their gu
   const requests = await fakeCalendar(t);
   const { extractor, records, actions } = await extract();
 
-  // Newest first across calendars. Holidays and hidden calendars are left
-  // out; cancelled events too.
+  // Newest first by when each was put on a calendar, across calendars.
+  // Holidays and hidden calendars are left out; cancelled events too.
   assert.deepEqual(
     records.map(record => extractor.keyOf(record)),
     [
-      `${OWNER}/trip1`,
-      `${OWNER}/standup_20250311T130000Z`,
       `${OWNER}/planning1`,
       `${TEAM}/planning-copy`,
+      `${OWNER}/trip1`,
+      `${OWNER}/standup_20250311T130000Z`,
     ]
   );
   const eventReads = requests.filter(r => r.path.endsWith('/events'));
@@ -61,14 +61,15 @@ test('events on the shown calendars become plans for named events, with their gu
     new Set(eventReads.map(r => r.path)),
     new Set([`/calendars/${OWNER}/events`, `/calendars/${TEAM}/events`])
   );
-  // Without --since, the earliest event bounds the walk back, and every read
-  // is a bounded window, so recurring events end.
-  assert.ok(eventReads.some(r => r.query.maxResults === '1' && !r.query.timeMin));
-  const windows = eventReads.filter(r => r.query.timeMin);
-  assert.ok(windows.every(r => r.query.singleEvents === 'true' && r.query.timeMax));
-  assert.equal(records[3].data.calendar.summary, 'Work');
+  // Each calendar is read once, whole, up to a year ahead, so recurring
+  // events end.
+  assert.equal(eventReads.length, 2);
+  assert.ok(
+    eventReads.every(r => r.query.singleEvents === 'true' && r.query.timeMax && !r.query.timeMin)
+  );
+  assert.equal(records[1].data.calendar.summary, 'Work');
 
-  const [trip, standup, planning, copy] = actions;
+  const [planning, copy, trip, standup] = actions;
   assert.deepEqual(planning, {
     '@type': 'PlanAction',
     '@key': ['@type', 'source', 'sourceId'],
@@ -136,77 +137,62 @@ test('--link-contacts links guests to your contacts', async t => {
   ]);
 });
 
-test('the window and calendars can be narrowed', async t => {
+test('--since and --until bound when events were created; calendars can be narrowed', async t => {
   const requests = await fakeCalendar(t);
-  const since = new Date('2025-03-01T00:00:00Z');
-  const until = new Date('2025-04-01T00:00:00Z');
-  const { records } = await extract({ since, until, calendar: TEAM, limit: 1 });
+  const { extractor, records } = await extract({
+    since: new Date('2025-01-10T00:00:00Z'),
+    until: new Date('2025-03-01T00:00:00Z'),
+  });
+  // Created Feb 1; Planning (Mar 1) is on the until bound, Standup (Jan 5) before since.
+  assert.deepEqual(
+    records.map(record => extractor.keyOf(record)),
+    [`${OWNER}/trip1`]
+  );
 
-  assert.equal(records.length, 1);
-  const read = requests.find(r => r.path.endsWith('/events'));
-  assert.equal(read.path, `/calendars/${TEAM}/events`);
-  assert.equal(read.query.timeMin, since.toISOString());
-  assert.equal(read.query.timeMax, until.toISOString());
+  requests.length = 0;
+  const narrowed = await extract({ calendar: TEAM, limit: 1 });
+  assert.equal(narrowed.records.length, 1);
+  assert.deepEqual(
+    requests.filter(r => r.path.endsWith('/events')).map(r => r.path),
+    [`/calendars/${TEAM}/events`]
+  );
 });
 
-test('an event exactly on the edge between two reads is read once', async t => {
+test('occurrences of a recurring event share its creation, latest first; one with no organizer has its calendar', async t => {
   await fakeCalendar(t);
-  const until = new Date('2025-06-01T00:00:00Z');
-  // Reads go back 90 days at a time, so one edge falls on 2025-03-03.
-  const edge = { dateTime: '2025-03-03T00:00:00Z' };
-  EVENTS[TEAM].push({
-    id: 'edge1',
-    iCalUID: 'edge@example.com',
-    summary: 'Edge',
-    start: edge,
-    end: edge,
+  const weekly = day => ({
+    id: `weekly_${day}`,
+    iCalUID: 'weekly@example.com',
+    recurringEventId: 'weekly',
+    created: '2025-01-02T12:00:00Z',
+    summary: 'Weekly',
+    start: { date: day },
+    end: { date: day },
     organizer: { email: OWNER, self: true },
   });
-  t.after(() => EVENTS[TEAM].pop());
-
-  const { extractor, records } = await extract({ since: new Date('2025-01-01T00:00:00Z'), until });
-  const keys = records.map(record => extractor.keyOf(record));
-  assert.deepEqual(
-    keys.filter(key => key.endsWith('/edge1')),
-    [`${TEAM}/edge1`]
-  );
-  assert.equal(new Set(keys).size, keys.length);
-});
-
-test('a long event comes out by its start, after later events, and one with no organizer has its calendar', async t => {
-  await fakeCalendar(t);
-  // Reads go back 90 days from June 1, so one edge falls on March 3. The trip
-  // starts before it and ends after: the newer read returns it too.
-  const trip = {
-    id: 'long1',
-    iCalUID: 'long@example.com',
-    summary: 'Long trip',
-    start: { date: '2025-02-20' },
-    end: { date: '2025-03-10' },
-    organizer: { email: OWNER, self: true },
-  };
   // Copied in from elsewhere: no organizer, no creator.
   const orphan = {
     id: 'orphan1',
     iCalUID: 'orphan@example.com',
+    created: '2025-01-03T12:00:00Z',
     summary: 'Copied',
     start: { dateTime: '2025-02-25T10:00:00Z' },
     end: { dateTime: '2025-02-25T11:00:00Z' },
   };
-  EVENTS[OWNER].push(trip, orphan);
-  t.after(() => EVENTS[OWNER].splice(-2));
+  EVENTS[OWNER].push(weekly('2025-02-03'), weekly('2025-02-10'), orphan);
+  t.after(() => EVENTS[OWNER].splice(-3));
 
-  const { records, actions } = await extract({
-    since: new Date('2025-01-01T00:00:00Z'),
-    until: new Date('2025-06-01T00:00:00Z'),
-  });
-  const starts = records.map(record => {
-    const { start } = record.data.event;
-    return new Date(start.dateTime ?? start.date).getTime();
-  });
+  const { extractor, records, actions } = await extract();
+  const keys = records.map(record => extractor.keyOf(record));
+  assert.deepEqual(keys.slice(-3), [
+    `${OWNER}/orphan1`,
+    `${OWNER}/weekly_2025-02-10`,
+    `${OWNER}/weekly_2025-02-03`,
+  ]);
+  const created = records.map(record => extractor.occurredAt(record).getTime());
   assert.deepEqual(
-    starts,
-    starts.toSorted((a, b) => b - a)
+    created,
+    created.toSorted((a, b) => b - a)
   );
   const copied = actions.find(action => action.object.name === 'Copied');
   assert.deepEqual(copied.agent, {

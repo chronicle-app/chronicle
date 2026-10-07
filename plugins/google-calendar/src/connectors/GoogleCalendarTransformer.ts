@@ -33,7 +33,7 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
       source: ICALENDAR,
       sourceId: identityOf(event),
       // When it was put on the calendar; the event carries when it happens.
-      timestamp: new Date(event.created ?? event.updated ?? startOf(event.start)!),
+      timestamp: plannedAt(event),
       agent: organizer,
       object: this.buildEvent(event, calendar, contacts),
     };
@@ -130,6 +130,15 @@ function identityOf(event: CalendarEvent): string {
 }
 
 const startOf = (time: EventTime | undefined) => time?.dateTime ?? time?.date;
+
+/**
+ * When an event was put on its calendar: Google's `created`, else when it
+ * was last changed, else (neither, which Google always gives) its start.
+ * Extraction is ordered by it too.
+ */
+export function plannedAt(event: CalendarEvent): Date {
+  return new Date(event.created ?? event.updated ?? startOf(event.start)!);
+}
 
 /**
  * When an event is planned for, both bounds always: instants for a timed
