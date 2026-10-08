@@ -1,0 +1,116 @@
+# How Chronicle's terms relate to Activity Streams 2.0's. Not part of the
+# vocabulary: only the documentation site and its tests read this file, and
+# the site publishes it.
+#
+# Each Chronicle term states how it relates to an Activity Streams term:
+#
+# - rdfs:subClassOf: every member of the Chronicle class is a member of the
+#   Activity Streams class.
+# - skos:exactMatch, skos:closeMatch, skos:broadMatch: the two properties or
+#   classes have the same meaning, a similar one, or the Activity Streams one
+#   is broader.
+# - doc:unlike: the Activity Streams term has the same name but a different
+#   meaning. The site's build fails when a Chronicle term shares a name with an
+#   Activity Streams term and neither maps to it nor is unlike it. Names are
+#   also compared without the endings in doc:nameEnding, so :LikeAction shares
+#   a name with as:Like.
+# - doc:note: how the two terms differ. Write notes by the rules in WRITING.md.
+#
+# activitystreams.terms.json lists the terms these are checked against;
+# regenerate it with scripts/snapshot-vocabulary.js.
+
+@prefix : <https://schema.chronicle.app/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix doc: <https://schema.chronicle.app/docs/> .
+@prefix as: <https://www.w3.org/ns/activitystreams#> .
+
+as: rdfs:label "Activity Streams 2.0";
+  doc:prefix "as";
+  doc:release "2017-05-23";
+  doc:nameEnding "Action", "Object";
+  rdfs:seeAlso <https://www.w3.org/TR/2017/REC-activitystreams-vocabulary-20170523/> .
+
+# Classes
+
+:Base rdfs:subClassOf as:Object .
+:Action rdfs:subClassOf as:Activity .
+:AcceptAction rdfs:subClassOf as:Accept .
+:AddAction rdfs:subClassOf as:Add .
+:Article rdfs:subClassOf as:Article .
+:AudioObject rdfs:subClassOf as:Audio .
+:CheckInAction skos:closeMatch as:Arrive;
+  doc:note "An as:Arrive has no as:object. The :Venue, the :object, is its as:location." .
+:Collection rdfs:subClassOf as:Collection;
+  doc:note "The members of a :Collection are the entities that are :isPartOf it. An as:Collection lists its members in its as:items." .
+:CreateAction rdfs:subClassOf as:Create;
+  doc:note "The work created is the :result. In an as:Create, it is the as:object." .
+:DeleteAction rdfs:subClassOf as:Delete .
+:DocumentObject rdfs:subClassOf as:Document .
+:Event rdfs:subClassOf as:Event .
+:FollowAction rdfs:subClassOf as:Follow .
+:ImageObject rdfs:subClassOf as:Image .
+:JoinAction rdfs:subClassOf as:Join .
+:LeaveAction rdfs:subClassOf as:Leave .
+:LikeAction rdfs:subClassOf as:Like .
+:ListenAction rdfs:subClassOf as:Listen .
+:MediaObject rdfs:subClassOf as:Document .
+:Organization rdfs:subClassOf as:Organization .
+:Person rdfs:subClassOf as:Person .
+:Place rdfs:subClassOf as:Place;
+  doc:note "A :Place gives its coordinates on its :location. An as:Place has its own as:latitude and as:longitude." .
+:Post skos:closeMatch as:Note .
+:ReadAction rdfs:subClassOf as:Read .
+:RejectAction rdfs:subClassOf as:Reject .
+:Relationship doc:unlike as:Relationship;
+  doc:note "An as:Relationship is any relationship between two individuals, given by its as:subject and as:object." .
+:SoftwareAgent skos:closeMatch as:Application .
+:TravelAction rdfs:subClassOf as:Travel;
+  doc:note "An as:Travel has no as:object. The :object, where the travel began, is its as:origin, and the :target is its as:target." .
+:UpdateAction rdfs:subClassOf as:Update .
+:VideoObject rdfs:subClassOf as:Video .
+:ViewAction rdfs:subClassOf as:View .
+:WatchAction skos:closeMatch as:View .
+
+# Properties
+
+:agent skos:exactMatch as:actor .
+:attribution skos:closeMatch as:attributedTo .
+:author skos:broadMatch as:attributedTo .
+:body skos:closeMatch as:content;
+  doc:note "Plain text or Markdown. as:content is HTML unless the object's as:mediaType says otherwise." .
+:contains skos:closeMatch as:attachment .
+:datePublished skos:exactMatch as:published .
+:duration skos:exactMatch as:duration .
+:emblem skos:closeMatch as:icon;
+  doc:note "An avatar, a logo, or a favicon is an as:icon. A poster or a cover is an as:image." .
+:endTime skos:broadMatch as:endTime .
+:height skos:closeMatch as:height;
+  doc:note "as:height is given on the as:Link to the media, such as an image's as:url." .
+:inReplyTo skos:exactMatch as:inReplyTo .
+:instrument skos:exactMatch as:instrument .
+:latitude skos:exactMatch as:latitude .
+:location skos:exactMatch as:location .
+:longitude skos:exactMatch as:longitude .
+:mimeType skos:closeMatch as:mediaType;
+  doc:note "On an as:Link, as:mediaType is the format of the linked file. On an object, it is the format of the object's as:content." .
+:name skos:exactMatch as:name .
+:object skos:exactMatch as:object .
+:partOf doc:unlike as:partOf;
+  doc:note "as:partOf links an as:CollectionPage to the as:Collection it is a page of." .
+:recipient skos:closeMatch as:to;
+  doc:note "Activity Streams separates the primary audience, as:to, from copies in as:cc, as:bto, and as:bcc." .
+:result skos:exactMatch as:result .
+:scheduledEnd skos:broadMatch as:endTime .
+:scheduledStart skos:broadMatch as:startTime .
+:startTime skos:broadMatch as:startTime .
+:subject doc:unlike as:subject;
+  doc:note "as:subject is one of the two individuals in an as:Relationship." .
+:tags skos:closeMatch as:tag;
+  doc:note "Text labels. The value of as:tag is an object, such as an as:Mention." .
+:target skos:exactMatch as:target .
+:timestamp skos:closeMatch as:published;
+  doc:note "as:published is when an object was published, such as when an activity was posted." .
+:url skos:exactMatch as:url .
+:width skos:closeMatch as:width;
+  doc:note "as:width is given on the as:Link to the media, such as an image's as:url." .

@@ -1,0 +1,58 @@
+# How Chronicle's terms relate to schema.org's. Not part of the vocabulary:
+# only the documentation site and its tests read this file.
+#
+# Chronicle is built on schema.org, so the mappings themselves are part of the
+# vocabulary and live in chronicle.ttl. This file holds what the mappings
+# cannot say:
+#
+# - doc:note explains how a Chronicle term differs from the schema.org term
+#   it maps to. Write notes by the rules in WRITING.md.
+# - doc:unlike marks a schema.org term that has the same name as a Chronicle
+#   term but a different meaning. The site's build fails when a Chronicle term
+#   shares a name with a schema.org term and neither maps to it nor is unlike
+#   it.
+#
+# The vocabulary node names the schema.org release the mappings were checked
+# against. schemaorg.terms.json lists that release's terms; regenerate it with
+# scripts/snapshot-vocabulary.js.
+
+@prefix : <https://schema.chronicle.app/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix doc: <https://schema.chronicle.app/docs/> .
+@prefix schemaorg: <https://schema.org/> .
+
+schemaorg: rdfs:label "schema.org";
+  doc:prefix "schemaorg";
+  doc:release "30.1";
+  rdfs:seeAlso <https://schema.org/docs/releases.html#v30.1> .
+
+# Classes
+
+:DataType doc:note "Chronicle's data types, such as :Text, are subclasses of :DataType. In schema.org, schemaorg:Text is an instance of schemaorg:DataType." .
+:DateTime doc:note "A :DateTime can also be a date at year, month, or day precision, a date with unspecified digits, or an uncertain date. An instant is always in UTC. A schemaorg:DateTime is a date and a time, and a schemaorg:Date is a date." .
+:DeleteAction doc:note "The agent removed the entity itself, such as by moving it to the trash. A schemaorg:DeleteAction edits something by removing one of its objects, such as an item from a list." .
+:FindAction doc:unlike schemaorg:FindAction;
+  doc:note "A schemaorg:FindAction is finding something, which a search can lead to. Searching is a schemaorg:SearchAction." .
+:Project doc:unlike schemaorg:Project;
+  doc:note "A schemaorg:Project is an enterprise, a kind of schemaorg:Organization." .
+:QuoteAction doc:unlike schemaorg:QuoteAction;
+  doc:note "A schemaorg:QuoteAction is giving a price for something, a kind of schemaorg:TradeAction." .
+:Thread doc:note "A :Thread can be a chat with a software assistant. A schemaorg:Conversation is between people or organizations." .
+:TravelAction doc:note "The :object is where the travel began, and the :target is where it ended. schema.org gives these as schemaorg:fromLocation and schemaorg:toLocation." .
+
+# Properties
+
+:artist doc:unlike schemaorg:artist;
+  doc:note "schemaorg:artist is the primary artist of a comic or a visual artwork. The artist of a recording or an album is its schemaorg:byArtist." .
+:attendee doc:note "Includes agents who declined or did not reply. A schemaorg:attendee is someone attending the event." .
+:contentPath doc:note "A filesystem path. schemaorg:contentUrl is a URL." .
+:distance doc:note "A number of meters, on the :Journey. schemaorg:distance is on the schemaorg:TravelAction and includes a unit, such as `5 km`." .
+:height doc:note "A number of pixels. schemaorg:height can also be a distance with a unit, such as `5 cm`." .
+:mimeType doc:note "A MIME type. schemaorg:encodingFormat can also be the URL of a page that defines the format." .
+:performer doc:note "A schemaorg:performer is someone who performed at a schemaorg:Event." .
+:sameAs doc:note "Links two references to one entity: another entity, or a text reference such as `@me`. schemaorg:sameAs is the URL of a page that identifies the item, such as its Wikipedia article." .
+:source doc:unlike schemaorg:source;
+  doc:note "schemaorg:source is the source or cause of an event." .
+:target doc:unlike schemaorg:target;
+  doc:note "schemaorg:target is an entry point for carrying out an action, such as a URL template. schema.org names the collection an object is added to its schemaorg:targetCollection, and where a movement ended its schemaorg:toLocation." .
+:width doc:note "A number of pixels. schemaorg:width can also be a distance with a unit, such as `5 cm`." .

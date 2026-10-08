@@ -4,49 +4,59 @@
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix schemaorg: <https://schema.org/> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 
 : a owl:Ontology;
   owl:versionInfo "0.3.0" .
 
 :Base a rdfs:Class;
-  rdfs:comment "Anything a source describes, either an :Entity or an :Action. Each one has an identity, so other records can refer to it." .
+  rdfs:comment "Anything a source describes, either an :Entity or an :Action. Each one has an identity, so other records can refer to it.";
+  rdfs:subClassOf schemaorg:Thing .
 :Entity a rdfs:Class;
   rdfs:subClassOf :Base;
   rdfs:comment "A thing a source describes, such as a person, place, document, or web page. An entity is the thing itself. An :Action records what happened to it or with it." .
 :Action a rdfs:Class;
-  rdfs:subClassOf :Base;
+  rdfs:subClassOf :Base,
+    schemaorg:Action;
   rdfs:comment "Something that happened, such as reading an article, sending a message, or visiting a place." .
 :Text a rdfs:Class;
-  rdfs:subClassOf :DataType;
+  rdfs:subClassOf :DataType,
+    schemaorg:Text;
   rdfs:comment "A string of characters, such as a name or an identifier. Text has no identity of its own." .
 :URL a rdfs:Class;
-  rdfs:subClassOf :Text;
+  rdfs:subClassOf :Text,
+    schemaorg:URL;
   rdfs:comment "An absolute URL, such as `https://example.com/article`." .
 
 :sourceId a rdf:Property;
   rdfs:comment "The identifier the source gives an entity or action, such as a record ID or message ID. It is unique only within its :source.";
   owl:maxCardinality 1;
   :domainIncludes :Base;
-  :rangeIncludes :Text .
+  :rangeIncludes :Text;
+  skos:broadMatch schemaorg:identifier .
 :name a rdf:Property;
   rdfs:comment "The name or title of an entity, such as a person's display name, a document's title, or a place's name.";
   owl:maxCardinality 1;
   :domainIncludes :Entity;
-  :rangeIncludes :Text .
+  :rangeIncludes :Text;
+  skos:exactMatch schemaorg:name .
 :url a rdf:Property;
   rdfs:comment "A URL at which the entity can be found, such as a web page's address or a link to the record in its source.";
   owl:maxCardinality 1;
   :domainIncludes :Entity;
-  :rangeIncludes :URL .
+  :rangeIncludes :URL;
+  skos:exactMatch schemaorg:url .
 :object a rdf:Property;
   rdfs:comment "The entity an action was carried out on, such as the article read, the message sent, or the place visited. For a movement, such as a :TravelAction, the :object is where it began.";
   owl:maxCardinality 1;
   :domainIncludes :Action;
-  :rangeIncludes :Entity .
+  :rangeIncludes :Entity;
+  skos:exactMatch schemaorg:object .
 
 :DateTime a rdfs:Class;
   rdfs:subClassOf :DataType;
-  rdfs:comment "A point in time, written in a subset of EDTF (ISO 8601-2). It takes one of four forms. An instant in UTC, with optional fractional seconds: `2024-03-02T14:05:00Z`, `2024-03-02T14:05:00.250Z`. A date at year, month, or day precision, with no time and no zone: `1987`, `1987-06`, `1987-06-12`. A date with unspecified digits written as `X`: the last one to four digits of the year, the month, or the day (`198X`, `19XX`, `1987-XX`, `1987-06-XX`, `XXXX-03-12`). Any of these dates followed by one qualifier: `?` uncertain, `~` approximate, `%` both (`1987?`, `1987-06~`, `198X%`). A date stands for its whole period: `1987` is some moment in 1987. Not allowed: an interval (`1987/1990`), an offset other than `Z` (`2024-03-02T09:05:00-05:00`), a time without a zone (`2024-03-02T14:05:00`), a qualifier on an instant, a day that does not exist (`1987-02-29`), a known day in an unspecified month (`1987-XX-12`), or no known digit at all (`XXXX`, `XXXX-XX`)." .
+  rdfs:comment "A point in time, written in a subset of EDTF (ISO 8601-2). It takes one of four forms. An instant in UTC, with optional fractional seconds: `2024-03-02T14:05:00Z`, `2024-03-02T14:05:00.250Z`. A date at year, month, or day precision, with no time and no zone: `1987`, `1987-06`, `1987-06-12`. A date with unspecified digits written as `X`: the last one to four digits of the year, the month, or the day (`198X`, `19XX`, `1987-XX`, `1987-06-XX`, `XXXX-03-12`). Any of these dates followed by one qualifier: `?` uncertain, `~` approximate, `%` both (`1987?`, `1987-06~`, `198X%`). A date stands for its whole period: `1987` is some moment in 1987. Not allowed: an interval (`1987/1990`), an offset other than `Z` (`2024-03-02T09:05:00-05:00`), a time without a zone (`2024-03-02T14:05:00`), a qualifier on an instant, a day that does not exist (`1987-02-29`), a known day in an unspecified month (`1987-XX-12`), or no known digit at all (`XXXX`, `XXXX-XX`).";
+  skos:closeMatch schemaorg:DateTime .
 :Agent a rdfs:Class;
   rdfs:subClassOf :Entity;
   rdfs:comment "An entity that can act, such as a person, an organization, or a piece of software." .
@@ -54,7 +64,8 @@
   rdfs:subClassOf :Entity;
   rdfs:comment "A unit of work to be done, such as a to-do item." .
 :Collection a rdfs:Class;
-  rdfs:subClassOf :CreativeWork;
+  rdfs:subClassOf :CreativeWork,
+    schemaorg:Collection;
   rdfs:comment "A group of entities that a source declares, such as a list, an area of responsibility, or a section of a project. Its members are :isPartOf it." .
 :Project a rdfs:Class;
   rdfs:subClassOf :Collection;
@@ -63,20 +74,24 @@
   rdfs:subClassOf :Entity;
   rdfs:comment "A label a source uses to categorize entities. Unlike the text values of :tags, a :Tag is an entity that many records can refer to." .
 :PlanAction a rdfs:Class;
-  rdfs:subClassOf :Action;
+  rdfs:subClassOf :Action,
+    schemaorg:PlanAction;
   rdfs:comment "The agent decided to do something, such as by creating a to-do item. The :object is the planned work." .
 :UpdateAction a rdfs:Class;
-  rdfs:subClassOf :Action;
+  rdfs:subClassOf :Action,
+    schemaorg:UpdateAction;
   rdfs:comment "The agent changed an existing entity, such as by editing a task's title or notes. The :object is the entity that changed." .
 :CompleteAction a rdfs:Class;
   rdfs:subClassOf :Action;
   rdfs:comment "The agent finished an activity or piece of work, such as a task or a book. The :object is what was finished." .
 :CancelAction a rdfs:Class;
-  rdfs:subClassOf :Action;
+  rdfs:subClassOf :Action,
+    schemaorg:CancelAction;
   rdfs:comment "The agent withdrew a plan or intended activity, such as a task. The :object is what was withdrawn." .
 :DeleteAction a rdfs:Class;
   rdfs:subClassOf :Action;
-  rdfs:comment "The agent removed an entity from its source, such as by moving an item to the trash. The :object is what was removed." .
+  rdfs:comment "The agent removed an entity from its source, such as by moving an item to the trash. The :object is what was removed.";
+  skos:closeMatch schemaorg:DeleteAction .
 :source a rdf:Property;
   rdfs:comment "The source that describes the entity or action, such as `things-todo`. Identifiers such as :sourceId are unique within it.";
   owl:maxCardinality 1;
@@ -86,21 +101,25 @@
   rdfs:comment "When the action occurred.";
   owl:maxCardinality 1;
   :domainIncludes :Action;
-  :rangeIncludes :DateTime .
+  :rangeIncludes :DateTime;
+  skos:closeMatch schemaorg:timestamp .
 :agent a rdf:Property;
   rdfs:comment "Who performed the action. An action whose performer is unknown has no :agent.";
   owl:maxCardinality 1;
   :domainIncludes :Action;
-  :rangeIncludes :Agent .
+  :rangeIncludes :Agent;
+  skos:exactMatch schemaorg:agent .
 :sameAs a rdf:Property;
   rdfs:comment "Another reference to the same entity, either an entity or a text reference such as `@me`. It states that both refer to one thing, not that they are similar or related.";
   :domainIncludes :Entity;
-  :rangeIncludes :Entity, :Text .
+  :rangeIncludes :Entity, :Text;
+  skos:closeMatch schemaorg:sameAs .
 :description a rdf:Property;
   rdfs:comment "Text that describes an entity, such as a task's notes or a project's summary. It is plain text or Markdown. Not allowed: HTML (`<p>Buy milk</p>`).";
   owl:maxCardinality 1;
   :domainIncludes :Entity;
-  :rangeIncludes :Text .
+  :rangeIncludes :Text;
+  skos:exactMatch schemaorg:description .
 :handle a rdf:Property;
   rdfs:comment "An identifier for an entity within a namespace, such as a username, a channel slug, or a tag label. What it identifies depends on that namespace.";
   owl:maxCardinality 1;
@@ -109,17 +128,20 @@
 :isPartOf a rdf:Property;
   rdfs:comment "A whole that the entity is part of, such as a task's project or the page an excerpt comes from.";
   :domainIncludes :Entity;
-  :rangeIncludes :Entity .
+  :rangeIncludes :Entity;
+  skos:exactMatch schemaorg:isPartOf .
 :about a rdf:Property;
   rdfs:comment "What the entity is about, such as a topic or a tag.";
   :domainIncludes :Entity;
-  :rangeIncludes :Entity .
+  :rangeIncludes :Entity;
+  skos:exactMatch schemaorg:about .
 
 :Command a rdfs:Class;
   rdfs:subClassOf :Entity;
   rdfs:comment "An instruction given to a computer, such as a shell command. Its :body is the command's text. An :ExecuteAction records running it." .
 :Person a rdfs:Class;
-  rdfs:subClassOf :Agent;
+  rdfs:subClassOf :Agent,
+    schemaorg:Person;
   rdfs:comment "A human being, such as a participant in a conversation or the user of a computer." .
 :Realm a rdfs:Class;
   rdfs:subClassOf :Entity;
@@ -131,29 +153,36 @@
   rdfs:comment "The text content of an entity, such as a shell command or a message. It is plain text or Markdown. Not allowed: HTML (`<p>Hello</p>`).";
   owl:maxCardinality 1;
   :domainIncludes :Entity;
-  :rangeIncludes :Text .
+  :rangeIncludes :Text;
+  skos:closeMatch schemaorg:text .
 :memberOf a rdf:Property;
   rdfs:comment "An entity the agent belongs to, such as the realm of the computer system that holds a user account.";
   :domainIncludes :Agent;
-  :rangeIncludes :Entity .
+  :rangeIncludes :Entity;
+  skos:closeMatch schemaorg:memberOf .
 
 :Message a rdfs:Class;
-  rdfs:subClassOf :CreativeWork;
+  rdfs:subClassOf :CreativeWork,
+    schemaorg:Message;
   rdfs:comment "A communication sent to one or more agents, such as a text message, an email, or a chat reply. Its attachments are what it :contains." .
 :MessageAction a rdfs:Class;
   rdfs:subClassOf :Action;
   rdfs:comment "The agent sent a message. The :object is the message." .
 :MediaObject a rdfs:Class;
-  rdfs:subClassOf :CreativeWork;
+  rdfs:subClassOf :CreativeWork,
+    schemaorg:MediaObject;
   rdfs:comment "A media file, such as an image, an audio recording, a video, or a document. Its :contentPath or :url locates the file, and its :mimeType gives its format." .
 :ImageObject a rdfs:Class;
-  rdfs:subClassOf :MediaObject;
+  rdfs:subClassOf :MediaObject,
+    schemaorg:ImageObject;
   rdfs:comment "An image, such as a photograph, a screenshot, or an image attachment." .
 :AudioObject a rdfs:Class;
-  rdfs:subClassOf :MediaObject;
+  rdfs:subClassOf :MediaObject,
+    schemaorg:AudioObject;
   rdfs:comment "A sound recording, such as a voice message or a music file." .
 :VideoObject a rdfs:Class;
-  rdfs:subClassOf :MediaObject;
+  rdfs:subClassOf :MediaObject,
+    schemaorg:VideoObject;
   rdfs:comment "A video, such as a recorded clip or a video attachment. It can include sound." .
 :DocumentObject a rdfs:Class;
   rdfs:subClassOf :MediaObject;
@@ -162,40 +191,48 @@
   rdfs:comment "An agent the message or call was directed to, such as each other participant in a group conversation.";
   rdfs:subPropertyOf :involvement;
   :domainIncludes :Message;
-  :rangeIncludes :Agent .
+  :rangeIncludes :Agent;
+  skos:exactMatch schemaorg:recipient .
 :contains a rdf:Property;
   rdfs:comment "A media file the entity is made of, such as the photo in a :Post, the images and videos in a carousel, or an attachment to a :Message. Each one has its most specific type, such as :ImageObject.";
   :domainIncludes :Entity;
-  :rangeIncludes :MediaObject .
+  :rangeIncludes :MediaObject;
+  skos:closeMatch schemaorg:associatedMedia .
 :contentPath a rdf:Property;
   rdfs:comment "The absolute filesystem path of the local file that holds the media.";
   owl:maxCardinality 1;
   :domainIncludes :MediaObject;
-  :rangeIncludes :Text .
+  :rangeIncludes :Text;
+  skos:closeMatch schemaorg:contentUrl .
 :mimeType a rdf:Property;
   rdfs:comment "The MIME type of the media, such as `image/jpeg`, `audio/mp4`, or `application/pdf`.";
   owl:maxCardinality 1;
   :domainIncludes :MediaObject;
-  :rangeIncludes :Text .
+  :rangeIncludes :Text;
+  skos:closeMatch schemaorg:encodingFormat .
 
 :SoftwareAgent a rdfs:Class;
   rdfs:subClassOf :Agent;
   rdfs:comment "Software that acts as a participant, such as an assistant, a bot, or an automation. Software used as a tool is a :SoftwareApplication." .
 :SoftwareApplication a rdfs:Class;
-  rdfs:subClassOf :CreativeWork;
+  rdfs:subClassOf :CreativeWork,
+    schemaorg:SoftwareApplication;
   rdfs:comment "A software application or model used to do work. An action names it as its :instrument." .
 :Thread a rdfs:Class;
   rdfs:subClassOf :Collection;
-  rdfs:comment "A conversation that its source groups together, such as an email thread or a chat with an assistant. Its messages are :isPartOf it, and its :name is the conversation's title." .
+  rdfs:comment "A conversation that its source groups together, such as an email thread or a chat with an assistant. Its messages are :isPartOf it, and its :name is the conversation's title.";
+  skos:closeMatch schemaorg:Conversation .
 :instrument a rdf:Property;
   rdfs:comment "The tool, device, application, or model used to perform an action. The :agent is who acted. The :instrument is what they used.";
   owl:maxCardinality 1;
   :domainIncludes :Action;
-  :rangeIncludes :Entity .
+  :rangeIncludes :Entity;
+  skos:exactMatch schemaorg:instrument .
 :author a rdf:Property;
   rdfs:comment "An agent who wrote the work, such as a person or a software assistant.";
   :domainIncludes :Message;
-  :rangeIncludes :Agent .
+  :rangeIncludes :Agent;
+  skos:exactMatch schemaorg:author .
 :inRealm a rdf:Property;
   rdfs:comment "The realm the entity is in, such as the computer system that holds a conversation or a file. Identifiers local to the realm are unique within it.";
   owl:maxCardinality 1;
@@ -204,39 +241,48 @@
 
 :ConsumeAction a rdfs:Class;
   rdfs:comment "The agent took in the :object, such as by reading, watching, listening to, eating, or drinking it. The subclasses name how. A :ConsumeAction of no subclass records consumption in progress with no known start.";
-  rdfs:subClassOf :Action .
+  rdfs:subClassOf :Action,
+    schemaorg:ConsumeAction .
 
 :ViewAction a rdfs:Class;
   rdfs:comment "The agent looked at the :object, such as a web page visited, a photo opened, or a document viewed. It records a single encounter, not consumption in progress.";
-  rdfs:subClassOf :ConsumeAction .
+  rdfs:subClassOf :ConsumeAction,
+    schemaorg:ViewAction .
 
 :Number a rdfs:Class;
   rdfs:comment "A number, whole or decimal.";
-  rdfs:subClassOf :DataType .
+  rdfs:subClassOf :DataType,
+    schemaorg:Number .
 :startTime a rdf:Property;
   rdfs:comment "When the action started. A date gives the start at that date's precision.";
   owl:maxCardinality 1;
   :domainIncludes :Action;
-  :rangeIncludes :DateTime .
+  :rangeIncludes :DateTime;
+  skos:exactMatch schemaorg:startTime .
 :endTime a rdf:Property;
   rdfs:comment "When the action ended. A date gives the end at that date's precision and includes the whole period, so `1990` runs to the end of 1990.";
   owl:maxCardinality 1;
   :domainIncludes :Action;
-  :rangeIncludes :DateTime .
+  :rangeIncludes :DateTime;
+  skos:exactMatch schemaorg:endTime .
 :result a rdf:Property;
   rdfs:comment "What the action produced, such as a work or a session.";
   owl:maxCardinality 1;
   :domainIncludes :Action;
-  :rangeIncludes :Entity .
+  :rangeIncludes :Entity;
+  skos:exactMatch schemaorg:result .
 
 :StructuredValue a rdfs:Class;
-  rdfs:comment "A value made of several fields that together state one fact, such as a position and its address. It describes something but has no identity of its own." .
+  rdfs:comment "A value made of several fields that together state one fact, such as a position and its address. It describes something but has no identity of its own.";
+  rdfs:subClassOf schemaorg:StructuredValue .
 :Location a rdfs:Class;
   rdfs:comment "A geographic position and address. Its coordinates are its :latitude and :longitude, and its :address is its address. It has no identity of its own. A place with an identity is a :Place.";
-  rdfs:subClassOf :StructuredValue .
+  rdfs:subClassOf :StructuredValue;
+  skos:closeMatch schemaorg:GeoCoordinates .
 :Place a rdfs:Class;
   rdfs:comment "A place in the world with an identity of its own, such as a venue, a city, a region, or a country. Its :location gives its position and address.";
-  rdfs:subClassOf :Entity .
+  rdfs:subClassOf :Entity,
+    schemaorg:Place .
 :Venue a rdfs:Class;
   rdfs:comment "A specific place that people go to, such as a café, a shop, a park, a home, or an office.";
   rdfs:subClassOf :Place .
@@ -246,33 +292,39 @@
   :domainIncludes :Action,
     :Entity,
     :Event;
-  :rangeIncludes :Place, :Location .
+  :rangeIncludes :Place, :Location;
+  skos:closeMatch schemaorg:location .
 :latitude a rdf:Property;
   rdfs:comment "The latitude of the location.";
   owl:maxCardinality 1;
   :domainIncludes :Location;
-  :rangeIncludes :Number .
+  :rangeIncludes :Number;
+  skos:exactMatch schemaorg:latitude .
 :longitude a rdf:Property;
   rdfs:comment "The longitude of the location.";
   owl:maxCardinality 1;
   :domainIncludes :Location;
-  :rangeIncludes :Number .
+  :rangeIncludes :Number;
+  skos:exactMatch schemaorg:longitude .
 :address a rdf:Property;
   rdfs:comment "The address of the location.";
   owl:maxCardinality 1;
   :domainIncludes :Location;
-  :rangeIncludes :Text .
+  :rangeIncludes :Text;
+  skos:exactMatch schemaorg:address .
 :category a rdf:Property;
   rdfs:comment "A text label that classifies the entity, such as `breakfast` for a :Meal or `car` for a :PhysicalObject.";
   :domainIncludes :Entity;
-  :rangeIncludes :Text .
+  :rangeIncludes :Text;
+  skos:exactMatch schemaorg:category .
 
 :VisitAction a rdfs:Class;
   rdfs:comment "The agent stayed at the :object place from :startTime to :endTime. Travel between stays is a :TravelAction.";
   rdfs:subClassOf :Action .
 :TravelAction a rdfs:Class;
   rdfs:comment "The agent travelled from the :object place to the :target place, from :startTime to :endTime. Its :result is the :Journey.";
-  rdfs:subClassOf :Action .
+  rdfs:subClassOf :Action,
+    schemaorg:TravelAction .
 :Journey a rdfs:Class;
   rdfs:comment "A recorded stretch of travel, with its :travelMode, its :distance, and its route as its :path. It is the :result of a :TravelAction, which gives its start and end.";
   rdfs:subClassOf :Entity .
@@ -285,7 +337,8 @@
   rdfs:comment "The distance the journey covered, in meters.";
   owl:maxCardinality 1;
   :domainIncludes :Journey;
-  :rangeIncludes :Number .
+  :rangeIncludes :Number;
+  skos:closeMatch schemaorg:distance .
 :path a rdf:Property;
   rdfs:comment "The recorded route of the journey.";
   owl:maxCardinality 1;
@@ -294,7 +347,8 @@
 
 :CreativeWork a rdfs:Class;
   rdfs:comment "A work made by an agent, such as a text, a recording, a post, a message, or a document.";
-  rdfs:subClassOf :Entity .
+  rdfs:subClassOf :Entity,
+    schemaorg:CreativeWork .
 :Channel a rdfs:Class;
   rdfs:comment "A named place where several participants post messages, such as a workspace channel, a group chat, or a chat room. Its messages are :isPartOf it. A one-to-one conversation has no :Channel.";
   rdfs:subClassOf :CreativeWork .
@@ -306,7 +360,8 @@
   rdfs:comment "An agent that belongs to the organization or channel, such as a member of a band, a company, or a group chat.";
   rdfs:subPropertyOf :involvement;
   :domainIncludes :Organization, :Channel;
-  :rangeIncludes :Person, :Agent .
+  :rangeIncludes :Person, :Agent;
+  skos:exactMatch schemaorg:member .
 :inReplyTo a rdf:Property;
   rdfs:comment "The message this message replies to.";
   rdfs:subPropertyOf :relation;
@@ -314,27 +369,32 @@
   :rangeIncludes :Message .
 
 :DataType a rdfs:Class;
-  rdfs:comment "A simple literal value, such as text, a number, or a point in time." .
+  rdfs:comment "A simple literal value, such as text, a number, or a point in time.";
+  skos:closeMatch schemaorg:DataType .
 :Event a rdfs:Class;
   rdfs:comment "A named happening with a planned start and end, such as a calendar entry, a concert, or a picnic. Its :scheduledStart and :scheduledEnd give the plan. The actions that record it give when it actually happened.";
-  rdfs:subClassOf :Entity .
+  rdfs:subClassOf :Entity,
+    schemaorg:Event .
 :attendee a rdf:Property;
   rdfs:comment "An agent invited to the event, such as a guest on a calendar entry, whatever their reply.";
   rdfs:subPropertyOf :involvement;
   :domainIncludes :Event;
-  :rangeIncludes :Agent .
+  :rangeIncludes :Agent;
+  skos:closeMatch schemaorg:attendee .
 :scheduledStart a rdf:Property;
   rdfs:comment "When the event or session is planned to start. When something actually started is an action's :startTime. A timed plan starts at an instant. An all-day plan starts on a date.";
   owl:maxCardinality 1;
   :domainIncludes :Event,
     :Session;
-  :rangeIncludes :DateTime .
+  :rangeIncludes :DateTime;
+  skos:closeMatch schemaorg:startDate .
 :scheduledEnd a rdf:Property;
   rdfs:comment "When the event or session is planned to end. It is the same kind of value as its :scheduledStart and is not before it. A date is the last whole day included, so a one-day event ends on the day it starts.";
   owl:maxCardinality 1;
   :domainIncludes :Event,
     :Session;
-  :rangeIncludes :DateTime .
+  :rangeIncludes :DateTime;
+  skos:closeMatch schemaorg:endDate .
 :relation a rdf:Property;
   rdfs:comment "Another entity that this entity is linked to.";
   :abstract true;
@@ -347,10 +407,12 @@
 
 :InteractAction a rdfs:Class;
   rdfs:comment "The agent engaged with others, such as by communicating with them or following them.";
-  rdfs:subClassOf :Action .
+  rdfs:subClassOf :Action,
+    schemaorg:InteractAction .
 :CommunicateAction a rdfs:Class;
   rdfs:comment "The agent conveyed something to others, such as by sending a message, making a call, or checking in.";
-  rdfs:subClassOf :InteractAction .
+  rdfs:subClassOf :InteractAction,
+    schemaorg:CommunicateAction .
 :CallAction a rdfs:Class;
   rdfs:comment "The agent made a phone or video call. Its :result is the :CallSession.";
   rdfs:subClassOf :CommunicateAction .
@@ -363,31 +425,38 @@
 :recipient :domainIncludes :CallSession .
 :EatAction a rdfs:Class;
   rdfs:comment "The agent ate the :object, a :Meal. Where they ate is the action's :location.";
-  rdfs:subClassOf :ConsumeAction .
+  rdfs:subClassOf :ConsumeAction,
+    schemaorg:EatAction .
 :DrankAction a rdfs:Class;
   rdfs:comment "The agent drank the :object.";
-  rdfs:subClassOf :ConsumeAction .
+  rdfs:subClassOf :ConsumeAction,
+    schemaorg:DrinkAction .
 :Meal a rdfs:Class;
   rdfs:comment "A meal or snack that the subject ate. Its :category is its slot, such as breakfast, lunch, or dinner.";
   rdfs:subClassOf :Entity .
 :Post a rdfs:Class;
   rdfs:comment "A work published to a social or media platform, such as a feed post, a story, a reel, or a tweet. It can have a text :body and media files that it :contains. Its :sourceFormat is the platform's own format for it.";
-  rdfs:subClassOf :CreativeWork .
+  rdfs:subClassOf :CreativeWork,
+    schemaorg:SocialMediaPosting .
 :PublishAction a rdfs:Class;
   rdfs:comment "The agent published or released the :object. The work's :datePublished is when this happened.";
   rdfs:subClassOf :CreateAction .
 :CreateAction a rdfs:Class;
   rdfs:comment "The agent brought a work into being. Its :result is the work. The subclasses name the kind of making.";
-  rdfs:subClassOf :Action .
+  rdfs:subClassOf :Action,
+    schemaorg:CreateAction .
 :LikeAction a rdfs:Class;
   rdfs:comment "The agent liked the :object.";
-  rdfs:subClassOf :ReactAction .
+  rdfs:subClassOf :ReactAction,
+    schemaorg:LikeAction .
 :ReactAction a rdfs:Class;
   rdfs:comment "The agent took a stance on the :object with no content, such as a like. A reaction with content, such as an emoji or a comment, is a :RespondAction.";
-  rdfs:subClassOf :AssessAction .
+  rdfs:subClassOf :AssessAction,
+    schemaorg:ReactAction .
 :AssessAction a rdfs:Class;
   rdfs:comment "The agent took a stance on the :object, such as by liking, reacting to, rating, or reviewing it.";
-  rdfs:subClassOf :Action .
+  rdfs:subClassOf :Action,
+    schemaorg:AssessAction .
 :references a rdf:Property;
   rdfs:comment "An entity this one refers to, such as one it @mentions, a page it links to, or a work it cites.";
   rdfs:subPropertyOf :mentions;
@@ -398,10 +467,12 @@
 :mentions a rdf:Property;
   rdfs:comment "An entity this one points to, such as by an @mention or a link.";
   rdfs:subPropertyOf :relation;
-  :rangeIncludes :Entity .
+  :rangeIncludes :Entity;
+  skos:exactMatch schemaorg:mentions .
 :FindAction a rdfs:Class;
   rdfs:comment "The agent searched on a platform. The :object is the :Query they entered.";
-  rdfs:subClassOf :Action .
+  rdfs:subClassOf :Action,
+    schemaorg:SearchAction .
 :Query a rdfs:Class;
   rdfs:comment "A search query as it was entered. Its :body is the query's text.";
   rdfs:subClassOf :CreativeWork .
@@ -413,17 +484,21 @@
   rdfs:subClassOf :CreativeWork .
 :Comment a rdfs:Class;
   rdfs:comment "A response written in prose. Its :body is the text.";
-  rdfs:subClassOf :Response .
+  rdfs:subClassOf :Response,
+    schemaorg:Comment .
 :author :domainIncludes :CreativeWork .
 :FollowAction a rdfs:Class;
   rdfs:comment "The agent started following the :object, such as an account, a feed, or a collection.";
-  rdfs:subClassOf :InteractAction .
+  rdfs:subClassOf :InteractAction,
+    schemaorg:FollowAction .
 :OrganizeAction a rdfs:Class;
   rdfs:comment "The agent arranged or planned things, such as by saving, bookmarking, or scheduling.";
-  rdfs:subClassOf :Action .
+  rdfs:subClassOf :Action,
+    schemaorg:OrganizeAction .
 :BookmarkAction a rdfs:Class;
   rdfs:comment "The agent saved the :object for later, such as a bookmarked page, an article saved to a reading list, or a book shelved as to-read.";
-  rdfs:subClassOf :OrganizeAction .
+  rdfs:subClassOf :OrganizeAction,
+    schemaorg:BookmarkAction .
 :sourceFormat a rdf:Property;
   rdfs:comment "The platform's own format for the work, among works of the same type. For example, a post can be a story, a feed post, or a reel, a video can be a short or a live stream, and a podcast episode can be a trailer or a bonus. Each source has its own values. A work has a :sourceFormat only when its source has such formats.";
   owl:maxCardinality 1;
@@ -436,25 +511,32 @@
   :rangeIncludes :Text .
 :ListenAction a rdfs:Class;
   rdfs:comment "The agent listened to the :object, such as a recording or a podcast episode.";
-  rdfs:subClassOf :ConsumeAction .
+  rdfs:subClassOf :ConsumeAction,
+    schemaorg:ListenAction .
 :AddAction a rdfs:Class;
   rdfs:comment "The agent added the :object to the :target, such as a track to a playlist or a work to a collection.";
-  rdfs:subClassOf :UpdateAction .
+  rdfs:subClassOf :UpdateAction,
+    schemaorg:AddAction .
 :MusicRecording a rdfs:Class;
   rdfs:comment "A recording of a piece of music, such as a track on an album.";
-  rdfs:subClassOf :CreativeWork .
+  rdfs:subClassOf :CreativeWork,
+    schemaorg:MusicRecording .
 :MusicAlbum a rdfs:Class;
   rdfs:comment "A released collection of music recordings.";
-  rdfs:subClassOf :CreativeWork .
+  rdfs:subClassOf :CreativeWork,
+    schemaorg:MusicAlbum .
 :PerformingGroup a rdfs:Class;
   rdfs:comment "An organization that performs, such as a band, a troupe, or an ensemble.";
-  rdfs:subClassOf :Organization .
+  rdfs:subClassOf :Organization,
+    schemaorg:PerformingGroup .
 :MusicGroup a rdfs:Class;
   rdfs:comment "A musical act, such as a band, an orchestra, or a solo artist as a performer. It is the :artist of recordings and albums.";
-  rdfs:subClassOf :PerformingGroup .
+  rdfs:subClassOf :PerformingGroup,
+    schemaorg:MusicGroup .
 :PodcastEpisode a rdfs:Class;
   rdfs:comment "One episode of a podcast.";
-  rdfs:subClassOf :CreativeWork .
+  rdfs:subClassOf :CreativeWork,
+    schemaorg:PodcastEpisode .
 :attribution a rdf:Property;
   rdfs:comment "An agent responsible for bringing a work into being.";
   rdfs:subPropertyOf :relation;
@@ -464,7 +546,8 @@
   :propagatesEncounter true;
   rdfs:comment "An agent who performed or realized an existing work.";
   rdfs:subPropertyOf :attribution;
-  :rangeIncludes :Agent .
+  :rangeIncludes :Agent;
+  skos:closeMatch schemaorg:performer .
 :composition a rdf:Property;
   rdfs:comment "A structural relation between a part and its whole, in either direction.";
   rdfs:subPropertyOf :relation;
@@ -480,7 +563,8 @@
   rdfs:subPropertyOf :relation;
   owl:maxCardinality 1;
   :domainIncludes :Entity;
-  :rangeIncludes :ImageObject .
+  :rangeIncludes :ImageObject;
+  skos:broadMatch schemaorg:image .
 :artist a rdf:Property;
   :propagatesEncounter true;
   rdfs:comment "The musical act that created or performed the recording or album.";
@@ -488,14 +572,16 @@
   :domainIncludes :MusicRecording,
     :MusicAlbum,
     :AudioObject;
-  :rangeIncludes :MusicGroup .
+  :rangeIncludes :MusicGroup;
+  skos:exactMatch schemaorg:byArtist .
 :inAlbum a rdf:Property;
   :propagatesEncounter true;
   rdfs:comment "The album the recording appears on.";
   owl:maxCardinality 1;
   rdfs:subPropertyOf :partOf;
   :domainIncludes :MusicRecording;
-  :rangeIncludes :MusicAlbum .
+  :rangeIncludes :MusicAlbum;
+  skos:exactMatch schemaorg:inAlbum .
 :duration a rdf:Property;
   rdfs:comment "How long the recording or media lasts.";
   owl:maxCardinality 1;
@@ -503,12 +589,14 @@
     :PodcastEpisode,
     :AudioObject,
     :VideoObject;
-  :rangeIncludes :Text .
+  :rangeIncludes :Text;
+  skos:exactMatch schemaorg:duration .
 :genre a rdf:Property;
   rdfs:comment "A genre of the work.";
   :domainIncludes :CreativeWork,
     :AudioObject;
-  :rangeIncludes :Text .
+  :rangeIncludes :Text;
+  skos:exactMatch schemaorg:genre .
 :datePublished a rdf:Property;
   rdfs:comment "When the work was published or released. It is when the work's :PublishAction occurred.";
   owl:maxCardinality 1;
@@ -525,10 +613,12 @@
   rdfs:subClassOf :Action .
 :JoinAction a rdfs:Class;
   rdfs:comment "The subject joined the :object organization or realm, starting a membership. Its :result can be the :Tenure, :Membership, or :Enrollment that began.";
-  rdfs:subClassOf :ExperienceAction .
+  rdfs:subClassOf :ExperienceAction,
+    schemaorg:JoinAction .
 :LeaveAction a rdfs:Class;
   rdfs:comment "The subject left the :object organization or realm, ending a membership that a :JoinAction started.";
-  rdfs:subClassOf :ExperienceAction .
+  rdfs:subClassOf :ExperienceAction,
+    schemaorg:LeaveAction .
 :Tenure a rdfs:Class;
   rdfs:comment "A period of employment. It is the :result of an :ExperienceAction, which gives its start and end. Its :role is the position held.";
   rdfs:subClassOf :Session .
@@ -555,25 +645,30 @@
   :rangeIncludes :Text .
 :Intangible a rdfs:Class;
   rdfs:comment "An entity that is neither physical nor a creative work, such as a term, a selector, or a category.";
-  rdfs:subClassOf :Entity .
+  rdfs:subClassOf :Entity,
+    schemaorg:Intangible .
 :DefinedTerm a rdfs:Class;
   rdfs:comment "A word or code from a vocabulary that classifies other entities, such as a tag or a category.";
-  rdfs:subClassOf :Intangible .
+  rdfs:subClassOf :Intangible,
+    schemaorg:DefinedTerm .
 :WatchAction a rdfs:Class;
   rdfs:comment "The agent watched the :object, such as a video, a film, or a show.";
-  rdfs:subClassOf :ConsumeAction .
+  rdfs:subClassOf :ConsumeAction,
+    schemaorg:WatchAction .
 :width a rdf:Property;
   rdfs:comment "The width of the image or video, in pixels.";
   owl:maxCardinality 1;
   :domainIncludes :ImageObject,
     :VideoObject;
-  :rangeIncludes :Number .
+  :rangeIncludes :Number;
+  skos:closeMatch schemaorg:width .
 :height a rdf:Property;
   rdfs:comment "The height of the image or video, in pixels.";
   owl:maxCardinality 1;
   :domainIncludes :ImageObject,
     :VideoObject;
-  :rangeIncludes :Number .
+  :rangeIncludes :Number;
+  skos:closeMatch schemaorg:height .
 
 :AnnotateAction a rdfs:Class;
   rdfs:comment "The agent wrote a note on something, such as a comment on a highlighted passage, a note on a work, or a note in the margin of a page. Its :result is the :Comment, which is :about what it annotates.";
@@ -605,42 +700,50 @@
   rdfs:comment "The make and model of the object, such as `Mac17,9` or `iPhone15,2`. It is not the object's :name or its :category.";
   owl:maxCardinality 1;
   :domainIncludes :PhysicalObject;
-  :rangeIncludes :Text .
+  :rangeIncludes :Text;
+  skos:exactMatch schemaorg:model .
 
 :CheckInAction a rdfs:Class;
   rdfs:comment "The agent announced that they were at the :object, a :Venue.";
-  rdfs:subClassOf :CommunicateAction .
+  rdfs:subClassOf :CommunicateAction,
+    schemaorg:CheckInAction .
 
 :Book a rdfs:Class;
   rdfs:comment "A book, in one edition.";
-  rdfs:subClassOf :CreativeWork .
+  rdfs:subClassOf :CreativeWork,
+    schemaorg:Book .
 :pageCount a rdf:Property;
   rdfs:comment "The number of pages in the document or edition.";
   owl:maxCardinality 1;
   :domainIncludes :DocumentObject,
     :Book;
-  :rangeIncludes :Number .
+  :rangeIncludes :Number;
+  skos:exactMatch schemaorg:numberOfPages .
 :publisher a rdf:Property;
   rdfs:comment "The organization that published the work.";
   rdfs:subPropertyOf :creator;
   :domainIncludes :CreativeWork;
-  :rangeIncludes :Organization .
+  :rangeIncludes :Organization;
+  skos:exactMatch schemaorg:publisher .
 :creator a rdf:Property;
   :propagatesEncounter true;
   rdfs:comment "An agent who brought the work into being, such as by writing, producing, or releasing it.";
   rdfs:subPropertyOf :attribution;
   :domainIncludes :CreativeWork;
-  :rangeIncludes :Agent .
+  :rangeIncludes :Agent;
+  skos:exactMatch schemaorg:creator .
 
 :ReadAction a rdfs:Class;
   rdfs:comment "The agent read the :object, such as a book, an article, or a document.";
-  rdfs:subClassOf :ConsumeAction .
+  rdfs:subClassOf :ConsumeAction,
+    schemaorg:ReadAction .
 :QuoteAction a rdfs:Class;
   rdfs:comment "The agent selected a passage of the :object, such as a highlight in a book or an excerpt from a page. Its :result is the :Quotation.";
   rdfs:subClassOf :CreateAction .
 :Quotation a rdfs:Class;
   rdfs:comment "A passage selected from a work, such as a highlight or an excerpt. Its :body is the text, and its :selector gives its position. A visual annotation also has an :annotationStyle and a :color.";
-  rdfs:subClassOf :CreativeWork .
+  rdfs:subClassOf :CreativeWork,
+    schemaorg:Quotation .
 
 :Category a rdfs:Class;
   rdfs:comment "A classification from a fixed set of kinds. A free-form label is a :Tag.";
@@ -656,7 +759,8 @@
   rdfs:subClassOf :Selector .
 :Article a rdfs:Class;
   rdfs:comment "A written piece published on the web or in a periodical, such as a news story, a blog post, or a feed item.";
-  rdfs:subClassOf :CreativeWork .
+  rdfs:subClassOf :CreativeWork,
+    schemaorg:Article .
 :snapshotOf a rdf:Property;
   rdfs:comment "The resource this media captured at a moment, such as the web page in a screenshot or an archive. The value is the resource itself, the entity with the URL. The media's type tells a screenshot from an archive.";
   rdfs:subPropertyOf :relation;
@@ -668,7 +772,8 @@
   :domainIncludes :Quotation,
     :Tag,
     :Category;
-  :rangeIncludes :Text .
+  :rangeIncludes :Text;
+  skos:closeMatch schemaorg:color .
 :annotationStyle a rdf:Property;
   rdfs:comment "The kind of visual annotation, such as `highlight`, `underline`, `strikethrough`, `squiggly`, `box`, or `margin`.";
   owl:maxCardinality 1;
@@ -692,12 +797,14 @@
 :tags a rdf:Property;
   rdfs:comment "A text label for the entity. A label that is an entity of its own is a :Tag.";
   :domainIncludes :Entity;
-  :rangeIncludes :Text .
+  :rangeIncludes :Text;
+  skos:closeMatch schemaorg:keywords .
 :caption a rdf:Property;
   rdfs:comment "A caption or description of the image.";
   owl:maxCardinality 1;
   :domainIncludes :ImageObject;
-  :rangeIncludes :Text .
+  :rangeIncludes :Text;
+  skos:exactMatch schemaorg:caption .
 :SoftwareSourceCode a rdfs:Class;
   rdfs:comment "Source code as a work, such as a snippet, a script, or a program's code.";
   rdfs:subClassOf :CreativeWork;

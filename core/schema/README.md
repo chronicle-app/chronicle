@@ -14,6 +14,38 @@ The schema is documented at https://schema.chronicle.app, built from
 site lives in [apps/schema-site](../../apps/schema-site), which also describes
 the examples format.
 
+## Other vocabularies
+
+Chronicle is built on schema.org, and `chronicle.ttl` maps its terms to
+schema.org's. A class that is a kind of a schema.org class lists it with
+`rdfs:subClassOf`. A property, or a class with no schema.org parent, uses
+`skos:exactMatch` for the same meaning, `skos:closeMatch` for a similar one,
+and `skos:broadMatch` when schema.org's term is broader. These mappings are
+part of the vocabulary. The generator and the site read only parents in the
+Chronicle namespace as the class hierarchy.
+
+[alignments/](alignments) holds one file for each vocabulary that Chronicle's
+terms relate to, `schemaorg.ttl` and `activitystreams.ttl`. Each names the
+release its terms were checked against, and holds:
+
+- `doc:note`: how a Chronicle term differs from the term it maps to, written
+  by the rules in [WRITING.md](WRITING.md#8-notes-on-other-vocabularies).
+- `doc:unlike`: a term with the same name as a Chronicle term but a different
+  meaning, such as schema.org's `Project`.
+- The mappings to any vocabulary other than schema.org. They can change
+  without a vocabulary release.
+
+`<name>.terms.json` lists the classes and properties of the release. To move to
+a newer one, run `node scripts/snapshot-vocabulary.js schemaorg <release>` (or
+`activitystreams`), update `doc:release`, and fix what the schema site's build
+reports. The site shows each term's relations, has a page for each vocabulary,
+and fails when a mapping names a term the release does not have, or when a
+Chronicle term shares a name with a term it neither maps to nor marks unlike.
+Names are also compared without the endings in `doc:nameEnding`, so
+`LikeAction` is compared with Activity Streams' `Like`. To relate the
+vocabulary to another one, add its alignment, its `.terms.json`, and a
+comparison in [the site's vocabularies/](../../apps/schema-site/vocabularies).
+
 ## Vocabulary
 
 - `Base`: an identity-bearing node; carries `sourceId`.
@@ -71,7 +103,7 @@ typing; use validators at runtime to enforce identity requirements.
 
 The generator turns N3/Turtle into TypeScript types and Zod validators. It handles
 inheritance, domain/range, and OWL cardinality and fails for cyclic inheritance or
-undeclared referenced classes. The package has no persistence metadata, derived
+undeclared referenced classes. It ignores parents in other vocabularies. The package has no persistence metadata, derived
 effects, or runtime filesystem parser.
 Generated runtime code depends only on Zod; the TTL is also included in the package.
 
