@@ -10,7 +10,8 @@ What Chronicle's mail sources share: reading an mbox, parsing an email, identify
   - for bulk mail (one with `List-Unsubscribe`, `List-Id`, or `Precedence: bulk`), without its footer: from the first unsubscribe or "you're receiving this" line in its second half;
   - with tracking parameters (`utm_*`, `fbclid`, …) taken off links and the padding characters newsletters fill their inbox preview with removed, by `tidyText` from `@chronicle.app/etl`. In bulk mail, click-tracking redirects (URLs over 200 characters) lose their URL but keep their words; a person's mail keeps long links, like a meeting's join link.
 - `identityOf(message)` is its Message-ID, or else its sender, date, and subject; null when it has neither, and a source skips it.
-- `messageAction(message, options)` is the sending of it: a `MessageAction` by the sender on a `Message`, with its recipients and the message it replies to, and a source's thread and labels when it has them.
+- `messageAction(message, options)` is the sending of it: a `MessageAction` by the sender on a `Message`, with its recipients and the message it replies to, and a source's thread and labels when it has them. The sender is written in full as the action's `agent`, and as the message's `author` by key alone. With `account`, the message is `inAccount` it.
+- `emailAccount(address)` is the account at an address, an Agent keyed by it in the `email` namespace: what a message is `inAccount`, whatever service holds it.
 
 Identifiers the email protocol defines are keyed in its namespace (`source: 'email'`): a message by its Message-ID without the angle brackets around it (as JMAP and `mid:` URIs write it), so the same email read by any mail source is one node. A person is their lowercased address in the `email` namespace (`source: 'email'`), the identity other plugins already link an address to, so every mail source, a calendar, and those links meet on one node.
 

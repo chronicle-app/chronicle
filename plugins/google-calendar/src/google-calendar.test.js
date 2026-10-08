@@ -40,7 +40,7 @@ const account = {
 };
 const you = ['@me', account];
 const owner = person(OWNER, 'Test Owner', { sameAs: you });
-// Every calendar read is on the signed-in account's list, whoever owns it.
+// Every calendar read is on the signed-in Google account's list, whoever owns it.
 const calendar = (sourceId, name) => ({
   '@type': 'Calendar',
   '@key': ['@type', 'source', 'sourceId'],

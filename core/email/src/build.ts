@@ -128,7 +128,8 @@ export function messageAction(mail: MailMessage, options: MessageNodeOptions = {
     ...(options.account && { inAccount: [options.account] }),
     name: mail.subject,
     ...(mail.text && { body: mail.text }),
-    author: [sender],
+    // The sender in full is the action's agent; here, the same node by its key.
+    author: [reference(sender)],
     ...(recipients.length > 0 && { recipient: recipients }),
     ...(mail.inReplyTo && {
       inReplyTo: [
@@ -147,6 +148,29 @@ export function messageAction(mail: MailMessage, options: MessageNodeOptions = {
     timestamp: new Date(sentAt),
     agent: sender,
     object: message,
+  };
+}
+
+/**
+ * An email account by its address, keyed as a person is: the account a
+ * message is `inAccount`, whatever service holds it.
+ */
+export function emailAccount(address: string): Agent {
+  return {
+    '@type': 'Agent',
+    '@key': ADDRESS_KEY,
+    source: EMAIL,
+    handle: address.toLowerCase(),
+  };
+}
+
+/** A node written in full elsewhere in the record, by its key alone. */
+function reference(agent: Agent): Agent {
+  return {
+    '@type': agent['@type'],
+    '@key': agent['@key'],
+    source: agent.source,
+    handle: agent.handle,
   };
 }
 

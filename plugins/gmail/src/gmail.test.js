@@ -30,9 +30,10 @@ const person = (handle, name, sameAs = []) => ({
   name: name ?? handle,
   ...(sameAs.length > 0 && { sameAs }),
 });
-// The Google account the mailbox is, by its address, and you are it.
-const account = identity('google-account', OWNER);
-const you = ['@me', account];
+// The account at the mailbox's address, which you are, and the Google
+// account at that address.
+const account = identity('email', OWNER);
+const you = ['@me', identity('google-account', OWNER)];
 const owner = person(OWNER, 'Test Owner', you);
 const friend = person(FRIEND, 'Test Friend');
 // With --link-contacts, your contact for the friend links their other address
@@ -41,14 +42,16 @@ const linkedFriend = person(FRIEND, 'Test Friend', [
   identity('email', 'friend@home.example'),
   identity('phone', '+14165550100'),
 ]);
-// Gmail's IDs are only unique within the Google account the mailbox is.
-const inAccount = sourceId => ({
-  '@key': ['@type', 'source', 'inAccount[*].handle', 'sourceId'],
+// The Google account issued Gmail's thread IDs, which are only unique within it.
+const thread = {
+  '@type': 'Thread',
   source: 'gmail',
-  sourceId,
-  inAccount: [account],
-});
-const thread = { '@type': 'Thread', ...inAccount(THREAD) };
+  sourceId: THREAD,
+  '@key': ['@type', 'source', 'inAccount[*].handle', 'sourceId'],
+  inAccount: [identity('google-account', OWNER)],
+};
+// The author is the action's agent, written there in full; here, by its key.
+const byKey = ({ name: _name, sameAs: _sameAs, ...key }) => key;
 
 test('Gmail messages become emails in their thread, with labels, newest first', async t => {
   const requests = await fakeGmail(t);
@@ -71,18 +74,17 @@ test('Gmail messages become emails in their thread, with labels, newest first', 
     timestamp: new Date('2025-03-02T09:00:00Z'),
     '@assertedAt': new Date('2025-03-02T09:00:00Z'),
     agent: owner,
-    // Keyed by its Message-ID, without the angle brackets, as every copy is;
-    // held in the account, and `sameAs` Gmail's ID for it there.
+    // Keyed by its Message-ID, without the angle brackets, as every copy is,
+    // and held in the account.
     object: {
       '@type': 'Message',
       '@key': ['@type', 'source', 'sourceId'],
       source: 'email',
       sourceId: 'reply@example.com',
-      sameAs: [{ '@type': 'Message', ...inAccount('18c1f0a2b3c4d5e7') }],
       inAccount: [account],
       name: 'Re: Plans',
       body: 'Saturday works.',
-      author: [owner],
+      author: [byKey(owner)],
       recipient: [friend],
       inReplyTo: [
         {

@@ -36,6 +36,8 @@ const agent = (handle, name) => ({
   handle,
   name: name ?? handle,
 });
+// The author is the action's agent, written there in full; here, by its key.
+const byKey = ({ name: _name, sameAs: _sameAs, ...key }) => key;
 
 test('messages become schema-valid MessageActions keyed on the Message-ID', async t => {
   const input = fixture(t, [keyed]);
@@ -62,7 +64,7 @@ test('messages become schema-valid MessageActions keyed on the Message-ID', asyn
       name: 'Café plans',
       // The text/plain alternative; the HTML one is left out.
       body: 'Lunch at noon?',
-      author: [alice],
+      author: [byKey(alice)],
       recipient: [
         agent('bob@example.test', 'Bob'),
         agent('dana@example.test'),
@@ -112,7 +114,7 @@ test('a message without a Message-ID is keyed on From, Date, and Subject', async
       source: 'email',
       name: 'Keyless',
       body: 'No Message-ID header.',
-      author: [carol],
+      author: [byKey(carol)],
       recipient: [agent('bob@example.test')],
     },
   });

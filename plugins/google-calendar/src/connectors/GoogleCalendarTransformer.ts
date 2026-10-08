@@ -205,7 +205,7 @@ function eidOf(event: CalendarEvent, calendar: EventRecord['calendar']): string 
 /**
  * The calendar its events are on, by Google's calendar ID, which is unique on
  * its own. It's `inAccount` the Google account whose calendar list it's on:
- * the signed-in account, whoever owns it.
+ * the signed-in account, whoever owns the calendar.
  */
 function calendarCollection(calendar: EventRecord['calendar'], account?: string): Calendar {
   return {

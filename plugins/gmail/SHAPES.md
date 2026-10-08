@@ -21,15 +21,8 @@ MessageAction key(sourceId) {
   }
   object: Message key(sourceId) {
     sourceId*, name, body, tags[]
-    sameAs[]: Message key(inAccount[*].handle, sourceId) {
-      sourceId
-      inAccount[]: Agent key(handle) { handle }
-    }
     inAccount[]: Agent key(handle) { handle }
-    author[]: Agent key(handle) {
-      handle, name
-      sameAs[]?: Agent key(handle) { handle }
-    }
+    author[]: Agent key(handle) { handle }
     recipient[]: Agent key(handle) {
       handle, name
       sameAs[]?: Agent key(handle) { handle }
