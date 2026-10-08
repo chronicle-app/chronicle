@@ -62,28 +62,10 @@ export default class ChromeTransformer extends ChronicleTransformer {
     };
   }
 
-  /**
-   * The profile's Google account as you: its email address, as Gmail and
-   * Google Calendar key you, `sameAs` the account by its Gaia id, as every
-   * Google source names it. Without an address, the account alone.
-   */
+  /** The profile's Google account as you: its address, as Gmail and Google Calendar key you. */
   private buildUser(account: ChromeAccount | null | undefined): Agent | null {
     if (!account) return null;
-    if (!account.email) {
-      return selfAgent({ type: 'Agent', source: 'google-account', sourceId: account.gaiaId });
-    }
-    const googleAccount: Agent = {
-      '@type': 'Agent',
-      '@key': ['@type', 'source', 'sourceId'],
-      source: 'google-account',
-      sourceId: account.gaiaId,
-    };
-    return selfAgent({
-      type: 'Agent',
-      source: 'email',
-      handle: account.email,
-      sameAs: [googleAccount],
-    });
+    return selfAgent({ type: 'Agent', source: 'email', handle: account.email });
   }
 
   private buildWebPage(record: Record): Entity {

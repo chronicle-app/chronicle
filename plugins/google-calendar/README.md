@@ -35,8 +35,6 @@ A run reads every calendar shown in your Google Calendar list, except the ones G
 
 **A person is their email address, wherever it's seen.** People are keyed by lowercased address in the `email` namespace, as the mail plugins key them, so a guest at your meeting and the person who emails you are one node.
 
-**On your primary calendar, you are your Google account too.** There, you (as a guest marked as you, or as the calendar) are also `sameAs` the signed-in Google account, a `google-account` Agent keyed by its Gaia id (Google's permanent id for it, from OpenID's userinfo). Gmail and Chrome link you to the same node. Google marks a guest as you when they own the calendar the copy is on, so on a calendar shared with you that can be another account, and it isn't linked. A sign-in without the `openid` scope can't read the id; the run goes on without the link.
-
 **Your contacts can link guests.** With `--link-contacts` (and `chronicle auth login google --add contacts`), a guest on one of your contacts is `sameAs` the contact's other addresses and phone numbers.
 
 **A description is Markdown.** Google keeps an event's description as the HTML its editor wrote; it's converted to Markdown, with tracking parameters taken off links and long click-tracking redirects dropped.

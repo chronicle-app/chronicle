@@ -53,8 +53,6 @@ Messages are built by [@chronicle.app/email-core](../../core/email/README.md), t
 
 **Mail in Sent is yours.** Its sender is `sameAs` `@me`, whatever address it came from. Gmail also says the mailbox's own address (the API's profile, or the `Delivered-To` header in a Takeout), so you are `@me` as a recipient too.
 
-**Your address is your Google account.** From the API, the mailbox's own address is also `sameAs` its Google account, a `google-account` Agent keyed by the account's Gaia id (Google's permanent id for it, from OpenID's userinfo). Chrome and Google Calendar link you to the same node, so they meet on the account even after its address changes. A Takeout doesn't say the id, and a sign-in without the `openid` scope can't read it; the run goes on without the link.
-
 ## Tests
 
 The tests run against a fake Gmail API on 127.0.0.1 and a synthetic Takeout mbox in a temporary directory, both built from the same made-up messages, and pass the access token directly. They never read stored credentials or reach Google.

@@ -48,9 +48,6 @@ const RATE_LIMITED = new Set([
  * that's off gets turned on, an expired sign-in signs in again.
  */
 export class GoogleApi extends ApiProxy {
-  /** OpenID Connect's userinfo, on its own host. Swapped for a fake server in tests. */
-  static userInfoURL = 'https://openidconnect.googleapis.com/v1/userinfo';
-
   private readonly service: GoogleService;
   private readonly account?: string;
   private readonly retryDelaysMs: number[];
@@ -70,21 +67,6 @@ export class GoogleApi extends ApiProxy {
   async initialize(): Promise<void> {
     if (this.accessToken) return;
     this.setAccessToken(await TokenHelper.getValidToken('google', { account: this.account }));
-  }
-
-  /**
-   * The signed-in account's Gaia id, Google's permanent id for the account,
-   * from OpenID's userinfo (every Google sign-in asks for `openid`). Null when
-   * Google doesn't give it, such as for a token without that scope: the id
-   * only links sources, so a run goes on without it.
-   */
-  async gaiaId(): Promise<string | null> {
-    try {
-      const { sub } = await this.get<{ sub?: unknown }>(GoogleApi.userInfoURL);
-      return typeof sub === 'string' && sub !== '' ? sub : null;
-    } catch {
-      return null;
-    }
   }
 
   get<T>(path: string, params?: Record<string, unknown>): Promise<T> {

@@ -1,5 +1,5 @@
 import { ChronicleTransformer, Record } from '@chronicle.app/etl';
-import { contactIdentities, googleAccount } from '@chronicle.app/google';
+import { contactIdentities } from '@chronicle.app/google';
 import { messageAction } from '@chronicle.app/email-core';
 import { ActionAndChildren, Realm, Thread } from '@chronicle.app/schema';
 import type { GmailRecord } from '../types.js';
@@ -10,8 +10,7 @@ import type { GmailRecord } from '../types.js';
  * the mailbox (a `Realm` for the account). It `isPartOf` its `Thread` and
  * its labels are its `tags`. Mail in Sent is
  * yours. A person on one of your contacts is `sameAs` the contact's other
- * addresses and phone numbers, and the mailbox's own address is `sameAs` its
- * Google account.
+ * addresses and phone numbers.
  */
 export default class GmailTransformer extends ChronicleTransformer {
   override async transform(record: Record): Promise<ActionAndChildren[]> {
@@ -45,14 +44,8 @@ export default class GmailTransformer extends ChronicleTransformer {
         ...(gmail.receivedAt && { receivedAt: new Date(gmail.receivedAt) }),
         ...(thread && { thread }),
         tags: gmail.labels,
-        // Your contacts link a person to their other addresses and numbers,
-        // and the mailbox's own address is its Google account.
-        identitiesOf: address => [
-          ...contactIdentities(address, contacts?.[address.toLowerCase()]),
-          ...(gmail.ownerGaiaId && address.toLowerCase() === gmail.owner?.toLowerCase()
-            ? [googleAccount(gmail.ownerGaiaId)]
-            : []),
-        ],
+        // Your contacts link a person to their other addresses and numbers.
+        identitiesOf: address => contactIdentities(address, contacts?.[address.toLowerCase()]),
         // Gmail's own ID for the message in this mailbox, linked by `sameAs`.
         ...(gmail.id &&
           mailbox && {

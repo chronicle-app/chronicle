@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { GoogleCalendarEventsExtractor } from '../dist/index.js';
-import { EVENTS, OWNER, OWNER_GAIA_ID, TEAM, TOKEN, fakeCalendar } from './fixture.test-helper.js';
+import { EVENTS, OWNER, TEAM, TOKEN, fakeCalendar } from './fixture.test-helper.js';
 
 // Every run gets the token outright, so no test reads stored credentials.
 async function extract(config = {}) {
@@ -31,17 +31,7 @@ const person = (handle, name, extra = {}) => ({
   name,
   ...extra,
 });
-// You, and the Google account you're signed in as.
-const you = [
-  '@me',
-  {
-    '@type': 'Agent',
-    '@key': ['@type', 'source', 'sourceId'],
-    source: 'google-account',
-    sourceId: OWNER_GAIA_ID,
-  },
-];
-const owner = person(OWNER, 'Test Owner', { sameAs: you });
+const owner = person(OWNER, 'Test Owner', { sameAs: ['@me'] });
 const calendar = (sourceId, name) => ({
   '@type': 'Collection',
   '@key': ['@type', 'source', 'sourceId'],
@@ -120,9 +110,6 @@ test('events on the shown calendars become plans for named events, with their gu
   assert.equal(copy.object.sourceId, 'planning2');
   assert.deepEqual(copy.object.sameAs, planning.object.sameAs);
   assert.deepEqual(copy.object.isPartOf, [calendar(TEAM, 'Work')]);
-  // Off your primary calendar, the guest marked as you is that calendar's
-  // owner, so it isn't linked to the signed-in Google account.
-  assert.deepEqual(copy.agent.sameAs, ['@me']);
 
   // An all-day event keeps its dates as dates, March 14 through 15.
   assert.equal(trip.object.scheduledStart, '2025-03-14');
@@ -214,7 +201,7 @@ test('occurrences of a recurring event share its creation, latest first; one wit
     source: 'google-calendar',
     sourceId: OWNER,
     name: OWNER,
-    sameAs: you,
+    sameAs: ['@me'],
   });
 });
 

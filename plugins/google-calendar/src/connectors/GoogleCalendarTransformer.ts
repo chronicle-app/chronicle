@@ -1,5 +1,5 @@
 import { ChronicleTransformer, Record, htmlToMarkdown, tidyText } from '@chronicle.app/etl';
-import { contactIdentities, googleAccount, type ContactLinks } from '@chronicle.app/google';
+import { contactIdentities, type ContactLinks } from '@chronicle.app/google';
 import { ActionAndChildren, Agent, Collection, Event, PlanAction } from '@chronicle.app/schema';
 import type { CalendarEvent, EventPerson, EventRecord, EventTime } from '../types.js';
 
@@ -12,26 +12,20 @@ const source = 'google-calendar';
 const ICALENDAR = 'icalendar';
 
 type Contacts = { [address: string]: ContactLinks };
-/** What marks a node as you: `@me`, and on your primary calendar, your Google account. */
-type You = NonNullable<Agent['sameAs']>;
 
 export default class GoogleCalendarTransformer extends ChronicleTransformer {
   override async transform(record: Record): Promise<ActionAndChildren[]> {
     if (record.extraction.recordType !== 'events') return [];
-    const { event, calendar, contacts = {}, gaiaId } = record.data as EventRecord;
+    const { event, calendar, contacts = {} } = record.data as EventRecord;
     // Without a start, it isn't an event on a calendar (the extractor skips it).
     if (!startOf(event.start)) return [];
-    // A guest marked `self` is the owner of the calendar this copy is on. On
-    // your primary calendar that's the signed-in account; on a calendar shared
-    // with you it can be another account.
-    const you: You = ['@me', ...(gaiaId && calendar.primary ? [googleAccount(gaiaId)] : [])];
 
     // Who put it on the calendar: its organizer, else its creator, else (an
     // event with neither, like one copied in) the calendar itself.
     const organizer =
-      this.buildAgent(event.organizer, contacts, you) ??
-      this.buildAgent(event.creator, contacts, you) ??
-      this.calendarAgent(calendar, you);
+      this.buildAgent(event.organizer, contacts) ??
+      this.buildAgent(event.creator, contacts) ??
+      this.calendarAgent(calendar);
 
     const plan: PlanAction = {
       '@type': 'PlanAction',
@@ -41,7 +35,7 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
       // When it was put on the calendar; the event carries when it happens.
       timestamp: plannedAt(event),
       agent: organizer,
-      object: this.buildEvent(event, calendar, contacts, you),
+      object: this.buildEvent(event, calendar, contacts),
     };
     return [plan];
   }
@@ -49,13 +43,12 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
   private buildEvent(
     event: CalendarEvent,
     calendar: EventRecord['calendar'],
-    contacts: Contacts,
-    you: You
+    contacts: Contacts
   ): Event {
     const attendees = (event.attendees ?? [])
       // Rooms and equipment booked for the event aren't guests.
       .filter(attendee => !attendee.resource)
-      .map(attendee => this.buildAgent(attendee, contacts, you))
+      .map(attendee => this.buildAgent(attendee, contacts))
       .filter((agent): agent is Agent => agent !== null);
     // Google keeps a description as the HTML its editor wrote; Markdown here.
     const description = tidyText(htmlToMarkdown(event.description) ?? '');
@@ -88,28 +81,28 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
   }
 
   /** A calendar as the agent of its own event: yours (`@me`) when it's your primary one. */
-  private calendarAgent(calendar: EventRecord['calendar'], you: You): Agent {
+  private calendarAgent(calendar: EventRecord['calendar']): Agent {
     return {
       '@type': 'Agent',
       '@key': ['@type', 'source', 'sourceId'],
       source,
       sourceId: calendar.id,
       name: calendar.summary,
-      ...(calendar.primary && { sameAs: you }),
+      ...(calendar.primary && { sameAs: ['@me'] }),
     };
   }
 
   /**
    * A person on the event by their email address, in the `email` namespace
    * as mail keys them (lowercased), so a guest and the person who emails you
-   * are one node. Marked as you when it's the signed-in account.
+   * are one node. Marked as the owner when it's the signed-in account.
    */
-  private buildAgent(person: EventPerson | undefined, contacts: Contacts, you: You): Agent | null {
+  private buildAgent(person: EventPerson | undefined, contacts: Contacts): Agent | null {
     if (!person?.email) return null;
     const handle = person.email.toLowerCase();
     // You, and the other addresses and numbers your contacts have for them.
     const sameAs: NonNullable<Agent['sameAs']> = [
-      ...(person.self ? you : []),
+      ...(person.self ? ['@me'] : []),
       ...contactIdentities(handle, contacts[handle]),
     ];
     return {

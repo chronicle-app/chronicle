@@ -57,6 +57,4 @@ export interface EventRecord {
   calendar: { id: string; summary: string; primary: boolean };
   /** What your contacts link each guest's address to. */
   contacts?: { [address: string]: ContactLinks };
-  /** The signed-in account's Gaia id, from Google's userinfo. */
-  gaiaId?: string | null;
 }

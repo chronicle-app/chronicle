@@ -45,10 +45,10 @@ test('visits become schema-valid ViewActions, newest first', async t => {
   const [first, redirected, synced] = [1, 3, 7].map(id => actions.get(id)[0]);
   // SHAPES.md shows the full shape; these are the values it can't show.
   assert.deepEqual(first.timestamp, new Date('2025-01-01T00:00:01Z'));
-  // The profile's own account, not another one signed in on the web: you by
-  // address, lowercased as mail keys it, and the account by its Gaia id.
+  // The profile's own account, not another one signed in on the web, by its
+  // address, lowercased as mail keys it.
   assert.equal(first.agent.handle, 'you@example.com');
-  assert.equal(first.agent.sameAs[0].sourceId, 'gaia-1');
+  assert.deepEqual(first.agent.sameAs, ['@me']);
   assert.equal(first.object.name, 'Page A');
 
   // Sub-millisecond Chrome times truncate to the millisecond.
@@ -118,18 +118,14 @@ test('the agent is the account signed in now, else the last that synced, else no
   const lastSynced = { google: { services: { last_gaia_id: 'gaia-1' } } };
   // Signed in to another account now, without sync.
   const now = await agentOf({ ...lastSynced, sync: { gaia_id: 'gaia-2' }, account_info: ACCOUNTS });
-  assert.deepEqual([now.handle, now.sameAs[0].sourceId], ['other@example.com', 'gaia-2']);
+  assert.equal(now.handle, 'other@example.com');
   // Signed out: Chrome keeps the last account that synced.
   const last = await agentOf({ ...lastSynced, account_info: ACCOUNTS });
-  assert.deepEqual([last.handle, last.sameAs[0].sourceId], ['you@example.com', 'gaia-1']);
-  // An account with no address is the account alone.
-  const bare = await agentOf({ sync: { gaia_id: 'gaia-3' } });
-  assert.deepEqual(
-    [bare.source, bare.sourceId, bare.sameAs],
-    ['google-account', 'gaia-3', ['@me']]
-  );
-  // Never signed in, or no Preferences at all.
-  for (const prefs of [{ account_info: [] }, null]) assert.equal(await agentOf(prefs), undefined);
+  assert.equal(last.handle, 'you@example.com');
+  // Never signed in, an account with no address, or no Preferences at all.
+  for (const prefs of [{ account_info: [] }, { sync: { gaia_id: 'gaia-3' } }, null]) {
+    assert.equal(await agentOf(prefs), undefined);
+  }
 });
 
 test('reads the named profile from a copy, even while Chrome holds the lock', async t => {
@@ -153,7 +149,7 @@ test('reads the named profile from a copy, even while Chrome holds the lock', as
       records.map(r => r.data.visit_id),
       VISITS
     );
-    assert.equal(records[0].context.account.gaiaId, 'gaia-1');
+    assert.equal(records[0].context.account.email, 'you@example.com');
   } finally {
     await extractor.teardown();
     chromeRunning.exec('ROLLBACK');

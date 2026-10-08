@@ -15,8 +15,6 @@ export interface GmailRecord {
     receivedAt: string | null;
     /** The mailbox's own address: the API's profile, or a Takeout's Delivered-To. */
     owner: string | null;
-    /** The mailbox account's Gaia id, from Google's userinfo (API only). */
-    ownerGaiaId?: string | null;
   };
   /** What your contacts link each address on it to (API only). */
   contacts?: { [address: string]: ContactLinks };
