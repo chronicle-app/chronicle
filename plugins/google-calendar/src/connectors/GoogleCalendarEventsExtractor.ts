@@ -47,6 +47,7 @@ export class GoogleCalendarEventsExtractor extends Extractor<typeof GoogleCalend
   private api!: GoogleApi;
   private calendars: CalendarListEntry[] = [];
   private contacts = ContactDirectory.empty;
+  private gaiaId: string | null = null;
   private unscheduled = new Set<string>();
 
   override keyOf(record: Record): string {
@@ -69,6 +70,7 @@ export class GoogleCalendarEventsExtractor extends Extractor<typeof GoogleCalend
       accessToken: config.accessToken,
     });
     await this.api.initialize();
+    this.gaiaId = await this.api.gaiaId();
 
     const all: CalendarListEntry[] = [];
     for await (const calendar of this.api.pages<CalendarListEntry>('/users/me/calendarList')) {
@@ -161,6 +163,7 @@ export class GoogleCalendarEventsExtractor extends Extractor<typeof GoogleCalend
         summary: calendar.summaryOverride ?? calendar.summary,
         primary: calendar.primary ?? false,
       },
+      gaiaId: this.gaiaId,
     };
   }
 

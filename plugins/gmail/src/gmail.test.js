@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { GmailApiExtractor, GmailTakeoutExtractor } from '../dist/index.js';
-import { FRIEND, OWNER, THREAD, TOKEN, fakeGmail, takeout } from './fixture.test-helper.js';
+import {
+  FRIEND,
+  OWNER,
+  OWNER_GAIA_ID,
+  THREAD,
+  TOKEN,
+  fakeGmail,
+  takeout,
+} from './fixture.test-helper.js';
 
 // API runs get the token outright, so no test reads stored credentials.
 async function extract(Extractor, config = {}) {
@@ -30,7 +38,14 @@ const person = (handle, name, sameAs = []) => ({
   name: name ?? handle,
   ...(sameAs.length > 0 && { sameAs }),
 });
-const owner = person(OWNER, 'Test Owner', ['@me']);
+// You, and the Google account the mailbox is.
+const account = {
+  '@type': 'Agent',
+  '@key': ['@type', 'source', 'sourceId'],
+  source: 'google-account',
+  sourceId: OWNER_GAIA_ID,
+};
+const owner = person(OWNER, 'Test Owner', ['@me', account]);
 const friend = person(FRIEND, 'Test Friend');
 // With --link-contacts, your contact for the friend links their other address
 // and their number.
@@ -101,7 +116,7 @@ test('Gmail messages become emails in their thread, with labels, newest first', 
   // A quoted-printable body is decoded; you, as a recipient, are you; your
   // labels go by name, and read state isn't one.
   assert.equal(plans.object.body, 'Café this weekend?');
-  assert.deepEqual(plans.object.recipient, [person(OWNER, OWNER, ['@me'])]);
+  assert.deepEqual(plans.object.recipient, [person(OWNER, OWNER, ['@me', account])]);
   assert.deepEqual(plans.agent, friend);
   assert.deepEqual(plans.object.tags, ['Inbox', 'Starred', 'Work', 'Café']);
   assert.deepEqual(plans.object.isPartOf, [thread]);
@@ -151,7 +166,8 @@ test('--sent and --label go by label ID, --query and the window by search', asyn
 });
 
 test('a Takeout becomes the same messages, threads, and labels', async t => {
-  await fakeGmail(t);
+  // Only the API knows the account's Gaia id; without it, the two agree.
+  await fakeGmail(t, { noUserInfo: true });
   const input = takeout(t);
   const fromApi = await extract(GmailApiExtractor);
   const fromTakeout = await extract(GmailTakeoutExtractor, { input });

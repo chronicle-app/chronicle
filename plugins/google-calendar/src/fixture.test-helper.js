@@ -1,10 +1,12 @@
 import { createServer } from 'node:http';
-import { ContactDirectory } from '@chronicle.app/google';
+import { ContactDirectory, GoogleApi } from '@chronicle.app/google';
 import { GoogleCalendarEventsExtractor } from '../dist/index.js';
 
 /** Synthetic calendars and people; nothing here is anyone's real data. */
 export const TOKEN = 'synthetic-token';
 export const OWNER = 'owner@example.com';
+/** The owner's Google account, as userinfo gives it. */
+export const OWNER_GAIA_ID = '100000000000000000001';
 export const TEAM = 'team@group.calendar.google.com';
 const HOLIDAYS = 'en.example#holiday@group.v.calendar.google.com';
 const HIDDEN = 'hidden@group.calendar.google.com';
@@ -119,6 +121,7 @@ export async function fakeCalendar(t) {
       response.end(JSON.stringify(body));
     };
     if (request.headers.authorization !== `Bearer ${TOKEN}`) return reply(401, { error: {} });
+    if (url.pathname === '/userinfo') return reply(200, { sub: OWNER_GAIA_ID, email: OWNER });
     // Your contact for the guest: their number.
     if (url.pathname === '/people/me/connections') {
       return reply(200, {
@@ -146,11 +149,14 @@ export async function fakeCalendar(t) {
 
   const { apiBaseURL } = GoogleCalendarEventsExtractor;
   const contactsBaseURL = ContactDirectory.apiBaseURL;
+  const { userInfoURL } = GoogleApi;
   GoogleCalendarEventsExtractor.apiBaseURL = `http://127.0.0.1:${server.address().port}`;
   ContactDirectory.apiBaseURL = GoogleCalendarEventsExtractor.apiBaseURL;
+  GoogleApi.userInfoURL = `${GoogleCalendarEventsExtractor.apiBaseURL}/userinfo`;
   t.after(() => {
     GoogleCalendarEventsExtractor.apiBaseURL = apiBaseURL;
     ContactDirectory.apiBaseURL = contactsBaseURL;
+    GoogleApi.userInfoURL = userInfoURL;
     server.close();
   });
   return requests;

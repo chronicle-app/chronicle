@@ -66,6 +66,7 @@ export class GmailApiExtractor extends Extractor<typeof GmailApiExtractor> {
   private contacts = ContactDirectory.empty;
   private labelNames = new Map<string, string>();
   private owner: string | null = null;
+  private ownerGaiaId: string | null = null;
 
   override keyOf(record: Record): string | null {
     return identityOf((record.data as GmailRecord).mail);
@@ -91,11 +92,13 @@ export class GmailApiExtractor extends Extractor<typeof GmailApiExtractor> {
       accessToken,
     });
     await this.api.initialize();
-    const [profile, labels] = await Promise.all([
+    const [profile, labels, gaiaId] = await Promise.all([
       this.api.get<{ emailAddress?: string }>('/users/me/profile'),
       this.api.get<{ labels?: { id: string; name: string }[] }>('/users/me/labels'),
+      this.api.gaiaId(),
     ]);
     this.owner = profile.emailAddress ?? null;
+    this.ownerGaiaId = gaiaId;
     for (const label of labels.labels ?? []) this.labelNames.set(label.id, label.name);
     const { directory, missing } = await ContactDirectory.load({
       account,
@@ -209,6 +212,7 @@ export class GmailApiExtractor extends Extractor<typeof GmailApiExtractor> {
           .filter((name): name is string => name !== undefined),
         receivedAt: new Date(Number(message.internalDate)).toISOString(),
         owner: this.owner,
+        ownerGaiaId: this.ownerGaiaId,
       },
       contacts: this.contacts.linksFor(
         [mail.from, ...mail.to, ...mail.cc, ...mail.bcc].flatMap(person =>

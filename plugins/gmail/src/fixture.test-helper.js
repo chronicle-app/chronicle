@@ -2,12 +2,14 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { ContactDirectory } from '@chronicle.app/google';
+import { ContactDirectory, GoogleApi } from '@chronicle.app/google';
 import { GmailApiExtractor } from '../dist/index.js';
 
 /** Synthetic mail between made-up people; nothing here is anyone's real data. */
 export const TOKEN = 'synthetic-token';
 export const OWNER = 'owner@example.com';
+/** The owner's Google account, as userinfo gives it. */
+export const OWNER_GAIA_ID = '100000000000000000001';
 export const FRIEND = 'friend@example.com';
 /** One thread, in hex as the API writes it. */
 export const THREAD = '18c1f0a2b3c4d5e6';
@@ -165,6 +167,11 @@ export async function fakeGmail(t, options = {}) {
       }
       return reply(200, { connections: [FRIEND_CONTACT] });
     }
+    if (url.pathname === '/userinfo') {
+      // A token without the openid scope gets no userinfo.
+      if (options.noUserInfo) return reply(401, { error: 'invalid_token' });
+      return reply(200, { sub: OWNER_GAIA_ID, email: OWNER });
+    }
     if (url.pathname === '/users/me/profile') {
       return reply(200, { emailAddress: OWNER, messagesTotal: MESSAGES.length });
     }
@@ -201,12 +208,15 @@ export async function fakeGmail(t, options = {}) {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const { apiBaseURL, batchIntervalMs } = GmailApiExtractor;
   const contactsBaseURL = ContactDirectory.apiBaseURL;
+  const { userInfoURL } = GoogleApi;
   GmailApiExtractor.apiBaseURL = `http://127.0.0.1:${server.address().port}`;
   ContactDirectory.apiBaseURL = GmailApiExtractor.apiBaseURL;
+  GoogleApi.userInfoURL = `${GmailApiExtractor.apiBaseURL}/userinfo`;
   GmailApiExtractor.batchIntervalMs = 0;
   t.after(() => {
     GmailApiExtractor.apiBaseURL = apiBaseURL;
     ContactDirectory.apiBaseURL = contactsBaseURL;
+    GoogleApi.userInfoURL = userInfoURL;
     GmailApiExtractor.batchIntervalMs = batchIntervalMs;
     server.close();
   });

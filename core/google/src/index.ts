@@ -7,6 +7,7 @@ OAuthProviderRegistry.register(GoogleOAuthProvider);
 
 export { GoogleOAuthProvider } from './GoogleOAuthProvider.js';
 export { GoogleApi, googleAccountOptions, type GoogleApiOptions } from './GoogleApi.js';
+export { googleAccount } from './account.js';
 export { GOOGLE_SERVICES, isGoogleService, type GoogleService } from './services.js';
 export { setupGoogleClient, type SetupOptions } from './setup.js';
 export { CommandLineGcloud, GcloudError, type Gcloud } from './gcloud.js';
