@@ -23,7 +23,10 @@ MessageAction key(sourceId) {
     sourceId*, name, body, tags[]
     sameAs[]: Message key(inRealm.handle, sourceId) {
       sourceId
-      inRealm: Realm key(handle) { handle }
+      inRealm: Realm key(handle) {
+        handle
+        sameAs[]: Realm key(handle) { handle }
+      }
     }
     author[]: Agent key(handle) {
       handle, name
@@ -36,7 +39,10 @@ MessageAction key(sourceId) {
     inReplyTo[]?: Message key(sourceId) { sourceId* }
     isPartOf[]: Thread key(inRealm.handle, sourceId) {
       sourceId
-      inRealm: Realm key(handle) { handle }
+      inRealm: Realm key(handle) {
+        handle
+        sameAs[]: Realm key(handle) { handle }
+      }
     }
   }
 }

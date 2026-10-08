@@ -41,11 +41,21 @@ const linkedFriend = person(FRIEND, 'Test Friend', [
   identity('phone', '+14165550100'),
 ]);
 // Gmail's IDs are scoped to the mailbox they're in.
+// The mailbox at its address, as an mbox of the same mail names it, which is
+// the Google account's.
 const mailbox = {
   '@type': 'Realm',
   '@key': ['@type', 'source', 'handle'],
-  source: 'google-account',
+  source: 'email',
   handle: OWNER,
+  sameAs: [
+    {
+      '@type': 'Realm',
+      '@key': ['@type', 'source', 'handle'],
+      source: 'google-account',
+      handle: OWNER,
+    },
+  ],
 };
 const inMailbox = sourceId => ({
   '@key': ['@type', 'source', 'inRealm.handle', 'sourceId'],

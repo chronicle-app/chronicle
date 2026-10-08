@@ -76,6 +76,20 @@ export interface MessageNodeOptions {
    * Message-ID, which every copy shares.
    */
   identity?: { source: string; sourceId: string; inRealm?: Realm };
+  /**
+   * The mailbox the source read the message from, for a source with no ID
+   * of its own for its copy (an mbox): the message is `sameAs` its copy
+   * there, keyed by its Message-ID in the mailbox.
+   */
+  mailbox?: Realm;
+}
+
+/**
+ * The mailbox at an address, in the `email` namespace: where a source's
+ * copies of messages are, whether it's Gmail or an mbox of the same mail.
+ */
+export function mailbox(address: string): Realm {
+  return { '@type': 'Realm', '@key': ADDRESS_KEY, source: EMAIL, handle: address.toLowerCase() };
 }
 
 /**
@@ -107,7 +121,11 @@ export function messageAction(mail: MailMessage, options: MessageNodeOptions = {
   );
 
   const messageId = mail.messageId && msgId(mail.messageId);
-  const { identity } = options;
+  const identity =
+    options.identity ??
+    (options.mailbox && messageId
+      ? { source: EMAIL, sourceId: messageId, inRealm: options.mailbox }
+      : undefined);
   const copy: Message | undefined = identity && {
     '@type': 'Message',
     '@key': identity.inRealm

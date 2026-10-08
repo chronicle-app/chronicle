@@ -31,6 +31,7 @@ chronicle extract email \
 The extractor supports the following options:
 
 - `--input` (required): Path to the mbox file
+- `--account`: The mailbox's address. Its mail is yours: that address is `sameAs` `@me`, and each message is `sameAs` its copy in the mailbox, a `Realm` at that address in the `email` namespace, keyed by its Message-ID. Gmail puts its copies of the same mail in the same mailbox, so "messages in this account" is the same query either way.
 - `--since`: Extract records from this date onwards
 - `--until`: Extract records up to this date
 - `--limit`: Maximum number of records to extract

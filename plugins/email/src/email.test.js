@@ -1,76 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { EmailMboxExtractor, EmailTransformer } from '../dist/index.js';
+import { fixture, keyed, keyless } from './fixture.test-helper.js';
 
-// The mbox is synthetic and every address is made up; the tests read nothing
-// from the host's mail.
 const DELIM = '\u001F';
-const ALICE = 'Alice Example <alice@example.test>';
-const CAROL = 'Carol <carol@example.test>';
-const KEYED_DATE = 'Mon, 6 Jan 2025 10:00:00 +0000';
-const KEYLESS_DATE = 'Mon, 6 Jan 2025 11:00:00 +0000';
 const KEYLESS_ISO = '2025-01-06T11:00:00.000Z';
 const CAROL_ADDRESS = 'carol@example.test';
-
-/** Render message specs as one mbox; an omitted field omits its header. */
-function mbox(specs) {
-  return specs
-    .map(s =>
-      [
-        'From sender@example.test Mon Jan  6 10:00:00 2025',
-        ...(s.from === undefined ? [] : [`From: ${s.from}`]),
-        `To: ${s.to ?? 'bob@example.test'}`,
-        ...(s.cc === undefined ? [] : [`Cc: ${s.cc}`]),
-        ...(s.subject === undefined ? [] : [`Subject: ${s.subject}`]),
-        ...(s.date === undefined ? [] : [`Date: ${s.date}`]),
-        ...(s.messageId === undefined ? [] : [`Message-ID: ${s.messageId}`]),
-        ...(s.headers ?? []),
-        '',
-        s.body,
-        '',
-      ].join('\n')
-    )
-    .join('\n');
-}
-
-const keyed = {
-  from: ALICE,
-  to: 'Bob <bob@example.test>, dana@example.test',
-  cc: 'Erin <erin@example.test>',
-  // RFC 2047 encoded words are decoded.
-  subject: '=?UTF-8?Q?Caf=C3=A9_plans?=',
-  date: KEYED_DATE,
-  messageId: '<keyed-1@example.test>',
-  headers: ['MIME-Version: 1.0', 'Content-Type: multipart/alternative; boundary="b1"'],
-  body: [
-    '--b1',
-    'Content-Type: text/plain; charset=utf-8',
-    '',
-    'Lunch at noon?',
-    '--b1',
-    'Content-Type: text/html; charset=utf-8',
-    '',
-    '<p>Lunch at noon?</p>',
-    '--b1--',
-  ].join('\n'),
-};
-const keyless = {
-  from: CAROL,
-  subject: 'Keyless',
-  date: KEYLESS_DATE,
-  body: 'No Message-ID header.',
-};
-
-function fixture(t, specs) {
-  const dir = mkdtempSync(join(tmpdir(), 'email-fixture-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const input = join(dir, 'mail.mbox');
-  writeFileSync(input, mbox(specs));
-  return input;
-}
 
 async function extract(input, config = {}) {
   const extractor = new EmailMboxExtractor({ input, quiet: true, ...config });
@@ -135,6 +70,36 @@ test('messages become schema-valid MessageActions keyed on the Message-ID', asyn
       ],
     },
   });
+});
+
+test('with the mailbox’s address, its mail is yours and its copies are in that mailbox', async t => {
+  const input = fixture(t, [keyed, keyless]);
+  // Any case: an address is lowercased wherever it's keyed.
+  const [action, keylessAction] = await transform(
+    (await extract(input, { account: 'Bob@Example.test' })).records
+  );
+  // The mailbox at the address, where Gmail's copies of the same mail are.
+  const mailbox = {
+    '@type': 'Realm',
+    '@key': ['@type', 'source', 'handle'],
+    source: 'email',
+    handle: 'bob@example.test',
+  };
+  assert.deepEqual(action.object.sameAs, [
+    {
+      '@type': 'Message',
+      '@key': ['@type', 'source', 'inRealm.handle', 'sourceId'],
+      source: 'email',
+      sourceId: 'keyed-1@example.test',
+      inRealm: mailbox,
+    },
+  ]);
+  assert.deepEqual(action.object.recipient[0], {
+    ...agent('bob@example.test', 'Bob'),
+    sameAs: ['@me'],
+  });
+  // A copy is keyed by its Message-ID in the mailbox, so one without has none.
+  assert.equal(keylessAction.object.sameAs, undefined);
 });
 
 test('a message without a Message-ID is keyed on From, Date, and Subject', async t => {
