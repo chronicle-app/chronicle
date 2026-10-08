@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { BaseAndChildrenSchema } from '../../../core/schema/dist/index.js';
-import { readSchema } from '../src/lib/model.js';
+import { loadSchema, readSchema } from '../src/lib/model.js';
 import { validateRecords } from '../src/lib/validate.js';
 import { buildCommit } from './build-info.js';
 import { buildSite } from './build.js';
@@ -87,6 +87,16 @@ test('the built site has a page for every term and no broken links', async () =>
     }
     assert.ok(existsSync(join(output, 'chronicle.ttl')));
 
+    // A term page links to the terms it maps to in other vocabularies, and each
+    // vocabulary has a page and a published alignment.
+    const video = readFileSync(join(output, 'classes', 'VideoObject.html'), 'utf8');
+    assert.match(video, /href="https:\/\/schema\.org\/VideoObject"/);
+    assert.match(video, /href="https:\/\/www\.w3\.org\/ns\/activitystreams#Video"/);
+    for (const { id } of schema.vocabularies) {
+      assert.ok(existsSync(join(output, 'vocabularies', `${id}.html`)), id);
+      assert.ok(existsSync(join(output, 'alignments', `${id}.ttl`)), id);
+    }
+
     // Every page says when and from which commit it was built.
     assert.deepEqual(JSON.parse(readFileSync(join(output, 'build.json'), 'utf8')), info);
     const home = readFileSync(join(output, 'index.html'), 'utf8').replaceAll(/\s+/g, ' ');
@@ -101,4 +111,68 @@ test('the built site has a page for every term and no broken links', async () =>
   } finally {
     rmSync(output, { recursive: true, force: true });
   }
+});
+
+test('alignments are checked against the release they name', async () => {
+  const ontology = `
+    @prefix : <https://schema.chronicle.app/> .
+    @prefix owl: <http://www.w3.org/2002/07/owl#> .
+    @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+    @prefix ex: <https://example.org/> .
+    : a owl:Ontology; owl:versionInfo "1.0.0" .
+    :Base a rdfs:Class .
+    :LikeAction a rdfs:Class; rdfs:subClassOf :Base, ex:Like .`;
+  const terms = {
+    vocabulary: 'https://example.org/',
+    release: '1',
+    classes: ['Base', 'Like'],
+    properties: [],
+    pending: [],
+  };
+  const load = (statements, changes = {}) =>
+    loadSchema({
+      ontology,
+      examples: '',
+      alignments: [
+        {
+          id: 'example',
+          turtle: `
+            @prefix : <https://schema.chronicle.app/> .
+            @prefix doc: <https://schema.chronicle.app/docs/> .
+            @prefix ex: <https://example.org/> .
+            ex: doc:prefix "ex"; doc:release "1"; doc:nameEnding "Action" .
+            ${statements}`,
+          terms: { ...terms, ...changes },
+        },
+      ],
+    });
+
+  // A parent in another vocabulary maps the class; it is not in the hierarchy.
+  const { classes } = await load(':Base doc:unlike ex:Base .');
+  assert.deepEqual(classes.get('LikeAction').parents, ['Base']);
+  assert.deepEqual(classes.get('LikeAction').alignments, [
+    {
+      vocabulary: 'example',
+      relations: [
+        { relation: 'narrower', name: 'Like', uri: 'https://example.org/Like', pending: false },
+      ],
+      note: '',
+    },
+  ]);
+
+  await assert.rejects(load(''), /:Base shares its name with ex:Base/);
+  await assert.rejects(
+    load(':Base doc:unlike ex:Base .', { classes: ['Base'] }),
+    /names ex:Like, which is not a class/
+  );
+  await assert.rejects(
+    load(':Base doc:unlike ex:Base . :Missing doc:unlike ex:Base .'),
+    /Missing is not a Chronicle class or property/
+  );
+  await assert.rejects(
+    load(':Base doc:unlike ex:Base; doc:note "Unlike ex:Thing." .'),
+    /names unknown ex:Thing/
+  );
+  await assert.rejects(load(':Base doc:unlike ex:Base .', { release: '2' }), /terms\.json lists/);
+  await assert.rejects(loadSchema({ ontology, examples: '' }), /no alignment describes/);
 });

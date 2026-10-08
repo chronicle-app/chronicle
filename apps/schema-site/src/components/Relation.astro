@@ -1,0 +1,15 @@
+---
+// One relation to another vocabulary's term, such as "A kind of VideoObject".
+import { RELATIONS } from '../lib/site.js';
+
+interface Props {
+  relation: { relation: string; name: string; uri: string; pending: boolean };
+}
+const { relation } = Astro.props;
+---
+
+<span class:list={['relation', `relation-${relation.relation}`]}>
+  <span class="relation-label">{RELATIONS[relation.relation]}</span>
+  <a class="term external" href={relation.uri}>{relation.name}</a>
+  {relation.pending && <span class="tag" title="Pending: the vocabulary can still change this term">pending</span>}
+</span>

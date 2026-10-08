@@ -1,7 +1,8 @@
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Parser, Store } from 'n3';
 import { schemaVersion } from '../../../../core/schema/scripts/schema-version.js';
+import { alignTerms } from './alignments.js';
 import { serializeExample } from './example-payload.js';
 
 export const NAMESPACE = 'https://schema.chronicle.app/';
@@ -14,19 +15,36 @@ const DOC = 'https://schema.chronicle.app/docs/';
 const localName = uri => (uri.startsWith(NAMESPACE) ? uri.slice(NAMESPACE.length) : uri);
 const byName = (a, b) => a.name.localeCompare(b.name, 'en');
 
-/** Reads chronicle.ttl and examples.ttl from a schema package directory. */
+/** Reads chronicle.ttl, examples.ttl, and the alignments from a schema package directory. */
 export async function readSchema(directory) {
   return loadSchema({
     ontology: await readFile(join(directory, 'chronicle.ttl'), 'utf8'),
     examples: await readFile(join(directory, 'examples.ttl'), 'utf8'),
+    alignments: await readAlignments(join(directory, 'alignments')),
   });
+}
+
+/** Each alignment's Turtle, with the terms of the release it is checked against. */
+async function readAlignments(directory) {
+  const files = (await readdir(directory)).filter(file => file.endsWith('.ttl')).sort();
+  return Promise.all(
+    files.map(async file => {
+      const id = file.slice(0, -'.ttl'.length);
+      return {
+        id,
+        turtle: await readFile(join(directory, file), 'utf8'),
+        terms: JSON.parse(await readFile(join(directory, `${id}.terms.json`), 'utf8')),
+      };
+    })
+  );
 }
 
 /**
  * Reads the vocabulary and its documentation examples into one graph. Each file
  * is parsed on its own, so prefixes and blank-node labels stay local to it.
+ * `alignments` relate the terms to other vocabularies (see alignments.js).
  */
-export async function loadSchema({ ontology, examples }) {
+export async function loadSchema({ ontology, examples, alignments = [] }) {
   const store = new Store();
   // Keep statements in authored order so examples render as they are written.
   const statements = new Map();
@@ -77,7 +95,10 @@ export async function loadSchema({ ontology, examples }) {
       uri: subject.value,
       name: localName(subject.value),
       comment: first(subject, RDFS + 'comment') ?? '',
-      parents: objects(subject, RDFS + 'subClassOf').map(parent => localName(parent.value)),
+      // A parent in another vocabulary is a mapping, not part of the hierarchy.
+      parents: objects(subject, RDFS + 'subClassOf')
+        .filter(parent => parent.value.startsWith(NAMESPACE))
+        .map(parent => localName(parent.value)),
       properties: [],
       examples: await examplesOf(subject),
     });
@@ -127,6 +148,8 @@ export async function loadSchema({ ontology, examples }) {
       .sort();
   }
 
+  const vocabularies = alignTerms({ ontology: store, alignments, classes, properties });
+
   const overview = await examplesOf(NAMESPACE);
   // Examples and their sections keep the order they are written in.
   const examplesList = [...exampleRecords.values()].sort((a, b) => a.position - b.position);
@@ -144,5 +167,6 @@ export async function loadSchema({ ontology, examples }) {
     properties: new Map([...properties.values()].sort(byName).map(record => [record.name, record])),
     overview,
     examples: examplesList,
+    vocabularies,
   };
 }

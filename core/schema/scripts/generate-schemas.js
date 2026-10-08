@@ -87,6 +87,8 @@ const isMany = (store, propertyId) => {
   return maxCardinality[0]?.object?.value !== '1';
 };
 
+// A parent in another vocabulary, such as schema.org, maps the class to that
+// vocabulary and is not part of the generated hierarchy.
 const getParents = (store, classId) => {
   const parents = store
     .getQuads(
@@ -94,7 +96,8 @@ const getParents = (store, classId) => {
       namedNode('http://www.w3.org/2000/01/rdf-schema#subClassOf'),
       null
     )
-    .map(quad => quad.object.value);
+    .map(quad => quad.object.value)
+    .filter(parent => parent.startsWith('https://schema.chronicle.app/'));
 
   return parents;
 };
