@@ -20,12 +20,12 @@ PlanAction key(sourceId) {
     sameAs[]?: Agent key(handle) { handle }
   }
   object: Event key(sourceId) {
-    sourceId*, name, description?, scheduledStart, scheduledEnd*
-    sameAs[]: Event key(sourceId) { sourceId }
+    sourceId, name, description?, scheduledStart, scheduledEnd*
+    sameAs[]: Event key(sourceId) { sourceId* }
     location?: Location { address }
     isPartOf[]: Calendar key(sourceId) {
       sourceId, name
-      inAccount[]: Agent key(handle) { handle }
+      inAccount[]?: Agent key(handle) { handle }
     }
     attendee[]?: Agent key(handle) {
       handle, name

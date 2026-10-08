@@ -40,14 +40,17 @@ const account = {
 };
 const you = ['@me', account];
 const owner = person(OWNER, 'Test Owner', { sameAs: you });
-// Every calendar read is on the signed-in Google account's list, whoever owns it.
+// An account's primary calendar has the account's address as its ID, so it's
+// that Google account's; a calendar made in an account doesn't say whose.
 const calendar = (sourceId, name) => ({
   '@type': 'Calendar',
   '@key': ['@type', 'source', 'sourceId'],
   source: 'google-calendar',
   sourceId,
   name,
-  inAccount: [account],
+  ...(!sourceId.endsWith('calendar.google.com') && {
+    inAccount: [{ ...account, handle: sourceId }],
+  }),
 });
 const guest = person('guest@example.com', 'Test Guest');
 
@@ -87,19 +90,19 @@ test('events on the shown calendars become plans for named events, with their gu
     sourceId: 'planning@example.com',
     timestamp: new Date('2025-03-01T09:00:00Z'),
     agent: owner,
-    // This calendar's copy, by Google's ID for it (its link's eid), the
-    // same event as every copy with its UID.
+    // The event by its UID, as every calendar and guest has it, `sameAs`
+    // this calendar's copy by Google's ID for it (its link's eid).
     object: {
       '@type': 'Event',
       '@key': ['@type', 'source', 'sourceId'],
-      source: 'google-calendar',
-      sourceId: 'planning1',
+      source: 'icalendar',
+      sourceId: 'planning@example.com',
       sameAs: [
         {
           '@type': 'Event',
           '@key': ['@type', 'source', 'sourceId'],
-          source: 'icalendar',
-          sourceId: 'planning@example.com',
+          source: 'google-calendar',
+          sourceId: 'planning1',
         },
       ],
       name: 'Planning',
@@ -114,11 +117,11 @@ test('events on the shown calendars become plans for named events, with their gu
     },
     '@assertedAt': new Date('2025-03-01T09:00:00Z'),
   });
-  // The same meeting on another calendar is that calendar's copy: one
-  // planning, and the same event by its UID.
+  // The same meeting on another calendar is one planning of one event, by its
+  // UID, `sameAs` that calendar's own copy.
   assert.equal(copy.sourceId, planning.sourceId);
-  assert.equal(copy.object.sourceId, 'planning2');
-  assert.deepEqual(copy.object.sameAs, planning.object.sameAs);
+  assert.equal(copy.object.sourceId, planning.object.sourceId);
+  assert.equal(copy.object.sameAs[0].sourceId, 'planning2');
   assert.deepEqual(copy.object.isPartOf, [calendar(TEAM, 'Work')]);
 
   // An all-day event keeps its dates as dates, March 14 through 15.
@@ -128,8 +131,8 @@ test('events on the shown calendars become plans for named events, with their gu
   assert.equal(trip.object.attendee, undefined);
 
   // Each instance of a recurring event is its own event, planned by its organizer.
-  assert.equal(standup.object.sameAs[0].sourceId, 'standup@example.com@2025-03-11T13:00:00.000Z');
-  assert.equal(standup.sourceId, standup.object.sameAs[0].sourceId);
+  assert.equal(standup.object.sourceId, 'standup@example.com@2025-03-11T13:00:00.000Z');
+  assert.equal(standup.sourceId, standup.object.sourceId);
   assert.deepEqual(standup.agent, guest);
 });
 

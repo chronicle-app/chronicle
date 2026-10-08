@@ -7,7 +7,8 @@ const source = 'google-calendar';
 /**
  * The iCalendar UID's namespace (RFC 5545): the identity every copy of a
  * meeting shares, in any account or calendar provider. The planning, which
- * happened once, is keyed by it; each calendar's copy is `sameAs` it.
+ * happened once, and the event are keyed by it; each calendar's copy, by
+ * Google's own ID for it, is `sameAs` the event.
  */
 const ICALENDAR = 'icalendar';
 
@@ -75,19 +76,20 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
     // Google keeps a description as the HTML its editor wrote; Markdown here.
     const description = tidyText(htmlToMarkdown(event.description) ?? '');
     const { startTime, endTime } = scheduleOf(event);
-    // This calendar's copy of the event, by Google's own ID for it (the `eid`
-    // its links carry), `sameAs` the iCalendar UID every copy shares.
+    // The event by its iCalendar UID, the same on every calendar and for
+    // every guest, `sameAs` this calendar's copy by Google's own ID for it
+    // (the `eid` its links carry).
     return {
       '@type': 'Event',
       '@key': ['@type', 'source', 'sourceId'],
-      source,
-      sourceId: eidOf(event, calendar),
+      source: ICALENDAR,
+      sourceId: identityOf(event),
       sameAs: [
         {
           '@type': 'Event',
           '@key': ['@type', 'source', 'sourceId'],
-          source: ICALENDAR,
-          sourceId: identityOf(event),
+          source,
+          sourceId: eidOf(event, calendar),
         },
       ],
       ...(event.summary && { name: event.summary }),
@@ -97,7 +99,7 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
       scheduledStart: startTime,
       scheduledEnd: endTime,
       ...(event.location && { location: { '@type': 'Location', address: event.location } }),
-      isPartOf: [calendarCollection(calendar, context.account)],
+      isPartOf: [calendarCollection(calendar)],
       ...(attendees.length > 0 && { attendee: attendees }),
     };
   }
@@ -204,16 +206,18 @@ function eidOf(event: CalendarEvent, calendar: EventRecord['calendar']): string 
 
 /**
  * The calendar its events are on, by Google's calendar ID, which is unique on
- * its own. It's `inAccount` the Google account whose calendar list it's on:
- * the signed-in account, whoever owns the calendar.
+ * its own. An account's own (primary) calendar has the account's address as
+ * its ID, so it's `inAccount` that Google account, whoever's list it was read
+ * from. A calendar made in an account, a subscribed one, or a room doesn't
+ * say whose it is.
  */
-function calendarCollection(calendar: EventRecord['calendar'], account?: string): Calendar {
+function calendarCollection(calendar: EventRecord['calendar']): Calendar {
   return {
     '@type': 'Calendar',
     '@key': ['@type', 'source', 'sourceId'],
     source,
     sourceId: calendar.id,
     name: calendar.summary,
-    ...(account && { inAccount: [googleAccount(account)] }),
+    ...(!CALENDAR_ID.test(calendar.id) && { inAccount: [googleAccount(calendar.id)] }),
   };
 }
