@@ -4,7 +4,6 @@ import {
   Agent,
   Entity,
   NavigateAction,
-  Person,
   ViewAction,
 } from '@chronicle.app/schema';
 import type { ChromeNavigation } from './ChromeExtractor.js';
@@ -24,13 +23,13 @@ export default class ChromeTransformer extends ChronicleTransformer {
     return actions;
   }
 
-  private buildViewAction(record: Record, user: Person | null): ViewAction {
+  private buildViewAction(record: Record, user: Agent | null): ViewAction {
     return {
       '@type': 'ViewAction',
       timestamp: new Date(record.data.unix_ms),
       '@key': ['@type', 'source', 'timestamp'],
       source: 'chrome',
-      // A signed-out profile can't identify the viewer, so omit them.
+      // A profile never signed in can't identify the viewer, so omit them.
       ...(user && { agent: user }),
       object: this.buildWebPage(record),
     };
@@ -46,7 +45,7 @@ export default class ChromeTransformer extends ChronicleTransformer {
   private buildNavigateAction(
     record: Record,
     navigation: ChromeNavigation,
-    user: Person | null
+    user: Agent | null
   ): NavigateAction {
     const followed = this.pageByUrl(navigation.followed_url);
     return {
@@ -64,23 +63,27 @@ export default class ChromeTransformer extends ChronicleTransformer {
   }
 
   /**
-   * The profile's Google account, keyed on its Gaia id in the namespace other
-   * Google sources share, with its email as a second identity: an `Agent` in
-   * the `email` namespace, as every source keys an address.
+   * The profile's Google account as you: its email address, as Gmail and
+   * Google Calendar key you, `sameAs` the account by its Gaia id, as every
+   * Google source names it. Without an address, the account alone.
    */
-  private buildUser(account: ChromeAccount | null | undefined): Person | null {
+  private buildUser(account: ChromeAccount | null | undefined): Agent | null {
     if (!account) return null;
-    const sameAs: Agent[] = account.email
-      ? [
-          {
-            '@type': 'Agent',
-            '@key': ['@type', 'source', 'handle'],
-            source: 'email',
-            handle: account.email,
-          },
-        ]
-      : [];
-    return selfAgent({ source: 'google-account', sourceId: account.gaiaId, sameAs });
+    if (!account.email) {
+      return selfAgent({ type: 'Agent', source: 'google-account', sourceId: account.gaiaId });
+    }
+    const googleAccount: Agent = {
+      '@type': 'Agent',
+      '@key': ['@type', 'source', 'sourceId'],
+      source: 'google-account',
+      sourceId: account.gaiaId,
+    };
+    return selfAgent({
+      type: 'Agent',
+      source: 'email',
+      handle: account.email,
+      sameAs: [googleAccount],
+    });
   }
 
   private buildWebPage(record: Record): Entity {

@@ -19,13 +19,16 @@ const FORM_SUBMIT = 0x30_00_00_07;
 const KEYWORD_GENERATED = 0x30_00_00_0a;
 const BACK = 0x31_00_00_00; // a link revisited with the back button
 
+// Signed in with sync. Other Google accounts signed in on the web are listed
+// too, and an address can be in any case.
+export const ACCOUNTS = [
+  { gaia: 'gaia-2', email: 'other@example.com' },
+  { gaia: 'gaia-1', email: 'You@Example.com' },
+];
 const preferences = {
+  sync: { gaia_id: 'gaia-1' },
   google: { services: { last_gaia_id: 'gaia-1' } },
-  // Other Google accounts signed in on the web are listed too.
-  account_info: [
-    { gaia: 'gaia-2', email: 'other@example.com' },
-    { gaia: 'gaia-1', email: 'you@example.com' },
-  ],
+  account_info: ACCOUNTS,
 };
 
 /**
@@ -48,7 +51,8 @@ export function fixture(t, { prefs = preferences, profile = 'Default', legacy = 
     CREATE TABLE visit_source (id INTEGER PRIMARY KEY, source INTEGER NOT NULL);
     INSERT INTO urls VALUES (1, 'https://example.com/a', 'Page A'),
       (2, 'https://example.com/b', ''), (3, 'https://example.com/c', 'Page C'),
-      (4, 'chrome://settings/', 'Settings'), (5, 'https://search.example/', 'Search');
+      (4, 'chrome://settings/', 'Settings'), (5, 'https://search.example/', 'Search'),
+      (6, 'file:///notes.html', 'Notes');
     INSERT INTO visits VALUES
       (1, 1, ${chrome(JAN_1 + 1000)}, ${LINK}, '', 0, 0, 'https://elsewhere.example/'),
       (2, 2, ${chrome(JAN_1 + 2000)}, ${REDIRECT_HOP}, '', 1, 0, NULL),
@@ -61,7 +65,8 @@ export function fixture(t, { prefs = preferences, profile = 'Default', legacy = 
       (9, 5, ${chrome(JAN_1 + 2 * DAY_MS) + 20}, ${KEYWORD_GENERATED}, '', 0, 0, NULL),
       (10, 2, ${chrome(JAN_1 + 2 * DAY_MS + 1000)}, ${FORM_SUBMIT}, '', 8, 1, NULL),
       (11, 3, ${chrome(JAN_1 + 2 * DAY_MS + 2000)}, ${BACK}, '', 10, 0, NULL),
-      (12, 3, ${chrome(JAN_1 + 2 * DAY_MS + 3000)}, ${LINK}, '', 11, 0, NULL);
+      (12, 3, ${chrome(JAN_1 + 2 * DAY_MS + 3000)}, ${LINK}, '', 11, 0, NULL),
+      (13, 6, ${chrome(JAN_1 + 2 * DAY_MS + 4000)}, ${LINK}, '', 12, 0, NULL);
     -- 6 was imported from Safari, 7 synced from another device.
     INSERT INTO visit_source VALUES (6, 5), (7, 0);
   `);

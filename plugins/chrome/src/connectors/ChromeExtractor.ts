@@ -1,14 +1,13 @@
-import { constants as fsConstants, copyFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { constants as fsConstants, copyFileSync, mkdtempSync, rmSync, statSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import type { StatementSync } from 'node:sqlite';
-import { Record } from '@chronicle.app/etl';
+import { EXIT_CODES, ExtractorError, Record, delay } from '@chronicle.app/etl';
 import {
   SqliteExtractor,
   allRows,
   chromeToUnixMsSql,
   getRow,
-  isSqliteBusy,
   iterateRows,
   timeRangeConditions,
   unixMsToChromeTimestamp,
@@ -30,8 +29,8 @@ const SKIPPED_TYPES = [3, 4, 10];
 // migration (Firefox, IE, Safari, OS migration). Another browser's history
 // belongs to that browser's source.
 const IMPORTED_SOURCES = [3, 4, 5, 6];
-// Browser pages and extension pages, not the web.
-const INTERNAL_URL_PREFIXES = ['chrome://', 'chrome-extension://'];
+// Web pages only: not browser or extension pages, files, or blobs.
+const WEB_SCHEMES = ['http://', 'https://'];
 // A redirect chain's first visit: its transition says how the navigation
 // began, and its from_visit is the page it began on.
 const CHAIN_START = 0x10_00_00_00;
@@ -53,7 +52,6 @@ interface VisitRow {
   not_followed: number;
   from_visit: number;
   opener_visit: number;
-  external_referrer_url: string | null;
 }
 
 /** A link followed or a form submitted, from one page to the visit's. */
@@ -79,7 +77,12 @@ export class ChromeExtractor extends SqliteExtractor<typeof ChromeExtractor> {
   /** Where Chrome keeps its profiles, per platform. */
   static userDataDirs: { [P in NodeJS.Platform]?: () => string } = {
     darwin: () => join(homedir(), 'Library/Application Support/Google/Chrome'),
-    linux: () => join(homedir(), '.config/google-chrome'),
+    // Chrome's own override for ~/.config, then the XDG one.
+    linux: () =>
+      join(
+        process.env.CHROME_CONFIG_HOME || process.env.XDG_CONFIG_HOME || join(homedir(), '.config'),
+        'google-chrome'
+      ),
     win32: () =>
       join(process.env.LOCALAPPDATA ?? join(homedir(), 'AppData/Local'), 'Google/Chrome/User Data'),
   };
@@ -96,11 +99,14 @@ export class ChromeExtractor extends SqliteExtractor<typeof ChromeExtractor> {
   }) as any;
 
   static override defaultTransformer = ChromeTransformer;
+  /** Chrome saves its history every few seconds: tries at copying it, and the wait between. */
+  static copyAttempts = 5;
+  static copyRetryMs = 200;
 
   private account: ChromeAccount | null = null;
   private referrerColumns = '';
   private visitById: StatementSync | null = null;
-  private cloneDir: string | null = null;
+  private copyDir: string | null = null;
 
   /** visits.id — Chrome's own visit id, AUTOINCREMENT so never reused. */
   override keyOf(record: Record): string | null {
@@ -111,52 +117,68 @@ export class ChromeExtractor extends SqliteExtractor<typeof ChromeExtractor> {
   override async setup(): Promise<void> {
     const cfg = this.config as { input?: string; profile: string };
     cfg.input ??= join(this.userDataDir(), cfg.profile, 'History');
+    // Says whether History is there and readable; the run reads a copy.
     await super.setup();
-
+    this.db!.close();
+    this.db = null;
+    this.copyDir = mkdtempSync(join(tmpdir(), 'chronicle-chrome-'));
     try {
-      getRow(this.db!.prepare('SELECT 1 FROM sqlite_schema'));
+      this.db = this.openDatabase(await this.copyHistory(cfg.input, this.copyDir));
+      this.account = readChromeAccount(join(dirname(cfg.input), 'Preferences'));
+
+      // History files from before 2022 have no opener.
+      const columns = new Set(
+        allRows<{ name: string }>(this.db.prepare('PRAGMA table_info(visits)')).map(c => c.name)
+      );
+      this.referrerColumns = [
+        'visits.transition',
+        `visits.transition & ${CORE_MASK} AS core_type`,
+        `(visits.transition & ${CHAIN_START}) != 0 AS chain_start`,
+        `(visits.transition & ${NOT_FOLLOWED}) != 0 AS not_followed`,
+        'visits.from_visit',
+        columns.has('opener_visit') ? 'visits.opener_visit' : '0 AS opener_visit',
+      ].join(', ');
+      this.visitById = this.db.prepare(`
+        SELECT urls.url, ${this.referrerColumns}
+        FROM visits JOIN urls ON urls.id = visits.url
+        WHERE visits.id = ?`);
     } catch (error) {
-      if (!isSqliteBusy(error)) throw error;
-      // Chrome keeps History exclusively locked while it runs, so read a
-      // clone instead (instant on APFS, a plain copy elsewhere). Only the
-      // database file is copied: Chrome's journal is empty between commits,
-      // and a read-only connection can't roll back a live one.
-      this.db!.close();
-      this.db = null;
-      this.cloneDir = mkdtempSync(join(tmpdir(), 'chronicle-chrome-'));
-      const clone = join(this.cloneDir, 'History');
-      copyFileSync(cfg.input, clone, fsConstants.COPYFILE_FICLONE);
-      this.db = this.openDatabase(clone);
+      await this.teardown();
+      throw error;
     }
+  }
 
-    this.account = readChromeAccount(join(dirname(cfg.input), 'Preferences'));
-
-    // History files from before 2022 have no opener or external referrer.
-    const columns = new Set(
-      allRows<{ name: string }>(this.db!.prepare('PRAGMA table_info(visits)')).map(c => c.name)
-    );
-    this.referrerColumns = [
-      'visits.transition',
-      `visits.transition & ${CORE_MASK} AS core_type`,
-      `(visits.transition & ${CHAIN_START}) != 0 AS chain_start`,
-      `(visits.transition & ${NOT_FOLLOWED}) != 0 AS not_followed`,
-      'visits.from_visit',
-      columns.has('opener_visit') ? 'visits.opener_visit' : '0 AS opener_visit',
-      columns.has('external_referrer_url')
-        ? 'visits.external_referrer_url'
-        : 'NULL AS external_referrer_url',
-    ].join(', ');
-    this.visitById = this.db!.prepare(`
-      SELECT urls.url, ${this.referrerColumns}
-      FROM visits JOIN urls ON urls.id = visits.url
-      WHERE visits.id = ?`);
+  /**
+   * Copy History into `dir`, to read it without Chrome's lock, and without
+   * holding the file Chrome writes, which could keep a Chrome that starts
+   * mid-run from opening it. A copy is whole when Chrome wasn't saving and
+   * the file didn't change while it was copied. A copy that caught a save is
+   * taken again.
+   */
+  private async copyHistory(history: string, dir: string): Promise<string> {
+    const cls = this.constructor as typeof ChromeExtractor;
+    const copy = join(dir, 'History');
+    for (let attempt = 1; ; attempt++) {
+      const before = savedState(history);
+      copyFileSync(history, copy, fsConstants.COPYFILE_FICLONE);
+      if (before !== null && before === savedState(history)) return copy;
+      if (attempt >= cls.copyAttempts) {
+        throw new ExtractorError('Chrome kept saving its history', {
+          code: 'input-busy',
+          exitCode: EXIT_CODES.transient,
+          hint: `Run \`chronicle extract ${cls.source}\` again in a moment.`,
+          fields: { path: history },
+        });
+      }
+      await delay(cls.copyRetryMs);
+    }
   }
 
   override async teardown(): Promise<void> {
     await super.teardown();
-    if (this.cloneDir) {
-      rmSync(this.cloneDir, { recursive: true, force: true });
-      this.cloneDir = null;
+    if (this.copyDir) {
+      rmSync(this.copyDir, { recursive: true, force: true });
+      this.copyDir = null;
     }
   }
 
@@ -177,12 +199,12 @@ export class ChromeExtractor extends SqliteExtractor<typeof ChromeExtractor> {
       `(visits.transition & ${CHAIN_END}) != 0`,
       `(visits.transition & ${CORE_MASK}) NOT IN (${SKIPPED_TYPES.join(', ')})`,
       `(visit_source.source IS NULL OR visit_source.source NOT IN (${IMPORTED_SOURCES.join(', ')}))`,
-      ...INTERNAL_URL_PREFIXES.map(() => `urls.url NOT LIKE ? || '%'`),
+      `(${WEB_SCHEMES.map(() => `urls.url LIKE ? || '%'`).join(' OR ')})`,
       ...range.conditions,
     ];
     return {
       where: conditions.join(' AND '),
-      values: [...INTERNAL_URL_PREFIXES, ...range.values],
+      values: [...WEB_SCHEMES, ...range.values],
     };
   }
 
@@ -233,11 +255,13 @@ export class ChromeExtractor extends SqliteExtractor<typeof ChromeExtractor> {
 
   /**
    * How the visit was reached by following a link or submitting a form: from
-   * the page before it in its tab, else the page in the tab that opened it,
-   * else a referrer Chrome keeps only as a URL. Read from the first visit of
-   * its redirect chain, as Chrome's own history features do. Null for a typed
-   * URL, a bookmark, a reload, going back or forward, or a page reached from
-   * itself or from a browser page.
+   * the page before it in its tab, else the page in the tab that opened it.
+   * Read from the first visit of its redirect chain, as Chrome's own history
+   * features do. Null for a typed URL, a bookmark, a reload, going back or
+   * forward, or a page reached from itself or from a page that isn't on the
+   * web. Chrome also keeps a referrer that isn't a visit as a URL, but for a
+   * link to another site browsers cut it to that site's home page, which isn't
+   * the page you came from.
    */
   private navigation(row: VisitRow): ChromeNavigation | null {
     let start = row;
@@ -249,11 +273,8 @@ export class ChromeExtractor extends SqliteExtractor<typeof ChromeExtractor> {
     if (start.core_type !== LINK && start.core_type !== FORM_SUBMIT) return null;
     if (start.not_followed) return null;
 
-    const from =
-      this.visit(start.from_visit)?.url ??
-      this.visit(start.opener_visit)?.url ??
-      (start.external_referrer_url || null);
-    if (!from || from === row.url || INTERNAL_URL_PREFIXES.some(p => from.startsWith(p))) {
+    const from = this.visit(start.from_visit)?.url ?? this.visit(start.opener_visit)?.url;
+    if (!from || from === row.url || !WEB_SCHEMES.some(scheme => from.startsWith(scheme))) {
       return null;
     }
     return {
@@ -281,4 +302,17 @@ export class ChromeExtractor extends SqliteExtractor<typeof ChromeExtractor> {
       return null;
     }
   }
+}
+
+/**
+ * History's size and modification time while it holds only saved changes,
+ * or null while Chrome saves. Chrome keeps a transaction open between saves,
+ * and SQLite writes each change to the journal before the file, so the file
+ * is whole while its journal is empty or was written after it.
+ */
+function savedState(history: string): string | null {
+  const file = statSync(history);
+  const journal = statSync(`${history}-journal`, { throwIfNoEntry: false });
+  if (journal && journal.size > 0 && journal.mtimeMs <= file.mtimeMs) return null;
+  return `${file.size}:${file.mtimeMs}`;
 }
