@@ -52,6 +52,15 @@ test('generation fails for undeclared property ranges, split domains, and malfor
   assert.notEqual(generate('this is not Turtle').status, 0);
 });
 
+test('a class with two parents is listed once in each union', () => {
+  const result = generate(
+    `${ontology}\n:LocalBusiness a owl:Class; rdfs:subClassOf :Venue, :Organization; rdfs:comment "A business at a place." .`
+  );
+  assert.equal(result.status, 0, result.stderr);
+  const union = result.generated.match(/export const EntityAndChildrenSchema[\s\S]*?\]\)/)[0];
+  assert.equal(union.match(/literal\('LocalBusiness'\)/g).length, 1);
+});
+
 test('vocabulary version is generated and invalid declarations are rejected', () => {
   // Whatever the vocabulary's current version, swap it for others.
   const current = /owl:versionInfo "[^"]*"/;

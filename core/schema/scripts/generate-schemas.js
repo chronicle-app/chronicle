@@ -338,18 +338,18 @@ const objectSchemaForClass = classId => {
   `;
 };
 
+// A class with two parents is reachable twice. List each class once, since a
+// discriminated union rejects a repeated @type.
 const objectSchemaForClassAndChildren = (classId, classes) => {
-  const schemas = [];
+  const classIds = [];
+  const visit = id => {
+    if (classIds.includes(id)) return;
+    classIds.push(id);
+    for (const child of classes.filter(c => c.parents.includes(id))) visit(child.classId);
+  };
+  visit(classId);
 
-  schemas.push(objectSchemaForClass(classId));
-
-  const children = classes.filter(c => c.parents.includes(classId));
-
-  for (const child of children) {
-    schemas.push(objectSchemaForClassAndChildren(child.classId, classes));
-  }
-
-  return schemas.join(',\n');
+  return classIds.map(id => objectSchemaForClass(id)).join(',\n');
 };
 
 const main = async () => {
