@@ -97,7 +97,7 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
       scheduledStart: startTime,
       scheduledEnd: endTime,
       ...(event.location && { location: { '@type': 'Location', address: event.location } }),
-      isPartOf: [calendarCollection(calendar)],
+      isPartOf: [calendarCollection(calendar, context.account)],
       ...(attendees.length > 0 && { attendee: attendees }),
     };
   }
@@ -202,13 +202,18 @@ function eidOf(event: CalendarEvent, calendar: EventRecord['calendar']): string 
   return fromLink || Buffer.from(`${event.id} ${calendar.id}`).toString('base64url');
 }
 
-/** The calendar its events are on, by Google's calendar ID. */
-function calendarCollection(calendar: EventRecord['calendar']): Calendar {
+/**
+ * The calendar its events are on, by Google's calendar ID, which is unique on
+ * its own. It's `inAccount` the Google account whose calendar list it's on:
+ * the signed-in account, whoever owns it.
+ */
+function calendarCollection(calendar: EventRecord['calendar'], account?: string): Calendar {
   return {
     '@type': 'Calendar',
     '@key': ['@type', 'source', 'sourceId'],
     source,
     sourceId: calendar.id,
     name: calendar.summary,
+    ...(account && { inAccount: [googleAccount(account)] }),
   };
 }

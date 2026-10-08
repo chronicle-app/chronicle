@@ -30,8 +30,9 @@ const person = (handle, name, sameAs = []) => ({
   name: name ?? handle,
   ...(sameAs.length > 0 && { sameAs }),
 });
-// You, and the Google account the mailbox is, by its address.
-const you = ['@me', identity('google-account', OWNER)];
+// The Google account the mailbox is, by its address, and you are it.
+const account = identity('google-account', OWNER);
+const you = ['@me', account];
 const owner = person(OWNER, 'Test Owner', you);
 const friend = person(FRIEND, 'Test Friend');
 // With --link-contacts, your contact for the friend links their other address
@@ -40,30 +41,14 @@ const linkedFriend = person(FRIEND, 'Test Friend', [
   identity('email', 'friend@home.example'),
   identity('phone', '+14165550100'),
 ]);
-// Gmail's IDs are scoped to the mailbox they're in.
-// The mailbox at its address, as an mbox of the same mail names it, which is
-// the Google account's.
-const mailbox = {
-  '@type': 'Realm',
-  '@key': ['@type', 'source', 'handle'],
-  source: 'email',
-  handle: OWNER,
-  sameAs: [
-    {
-      '@type': 'Realm',
-      '@key': ['@type', 'source', 'handle'],
-      source: 'google-account',
-      handle: OWNER,
-    },
-  ],
-};
-const inMailbox = sourceId => ({
-  '@key': ['@type', 'source', 'inRealm.handle', 'sourceId'],
+// Gmail's IDs are only unique within the Google account the mailbox is.
+const inAccount = sourceId => ({
+  '@key': ['@type', 'source', 'inAccount[*].handle', 'sourceId'],
   source: 'gmail',
   sourceId,
-  inRealm: mailbox,
+  inAccount: [account],
 });
-const thread = { '@type': 'Thread', ...inMailbox(THREAD) };
+const thread = { '@type': 'Thread', ...inAccount(THREAD) };
 
 test('Gmail messages become emails in their thread, with labels, newest first', async t => {
   const requests = await fakeGmail(t);
@@ -87,13 +72,14 @@ test('Gmail messages become emails in their thread, with labels, newest first', 
     '@assertedAt': new Date('2025-03-02T09:00:00Z'),
     agent: owner,
     // Keyed by its Message-ID, without the angle brackets, as every copy is;
-    // `sameAs` Gmail's ID for it in this mailbox.
+    // held in the account, and `sameAs` Gmail's ID for it there.
     object: {
       '@type': 'Message',
       '@key': ['@type', 'source', 'sourceId'],
       source: 'email',
       sourceId: 'reply@example.com',
-      sameAs: [{ '@type': 'Message', ...inMailbox('18c1f0a2b3c4d5e7') }],
+      sameAs: [{ '@type': 'Message', ...inAccount('18c1f0a2b3c4d5e7') }],
+      inAccount: [account],
       name: 'Re: Plans',
       body: 'Saturday works.',
       author: [owner],

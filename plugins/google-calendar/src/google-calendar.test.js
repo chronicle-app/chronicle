@@ -32,22 +32,22 @@ const person = (handle, name, extra = {}) => ({
   ...extra,
 });
 // You, and the Google account you're signed in as, by its address.
-const you = [
-  '@me',
-  {
-    '@type': 'Agent',
-    '@key': ['@type', 'source', 'handle'],
-    source: 'google-account',
-    handle: OWNER,
-  },
-];
+const account = {
+  '@type': 'Agent',
+  '@key': ['@type', 'source', 'handle'],
+  source: 'google-account',
+  handle: OWNER,
+};
+const you = ['@me', account];
 const owner = person(OWNER, 'Test Owner', { sameAs: you });
+// Every calendar read is on the signed-in account's list, whoever owns it.
 const calendar = (sourceId, name) => ({
   '@type': 'Calendar',
   '@key': ['@type', 'source', 'sourceId'],
   source: 'google-calendar',
   sourceId,
   name,
+  inAccount: [account],
 });
 const guest = person('guest@example.com', 'Test Guest');
 

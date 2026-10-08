@@ -186,6 +186,7 @@ export interface Entity extends Omit<Base, '@type'> {
   description?: string;
   emblem?: ImageObjectAndChildren;
   handle?: string;
+  inAccount?: AgentAndChildren[];
   inRealm?: RealmAndChildren;
   isPartOf?: EntityAndChildren[];
   location?: LocationAndChildren | PlaceAndChildren;
@@ -221,6 +222,7 @@ const EntityProperties = {
   description: z.lazy(() => z.string()).optional(),
   emblem: z.lazy(() => ImageObjectAndChildrenSchema).optional(),
   handle: z.lazy(() => z.string()).optional(),
+  inAccount: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
   inRealm: z.lazy(() => RealmAndChildrenSchema).optional(),
   isPartOf: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
   location: z.lazy(() => z.union([LocationAndChildrenSchema, PlaceAndChildrenSchema])).optional(),

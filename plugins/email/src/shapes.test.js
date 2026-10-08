@@ -10,13 +10,7 @@ const file = new URL('../SHAPES.md', import.meta.url);
 
 test('SHAPES.md describes what every record type becomes', async t => {
   const input = fixture(t, [keyed, keyless]);
-  const samples = [];
-  // Without the mailbox's address, and with it.
-  for (const config of [{}, { account: 'bob@example.test' }]) {
-    samples.push(
-      ...(await sampleTransform(new EmailMboxExtractor({ input, quiet: true, ...config })))
-    );
-  }
+  const samples = await sampleTransform(new EmailMboxExtractor({ input, quiet: true }));
   const rendered = renderShapes(shapesOf(samples), { title: 'Email' });
   if (process.argv.includes('--update')) writeFileSync(file, rendered);
   else assert.equal(rendered, readFileSync(file, 'utf8'), 'Run npm run shapes');

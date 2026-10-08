@@ -201,6 +201,10 @@
   owl:maxCardinality 1;
   :domainIncludes :Entity;
   :rangeIncludes :Realm .
+:inAccount a rdf:Property;
+  rdfs:comment "An account that holds the entity, such as the email account a message was delivered to or the account whose calendar list a calendar is on. Identifiers the account issues are unique within it.";
+  :domainIncludes :Entity;
+  :rangeIncludes :Agent .
 
 :ConsumeAction a rdfs:Class;
   rdfs:comment "The agent took in the :object, such as by reading, watching, listening to, eating, or drinking it. The subclasses name how. A :ConsumeAction of no subclass records consumption in progress with no known start.";

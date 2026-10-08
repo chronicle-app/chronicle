@@ -1,4 +1,4 @@
-import type { Agent, Message, MessageAction, Realm, Thread } from '@chronicle.app/schema';
+import type { Agent, Message, MessageAction, Thread } from '@chronicle.app/schema';
 import type { MailAddress, MailMessage } from './parse.js';
 
 /**
@@ -70,26 +70,14 @@ export interface MessageNodeOptions {
    * linked by `sameAs` from every agent that's the owner.
    */
   meIdentities?: Agent[];
+  /** The account the source read the message from: the message is `inAccount` it. */
+  account?: Agent;
   /**
    * The source's own identity for its copy of the message (Gmail's message
-   * ID in a mailbox), linked by `sameAs`. The message stays keyed by its
-   * Message-ID, which every copy shares.
+   * ID), linked by `sameAs`, keyed within the account that issued it. The
+   * message stays keyed by its Message-ID, which every copy shares.
    */
-  identity?: { source: string; sourceId: string; inRealm?: Realm };
-  /**
-   * The mailbox the source read the message from, for a source with no ID
-   * of its own for its copy (an mbox): the message is `sameAs` its copy
-   * there, keyed by its Message-ID in the mailbox.
-   */
-  mailbox?: Realm;
-}
-
-/**
- * The mailbox at an address, in the `email` namespace: where a source's
- * copies of messages are, whether it's Gmail or an mbox of the same mail.
- */
-export function mailbox(address: string): Realm {
-  return { '@type': 'Realm', '@key': ADDRESS_KEY, source: EMAIL, handle: address.toLowerCase() };
+  identity?: { source: string; sourceId: string; inAccount?: Agent };
 }
 
 /**
@@ -121,19 +109,15 @@ export function messageAction(mail: MailMessage, options: MessageNodeOptions = {
   );
 
   const messageId = mail.messageId && msgId(mail.messageId);
-  const identity =
-    options.identity ??
-    (options.mailbox && messageId
-      ? { source: EMAIL, sourceId: messageId, inRealm: options.mailbox }
-      : undefined);
+  const { identity } = options;
   const copy: Message | undefined = identity && {
     '@type': 'Message',
-    '@key': identity.inRealm
-      ? ['@type', 'source', 'inRealm.handle', 'sourceId']
+    '@key': identity.inAccount
+      ? ['@type', 'source', 'inAccount[*].handle', 'sourceId']
       : ['@type', 'source', 'sourceId'],
     source: identity.source,
     sourceId: identity.sourceId,
-    ...(identity.inRealm && { inRealm: identity.inRealm }),
+    ...(identity.inAccount && { inAccount: [identity.inAccount] }),
   };
   const message: Message = {
     '@type': 'Message',
@@ -141,6 +125,7 @@ export function messageAction(mail: MailMessage, options: MessageNodeOptions = {
       ? { '@key': MESSAGE_KEY, source: EMAIL, sourceId: messageId }
       : { '@key': KEYLESS_MESSAGE_KEY, source: EMAIL }),
     ...(copy && { sameAs: [copy] }),
+    ...(options.account && { inAccount: [options.account] }),
     name: mail.subject,
     ...(mail.text && { body: mail.text }),
     author: [sender],

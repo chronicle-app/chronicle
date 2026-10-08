@@ -72,36 +72,6 @@ test('messages become schema-valid MessageActions keyed on the Message-ID', asyn
   });
 });
 
-test('with the mailbox’s address, its mail is yours and its copies are in that mailbox', async t => {
-  const input = fixture(t, [keyed, keyless]);
-  // Any case: an address is lowercased wherever it's keyed.
-  const [action, keylessAction] = await transform(
-    (await extract(input, { account: 'Bob@Example.test' })).records
-  );
-  // The mailbox at the address, where Gmail's copies of the same mail are.
-  const mailbox = {
-    '@type': 'Realm',
-    '@key': ['@type', 'source', 'handle'],
-    source: 'email',
-    handle: 'bob@example.test',
-  };
-  assert.deepEqual(action.object.sameAs, [
-    {
-      '@type': 'Message',
-      '@key': ['@type', 'source', 'inRealm.handle', 'sourceId'],
-      source: 'email',
-      sourceId: 'keyed-1@example.test',
-      inRealm: mailbox,
-    },
-  ]);
-  assert.deepEqual(action.object.recipient[0], {
-    ...agent('bob@example.test', 'Bob'),
-    sameAs: ['@me'],
-  });
-  // A copy is keyed by its Message-ID in the mailbox, so one without has none.
-  assert.equal(keylessAction.object.sameAs, undefined);
-});
-
 test('a message without a Message-ID is keyed on From, Date, and Subject', async t => {
   const input = fixture(t, [
     keyed,

@@ -20,10 +20,6 @@ export class EmailMboxExtractor extends Extractor<typeof EmailMboxExtractor> {
 
   static override schema = Extractor.schema.extend({
     input: z.string().describe('Path to the mbox file'),
-    account: z
-      .string()
-      .optional()
-      .describe("The mailbox's address: its mail is yours, as Gmail's own mailbox is"),
   });
 
   /**
@@ -71,7 +67,6 @@ export class EmailMboxExtractor extends Extractor<typeof EmailMboxExtractor> {
         from: email.from?.address,
         subject: email.subject,
         strategy: 'mbox',
-        ...(config.account && { account: config.account.toLowerCase() }),
       });
       count++;
     }
