@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs';
 /** The Google account a Chrome profile is signed in to, by its address. */
 export interface ChromeAccount {
   email: string;
+  /** The account's name, as Google shows it. */
+  name?: string;
 }
 
 /**
@@ -35,5 +37,6 @@ function readAccount(prefs: any): ChromeAccount | null {
     ? prefs.account_info.find((a: any) => a?.gaia === gaiaId)
     : undefined;
   if (typeof info?.email !== 'string' || info.email === '') return null;
-  return { email: info.email.toLowerCase() };
+  const name = typeof info.full_name === 'string' && info.full_name !== '' ? info.full_name : null;
+  return { email: info.email.toLowerCase(), ...(name && { name }) };
 }

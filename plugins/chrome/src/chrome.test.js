@@ -45,10 +45,24 @@ test('visits become schema-valid ViewActions, newest first', async t => {
   const [first, redirected, synced] = [1, 3, 7].map(id => actions.get(id)[0]);
   // SHAPES.md shows the full shape; these are the values it can't show.
   assert.deepEqual(first.timestamp, new Date('2025-01-01T00:00:01Z'));
-  // The profile's own account, not another one signed in on the web, by its
-  // address, lowercased as mail keys it.
-  assert.equal(first.agent.handle, 'you@example.com');
-  assert.deepEqual(first.agent.sameAs, ['@me']);
+  // The profile's own account, not another one signed in on the web: you by
+  // its address, lowercased as mail keys it, the Google account at that address.
+  assert.deepEqual(first.agent, {
+    '@type': 'Agent',
+    '@key': ['@type', 'source', 'handle'],
+    source: 'email',
+    handle: 'you@example.com',
+    name: 'Test You',
+    sameAs: [
+      {
+        '@type': 'Agent',
+        '@key': ['@type', 'source', 'handle'],
+        source: 'google-account',
+        handle: 'you@example.com',
+      },
+      '@me',
+    ],
+  });
   assert.equal(first.object.name, 'Page A');
 
   // Sub-millisecond Chrome times truncate to the millisecond.

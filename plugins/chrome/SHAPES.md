@@ -15,13 +15,19 @@ converted from the record. Every node also has `source`.
 ```ts
 ViewAction key(timestamp) {
   timestamp*
-  agent?: Agent key(handle) { handle, sameAs[] }
+  agent?: Agent key(handle) {
+    handle, name
+    sameAs[]: Agent key(handle) { handle }
+  }
   object: Entity key(url, any source) { url, name }
 }
 // Some records also become:
 NavigateAction key(timestamp) {
   timestamp*
-  agent?: Agent key(handle) { handle, sameAs[] }
+  agent?: Agent key(handle) {
+    handle, name
+    sameAs[]: Agent key(handle) { handle }
+  }
   object: Entity key(url, any source) {
     url
     references[]?: Entity key(url, any source) { url }

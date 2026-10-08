@@ -324,6 +324,9 @@
 :Event a rdfs:Class;
   rdfs:comment "A named happening with a planned start and end, such as a calendar entry, a concert, or a picnic. Its :scheduledStart and :scheduledEnd give the plan. The actions that record it give when it actually happened.";
   rdfs:subClassOf :Entity .
+:Calendar a rdfs:Class;
+  rdfs:subClassOf :Collection;
+  rdfs:comment "A calendar of events, such as a person's primary calendar, a shared team calendar, or a subscribed holiday calendar. Its events are :isPartOf it." .
 :attendee a rdf:Property;
   rdfs:comment "An agent invited to the event, such as a guest on a calendar entry, whatever their reply.";
   rdfs:subPropertyOf :involvement;

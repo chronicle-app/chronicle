@@ -108,23 +108,25 @@ export default class GoogleReaderTransformer extends ChronicleTransformer {
     const profile = userInfo?.user_id === userId ? userInfo : null;
     const email = profile?.email?.trim() || undefined;
     const name = profile?.user_name;
-    const sameAs: Agent[] = [];
-    if (email) {
-      sameAs.push({
-        '@type': 'Agent',
-        '@key': ['@type', 'source', 'handle'],
-        source: 'email',
-        handle: email,
-        ...(name && { name }),
-      });
-    }
-    sameAs.push({
-      '@type': 'Agent',
-      '@key': ['@type', 'source', 'sourceId'],
-      source: 'google-account',
-      sourceId: userId,
-      ...(name && { name }),
-    });
+    // Your address, and the Google account it is, keyed by that address as
+    // Gmail, Google Calendar, and Chrome key it.
+    const sameAs: Agent[] = email
+      ? [
+          {
+            '@type': 'Agent',
+            '@key': ['@type', 'source', 'handle'],
+            source: 'email',
+            handle: email.toLowerCase(),
+            ...(name && { name }),
+          },
+          {
+            '@type': 'Agent',
+            '@key': ['@type', 'source', 'handle'],
+            source: 'google-account',
+            handle: email.toLowerCase(),
+          },
+        ]
+      : [];
     return selfAgent({
       type: 'Agent',
       source: 'google-reader',

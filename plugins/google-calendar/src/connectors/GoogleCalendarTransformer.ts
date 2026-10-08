@@ -1,6 +1,6 @@
 import { ChronicleTransformer, Record, htmlToMarkdown, tidyText } from '@chronicle.app/etl';
-import { contactIdentities, type ContactLinks } from '@chronicle.app/google';
-import { ActionAndChildren, Agent, Collection, Event, PlanAction } from '@chronicle.app/schema';
+import { contactIdentities, googleAccount, type ContactLinks } from '@chronicle.app/google';
+import { ActionAndChildren, Agent, Calendar, Event, PlanAction } from '@chronicle.app/schema';
 import type { CalendarEvent, EventPerson, EventRecord, EventTime } from '../types.js';
 
 const source = 'google-calendar';
@@ -12,19 +12,44 @@ const source = 'google-calendar';
 const ICALENDAR = 'icalendar';
 
 type Contacts = { [address: string]: ContactLinks };
+/** What the people on one calendar's copy of an event are read against. */
+interface Context {
+  calendar: EventRecord['calendar'];
+  contacts: Contacts;
+  /** The signed-in account's address. */
+  account?: string;
+}
+
+/**
+ * IDs Google gives calendars that aren't an account's own: ones made in an
+ * account, subscribed and holiday calendars, rooms. An account's own (primary)
+ * calendar has its address as its ID.
+ */
+const CALENDAR_ID = /\.calendar\.google\.com$/i;
 
 export default class GoogleCalendarTransformer extends ChronicleTransformer {
   override async transform(record: Record): Promise<ActionAndChildren[]> {
     if (record.extraction.recordType !== 'events') return [];
-    const { event, calendar, contacts = {} } = record.data as EventRecord;
+    const { event, calendar, contacts = {}, account } = record.data as EventRecord;
     // Without a start, it isn't an event on a calendar (the extractor skips it).
     if (!startOf(event.start)) return [];
+    const context: Context = {
+      calendar,
+      contacts,
+      account: account ?? (calendar.primary ? calendar.id.toLowerCase() : undefined),
+    };
 
-    // Who put it on the calendar: its organizer, else its creator, else (an
-    // event with neither, like one copied in) the calendar itself.
+    // Who put it on the calendar, always someone: its organizer, unless
+    // that's a calendar (Google makes a calendar the organizer of events
+    // created on it), else its creator, else the calendar's owner when it's
+    // an account's own calendar, else (an event with neither, on a calendar
+    // made in an account) the calendar itself.
+    const person = (who?: EventPerson) =>
+      who?.email && !CALENDAR_ID.test(who.email) ? who : undefined;
     const organizer =
-      this.buildAgent(event.organizer, contacts) ??
-      this.buildAgent(event.creator, contacts) ??
+      this.buildAgent(person(event.organizer), context) ??
+      this.buildAgent(person(event.creator), context) ??
+      this.buildAgent(person({ email: calendar.id }), context) ??
       this.calendarAgent(calendar);
 
     const plan: PlanAction = {
@@ -35,20 +60,17 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
       // When it was put on the calendar; the event carries when it happens.
       timestamp: plannedAt(event),
       agent: organizer,
-      object: this.buildEvent(event, calendar, contacts),
+      object: this.buildEvent(event, context),
     };
     return [plan];
   }
 
-  private buildEvent(
-    event: CalendarEvent,
-    calendar: EventRecord['calendar'],
-    contacts: Contacts
-  ): Event {
+  private buildEvent(event: CalendarEvent, context: Context): Event {
+    const { calendar } = context;
     const attendees = (event.attendees ?? [])
       // Rooms and equipment booked for the event aren't guests.
       .filter(attendee => !attendee.resource)
-      .map(attendee => this.buildAgent(attendee, contacts))
+      .map(attendee => this.buildAgent(attendee, context))
       .filter((agent): agent is Agent => agent !== null);
     // Google keeps a description as the HTML its editor wrote; Markdown here.
     const description = tidyText(htmlToMarkdown(event.description) ?? '');
@@ -80,7 +102,7 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
     };
   }
 
-  /** A calendar as the agent of its own event: yours (`@me`) when it's your primary one. */
+  /** A calendar made in an account, as the agent of an event no one is named for. */
   private calendarAgent(calendar: EventRecord['calendar']): Agent {
     return {
       '@type': 'Agent',
@@ -88,21 +110,25 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
       source,
       sourceId: calendar.id,
       name: calendar.summary,
-      ...(calendar.primary && { sameAs: ['@me'] }),
     };
   }
 
   /**
    * A person on the event by their email address, in the `email` namespace
    * as mail keys them (lowercased), so a guest and the person who emails you
-   * are one node. Marked as the owner when it's the signed-in account.
+   * are one node. You are `@me` and the signed-in Google account: at the
+   * account's address, or as the guest Google marks as your primary
+   * calendar's owner (an alias). On a calendar shared with you, that mark is
+   * the calendar's owner, who can be someone else.
    */
-  private buildAgent(person: EventPerson | undefined, contacts: Contacts): Agent | null {
+  private buildAgent(person: EventPerson | undefined, context: Context): Agent | null {
     if (!person?.email) return null;
     const handle = person.email.toLowerCase();
+    const { account, calendar, contacts } = context;
+    const you = handle === account || (Boolean(person.self) && calendar.primary);
     // You, and the other addresses and numbers your contacts have for them.
     const sameAs: NonNullable<Agent['sameAs']> = [
-      ...(person.self ? ['@me'] : []),
+      ...(you ? ['@me', ...(account ? [googleAccount(account)] : [])] : []),
       ...contactIdentities(handle, contacts[handle]),
     ];
     return {
@@ -176,10 +202,10 @@ function eidOf(event: CalendarEvent, calendar: EventRecord['calendar']): string 
   return fromLink || Buffer.from(`${event.id} ${calendar.id}`).toString('base64url');
 }
 
-/** A calendar as the collection its events are on, by Google's calendar ID. */
-function calendarCollection(calendar: EventRecord['calendar']): Collection {
+/** The calendar its events are on, by Google's calendar ID. */
+function calendarCollection(calendar: EventRecord['calendar']): Calendar {
   return {
-    '@type': 'Collection',
+    '@type': 'Calendar',
     '@key': ['@type', 'source', 'sourceId'],
     source,
     sourceId: calendar.id,

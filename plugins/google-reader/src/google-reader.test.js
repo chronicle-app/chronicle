@@ -39,31 +39,24 @@ const owner = {
       handle: 'pat@example.com',
       name: 'Pat Example',
     },
+    // The Google account, by its address, as Gmail, Calendar, and Chrome key it.
     {
       '@type': 'Agent',
-      '@key': ['@type', 'source', 'sourceId'],
+      '@key': ['@type', 'source', 'handle'],
       source: 'google-account',
-      sourceId: OWNER_ID,
-      name: 'Pat Example',
+      handle: 'pat@example.com',
     },
     '@me',
   ],
 };
 
+// Without an address, there's no account to link.
 const ownerWithoutProfile = {
   '@type': 'Agent',
   '@key': ['@type', 'source', 'sourceId'],
   source: 'google-reader',
   sourceId: OWNER_ID,
-  sameAs: [
-    {
-      '@type': 'Agent',
-      '@key': ['@type', 'source', 'sourceId'],
-      source: 'google-account',
-      sourceId: OWNER_ID,
-    },
-    '@me',
-  ],
+  sameAs: ['@me'],
 };
 
 test('owner states and notes become schema-valid actions on an Article', async t => {

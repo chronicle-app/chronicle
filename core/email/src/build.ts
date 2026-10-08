@@ -66,6 +66,11 @@ export interface MessageNodeOptions {
    */
   identitiesOf?: (address: string) => Agent[];
   /**
+   * The owner's other identities, such as the account the mailbox is,
+   * linked by `sameAs` from every agent that's the owner.
+   */
+  meIdentities?: Agent[];
+  /**
    * The source's own identity for its copy of the message (Gmail's message
    * ID in a mailbox), linked by `sameAs`. The message stays keyed by its
    * Message-ID, which every copy shares.
@@ -91,13 +96,14 @@ export function messageAction(mail: MailMessage, options: MessageNodeOptions = {
     throw new Error(`Email ${mail.messageId ?? '(no Message-ID)'} has no date`);
   }
   const identities = options.identitiesOf ?? (() => []);
-  const sender = agent(
-    mail.from,
-    options.sentByMe || isMe(mail.from.address),
-    identities(mail.from.address)
-  );
+  const person = (address: MailAddress, owner: boolean) =>
+    agent(address, owner, [
+      ...(owner ? (options.meIdentities ?? []) : []),
+      ...identities(address.address),
+    ]);
+  const sender = person(mail.from, options.sentByMe || isMe(mail.from.address));
   const recipients = dedupe([...mail.to, ...mail.cc, ...mail.bcc]).map(address =>
-    agent(address, isMe(address.address), identities(address.address))
+    person(address, isMe(address.address))
   );
 
   const messageId = mail.messageId && msgId(mail.messageId);

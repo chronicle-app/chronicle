@@ -33,7 +33,7 @@ Messages are built by [@chronicle.app/email-core](../../core/email/README.md), t
 | Sending a message | `MessageAction` | `@type`, `sourceId` (the Message-ID)                                       | `agent` (the sender), `object` (the `Message`), `timestamp` (the Date header)                                                                                                                  |
 | A message         | `Message`       | `@type`, `sourceId` (the Message-ID)                                       | `sameAs` (Gmail's message ID in the mailbox), `name` (subject), `body` (what was written, as text or Markdown), `author`, `recipient`, `inReplyTo`, `isPartOf` (its `Thread`), `tags` (labels) |
 | A conversation    | `Thread`        | `@type`, `source`, `inRealm` (the mailbox), `sourceId` (Gmail's thread ID) |                                                                                                                                                                                                |
-| A person          | `Agent`         | `@type`, `source` (`email`), `handle` (their address, lowercased)          | `name`; you are `sameAs` `@me`                                                                                                                                                                 |
+| A person          | `Agent`         | `@type`, `source` (`email`), `handle` (their address, lowercased)          | `name`; you are `sameAs` `@me` and your Google account                                                                                                                                         |
 
 `SHAPES.md` sketches the output, generated from the tests.
 
@@ -52,6 +52,8 @@ Messages are built by [@chronicle.app/email-core](../../core/email/README.md), t
 **A draft isn't a message.** Drafts are left out, from the API and a Takeout alike: they were never sent.
 
 **Mail in Sent is yours.** Its sender is `sameAs` `@me`, whatever address it came from. Gmail also says the mailbox's own address (the API's profile, or the `Delivered-To` header in a Takeout), so you are `@me` as a recipient too.
+
+**You are your Google account.** Wherever you are `@me`, you are also `sameAs` the Google account the mailbox is: an Agent keyed by the mailbox's address in the `google-account` namespace, the node Google Calendar and Chrome link you to. An address is the one identifier the API and a Takeout both have.
 
 ## Tests
 

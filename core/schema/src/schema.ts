@@ -497,6 +497,43 @@ export const BookmarkActionSchema: z.ZodType<BookmarkAction> = z
   })
   .superRefine(requireNodeIdentity);
 
+// Collection, child of https://schema.chronicle.app/CreativeWork
+export interface Collection extends Omit<CreativeWork, '@type'> {
+  '@type': 'Collection';
+}
+
+export type CollectionAndChildren =
+  Collection | CalendarAndChildren | DirectoryAndChildren | ProjectAndChildren | ThreadAndChildren;
+
+const CollectionProperties = {
+  ...CreativeWorkProperties,
+};
+
+export const CollectionSchema: z.ZodType<Collection> = z
+  .object({
+    '@type': z.literal('Collection'),
+    ...CollectionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Calendar, child of https://schema.chronicle.app/Collection
+export interface Calendar extends Omit<Collection, '@type'> {
+  '@type': 'Calendar';
+}
+
+export type CalendarAndChildren = Calendar;
+
+const CalendarProperties = {
+  ...CollectionProperties,
+};
+
+export const CalendarSchema: z.ZodType<Calendar> = z
+  .object({
+    '@type': z.literal('Calendar'),
+    ...CalendarProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // InteractAction, child of https://schema.chronicle.app/Action
 export interface InteractAction extends Omit<Action, '@type'> {
   '@type': 'InteractAction';
@@ -737,25 +774,6 @@ export const CheckInActionSchema: z.ZodType<CheckInAction> = z
   .object({
     '@type': z.literal('CheckInAction'),
     ...CheckInActionProperties,
-  })
-  .superRefine(requireNodeIdentity);
-
-// Collection, child of https://schema.chronicle.app/CreativeWork
-export interface Collection extends Omit<CreativeWork, '@type'> {
-  '@type': 'Collection';
-}
-
-export type CollectionAndChildren =
-  Collection | DirectoryAndChildren | ProjectAndChildren | ThreadAndChildren;
-
-const CollectionProperties = {
-  ...CreativeWorkProperties,
-};
-
-export const CollectionSchema: z.ZodType<Collection> = z
-  .object({
-    '@type': z.literal('Collection'),
-    ...CollectionProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -2437,29 +2455,6 @@ export const ResponseAndChildrenSchema: z.ZodType<ResponseAndChildren> = z
   .superRefine(requireNodeIdentity);
 export const CommandAndChildrenSchema = CommandSchema;
 
-export const CollectionAndChildrenSchema: z.ZodType<CollectionAndChildren> = z
-  .discriminatedUnion('@type', [
-    z.object({
-      '@type': z.literal('Collection'),
-      ...CollectionProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Thread'),
-      ...ThreadProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Project'),
-      ...ProjectProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Directory'),
-      ...DirectoryProperties,
-    }),
-  ])
-  .superRefine(requireNodeIdentity);
 export const CheckInActionAndChildrenSchema = CheckInActionSchema;
 
 export const ChannelAndChildrenSchema = ChannelSchema;
@@ -2601,6 +2596,36 @@ export const InteractActionAndChildrenSchema: z.ZodType<InteractActionAndChildre
     z.object({
       '@type': z.literal('CallAction'),
       ...CallActionProperties,
+    }),
+  ])
+  .superRefine(requireNodeIdentity);
+export const CalendarAndChildrenSchema = CalendarSchema;
+
+export const CollectionAndChildrenSchema: z.ZodType<CollectionAndChildren> = z
+  .discriminatedUnion('@type', [
+    z.object({
+      '@type': z.literal('Collection'),
+      ...CollectionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Thread'),
+      ...ThreadProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Project'),
+      ...ProjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Directory'),
+      ...DirectoryProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Calendar'),
+      ...CalendarProperties,
     }),
   ])
   .superRefine(requireNodeIdentity);
@@ -2749,6 +2774,16 @@ export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> =
     }),
 
     z.object({
+      '@type': z.literal('Channel'),
+      ...ChannelProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Changeset'),
+      ...ChangesetProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Collection'),
       ...CollectionProperties,
     }),
@@ -2769,13 +2804,8 @@ export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> =
     }),
 
     z.object({
-      '@type': z.literal('Channel'),
-      ...ChannelProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Changeset'),
-      ...ChangesetProperties,
+      '@type': z.literal('Calendar'),
+      ...CalendarProperties,
     }),
 
     z.object({
@@ -3070,6 +3100,16 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('Channel'),
+      ...ChannelProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Changeset'),
+      ...ChangesetProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Collection'),
       ...CollectionProperties,
     }),
@@ -3090,13 +3130,8 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('Channel'),
-      ...ChannelProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Changeset'),
-      ...ChangesetProperties,
+      '@type': z.literal('Calendar'),
+      ...CalendarProperties,
     }),
 
     z.object({
@@ -3593,6 +3628,16 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('Channel'),
+      ...ChannelProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Changeset'),
+      ...ChangesetProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Collection'),
       ...CollectionProperties,
     }),
@@ -3613,13 +3658,8 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('Channel'),
-      ...ChannelProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Changeset'),
-      ...ChangesetProperties,
+      '@type': z.literal('Calendar'),
+      ...CalendarProperties,
     }),
 
     z.object({

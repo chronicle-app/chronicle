@@ -79,7 +79,7 @@ export const EVENTS = {
   [HIDDEN]: [],
 };
 
-const CALENDARS = [
+export const CALENDARS = [
   { id: OWNER, summary: OWNER, primary: true, selected: true },
   { id: TEAM, summary: 'Team', summaryOverride: 'Work', selected: true },
   { id: HOLIDAYS, summary: 'Holidays', selected: true },

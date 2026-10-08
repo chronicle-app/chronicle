@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { GoogleCalendarEventsExtractor } from '../dist/index.js';
-import { EVENTS, OWNER, TEAM, TOKEN, fakeCalendar } from './fixture.test-helper.js';
+import { CALENDARS, EVENTS, OWNER, TEAM, TOKEN, fakeCalendar } from './fixture.test-helper.js';
 
 // Every run gets the token outright, so no test reads stored credentials.
 async function extract(config = {}) {
@@ -31,9 +31,19 @@ const person = (handle, name, extra = {}) => ({
   name,
   ...extra,
 });
-const owner = person(OWNER, 'Test Owner', { sameAs: ['@me'] });
+// You, and the Google account you're signed in as, by its address.
+const you = [
+  '@me',
+  {
+    '@type': 'Agent',
+    '@key': ['@type', 'source', 'handle'],
+    source: 'google-account',
+    handle: OWNER,
+  },
+];
+const owner = person(OWNER, 'Test Owner', { sameAs: you });
 const calendar = (sourceId, name) => ({
-  '@type': 'Collection',
+  '@type': 'Calendar',
   '@key': ['@type', 'source', 'sourceId'],
   source: 'google-calendar',
   sourceId,
@@ -158,7 +168,7 @@ test('--since and --until bound when events were created; calendars can be narro
   );
 });
 
-test('occurrences of a recurring event share its creation, latest first; one with no organizer has its calendar', async t => {
+test('occurrences of a recurring event share its creation, latest first; one with no organizer is its calendar owner’s', async t => {
   await fakeCalendar(t);
   const weekly = day => ({
     id: `weekly_${day}`,
@@ -194,15 +204,66 @@ test('occurrences of a recurring event share its creation, latest first; one wit
     created,
     created.toSorted((a, b) => b - a)
   );
+  // Your primary calendar's ID is your address, so it's yours.
   const copied = actions.find(action => action.object.name === 'Copied');
-  assert.deepEqual(copied.agent, {
+  assert.deepEqual(copied.agent, person(OWNER, OWNER, { sameAs: you }));
+});
+
+/** An all-day event, named by its ID, put on its calendar that day. */
+const day = (id, date, fields) => ({
+  id,
+  iCalUID: `${id}@example.com`,
+  created: `${date}T12:00:00Z`,
+  summary: id,
+  start: { date },
+  ...fields,
+});
+
+test('an event’s agent is who put it on the calendar, and you are the signed-in account', async t => {
+  await fakeCalendar(t);
+  const PARTNER = 'partner@example.com';
+  // Another account's calendar, shared with you: Google marks its owner `self`.
+  CALENDARS.push({ id: PARTNER, summary: PARTNER, selected: true });
+  EVENTS[PARTNER] = [day('theirs', '2025-01-04', { organizer: { email: PARTNER, self: true } })];
+  EVENTS[TEAM].push(
+    // Made on a calendar in your account: the calendar is its organizer, you its creator.
+    day('made', '2025-01-05', {
+      organizer: { email: TEAM, displayName: 'Team', self: true },
+      creator: { email: OWNER },
+    }),
+    // No one named, on a calendar made in your account.
+    day('unnamed', '2025-01-06', {})
+  );
+  // Invited under an alias, on your primary calendar.
+  EVENTS[OWNER].push(
+    day('alias', '2025-01-07', {
+      organizer: { email: 'guest@example.com', displayName: 'Test Guest' },
+      attendees: [{ email: 'Alias@Example.com', self: true }],
+    })
+  );
+  t.after(() => {
+    CALENDARS.pop();
+    delete EVENTS[PARTNER];
+    EVENTS[TEAM].splice(-2);
+    EVENTS[OWNER].splice(-1);
+  });
+
+  const { actions } = await extract();
+  const plan = name => actions.find(action => action.object.name === name);
+  assert.ok(actions.every(action => action.agent));
+  // Its owner, not you, though Google marks them as the calendar's.
+  assert.deepEqual(plan('theirs').agent, person(PARTNER, PARTNER));
+  assert.deepEqual(plan('made').agent, person(OWNER, OWNER, { sameAs: you }));
+  assert.deepEqual(plan('unnamed').agent, {
     '@type': 'Agent',
     '@key': ['@type', 'source', 'sourceId'],
     source: 'google-calendar',
-    sourceId: OWNER,
-    name: OWNER,
-    sameAs: ['@me'],
+    sourceId: TEAM,
+    name: 'Work',
   });
+  assert.deepEqual(plan('alias').object.attendee, [
+    person('alias@example.com', 'alias@example.com', { sameAs: you }),
+  ]);
 });
 
 test('an event without an end gets iCalendar’s; one without a start is skipped', async t => {

@@ -23,7 +23,7 @@ const BACK = 0x31_00_00_00; // a link revisited with the back button
 // too, and an address can be in any case.
 export const ACCOUNTS = [
   { gaia: 'gaia-2', email: 'other@example.com' },
-  { gaia: 'gaia-1', email: 'You@Example.com' },
+  { gaia: 'gaia-1', email: 'You@Example.com', full_name: 'Test You' },
 ];
 const preferences = {
   sync: { gaia_id: 'gaia-1' },

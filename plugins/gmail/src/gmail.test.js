@@ -30,7 +30,9 @@ const person = (handle, name, sameAs = []) => ({
   name: name ?? handle,
   ...(sameAs.length > 0 && { sameAs }),
 });
-const owner = person(OWNER, 'Test Owner', ['@me']);
+// You, and the Google account the mailbox is, by its address.
+const you = ['@me', identity('google-account', OWNER)];
+const owner = person(OWNER, 'Test Owner', you);
 const friend = person(FRIEND, 'Test Friend');
 // With --link-contacts, your contact for the friend links their other address
 // and their number.
@@ -101,7 +103,7 @@ test('Gmail messages become emails in their thread, with labels, newest first', 
   // A quoted-printable body is decoded; you, as a recipient, are you; your
   // labels go by name, and read state isn't one.
   assert.equal(plans.object.body, 'Café this weekend?');
-  assert.deepEqual(plans.object.recipient, [person(OWNER, OWNER, ['@me'])]);
+  assert.deepEqual(plans.object.recipient, [person(OWNER, OWNER, you)]);
   assert.deepEqual(plans.agent, friend);
   assert.deepEqual(plans.object.tags, ['Inbox', 'Starred', 'Work', 'Café']);
   assert.deepEqual(plans.object.isPartOf, [thread]);
