@@ -44,7 +44,7 @@ const linkedFriend = person(FRIEND, 'Test Friend', [
 const mailbox = {
   '@type': 'Realm',
   '@key': ['@type', 'source', 'handle'],
-  source: 'gmail',
+  source: 'google-account',
   handle: OWNER,
 };
 const inMailbox = sourceId => ({
