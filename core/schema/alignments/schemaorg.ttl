@@ -28,7 +28,6 @@ schemaorg: rdfs:label "schema.org";
 
 # Classes
 
-:DataType doc:note "Chronicle's data types, such as :Text, are subclasses of :DataType. In schema.org, schemaorg:Text is an instance of schemaorg:DataType." .
 :DateTime doc:note "A :DateTime can also be a date at year, month, or day precision, a date with unspecified digits, or an uncertain date. An instant is always in UTC. A schemaorg:DateTime is a date and a time, and a schemaorg:Date is a date." .
 :DeleteAction doc:note "The agent removed the entity itself, such as by moving it to the trash. A schemaorg:DeleteAction edits something by removing one of its objects, such as an item from a list." .
 :FindAction doc:unlike schemaorg:FindAction;

@@ -121,19 +121,16 @@ export const plural = name => (name.endsWith('y') ? name.slice(0, -1) + 'ies' : 
 export const plain = text => text.replaceAll(TERM, match => match.slice(1));
 
 // Record classes descend from Base; its children are the families (Action,
-// Entity). Datatypes are DataType's descendants, plus any other standalone
-// root. Other roots with subclasses (StructuredValue) group value types that
-// have no identity of their own.
+// Entity). Datatypes are the vocabulary's rdfs:Datatypes, plus any other
+// standalone root. Other roots with subclasses (StructuredValue) group value
+// types that have no identity of their own.
 const roots = [...classes.values()].filter(cls => cls.parents.length === 0);
 export const recordRoots = roots.filter(cls => cls.name === 'Base');
 export const valueRoots = roots.filter(
-  cls => !['Base', 'DataType'].includes(cls.name) && cls.children.length > 0
+  cls => cls.name !== 'Base' && !cls.datatype && cls.children.length > 0
 );
 export const datatypes = [...classes.values()].filter(
-  cls =>
-    cls.name === 'DataType' ||
-    cls.ancestors.includes('DataType') ||
-    (cls.parents.length === 0 && cls.children.length === 0)
+  cls => cls.datatype || (cls.parents.length === 0 && cls.children.length === 0)
 );
 export const families = recordRoots.flatMap(cls => cls.children.map(name => classes.get(name)));
 

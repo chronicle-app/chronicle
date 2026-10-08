@@ -41,10 +41,14 @@ test('generation fails for cyclic or undeclared parents', () => {
   assert.match(missing.stderr, /Undeclared parent/);
 });
 
-test('generation fails for undeclared property ranges and malformed Turtle', () => {
-  const missing = generate(ontology.replace(':rangeIncludes :URL', ':rangeIncludes :Missing'));
+test('generation fails for undeclared property ranges, split domains, and malformed Turtle', () => {
+  const missing = generate(ontology.replace('rdfs:range :URL', 'rdfs:range :Missing'));
   assert.notEqual(missing.status, 0);
   assert.match(missing.stderr, /Undeclared class/);
+  // OWL reads two domains as both at once, so they must be one union.
+  const split = generate(`${ontology}\n:name rdfs:domain :Action .`);
+  assert.notEqual(split.status, 0);
+  assert.match(split.stderr, /more than one .*domain/);
   assert.notEqual(generate('this is not Turtle').status, 0);
 });
 

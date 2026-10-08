@@ -2,13 +2,21 @@ import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Parser, Store } from 'n3';
 import { schemaVersion } from '../../../../core/schema/scripts/schema-version.js';
+import {
+  cardinalityOf,
+  declaredClasses,
+  declaredDatatypes,
+  declaredProperties,
+  domainOf,
+  parentsOf,
+  rangeOf,
+} from '../../../../core/schema/scripts/terms.js';
 import { alignTerms } from './alignments.js';
 import { serializeExample } from './example-payload.js';
 
 export const NAMESPACE = 'https://schema.chronicle.app/';
 const RDF = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#';
 const RDFS = 'http://www.w3.org/2000/01/rdf-schema#';
-const OWL = 'http://www.w3.org/2002/07/owl#';
 const SKOS = 'http://www.w3.org/2004/02/skos/core#';
 const DOC = 'https://schema.chronicle.app/docs/';
 
@@ -59,10 +67,6 @@ export async function loadSchema({ ontology, examples, alignments = [] }) {
 
   const objects = (subject, predicate) => store.getObjects(subject, predicate, null);
   const first = (subject, predicate) => objects(subject, predicate)[0]?.value;
-  const declared = type =>
-    store
-      .getSubjects(RDF + 'type', type, null)
-      .filter(subject => subject.value.startsWith(NAMESPACE) && subject.value !== NAMESPACE);
 
   const exampleRecords = new Map();
   async function readExample(node) {
@@ -89,37 +93,31 @@ export async function loadSchema({ ontology, examples, alignments = [] }) {
     Promise.all(objects(subject, SKOS + 'example').map(node => readExample(node)));
 
   const classes = new Map();
-  for (const subject of declared(RDFS + 'Class')) {
+  const datatypes = new Set(declaredDatatypes(store).map(subject => subject.value));
+  for (const subject of [...declaredClasses(store), ...declaredDatatypes(store)]) {
     classes.set(localName(subject.value), {
       kind: 'class',
       uri: subject.value,
       name: localName(subject.value),
+      datatype: datatypes.has(subject.value),
       comment: first(subject, RDFS + 'comment') ?? '',
-      // A parent in another vocabulary is a mapping, not part of the hierarchy.
-      parents: objects(subject, RDFS + 'subClassOf')
-        .filter(parent => parent.value.startsWith(NAMESPACE))
-        .map(parent => localName(parent.value)),
+      parents: parentsOf(store, subject).map(parent => localName(parent)),
       properties: [],
       examples: await examplesOf(subject),
     });
   }
 
   const properties = new Map();
-  for (const subject of declared(RDF + 'Property')) {
+  for (const subject of declaredProperties(store)) {
     const name = localName(subject.value);
-    const cardinality = predicate => {
-      const value = first(subject, OWL + predicate);
-      return value === undefined ? null : Number(value);
-    };
     const property = {
       kind: 'property',
       uri: subject.value,
       name,
       comment: first(subject, RDFS + 'comment') ?? '',
-      domain: objects(subject, NAMESPACE + 'domainIncludes').map(term => localName(term.value)),
-      range: objects(subject, NAMESPACE + 'rangeIncludes').map(term => localName(term.value)),
-      min: cardinality('minCardinality') ?? 0,
-      max: cardinality('maxCardinality'),
+      domain: domainOf(store, subject).map(term => localName(term)),
+      range: rangeOf(store, subject).map(term => localName(term)),
+      ...cardinalityOf(store, subject),
       examples: await examplesOf(subject),
     };
     for (const term of [...property.domain, ...property.range]) {
