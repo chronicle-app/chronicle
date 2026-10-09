@@ -27,7 +27,7 @@ const identity = (source, handle) => ({
 });
 const person = (handle, name, sameAs = []) => ({
   ...identity('email', handle),
-  name: name ?? handle,
+  ...(name && { name }),
   ...(sameAs.length > 0 && { sameAs }),
 });
 // The account at the mailbox's address, which you are, and the Google
@@ -101,7 +101,8 @@ test('Gmail messages become emails in their thread, with labels, newest first', 
   // A quoted-printable body is decoded; you, as a recipient, are you; your
   // labels go by name, and read state isn't one.
   assert.equal(plans.object.body, 'Café this weekend?');
-  assert.deepEqual(plans.object.recipient, [person(OWNER, OWNER, you)]);
+  // No display name in the To header, so no name: only the address.
+  assert.deepEqual(plans.object.recipient, [person(OWNER, undefined, you)]);
   assert.deepEqual(plans.agent, friend);
   assert.deepEqual(plans.object.tags, ['Inbox', 'Starred', 'Work', 'Café']);
   assert.deepEqual(plans.object.isPartOf, [thread]);

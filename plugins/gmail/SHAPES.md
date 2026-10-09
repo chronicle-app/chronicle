@@ -24,7 +24,7 @@ MessageAction key(sourceId) {
     inAccount[]: Agent key(handle) { handle }
     author[]: Agent key(handle) { handle }
     recipient[]: Agent key(handle) {
-      handle, name
+      handle, name?
       sameAs[]?: Agent key(handle) { handle }
     }
     inReplyTo[]?: Message key(sourceId) { sourceId* }

@@ -33,7 +33,7 @@ Messages are built by [@chronicle.app/email-core](../../core/email/README.md), t
 | Sending a message | `MessageAction` | `@type`, `sourceId` (the Message-ID)                                                | `agent` (the sender), `object` (the `Message`), `timestamp` (the Date header)                                                                                                                        |
 | A message         | `Message`       | `@type`, `sourceId` (the Message-ID)                                                | `inAccount` (the account at the mailbox's address), `name` (subject), `body` (what was written, as text or Markdown), `author`, `recipient`, `inReplyTo`, `isPartOf` (its `Thread`), `tags` (labels) |
 | A conversation    | `Thread`        | `@type`, `source`, `inAccount` (the Google account), `sourceId` (Gmail's thread ID) |                                                                                                                                                                                                      |
-| A person          | `Agent`         | `@type`, `source` (`email`), `handle` (their address, lowercased)                   | `name`; you are `sameAs` `@me` and your Google account                                                                                                                                               |
+| A person          | `Agent`         | `@type`, `source` (`email`), `handle` (their address, lowercased)                   | `name` (when the mail gives one); you are `sameAs` `@me` and your Google account                                                                                                                     |
 
 `SHAPES.md` sketches the output, generated from the tests.
 

@@ -28,7 +28,7 @@ const person = (handle, name, extra = {}) => ({
   '@key': ['@type', 'source', 'handle'],
   source: 'email',
   handle,
-  name,
+  ...(name && { name }),
   ...extra,
 });
 // You, and the Google account you're signed in as, by its address.
@@ -47,7 +47,7 @@ const calendar = (sourceId, name) => ({
   '@key': ['@type', 'source', 'sourceId'],
   source: 'google-calendar',
   sourceId,
-  name,
+  ...(name && { name }),
   ...(!sourceId.endsWith('calendar.google.com') && {
     inAccount: [{ ...account, handle: sourceId }],
   }),
@@ -111,7 +111,8 @@ test('events on the shown calendars become plans for named events, with their gu
       scheduledStart: new Date('2025-03-10T14:00:00Z'),
       scheduledEnd: new Date('2025-03-10T15:00:00Z'),
       location: { '@type': 'Location', address: '1 Example Street' },
-      isPartOf: [calendar(OWNER, OWNER)],
+      // Its summary is only its ID, so it has no name.
+      isPartOf: [calendar(OWNER)],
       // The room booked for it isn't a guest.
       attendee: [owner, guest],
     },
@@ -209,7 +210,7 @@ test('occurrences of a recurring event share its creation, latest first; one wit
   );
   // Your primary calendar's ID is your address, so it's yours.
   const copied = actions.find(action => action.object.name === 'Copied');
-  assert.deepEqual(copied.agent, person(OWNER, OWNER, { sameAs: you }));
+  assert.deepEqual(copied.agent, person(OWNER, undefined, { sameAs: you }));
 });
 
 /** An all-day event, named by its ID, put on its calendar that day. */
@@ -255,8 +256,8 @@ test('an event’s agent is who put it on the calendar, and you are the signed-i
   const plan = name => actions.find(action => action.object.name === name);
   assert.ok(actions.every(action => action.agent));
   // Its owner, not you, though Google marks them as the calendar's.
-  assert.deepEqual(plan('theirs').agent, person(PARTNER, PARTNER));
-  assert.deepEqual(plan('made').agent, person(OWNER, OWNER, { sameAs: you }));
+  assert.deepEqual(plan('theirs').agent, person(PARTNER));
+  assert.deepEqual(plan('made').agent, person(OWNER, undefined, { sameAs: you }));
   assert.deepEqual(plan('unnamed').agent, {
     '@type': 'Agent',
     '@key': ['@type', 'source', 'sourceId'],
@@ -265,7 +266,7 @@ test('an event’s agent is who put it on the calendar, and you are the signed-i
     name: 'Work',
   });
   assert.deepEqual(plan('alias').object.attendee, [
-    person('alias@example.com', 'alias@example.com', { sameAs: you }),
+    person('alias@example.com', undefined, { sameAs: you }),
   ]);
 });
 

@@ -19,7 +19,7 @@ MessageAction key(sourceId) / key(timestamp, agent.handle, object.name) {
   object: Message key(sourceId) / key(action.timestamp, action.agent.handle, name) {
     sourceId?, name, body
     author[]: Agent key(handle) { handle }
-    recipient[]: Agent key(handle) { handle, name }
+    recipient[]: Agent key(handle) { handle, name? }
   }
 }
 ```

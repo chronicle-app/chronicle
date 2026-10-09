@@ -34,7 +34,7 @@ const agent = (handle, name) => ({
   '@key': ['@type', 'source', 'handle'],
   source: 'email',
   handle,
-  name: name ?? handle,
+  ...(name && { name }),
 });
 // The author is the action's agent, written there in full; here, by its key.
 const byKey = ({ name: _name, sameAs: _sameAs, ...key }) => key;

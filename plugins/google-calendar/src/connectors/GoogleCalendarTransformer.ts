@@ -111,7 +111,7 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
       '@key': ['@type', 'source', 'sourceId'],
       source,
       sourceId: calendar.id,
-      name: calendar.summary,
+      ...(namedOtherThan(calendar.summary, calendar.id) && { name: calendar.summary }),
     };
   }
 
@@ -138,10 +138,20 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
       '@key': ['@type', 'source', 'handle'],
       source: 'email',
       handle,
-      name: person.displayName || handle,
+      ...(namedOtherThan(person.displayName, handle) && { name: person.displayName!.trim() }),
       ...(sameAs.length > 0 && { sameAs }),
     };
   }
+}
+
+/**
+ * Whether the source gives a name other than the ID or address again: a name
+ * is what the source reports, and an address copied into it could win over
+ * the person's real name from elsewhere.
+ */
+function namedOtherThan(name: string | undefined, id: string): boolean {
+  const trimmed = name?.trim();
+  return Boolean(trimmed) && trimmed!.toLowerCase() !== id.toLowerCase();
 }
 
 /**
@@ -217,7 +227,7 @@ function calendarCollection(calendar: EventRecord['calendar']): Calendar {
     '@key': ['@type', 'source', 'sourceId'],
     source,
     sourceId: calendar.id,
-    name: calendar.summary,
+    ...(namedOtherThan(calendar.summary, calendar.id) && { name: calendar.summary }),
     ...(!CALENDAR_ID.test(calendar.id) && { inAccount: [googleAccount(calendar.id)] }),
   };
 }

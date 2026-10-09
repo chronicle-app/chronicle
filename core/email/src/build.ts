@@ -177,15 +177,26 @@ function reference(agent: Agent): Agent {
 /** A person by their address, lowercased so one person is one node. */
 function agent(address: MailAddress, me: boolean, identities: Agent[] = []): Agent {
   const handle = address.address.toLowerCase();
+  const name = displayName(address.name, handle);
   const sameAs: NonNullable<Agent['sameAs']> = [...(me ? ['@me'] : []), ...identities];
   return {
     '@type': 'Agent',
     '@key': ADDRESS_KEY,
     source: EMAIL,
     handle,
-    name: address.name || handle,
+    ...(name && { name }),
     ...(sameAs.length > 0 && { sameAs }),
   };
+}
+
+/**
+ * The display name the mail gives an address, unless it's only the address
+ * again: a name is what the source reports, and an address copied into it
+ * could win over the person's real name from other mail.
+ */
+function displayName(name: string | undefined, handle: string): string | undefined {
+  const trimmed = name?.trim();
+  return trimmed && trimmed.toLowerCase() !== handle ? trimmed : undefined;
 }
 
 /** Each address once: a person on both To and Cc is one recipient. */
