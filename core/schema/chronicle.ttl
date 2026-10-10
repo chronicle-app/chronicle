@@ -206,7 +206,7 @@
   :domainIncludes :Entity;
   :rangeIncludes :Realm .
 :inAccount a rdf:Property;
-  rdfs:comment "An account that holds the entity, such as an email account a message was delivered to or an account whose calendar list a calendar is on. An entity held in several accounts is :inAccount each. Identifiers an account issues are unique within it.";
+  rdfs:comment "The agent whose account holds the entity, as that account's service knows them, such as the owner of an email account a message was delivered to. An entity held in several accounts is :inAccount each. Identifiers an account issues are unique within it.";
   :domainIncludes :Entity;
   :rangeIncludes :Agent .
 
