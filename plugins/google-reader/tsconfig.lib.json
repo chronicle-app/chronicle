@@ -12,6 +12,9 @@
     },
     {
       "path": "../../core/schema/tsconfig.lib.json"
+    },
+    {
+      "path": "../../core/google/tsconfig.lib.json"
     }
   ]
 }

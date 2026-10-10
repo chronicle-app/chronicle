@@ -39,6 +39,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "dependencies": {
+    "@chronicle.app/google": "0.3.0",
     "zod": "^3.24.1"
   },
   "peerDependencies": {

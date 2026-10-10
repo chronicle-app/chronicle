@@ -1,4 +1,5 @@
 import { ChronicleTransformer, Record, selfAgent } from '@chronicle.app/etl';
+import { googleAccount } from '@chronicle.app/google';
 import { ActionAndChildren, Agent, Article, Comment } from '@chronicle.app/schema';
 
 import { GoogleReaderItem, UserInfo } from './types.js';
@@ -119,12 +120,7 @@ export default class GoogleReaderTransformer extends ChronicleTransformer {
             handle: email.toLowerCase(),
             ...(name && { name }),
           },
-          {
-            '@type': 'Agent',
-            '@key': ['@type', 'source', 'handle'],
-            source: 'google-account',
-            handle: email.toLowerCase(),
-          },
+          googleAccount(email),
         ]
       : [];
     return selfAgent({

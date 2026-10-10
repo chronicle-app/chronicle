@@ -38,6 +38,7 @@
   },
   "dependencies": {
     "@chronicle.app/etl-sqlite": "0.3.0",
+    "@chronicle.app/google": "0.3.0",
     "zod": "^3.24.1"
   },
   "peerDependencies": {

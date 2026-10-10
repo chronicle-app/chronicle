@@ -1,4 +1,5 @@
 import { ChronicleTransformer, Record, selfAgent } from '@chronicle.app/etl';
+import { googleAccount } from '@chronicle.app/google';
 import {
   ActionAndChildren,
   Agent,
@@ -73,18 +74,12 @@ export default class ChromeTransformer extends ChronicleTransformer {
    */
   private buildUser(account: ChromeAccount | null | undefined): Agent | null {
     if (!account) return null;
-    const googleAccount: Agent = {
-      '@type': 'Agent',
-      '@key': ['@type', 'source', 'handle'],
-      source: 'google-account',
-      handle: account.email,
-    };
     return selfAgent({
       type: 'Agent',
       source: 'email',
       handle: account.email,
       ...(account.name && { name: account.name }),
-      sameAs: [googleAccount],
+      sameAs: [googleAccount(account.email)],
     });
   }
 

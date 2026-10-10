@@ -15,6 +15,9 @@
     },
     {
       "path": "../../core/etl-sqlite/tsconfig.lib.json"
+    },
+    {
+      "path": "../../core/google/tsconfig.lib.json"
     }
   ]
 }
