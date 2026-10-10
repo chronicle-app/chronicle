@@ -28,7 +28,8 @@ const person = (handle, name, extra = {}) => ({
   '@key': ['@type', 'source', 'handle'],
   source: 'email',
   handle,
-  ...(name && { name }),
+  // What the invitation called them: another name.
+  ...(name && { alternateName: [name] }),
   ...extra,
 });
 // You, and the Google account you're signed in as, by its address.
@@ -141,12 +142,24 @@ test('--link-contacts links guests to your contacts', async t => {
   await fakeCalendar(t);
   const { actions } = await extract({ linkContacts: true });
   const standup = actions.find(action => action.object.name === 'Standup');
+  // Your contact for the guest: the entry in your Google account, named as you
+  // saved it, with their number.
   assert.deepEqual(standup.agent.sameAs, [
     {
       '@type': 'Agent',
-      '@key': ['@type', 'source', 'handle'],
-      source: 'phone',
-      handle: '+14165550199',
+      '@key': ['@type', 'source', 'inAccount[*].handle', 'sourceId'],
+      source: 'google-contacts',
+      sourceId: 'c2002',
+      inAccount: [account],
+      name: 'Guest From Contacts',
+      sameAs: [
+        {
+          '@type': 'Agent',
+          '@key': ['@type', 'source', 'handle'],
+          source: 'phone',
+          handle: '+14165550199',
+        },
+      ],
     },
   ]);
 });

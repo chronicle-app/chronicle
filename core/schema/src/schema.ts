@@ -180,6 +180,7 @@ export const AddActionSchema: z.ZodType<AddAction> = z
 export interface Entity extends Omit<Base, '@type'> {
   '@type': 'Entity';
   about?: EntityAndChildren[];
+  alternateName?: string[];
   body?: string;
   category?: string[];
   contains?: MediaObjectAndChildren[];
@@ -216,6 +217,7 @@ export type EntityAndChildren =
 const EntityProperties = {
   ...BaseProperties,
   about: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
+  alternateName: z.lazy(() => z.array(z.string())).optional(),
   body: z.lazy(() => z.string()).optional(),
   category: z.lazy(() => z.array(z.string())).optional(),
   contains: z.lazy(() => z.array(MediaObjectAndChildrenSchema)).optional(),

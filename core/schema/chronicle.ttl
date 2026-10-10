@@ -33,6 +33,10 @@
   owl:maxCardinality 1;
   :domainIncludes :Entity;
   :rangeIncludes :Text .
+:alternateName a rdf:Property;
+  rdfs:comment "Another name the entity was shown with, such as the display name a message gave its sender or a recipient. An entity can have many.";
+  :domainIncludes :Entity;
+  :rangeIncludes :Text .
 :url a rdf:Property;
   rdfs:comment "A URL at which the entity can be found, such as a web page's address or a link to the record in its source.";
   owl:maxCardinality 1;

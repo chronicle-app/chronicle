@@ -33,7 +33,7 @@ Messages are built by [@chronicle.app/email-core](../../core/email/README.md), t
 | Sending a message | `MessageAction` | `@type`, `sourceId` (the Message-ID)                                                | `agent` (the sender), `object` (the `Message`), `timestamp` (the Date header)                                                                                                                        |
 | A message         | `Message`       | `@type`, `sourceId` (the Message-ID)                                                | `inAccount` (the account at the mailbox's address), `name` (subject), `body` (what was written, as text or Markdown), `author`, `recipient`, `inReplyTo`, `isPartOf` (its `Thread`), `tags` (labels) |
 | A conversation    | `Thread`        | `@type`, `source`, `inAccount` (the Google account), `sourceId` (Gmail's thread ID) |                                                                                                                                                                                                      |
-| A person          | `Agent`         | `@type`, `source` (`email`), `handle` (their address, lowercased)                   | `name` (when the mail gives one); you are `sameAs` `@me` and your Google account                                                                                                                     |
+| A person          | `Agent`         | `@type`, `source` (`email`), `handle` (their address, lowercased)                   | `alternateName` (each display name the mail gave it); you are `sameAs` `@me` and your Google account                                                                                                 |
 
 `SHAPES.md` sketches the output, generated from the tests.
 
@@ -47,9 +47,11 @@ Messages are built by [@chronicle.app/email-core](../../core/email/README.md), t
 
 **A body is what was written, not what was sent.** It's plain text or Markdown, never HTML: the text part, or the HTML part converted to Markdown. Quoted history, signatures, newsletter footers, images, and tracking parameters are left out; see [@chronicle.app/email-core](../../core/email/README.md).
 
-**Your contacts can link people.** With `--link-contacts` (and `chronicle auth login google --add contacts`), a person on one of your contacts is `sameAs` the contact's other addresses and phone numbers, so the person who emails you is the person who texts or calls you. A Takeout run links them too when you're signed in.
+**Your contacts can link people.** With `--link-contacts` (and `chronicle auth login google --add contacts`), a person on one of your contacts is `sameAs` your contact: the entry in your Google account's contacts, keyed by its ID there and named as you saved it, which is `sameAs` the contact's other addresses and phone numbers, so the person who emails you is the person who texts or calls you. A Takeout run links them too when you're signed in.
 
 **A draft isn't a message.** Drafts are left out, from the API and a Takeout alike: they were never sent.
+
+**A display name is what a message called someone.** The name in a `From`, `To`, or `Cc` header is chosen by the sender or their address book, and a group or notification address carries a different one in nearly every message. So it's an `alternateName` of the address, never its `name`, and an address gathers one for each name it was shown with. A person's `name` comes from a source that keeps a record of them: the name you saved for a contact is that contact's `name`.
 
 **Mail in Sent is yours.** Its sender is `sameAs` `@me`, whatever address it came from. Gmail also says the mailbox's own address (the API's profile, or the `Delivered-To` header in a Takeout), so you are `@me` as a recipient too.
 

@@ -16,7 +16,7 @@ converted from the record. Every node also has `source`.
 MessageAction key(sourceId) {
   sourceId*, timestamp
   agent: Agent key(handle) {
-    handle, name
+    handle, alternateName[]
     sameAs[]?: Agent key(handle) { handle }
   }
   object: Message key(sourceId) {
@@ -24,7 +24,7 @@ MessageAction key(sourceId) {
     inAccount[]: Agent key(handle) { handle }
     author[]: Agent key(handle) { handle }
     recipient[]: Agent key(handle) {
-      handle, name?
+      handle, alternateName[]?
       sameAs[]?: Agent key(handle) { handle }
     }
     inReplyTo[]?: Message key(sourceId) { sourceId* }

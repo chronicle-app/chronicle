@@ -52,7 +52,7 @@ chronicle auth login google --add drive
 
 ### Contacts link people; they aren't extracted
 
-Contacts isn't a source of its own, and it's off unless you ask for it. With `--link-contacts`, Gmail and Calendar read your contacts once a run and look up each address they see: a person on one of your contacts is `sameAs` the contact's other addresses (in the `email` namespace) and phone numbers (in the `phone` namespace, E.164), the identities iMessage and call history key people by. Add the access with `chronicle auth login google --add contacts`; without it, a run with `--link-contacts` goes on unlinked and says how to add it.
+Contacts isn't a source of its own, and it's off unless you ask for it. With `--link-contacts`, Gmail and Calendar read your contacts once a run and look up each address they see: a person on one of your contacts is `sameAs` the contact (`contactIdentities`): an Agent in the `google-contacts` namespace, keyed by the contact's ID within your Google account (`inAccount`), named as you saved it (not the name on the person's own Google profile), and `sameAs` its other addresses (in the `email` namespace) and phone numbers (in the `phone` namespace, E.164), the identities iMessage and call history key people by. Add the access with `chronicle auth login google --add contacts`; without it, a run with `--link-contacts` goes on unlinked and says how to add it.
 
 ## For sources
 

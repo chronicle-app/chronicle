@@ -16,7 +16,7 @@ converted from the record. Every node also has `source`.
 PlanAction key(sourceId) {
   sourceId, timestamp
   agent: Agent key(handle) {
-    handle, name?
+    handle, alternateName[]?
     sameAs[]?: Agent key(handle) { handle }
   }
   object: Event key(sourceId) {
@@ -28,7 +28,7 @@ PlanAction key(sourceId) {
       inAccount[]?: Agent key(handle) { handle }
     }
     attendee[]?: Agent key(handle) {
-      handle, name
+      handle, alternateName[]
       sameAs[]?: Agent key(handle) { handle }
     }
   }

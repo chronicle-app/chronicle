@@ -184,15 +184,16 @@ function agent(address: MailAddress, me: boolean, identities: Agent[] = []): Age
     '@key': ADDRESS_KEY,
     source: EMAIL,
     handle,
-    ...(name && { name }),
+    ...(name && { alternateName: [name] }),
     ...(sameAs.length > 0 && { sameAs }),
   };
 }
 
 /**
  * The display name the mail gives an address, unless it's only the address
- * again: a name is what the source reports, and an address copied into it
- * could win over the person's real name from other mail.
+ * again. It's what one message called the address, which the sender or their
+ * address book chose, so it's another name the address was shown with, not
+ * the address's own name.
  */
 function displayName(name: string | undefined, handle: string): string | undefined {
   const trimmed = name?.trim();

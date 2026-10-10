@@ -124,6 +124,10 @@ export async function fakeCalendar(t) {
       return reply(200, {
         connections: [
           {
+            resourceName: 'people/c2002',
+            names: [
+              { displayName: 'Guest From Contacts', metadata: { source: { type: 'CONTACT' } } },
+            ],
             emailAddresses: [{ value: 'guest@example.com' }],
             phoneNumbers: [{ canonicalForm: '+14165550199' }],
           },

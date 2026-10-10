@@ -15,11 +15,11 @@ converted from the record. Every node also has `source`.
 ```ts
 MessageAction key(sourceId) / key(timestamp, agent.handle, object.name) {
   sourceId?, timestamp
-  agent: Agent key(handle) { handle, name }
+  agent: Agent key(handle) { handle, alternateName[] }
   object: Message key(sourceId) / key(action.timestamp, action.agent.handle, name) {
     sourceId?, name, body
     author[]: Agent key(handle) { handle }
-    recipient[]: Agent key(handle) { handle, name? }
+    recipient[]: Agent key(handle) { handle, alternateName[]? }
   }
 }
 ```

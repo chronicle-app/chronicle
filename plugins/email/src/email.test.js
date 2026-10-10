@@ -34,10 +34,11 @@ const agent = (handle, name) => ({
   '@key': ['@type', 'source', 'handle'],
   source: 'email',
   handle,
-  ...(name && { name }),
+  // A header's display name is another name the address was shown with.
+  ...(name && { alternateName: [name] }),
 });
 // The author is the action's agent, written there in full; here, by its key.
-const byKey = ({ name: _name, sameAs: _sameAs, ...key }) => key;
+const byKey = ({ alternateName: _alternateName, sameAs: _sameAs, ...key }) => key;
 
 test('messages become schema-valid MessageActions keyed on the Message-ID', async t => {
   const input = fixture(t, [keyed]);

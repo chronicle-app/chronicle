@@ -25,9 +25,10 @@ const identity = (source, handle) => ({
   source,
   handle,
 });
+// A header's display name is another name the address was shown with.
 const person = (handle, name, sameAs = []) => ({
   ...identity('email', handle),
-  ...(name && { name }),
+  ...(name && { alternateName: [name] }),
   ...(sameAs.length > 0 && { sameAs }),
 });
 // The account at the mailbox's address, which you are, and the Google
@@ -36,11 +37,18 @@ const account = identity('email', OWNER);
 const you = ['@me', identity('google-account', OWNER)];
 const owner = person(OWNER, 'Test Owner', you);
 const friend = person(FRIEND, 'Test Friend');
-// With --link-contacts, your contact for the friend links their other address
-// and their number.
+// With --link-contacts, the friend is your contact: the entry by its ID in the
+// Google account, named as you saved it, with their other address and number.
 const linkedFriend = person(FRIEND, 'Test Friend', [
-  identity('email', 'friend@home.example'),
-  identity('phone', '+14165550100'),
+  {
+    '@type': 'Agent',
+    '@key': ['@type', 'source', 'inAccount[*].handle', 'sourceId'],
+    source: 'google-contacts',
+    sourceId: 'c1001',
+    inAccount: [identity('google-account', OWNER)],
+    name: 'Friend From Contacts',
+    sameAs: [identity('email', 'friend@home.example'), identity('phone', '+14165550100')],
+  },
 ]);
 // The Google account issued Gmail's thread IDs, which are only unique within it.
 const thread = {
@@ -51,7 +59,7 @@ const thread = {
   inAccount: [identity('google-account', OWNER)],
 };
 // The author is the action's agent, written there in full; here, by its key.
-const byKey = ({ name: _name, sameAs: _sameAs, ...key }) => key;
+const byKey = ({ alternateName: _alternateName, sameAs: _sameAs, ...key }) => key;
 
 test('Gmail messages become emails in their thread, with labels, newest first', async t => {
   const requests = await fakeGmail(t);

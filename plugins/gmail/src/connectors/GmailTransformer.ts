@@ -46,7 +46,8 @@ export default class GmailTransformer extends ChronicleTransformer {
         // You are the Google account at the mailbox's address.
         meIdentities: google ? [google] : [],
         // Your contacts link a person to their other addresses and numbers.
-        identitiesOf: address => contactIdentities(address, contacts?.[address.toLowerCase()]),
+        identitiesOf: address =>
+          contactIdentities(address, contacts?.[address.toLowerCase()], gmail.owner),
       }),
     ];
   }

@@ -131,14 +131,17 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
     // You, and the other addresses and numbers your contacts have for them.
     const sameAs: NonNullable<Agent['sameAs']> = [
       ...(you ? ['@me', ...(account ? [googleAccount(account)] : [])] : []),
-      ...contactIdentities(handle, contacts[handle]),
+      ...contactIdentities(handle, contacts[handle], account),
     ];
     return {
       '@type': 'Agent',
       '@key': ['@type', 'source', 'handle'],
       source: 'email',
       handle,
-      ...(namedOtherThan(person.displayName, handle) && { name: person.displayName!.trim() }),
+      // What the invitation called them: another name, not their own.
+      ...(namedOtherThan(person.displayName, handle) && {
+        alternateName: [person.displayName!.trim()],
+      }),
       ...(sameAs.length > 0 && { sameAs }),
     };
   }
