@@ -177,6 +177,17 @@ test('a Takeout becomes the same messages, threads, and labels', async t => {
   assert.deepEqual(local['plans@example.com'].object.tags, ['Inbox', 'Starred', 'Work', 'Café']);
 });
 
+test('a Takeout never reads your contacts', async t => {
+  const requests = await fakeGmail(t);
+  const { actions } = await extract(GmailTakeoutExtractor, {
+    input: takeout(t),
+    sent: true,
+    linkContacts: true,
+  });
+  assert.ok(!requests.some(r => r.path === '/people/me/connections'));
+  assert.deepEqual(actions[0].object.recipient, [person(FRIEND, 'Test Friend')]);
+});
+
 test('a Takeout run filters each message itself', async t => {
   await fakeGmail(t);
   const input = takeout(t);

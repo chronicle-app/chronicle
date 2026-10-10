@@ -47,7 +47,7 @@ Messages are built by [@chronicle.app/email-core](../../core/email/README.md), t
 
 **A body is what was written, not what was sent.** It's plain text or Markdown, never HTML: the text part, or the HTML part converted to Markdown. Quoted history, signatures, newsletter footers, images, and tracking parameters are left out; see [@chronicle.app/email-core](../../core/email/README.md).
 
-**Your contacts can link people.** With `--link-contacts` (and `chronicle auth login google --add contacts`), a person on one of your contacts is `sameAs` your contact: the entry in your Google account's contacts, keyed by its ID there and named as you saved it, which is `sameAs` the contact's other addresses and phone numbers, so the person who emails you is the person who texts or calls you. A Takeout run links them too when you're signed in.
+**Your contacts can link people.** With `--link-contacts` (and `chronicle auth login google --add contacts`), a person on one of your contacts is `sameAs` your contact: the entry in your Google account's contacts, keyed by its ID there and named as you saved it, which is `sameAs` the contact's other addresses and phone numbers, so the person who emails you is the person who texts or calls you. A Takeout doesn't: it can't say whose contacts they'd be.
 
 **A draft isn't a message.** Drafts are left out, from the API and a Takeout alike: they were never sent.
 
