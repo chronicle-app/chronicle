@@ -10,6 +10,7 @@ const CHRONICLE = 'https://schema.chronicle.app/';
 const RDFS = 'http://www.w3.org/2000/01/rdf-schema#';
 const OWL = 'http://www.w3.org/2002/07/owl#';
 const SKOS = 'http://www.w3.org/2004/02/skos/core#';
+const XSD = 'http://www.w3.org/2001/XMLSchema#';
 const DOC = 'https://schema.chronicle.app/docs/';
 
 // What each mapping says about the Chronicle term, in the order pages list them.
@@ -91,10 +92,12 @@ export function alignTerms({ ontology, alignments, classes, properties }) {
     });
   }
 
-  // chronicle.ttl maps to schema.org; a subclass in the Chronicle namespace is
-  // part of the hierarchy, not a mapping.
+  // chronicle.ttl maps to schema.org. A subclass in the Chronicle namespace is
+  // part of the hierarchy, and the XSD type a datatype is equivalent to defines
+  // it; neither is a mapping.
   for (const quad of mappings(ontology)) {
-    if (quad.object.termType !== 'NamedNode' || quad.object.value.startsWith(CHRONICLE)) continue;
+    const { termType, value } = quad.object;
+    if (termType !== 'NamedNode' || value.startsWith(CHRONICLE) || value.startsWith(XSD)) continue;
     const vocabulary = vocabularies.find(candidate =>
       quad.object.value.startsWith(candidate.namespace)
     );

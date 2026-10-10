@@ -120,8 +120,8 @@ test('alignments are checked against the release they name', async () => {
     @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
     @prefix ex: <https://example.org/> .
     : a owl:Ontology; owl:versionInfo "1.0.0" .
-    :Base a rdfs:Class .
-    :LikeAction a rdfs:Class; rdfs:subClassOf :Base, ex:Like .`;
+    :Base a owl:Class .
+    :LikeAction a owl:Class; rdfs:subClassOf :Base, ex:Like .`;
   const terms = {
     vocabulary: 'https://example.org/',
     release: '1',
