@@ -2,10 +2,10 @@
 # vocabulary: only the documentation site and its tests read this file, and
 # the site publishes it.
 #
-# Each Chronicle term states how it relates to an Activity Streams term:
+# Each Chronicle term points to the closest Activity Streams term, as a hint
+# for mapping data between them. A reasoner draws nothing from these SKOS
+# mappings:
 #
-# - rdfs:subClassOf: every member of the Chronicle class is a member of the
-#   Activity Streams class.
 # - skos:exactMatch, skos:closeMatch, skos:broadMatch: the two properties or
 #   classes have the same meaning, a similar one, or the Activity Streams one
 #   is broader.
@@ -33,45 +33,45 @@ as: rdfs:label "Activity Streams 2.0";
 
 # Classes
 
-:Base rdfs:subClassOf as:Object .
-:Action rdfs:subClassOf as:Activity .
-:AcceptAction rdfs:subClassOf as:Accept .
-:AddAction rdfs:subClassOf as:Add .
-:Article rdfs:subClassOf as:Article .
-:AudioObject rdfs:subClassOf as:Audio .
+:Base skos:broadMatch as:Object .
+:Action skos:broadMatch as:Activity .
+:AcceptAction skos:broadMatch as:Accept .
+:AddAction skos:broadMatch as:Add .
+:Article skos:broadMatch as:Article .
+:AudioObject skos:broadMatch as:Audio .
 :CheckInAction skos:closeMatch as:Arrive;
   doc:note "An as:Arrive has no as:object. The :Venue, the :object, is its as:location." .
-:Collection rdfs:subClassOf as:Collection;
-  doc:note "The members of a :Collection are the entities that are :isPartOf it. An as:Collection lists its members in its as:items." .
-:CreateAction rdfs:subClassOf as:Create;
-  doc:note "The work created is the :result. In an as:Create, it is the as:object." .
-:DeleteAction rdfs:subClassOf as:Delete .
-:DocumentObject rdfs:subClassOf as:Document .
-:Event rdfs:subClassOf as:Event .
-:FollowAction rdfs:subClassOf as:Follow .
-:ImageObject rdfs:subClassOf as:Image .
-:JoinAction rdfs:subClassOf as:Join .
-:LeaveAction rdfs:subClassOf as:Leave .
-:LikeAction rdfs:subClassOf as:Like .
-:ListenAction rdfs:subClassOf as:Listen .
-:MediaObject rdfs:subClassOf as:Document .
+:Collection doc:note "The members of a :Collection are the entities that are :isPartOf it. An as:Collection lists its members in its as:items.";
+  skos:broadMatch as:Collection .
+:CreateAction doc:note "The work created is the :result. In an as:Create, it is the as:object.";
+  skos:broadMatch as:Create .
+:DeleteAction skos:broadMatch as:Delete .
+:DocumentObject skos:broadMatch as:Document .
+:Event skos:broadMatch as:Event .
+:FollowAction skos:broadMatch as:Follow .
+:ImageObject skos:broadMatch as:Image .
+:JoinAction skos:broadMatch as:Join .
+:LeaveAction skos:broadMatch as:Leave .
+:LikeAction skos:broadMatch as:Like .
+:ListenAction skos:broadMatch as:Listen .
+:MediaObject skos:broadMatch as:Document .
 :MoveAction doc:unlike as:Move;
   doc:note "An as:Move is the actor moving the as:object from the as:origin to the as:target, such as a post from one list to another." .
-:Organization rdfs:subClassOf as:Organization .
-:Person rdfs:subClassOf as:Person .
-:Place rdfs:subClassOf as:Place;
-  doc:note "A :Place gives its coordinates on its :location. An as:Place has its own as:latitude and as:longitude." .
+:Organization skos:broadMatch as:Organization .
+:Person skos:broadMatch as:Person .
+:Place doc:note "A :Place gives its coordinates on its :location. An as:Place has its own as:latitude and as:longitude.";
+  skos:broadMatch as:Place .
 :Post skos:closeMatch as:Note .
-:ReadAction rdfs:subClassOf as:Read .
-:RejectAction rdfs:subClassOf as:Reject .
+:ReadAction skos:broadMatch as:Read .
+:RejectAction skos:broadMatch as:Reject .
 :Relationship doc:unlike as:Relationship;
   doc:note "An as:Relationship is any relationship between two individuals, given by its as:subject and as:object." .
 :SoftwareAgent skos:closeMatch as:Application .
-:TravelAction rdfs:subClassOf as:Travel;
-  doc:note "An as:Travel has no as:object. The :object, where the travel began, is its as:origin, and the :target is its as:target." .
-:UpdateAction rdfs:subClassOf as:Update .
-:VideoObject rdfs:subClassOf as:Video .
-:ViewAction rdfs:subClassOf as:View .
+:TravelAction doc:note "An as:Travel has no as:object. The :object, where the travel began, is its as:origin, and the :target is its as:target.";
+  skos:broadMatch as:Travel .
+:UpdateAction skos:broadMatch as:Update .
+:VideoObject skos:broadMatch as:Video .
+:ViewAction skos:broadMatch as:View .
 :WatchAction skos:closeMatch as:View .
 
 # Properties

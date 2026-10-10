@@ -1,8 +1,8 @@
 # How Chronicle's terms relate to schema.org's. Not part of the vocabulary:
 # only the documentation site and its tests read this file.
 #
-# Chronicle is built on schema.org, so the mappings themselves are part of the
-# vocabulary and live in chronicle.ttl. This file holds what the mappings
+# chronicle.ttl points each term to the closest schema.org term with SKOS, as
+# a hint for mapping data between them. This file holds what those mappings
 # cannot say:
 #
 # - doc:note explains how a Chronicle term differs from the schema.org term

@@ -1,6 +1,6 @@
 # schema.org
 
-schema.org is a shared vocabulary for describing things on the web, such as people, places, creative works, and actions. Chronicle is built on it: where schema.org has a term for something, Chronicle uses that term's name and maps its own term to schema.org's.
+schema.org is a shared vocabulary for describing things on the web, such as people, places, creative works, and actions. Chronicle borrows its model and names: where schema.org has a term for something, Chronicle uses that term's name and points its own term to schema.org's.
 
 ## What it's for
 
@@ -10,7 +10,7 @@ Web publishers add schema.org to their pages so that search engines and other pr
 
 Chronicle describes what happened the way schema.org does. An :Action has an :agent who performed it and an :object it was carried out on, and it can have a :result, an :instrument, a :target, and a :location. A work is a :CreativeWork, with an :author and a :datePublished. A media file is a :MediaObject, with subclasses such as :VideoObject.
 
-Most Chronicle classes sit under the same parents as the schema.org classes they are named after. Each one is declared a subclass of its schema.org class, so every Chronicle :VideoObject is also a schemaorg:VideoObject. Properties are matched by meaning: a Chronicle property means the same as a schema.org property, or something close to it.
+Most Chronicle classes sit under the same parents as the schema.org classes they are named after. Each class and property points to the closest schema.org term, as a hint for mapping data. The hints don't make a Chronicle :VideoObject a schemaorg:VideoObject: Chronicle's values follow its own rules, and some terms differ in scope or structure, as the notes below say.
 
 ## What Chronicle adds
 

@@ -1,8 +1,9 @@
-// How Chronicle's terms relate to other vocabularies. chronicle.ttl maps terms to
-// schema.org, and core/schema/alignments/<id>.ttl holds the notes for one
-// vocabulary and any mappings to it that are not part of the vocabulary. Every
-// mapping is checked against <id>.terms.json, the terms of the release that
-// the alignment names.
+// How Chronicle's terms relate to other vocabularies. chronicle.ttl points its
+// terms to schema.org's, and core/schema/alignments/<id>.ttl holds the notes for
+// one vocabulary and any mappings to it that are not part of the vocabulary.
+// Mappings are SKOS: hints for mapping data, which a reasoner draws nothing
+// from. Every mapping is checked against <id>.terms.json, the terms of the
+// release that the alignment names.
 import { Parser, Store } from 'n3';
 import { TERM } from './html.js';
 
@@ -15,10 +16,7 @@ const DOC = 'https://schema.chronicle.app/docs/';
 
 // What each mapping says about the Chronicle term, in the order pages list them.
 const RELATIONS = {
-  [OWL + 'equivalentClass']: 'same',
-  [OWL + 'equivalentProperty']: 'same',
   [SKOS + 'exactMatch']: 'same',
-  [RDFS + 'subClassOf']: 'narrower',
   [SKOS + 'broadMatch']: 'narrower',
   [SKOS + 'narrowMatch']: 'broader',
   [SKOS + 'closeMatch']: 'close',
@@ -26,8 +24,14 @@ const RELATIONS = {
   [DOC + 'unlike']: 'unlike',
 };
 const ORDER = ['same', 'narrower', 'broader', 'close', 'related', 'unlike'];
-const CLASSES_ONLY = new Set([OWL + 'equivalentClass', RDFS + 'subClassOf']);
-const PROPERTIES_ONLY = new Set([OWL + 'equivalentProperty']);
+// Statements a reasoner acts on. Chronicle stands on its own, so none of them
+// may point to another vocabulary.
+const ENTAILING = [
+  RDFS + 'subClassOf',
+  RDFS + 'subPropertyOf',
+  OWL + 'equivalentClass',
+  OWL + 'equivalentProperty',
+];
 
 // Another vocabulary's term in prose, such as `as:origin`: the prefix, then the name.
 const PREFIXED = /(?<![\w/:])([a-z][a-z0-9]*):([A-Za-z][A-Za-z0-9]*)/g;
@@ -47,6 +51,22 @@ function alignmentOf(term, vocabulary) {
   return found;
 }
 
+/** Throws on a statement in `store` that a reasoner would act on across vocabularies. */
+function rejectEntailing(file, store) {
+  for (const predicate of ENTAILING) {
+    for (const { subject, object } of store.getQuads(null, predicate, null)) {
+      // A subclass in the Chronicle namespace is part of the hierarchy, and the
+      // XSD type a datatype is equivalent to defines it.
+      const { termType, value } = object;
+      if (termType !== 'NamedNode' || value.startsWith(CHRONICLE) || value.startsWith(XSD))
+        continue;
+      throw new Error(
+        `${file}: ${subject.value} ${predicate} ${value}. Point to another vocabulary's term with skos:exactMatch, skos:closeMatch, or skos:broadMatch instead.`
+      );
+    }
+  }
+}
+
 /** The term `prefix:name` of one of `vocabularies`, or null when it has none. */
 export function findTerm(vocabularies, prefix, name) {
   const vocabulary = vocabularies.find(candidate => candidate.prefix === prefix);
@@ -59,8 +79,9 @@ export function findTerm(vocabularies, prefix, name) {
  * property its `alignments`: one entry per vocabulary it relates to, with the
  * relations and the note. `ontology` holds chronicle.ttl's statements. Throws
  * when a mapping or note names a term that is not declared, or that the
- * release does not have, and when a term shares a name with another
- * vocabulary's term that it neither maps to nor marks as unlike.
+ * release does not have, when a term shares a name with another vocabulary's
+ * term that it neither maps to nor marks as unlike, and when a subclass or an
+ * equivalence points to another vocabulary.
  */
 export function alignTerms({ ontology, alignments, classes, properties }) {
   const vocabularies = alignments.map(file => readVocabulary(file));
@@ -74,10 +95,6 @@ export function alignTerms({ ontology, alignments, classes, properties }) {
 
   function relate(file, { subject, predicate, object }, vocabulary) {
     const term = termOf(subject.value, file);
-    if (CLASSES_ONLY.has(predicate.value) && term.kind !== 'class')
-      throw new Error(`${file}: ${predicate.value} relates classes, not :${term.name}`);
-    if (PROPERTIES_ONLY.has(predicate.value) && term.kind !== 'property')
-      throw new Error(`${file}: ${predicate.value} relates properties, not :${term.name}`);
     const name = object.value.slice(vocabulary.namespace.length);
     const names = term.kind === 'class' ? vocabulary.classes : vocabulary.properties;
     if (!names.has(name))
@@ -92,12 +109,9 @@ export function alignTerms({ ontology, alignments, classes, properties }) {
     });
   }
 
-  // chronicle.ttl maps to schema.org. A subclass in the Chronicle namespace is
-  // part of the hierarchy, and the XSD type a datatype is equivalent to defines
-  // it; neither is a mapping.
+  rejectEntailing('chronicle.ttl', ontology);
+  for (const vocabulary of vocabularies) rejectEntailing(vocabulary.file, vocabulary.store);
   for (const quad of mappings(ontology)) {
-    const { termType, value } = quad.object;
-    if (termType !== 'NamedNode' || value.startsWith(CHRONICLE) || value.startsWith(XSD)) continue;
     const vocabulary = vocabularies.find(candidate =>
       quad.object.value.startsWith(candidate.namespace)
     );

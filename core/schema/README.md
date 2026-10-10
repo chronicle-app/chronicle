@@ -16,14 +16,15 @@ the examples format.
 
 ## Other vocabularies
 
-Chronicle is built on schema.org, and `chronicle.ttl` maps its terms to
-schema.org's. A class that is a kind of a schema.org class lists it with
-`rdfs:subClassOf`. A property, a datatype, or a class with no schema.org
-parent uses `skos:exactMatch` for the same meaning, `skos:closeMatch` for a
-similar one, and `skos:broadMatch` when schema.org's term is broader. OWL
-can't make a datatype a kind of a class, so `Text` uses `skos:broadMatch`. These mappings are
-part of the vocabulary. The generator and the site read only parents in the
-Chronicle namespace as the class hierarchy.
+Chronicle's vocabulary stands on its own. It borrows schema.org's model and
+names, and `chronicle.ttl` points each term to the closest schema.org term as a
+hint for mapping data between them: `skos:exactMatch` for the same meaning,
+`skos:closeMatch` for a similar one, and `skos:broadMatch` when schema.org's
+term is broader. A reasoner draws nothing from SKOS mappings, so the hints
+don't claim the vocabularies are compatible. They aren't: values, scope, and
+structure differ in places. No `rdfs:subClassOf`, `rdfs:subPropertyOf`,
+`owl:equivalentClass`, or `owl:equivalentProperty` points to another
+vocabulary, and the schema site's build fails on one.
 
 [alignments/](alignments) holds one file for each vocabulary that Chronicle's
 terms relate to, `schemaorg.ttl` and `activitystreams.ttl`. Each names the
@@ -124,9 +125,8 @@ The generator turns the ontology into TypeScript types and Zod validators. It
 reads terms through `scripts/terms.js`, which the schema site also uses. It
 handles inheritance, including a class with two parents, domains and ranges,
 and SHACL counts, and it fails for cyclic inheritance, undeclared referenced
-classes, or a property with two domains or ranges. It ignores parents in other
-vocabularies. The package has no persistence metadata, derived effects, or
-runtime filesystem parser.
+classes, or a property with two domains or ranges. The package has no
+persistence metadata, derived effects, or runtime filesystem parser.
 Generated runtime code depends only on Zod; the TTL is also included in the package.
 
 ## Schema versions

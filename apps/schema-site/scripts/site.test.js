@@ -118,10 +118,11 @@ test('alignments are checked against the release they name', async () => {
     @prefix : <https://schema.chronicle.app/> .
     @prefix owl: <http://www.w3.org/2002/07/owl#> .
     @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+    @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
     @prefix ex: <https://example.org/> .
     : a owl:Ontology; owl:versionInfo "1.0.0" .
     :Base a owl:Class .
-    :LikeAction a owl:Class; rdfs:subClassOf :Base, ex:Like .`;
+    :LikeAction a owl:Class; rdfs:subClassOf :Base; skos:broadMatch ex:Like .`;
   const terms = {
     vocabulary: 'https://example.org/',
     release: '1',
@@ -129,9 +130,9 @@ test('alignments are checked against the release they name', async () => {
     properties: [],
     pending: [],
   };
-  const load = (statements, changes = {}) =>
+  const load = (statements, changes = {}, source = ontology) =>
     loadSchema({
-      ontology,
+      ontology: source,
       examples: '',
       alignments: [
         {
@@ -147,7 +148,7 @@ test('alignments are checked against the release they name', async () => {
       ],
     });
 
-  // A parent in another vocabulary maps the class; it is not in the hierarchy.
+  // A mapping to another vocabulary is not part of the hierarchy.
   const { classes } = await load(':Base doc:unlike ex:Base .');
   assert.deepEqual(classes.get('LikeAction').parents, ['Base']);
   assert.deepEqual(classes.get('LikeAction').alignments, [
@@ -174,5 +175,16 @@ test('alignments are checked against the release they name', async () => {
     /names unknown ex:Thing/
   );
   await assert.rejects(load(':Base doc:unlike ex:Base .', { release: '2' }), /terms\.json lists/);
+  // A reasoner would act on a subclass or an equivalence, so mappings are SKOS.
+  await assert.rejects(
+    load(':Base doc:unlike ex:Base .', {}, ontology.replace('; skos:broadMatch', ', ')),
+    /chronicle\.ttl: .*LikeAction .*subClassOf https:\/\/example\.org\/Like\. Point to/
+  );
+  await assert.rejects(
+    load(
+      ':Base doc:unlike ex:Base . :LikeAction <http://www.w3.org/2002/07/owl#equivalentClass> ex:Like .'
+    ),
+    /alignments\/example\.ttl: .*equivalentClass/
+  );
   await assert.rejects(loadSchema({ ontology, examples: '' }), /no alignment describes/);
 });
