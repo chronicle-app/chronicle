@@ -47,6 +47,7 @@ export class GoogleCalendarEventsExtractor extends Extractor<typeof GoogleCalend
   private api!: GoogleApi;
   private calendars: CalendarListEntry[] = [];
   private contacts = ContactDirectory.empty;
+  private account: string | undefined;
   private unscheduled = new Set<string>();
 
   override keyOf(record: Record): string {
@@ -74,6 +75,8 @@ export class GoogleCalendarEventsExtractor extends Extractor<typeof GoogleCalend
     for await (const calendar of this.api.pages<CalendarListEntry>('/users/me/calendarList')) {
       all.push(calendar);
     }
+    // An account's primary calendar has its address as its ID.
+    this.account = all.find(calendar => calendar.primary)?.id.toLowerCase();
     const named = config.calendar?.split(',').map(id => id.trim());
     this.calendars = named
       ? all.filter(calendar => named.includes(calendar.id))
@@ -152,15 +155,19 @@ export class GoogleCalendarEventsExtractor extends Extractor<typeof GoogleCalend
   private recordOf(event: CalendarEvent, calendar: CalendarListEntry): EventRecord {
     const people = [event.organizer, event.creator, ...(event.attendees ?? [])];
     return {
-      contacts: this.contacts.linksFor(
-        people.flatMap(person => (person?.email ? [person.email] : []))
-      ),
+      // The calendar's ID too: an account's own calendar has its owner's
+      // address, who's the agent of an event that names no one.
+      contacts: this.contacts.linksFor([
+        ...people.flatMap(person => (person?.email ? [person.email] : [])),
+        calendar.id,
+      ]),
       event,
       calendar: {
         id: calendar.id,
         summary: calendar.summaryOverride ?? calendar.summary,
         primary: calendar.primary ?? false,
       },
+      ...(this.account && { account: this.account }),
     };
   }
 

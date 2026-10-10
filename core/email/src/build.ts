@@ -1,4 +1,4 @@
-import type { Agent, Message, MessageAction, Realm, Thread } from '@chronicle.app/schema';
+import type { Agent, Message, MessageAction, Thread } from '@chronicle.app/schema';
 import type { MailAddress, MailMessage } from './parse.js';
 
 /**
@@ -66,11 +66,12 @@ export interface MessageNodeOptions {
    */
   identitiesOf?: (address: string) => Agent[];
   /**
-   * The source's own identity for its copy of the message (Gmail's message
-   * ID in a mailbox), linked by `sameAs`. The message stays keyed by its
-   * Message-ID, which every copy shares.
+   * The owner's other identities, such as the account the mailbox is,
+   * linked by `sameAs` from every agent that's the owner.
    */
-  identity?: { source: string; sourceId: string; inRealm?: Realm };
+  meIdentities?: Agent[];
+  /** The account the source read the message from: the message is `inAccount` it. */
+  account?: Agent;
 }
 
 /**
@@ -91,35 +92,27 @@ export function messageAction(mail: MailMessage, options: MessageNodeOptions = {
     throw new Error(`Email ${mail.messageId ?? '(no Message-ID)'} has no date`);
   }
   const identities = options.identitiesOf ?? (() => []);
-  const sender = agent(
-    mail.from,
-    options.sentByMe || isMe(mail.from.address),
-    identities(mail.from.address)
-  );
+  const person = (address: MailAddress, owner: boolean) =>
+    agent(address, owner, [
+      ...(owner ? (options.meIdentities ?? []) : []),
+      ...identities(address.address),
+    ]);
+  const sender = person(mail.from, options.sentByMe || isMe(mail.from.address));
   const recipients = dedupe([...mail.to, ...mail.cc, ...mail.bcc]).map(address =>
-    agent(address, isMe(address.address), identities(address.address))
+    person(address, isMe(address.address))
   );
 
   const messageId = mail.messageId && msgId(mail.messageId);
-  const { identity } = options;
-  const copy: Message | undefined = identity && {
-    '@type': 'Message',
-    '@key': identity.inRealm
-      ? ['@type', 'source', 'inRealm.handle', 'sourceId']
-      : ['@type', 'source', 'sourceId'],
-    source: identity.source,
-    sourceId: identity.sourceId,
-    ...(identity.inRealm && { inRealm: identity.inRealm }),
-  };
   const message: Message = {
     '@type': 'Message',
     ...(messageId
       ? { '@key': MESSAGE_KEY, source: EMAIL, sourceId: messageId }
       : { '@key': KEYLESS_MESSAGE_KEY, source: EMAIL }),
-    ...(copy && { sameAs: [copy] }),
+    ...(options.account && { inAccount: [options.account] }),
     name: mail.subject,
     ...(mail.text && { body: mail.text }),
-    author: [sender],
+    // The sender in full is the action's agent; here, the same node by its key.
+    author: [reference(sender)],
     ...(recipients.length > 0 && { recipient: recipients }),
     ...(mail.inReplyTo && {
       inReplyTo: [
@@ -141,18 +134,53 @@ export function messageAction(mail: MailMessage, options: MessageNodeOptions = {
   };
 }
 
+/**
+ * An email account by its address, keyed as a person is: the account a
+ * message is `inAccount`, whatever service holds it.
+ */
+export function emailAccount(address: string): Agent {
+  return {
+    '@type': 'Agent',
+    '@key': ADDRESS_KEY,
+    source: EMAIL,
+    handle: address.toLowerCase(),
+  };
+}
+
+/** A node written in full elsewhere in the record, by its key alone. */
+function reference(agent: Agent): Agent {
+  return {
+    '@type': agent['@type'],
+    '@key': agent['@key'],
+    source: agent.source,
+    handle: agent.handle,
+  };
+}
+
 /** A person by their address, lowercased so one person is one node. */
 function agent(address: MailAddress, me: boolean, identities: Agent[] = []): Agent {
   const handle = address.address.toLowerCase();
+  const name = displayName(address.name, handle);
   const sameAs: NonNullable<Agent['sameAs']> = [...(me ? ['@me'] : []), ...identities];
   return {
     '@type': 'Agent',
     '@key': ADDRESS_KEY,
     source: EMAIL,
     handle,
-    name: address.name || handle,
+    ...(name && { alternateName: [name] }),
     ...(sameAs.length > 0 && { sameAs }),
   };
+}
+
+/**
+ * The display name the mail gives an address, unless it's only the address
+ * again. It's what one message called the address, which the sender or their
+ * address book chose, so it's another name the address was shown with, not
+ * the address's own name.
+ */
+function displayName(name: string | undefined, handle: string): string | undefined {
+  const trimmed = name?.trim();
+  return trimmed && trimmed.toLowerCase() !== handle ? trimmed : undefined;
 }
 
 /** Each address once: a person on both To and Cc is one recipient. */

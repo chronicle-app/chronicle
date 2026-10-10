@@ -13,6 +13,7 @@ const publish = (id, object) => ({
 });
 const post = (id, fields) => ({ '@type': 'Post', '@key': KEY, source: 'example', ...fields });
 const link = url => ({ '@type': 'Entity', '@key': ['url'], url });
+const like = id => ({ '@type': 'LikeAction', '@key': KEY, source: 'example', sourceId: id });
 
 function sketch(samples) {
   const markdown = renderShapes(shapesOf(samples), { title: 'Example' });
@@ -45,6 +46,25 @@ test('each record type is a tree of the nodes it becomes, with their keys', () =
       '    references[]?: Entity key(url, any source) { url }',
       '  }',
       '}',
+      '',
+    ].join('\n')
+  );
+});
+
+test('a further action a record becomes is its own node', () => {
+  const tree = sketch([
+    sample({ id: 1, title: 'Rye' }, [publish(1, post(1, { name: 'Rye' })), like('1')]),
+    sample({ id: 2, title: 'Spelt' }, [publish(2, post(2, { name: 'Spelt' }))]),
+  ]);
+  assert.equal(
+    tree,
+    [
+      'PublishAction key(sourceId) {',
+      '  sourceId',
+      '  object: Post key(sourceId) { name }',
+      '}',
+      '// Some records also become:',
+      'LikeAction key(sourceId) { sourceId }',
       '',
     ].join('\n')
   );

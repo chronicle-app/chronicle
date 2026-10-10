@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { GoogleCalendarEventsExtractor } from '../dist/index.js';
-import { EVENTS, OWNER, TEAM, TOKEN, fakeCalendar } from './fixture.test-helper.js';
+import { CALENDARS, EVENTS, OWNER, TEAM, TOKEN, fakeCalendar } from './fixture.test-helper.js';
 
 // Every run gets the token outright, so no test reads stored credentials.
 async function extract(config = {}) {
@@ -28,16 +28,30 @@ const person = (handle, name, extra = {}) => ({
   '@key': ['@type', 'source', 'handle'],
   source: 'email',
   handle,
-  name,
+  // What the invitation called them: another name.
+  ...(name && { alternateName: [name] }),
   ...extra,
 });
-const owner = person(OWNER, 'Test Owner', { sameAs: ['@me'] });
+// You, and the Google account you're signed in as, by its address.
+const account = {
+  '@type': 'Agent',
+  '@key': ['@type', 'source', 'handle'],
+  source: 'google-account',
+  handle: OWNER,
+};
+const you = ['@me', account];
+const owner = person(OWNER, 'Test Owner', { sameAs: you });
+// An account's primary calendar has the account's address as its ID, so it's
+// that Google account's; a calendar made in an account doesn't say whose.
 const calendar = (sourceId, name) => ({
-  '@type': 'Collection',
+  '@type': 'Calendar',
   '@key': ['@type', 'source', 'sourceId'],
   source: 'google-calendar',
   sourceId,
-  name,
+  ...(name && { name }),
+  ...(!sourceId.endsWith('calendar.google.com') && {
+    inAccount: [{ ...account, handle: sourceId }],
+  }),
 });
 const guest = person('guest@example.com', 'Test Guest');
 
@@ -77,19 +91,19 @@ test('events on the shown calendars become plans for named events, with their gu
     sourceId: 'planning@example.com',
     timestamp: new Date('2025-03-01T09:00:00Z'),
     agent: owner,
-    // This calendar's copy, by Google's ID for it (its link's eid), the
-    // same event as every copy with its UID.
+    // The event by its UID, as every calendar and guest has it, `sameAs`
+    // this calendar's copy by Google's ID for it (its link's eid).
     object: {
       '@type': 'Event',
       '@key': ['@type', 'source', 'sourceId'],
-      source: 'google-calendar',
-      sourceId: 'planning1',
+      source: 'icalendar',
+      sourceId: 'planning@example.com',
       sameAs: [
         {
           '@type': 'Event',
           '@key': ['@type', 'source', 'sourceId'],
-          source: 'icalendar',
-          sourceId: 'planning@example.com',
+          source: 'google-calendar',
+          sourceId: 'planning1',
         },
       ],
       name: 'Planning',
@@ -98,17 +112,18 @@ test('events on the shown calendars become plans for named events, with their gu
       scheduledStart: new Date('2025-03-10T14:00:00Z'),
       scheduledEnd: new Date('2025-03-10T15:00:00Z'),
       location: { '@type': 'Location', address: '1 Example Street' },
-      isPartOf: [calendar(OWNER, OWNER)],
+      // Its summary is only its ID, so it has no name.
+      isPartOf: [calendar(OWNER)],
       // The room booked for it isn't a guest.
       attendee: [owner, guest],
     },
     '@assertedAt': new Date('2025-03-01T09:00:00Z'),
   });
-  // The same meeting on another calendar is that calendar's copy: one
-  // planning, and the same event by its UID.
+  // The same meeting on another calendar is one planning of one event, by its
+  // UID, `sameAs` that calendar's own copy.
   assert.equal(copy.sourceId, planning.sourceId);
-  assert.equal(copy.object.sourceId, 'planning2');
-  assert.deepEqual(copy.object.sameAs, planning.object.sameAs);
+  assert.equal(copy.object.sourceId, planning.object.sourceId);
+  assert.equal(copy.object.sameAs[0].sourceId, 'planning2');
   assert.deepEqual(copy.object.isPartOf, [calendar(TEAM, 'Work')]);
 
   // An all-day event keeps its dates as dates, March 14 through 15.
@@ -118,21 +133,53 @@ test('events on the shown calendars become plans for named events, with their gu
   assert.equal(trip.object.attendee, undefined);
 
   // Each instance of a recurring event is its own event, planned by its organizer.
-  assert.equal(standup.object.sameAs[0].sourceId, 'standup@example.com@2025-03-11T13:00:00.000Z');
-  assert.equal(standup.sourceId, standup.object.sameAs[0].sourceId);
+  assert.equal(standup.object.sourceId, 'standup@example.com@2025-03-11T13:00:00.000Z');
+  assert.equal(standup.sourceId, standup.object.sourceId);
   assert.deepEqual(standup.agent, guest);
 });
 
 test('--link-contacts links guests to your contacts', async t => {
   await fakeCalendar(t);
+  // The guest's own calendar, shared with you, with an event that names no
+  // one: its agent is the calendar's owner, linked as a guest is.
+  const GUEST = 'guest@example.com';
+  CALENDARS.push({ id: GUEST, summary: GUEST, selected: true });
+  EVENTS[GUEST] = [
+    {
+      id: 'shared1',
+      iCalUID: 'shared@example.com',
+      created: '2025-01-04T12:00:00Z',
+      summary: 'Shared',
+      start: { date: '2025-01-04' },
+    },
+  ];
+  t.after(() => {
+    CALENDARS.pop();
+    delete EVENTS[GUEST];
+  });
   const { actions } = await extract({ linkContacts: true });
   const standup = actions.find(action => action.object.name === 'Standup');
+  const shared = actions.find(action => action.object.name === 'Shared');
+  assert.equal(shared.agent.handle, GUEST);
+  assert.deepEqual(shared.agent.sameAs, standup.agent.sameAs);
+  // Your contact for the guest: the entry in your Google account, named as you
+  // saved it, with their number.
   assert.deepEqual(standup.agent.sameAs, [
     {
       '@type': 'Agent',
-      '@key': ['@type', 'source', 'handle'],
-      source: 'phone',
-      handle: '+14165550199',
+      '@key': ['@type', 'source', 'inAccount[*].handle', 'sourceId'],
+      source: 'google-contacts',
+      sourceId: 'c2002',
+      inAccount: [account],
+      name: 'Guest From Contacts',
+      sameAs: [
+        {
+          '@type': 'Agent',
+          '@key': ['@type', 'source', 'handle'],
+          source: 'phone',
+          handle: '+14165550199',
+        },
+      ],
     },
   ]);
 });
@@ -158,7 +205,7 @@ test('--since and --until bound when events were created; calendars can be narro
   );
 });
 
-test('occurrences of a recurring event share its creation, latest first; one with no organizer has its calendar', async t => {
+test('occurrences of a recurring event share its creation, latest first; one with no organizer is its calendar owner’s', async t => {
   await fakeCalendar(t);
   const weekly = day => ({
     id: `weekly_${day}`,
@@ -194,15 +241,73 @@ test('occurrences of a recurring event share its creation, latest first; one wit
     created,
     created.toSorted((a, b) => b - a)
   );
+  // Your primary calendar's ID is your address, so it's yours.
   const copied = actions.find(action => action.object.name === 'Copied');
-  assert.deepEqual(copied.agent, {
+  assert.deepEqual(copied.agent, person(OWNER, undefined, { sameAs: you }));
+});
+
+/** An all-day event, named by its ID, put on its calendar that day. */
+const day = (id, date, fields) => ({
+  id,
+  iCalUID: `${id}@example.com`,
+  created: `${date}T12:00:00Z`,
+  summary: id,
+  start: { date },
+  ...fields,
+});
+
+test('an event’s agent is who put it on the calendar, and you are the signed-in account', async t => {
+  await fakeCalendar(t);
+  const PARTNER = 'partner@example.com';
+  // Another account's calendar, shared with you: Google marks its owner `self`.
+  CALENDARS.push({ id: PARTNER, summary: PARTNER, selected: true });
+  EVENTS[PARTNER] = [day('theirs', '2025-01-04', { organizer: { email: PARTNER, self: true } })];
+  EVENTS[TEAM].push(
+    // Made on a calendar in your account: the calendar is its organizer, you its creator.
+    day('made', '2025-01-05', {
+      organizer: { email: TEAM, displayName: 'Team', self: true },
+      creator: { email: OWNER },
+    }),
+    // No one named, on a calendar made in your account.
+    day('unnamed', '2025-01-06', {})
+  );
+  EVENTS[OWNER].push(
+    // Invited under an alias, on your primary calendar.
+    day('alias', '2025-01-07', {
+      organizer: { email: 'guest@example.com', displayName: 'Test Guest' },
+      attendees: [{ email: 'Alias@Example.com', self: true }],
+    }),
+    // Imported from a file that named no organizer: Google's placeholder is
+    // its organizer, and you, who imported it, its creator.
+    day('imported', '2025-01-08', {
+      organizer: { email: 'unknownorganizer@calendar.google.com' },
+      creator: { email: OWNER, self: true },
+    })
+  );
+  t.after(() => {
+    CALENDARS.pop();
+    delete EVENTS[PARTNER];
+    EVENTS[TEAM].splice(-2);
+    EVENTS[OWNER].splice(-2);
+  });
+
+  const { actions } = await extract();
+  const plan = name => actions.find(action => action.object.name === name);
+  assert.ok(actions.every(action => action.agent));
+  // Its owner, not you, though Google marks them as the calendar's.
+  assert.deepEqual(plan('theirs').agent, person(PARTNER));
+  assert.deepEqual(plan('made').agent, person(OWNER, undefined, { sameAs: you }));
+  assert.deepEqual(plan('imported').agent, person(OWNER, undefined, { sameAs: you }));
+  assert.deepEqual(plan('unnamed').agent, {
     '@type': 'Agent',
     '@key': ['@type', 'source', 'sourceId'],
     source: 'google-calendar',
-    sourceId: OWNER,
-    name: OWNER,
-    sameAs: ['@me'],
+    sourceId: TEAM,
+    name: 'Work',
   });
+  assert.deepEqual(plan('alias').object.attendee, [
+    person('alias@example.com', undefined, { sameAs: you }),
+  ]);
 });
 
 test('an event without an end gets iCalendar’s; one without a start is skipped', async t => {

@@ -1,4 +1,4 @@
-# Gmail shapes
+# Email shapes
 
 What each record type becomes, from the transformer’s output for the test
 fixtures. Generated: run `npm run shapes` in this plugin to update it.
@@ -10,28 +10,16 @@ no `source`. `?` marks a property that is sometimes absent, `[]` a list,
 and `*` a value computed in the transformer rather than copied or
 converted from the record. Every node also has `source`.
 
-## messages
+## emails
 
 ```ts
-MessageAction key(sourceId) {
-  sourceId*, timestamp
-  agent: Agent key(handle) {
-    handle, alternateName[]
-    sameAs[]?: Agent key(handle) { handle }
-  }
-  object: Message key(sourceId) {
-    sourceId*, name, body, tags[]
-    inAccount[]: Agent key(handle) { handle }
+MessageAction key(sourceId) / key(timestamp, agent.handle, object.name) {
+  sourceId?, timestamp
+  agent: Agent key(handle) { handle, alternateName[] }
+  object: Message key(sourceId) / key(action.timestamp, action.agent.handle, name) {
+    sourceId?, name, body
     author[]: Agent key(handle) { handle }
-    recipient[]: Agent key(handle) {
-      handle, alternateName[]?
-      sameAs[]?: Agent key(handle) { handle }
-    }
-    inReplyTo[]?: Message key(sourceId) { sourceId* }
-    isPartOf[]: Thread key(inAccount[*].handle, sourceId) {
-      sourceId
-      inAccount[]: Agent key(handle) { handle }
-    }
+    recipient[]: Agent key(handle) { handle, alternateName[]? }
   }
 }
 ```

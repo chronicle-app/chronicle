@@ -22,7 +22,7 @@ export interface EventTime {
 export interface EventPerson {
   email?: string;
   displayName?: string;
-  /** This is the signed-in account. */
+  /** This is the owner of the calendar this copy of the event is on. */
   self?: boolean;
   organizer?: boolean;
   resource?: boolean;
@@ -57,4 +57,6 @@ export interface EventRecord {
   calendar: { id: string; summary: string; primary: boolean };
   /** What your contacts link each guest's address to. */
   contacts?: { [address: string]: ContactLinks };
+  /** The signed-in account's address: its primary calendar's ID. */
+  account?: string;
 }

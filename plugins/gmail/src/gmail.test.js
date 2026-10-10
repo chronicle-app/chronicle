@@ -25,33 +25,41 @@ const identity = (source, handle) => ({
   source,
   handle,
 });
+// A header's display name is another name the address was shown with.
 const person = (handle, name, sameAs = []) => ({
   ...identity('email', handle),
-  name: name ?? handle,
+  ...(name && { alternateName: [name] }),
   ...(sameAs.length > 0 && { sameAs }),
 });
-const owner = person(OWNER, 'Test Owner', ['@me']);
+// The account at the mailbox's address, which you are, and the Google
+// account at that address.
+const account = identity('email', OWNER);
+const you = ['@me', identity('google-account', OWNER)];
+const owner = person(OWNER, 'Test Owner', you);
 const friend = person(FRIEND, 'Test Friend');
-// With --link-contacts, your contact for the friend links their other address
-// and their number.
+// With --link-contacts, the friend is your contact: the entry by its ID in the
+// Google account, named as you saved it, with their other address and number.
 const linkedFriend = person(FRIEND, 'Test Friend', [
-  identity('email', 'friend@home.example'),
-  identity('phone', '+14165550100'),
+  {
+    '@type': 'Agent',
+    '@key': ['@type', 'source', 'inAccount[*].handle', 'sourceId'],
+    source: 'google-contacts',
+    sourceId: 'c1001',
+    inAccount: [identity('google-account', OWNER)],
+    name: 'Friend From Contacts',
+    sameAs: [identity('email', 'friend@home.example'), identity('phone', '+14165550100')],
+  },
 ]);
-// Gmail's IDs are scoped to the mailbox they're in.
-const mailbox = {
-  '@type': 'Realm',
-  '@key': ['@type', 'source', 'handle'],
+// The Google account issued Gmail's thread IDs, which are only unique within it.
+const thread = {
+  '@type': 'Thread',
   source: 'gmail',
-  handle: OWNER,
+  sourceId: THREAD,
+  '@key': ['@type', 'source', 'inAccount[*].handle', 'sourceId'],
+  inAccount: [identity('google-account', OWNER)],
 };
-const inMailbox = sourceId => ({
-  '@key': ['@type', 'source', 'inRealm.handle', 'sourceId'],
-  source: 'gmail',
-  sourceId,
-  inRealm: mailbox,
-});
-const thread = { '@type': 'Thread', ...inMailbox(THREAD) };
+// The author is the action's agent, written there in full; here, by its key.
+const byKey = ({ alternateName: _alternateName, sameAs: _sameAs, ...key }) => key;
 
 test('Gmail messages become emails in their thread, with labels, newest first', async t => {
   const requests = await fakeGmail(t);
@@ -74,17 +82,17 @@ test('Gmail messages become emails in their thread, with labels, newest first', 
     timestamp: new Date('2025-03-02T09:00:00Z'),
     '@assertedAt': new Date('2025-03-02T09:00:00Z'),
     agent: owner,
-    // Keyed by its Message-ID, without the angle brackets, as every copy is;
-    // `sameAs` Gmail's ID for it in this mailbox.
+    // Keyed by its Message-ID, without the angle brackets, as every copy is,
+    // and held in the account.
     object: {
       '@type': 'Message',
       '@key': ['@type', 'source', 'sourceId'],
       source: 'email',
       sourceId: 'reply@example.com',
-      sameAs: [{ '@type': 'Message', ...inMailbox('18c1f0a2b3c4d5e7') }],
+      inAccount: [account],
       name: 'Re: Plans',
       body: 'Saturday works.',
-      author: [owner],
+      author: [byKey(owner)],
       recipient: [friend],
       inReplyTo: [
         {
@@ -101,7 +109,8 @@ test('Gmail messages become emails in their thread, with labels, newest first', 
   // A quoted-printable body is decoded; you, as a recipient, are you; your
   // labels go by name, and read state isn't one.
   assert.equal(plans.object.body, 'Café this weekend?');
-  assert.deepEqual(plans.object.recipient, [person(OWNER, OWNER, ['@me'])]);
+  // No display name in the To header, so no name: only the address.
+  assert.deepEqual(plans.object.recipient, [person(OWNER, undefined, you)]);
   assert.deepEqual(plans.agent, friend);
   assert.deepEqual(plans.object.tags, ['Inbox', 'Starred', 'Work', 'Café']);
   assert.deepEqual(plans.object.isPartOf, [thread]);
@@ -150,22 +159,50 @@ test('--sent and --label go by label ID, --query and the window by search', asyn
   });
 });
 
-test('a Takeout becomes the same messages, threads, and labels', async t => {
+test('a Takeout becomes the same messages and labels, in no account', async t => {
   await fakeGmail(t);
   const input = takeout(t);
   const fromApi = await extract(GmailApiExtractor);
   const fromTakeout = await extract(GmailTakeoutExtractor, { input });
 
   // The mbox is oldest first, as Takeout writes it here; Spam is left out.
-  const byKey = actions => Object.fromEntries(actions.map(action => [action.sourceId, action]));
-  const api = byKey(fromApi.actions);
-  const local = byKey(fromTakeout.actions);
+  const bySourceId = actions =>
+    Object.fromEntries(actions.map(action => [action.sourceId, action]));
+  const api = bySourceId(fromApi.actions);
+  const local = bySourceId(fromTakeout.actions);
   assert.deepEqual(Object.keys(local).sort(), Object.keys(api).sort());
-  // Every message is the same node either way: same thread, same labels, and
-  // you are you as a recipient too, by the Takeout's Delivered-To.
-  assert.deepEqual(local, api);
-  assert.deepEqual(local['plans@example.com'].object.isPartOf, [thread]);
-  assert.deepEqual(local['plans@example.com'].object.tags, ['Inbox', 'Starred', 'Work', 'Café']);
+  // The mbox doesn't name the account it came from, so a message is in none,
+  // its thread is keyed by Gmail's thread ID alone, and you are `@me`, by the
+  // Delivered-To and as the sender of mail in Sent, with no Google account.
+  const me = person(OWNER, 'Test Owner', ['@me']);
+  const threadById = {
+    '@type': 'Thread',
+    '@key': ['@type', 'source', 'sourceId'],
+    source: 'gmail',
+    sourceId: THREAD,
+  };
+  const { inAccount: _inAccount, ...reply } = api['reply@example.com'].object;
+  assert.deepEqual(local['reply@example.com'], {
+    ...api['reply@example.com'],
+    agent: me,
+    object: { ...reply, author: [byKey(me)], isPartOf: [threadById] },
+  });
+  const plans = local['plans@example.com'].object;
+  assert.deepEqual(plans.recipient, [person(OWNER, undefined, ['@me'])]);
+  assert.deepEqual(plans.isPartOf, [threadById]);
+  assert.deepEqual(plans.tags, ['Inbox', 'Starred', 'Work', 'Café']);
+  for (const action of fromTakeout.actions) assert.equal(action.object.inAccount, undefined);
+});
+
+test('a Takeout never reads your contacts', async t => {
+  const requests = await fakeGmail(t);
+  const { actions } = await extract(GmailTakeoutExtractor, {
+    input: takeout(t),
+    sent: true,
+    linkContacts: true,
+  });
+  assert.ok(!requests.some(r => r.path === '/people/me/connections'));
+  assert.deepEqual(actions[0].object.recipient, [person(FRIEND, 'Test Friend')]);
 });
 
 test('a Takeout run filters each message itself', async t => {

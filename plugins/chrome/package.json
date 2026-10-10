@@ -1,5 +1,5 @@
 {
-  "name": "@chronicle.app/google-reader",
+  "name": "@chronicle.app/chrome",
   "version": "0.3.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -11,16 +11,14 @@
     "build": "tsc -b tsconfig.lib.json",
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint src --ext .ts,.js",
-    "test": "node --test src/*.test.js"
+    "test": "node --test src/*.test.js",
+    "shapes": "node src/shapes.test.js --update"
   },
-  "keywords": [
-    "chronicle",
-    "google-reader"
-  ],
+  "keywords": [],
   "author": "Andrew Louis",
   "license": "MIT",
   "type": "module",
-  "description": "Import personal actions from Google Reader archive streams",
+  "description": "Chronicle Chrome browsing history plugin",
   "devDependencies": {
     "@chronicle.app/etl": "0.3.0",
     "@chronicle.app/schema": "0.3.0",
@@ -32,13 +30,14 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/chronicle-app/chronicle.git",
-    "directory": "plugins/google-reader"
+    "directory": "plugins/chrome"
   },
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
   },
   "dependencies": {
+    "@chronicle.app/etl-sqlite": "0.3.0",
     "@chronicle.app/google": "0.3.0",
     "zod": "^3.24.1"
   },
@@ -58,16 +57,21 @@
   "chronicle": {
     "plugin": true,
     "sources": {
-      "google-reader": {
+      "chrome": {
         "strategies": {
-          "takeout": {
-            "delivery": "export",
+          "app-db": {
+            "delivery": "local",
             "recordTypes": [
-              "stream-contents"
+              "views"
             ],
             "default": true
           }
-        }
+        },
+        "platforms": [
+          "darwin",
+          "linux",
+          "win32"
+        ]
       }
     }
   }

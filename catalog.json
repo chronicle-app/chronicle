@@ -25,6 +25,12 @@
       "summary": "Bluesky follows, followers, and likes"
     },
     {
+      "name": "chrome",
+      "package": "@chronicle.app/chrome",
+      "tier": "official",
+      "summary": "Chrome browsing history"
+    },
+    {
       "name": "claude-code",
       "package": "@chronicle.app/claude-code",
       "tier": "core",

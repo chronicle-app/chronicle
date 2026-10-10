@@ -33,6 +33,10 @@
   owl:maxCardinality 1;
   :domainIncludes :Entity;
   :rangeIncludes :Text .
+:alternateName a rdf:Property;
+  rdfs:comment "Another name the entity was shown with, such as the display name a message gave its sender or a recipient. An entity can have many.";
+  :domainIncludes :Entity;
+  :rangeIncludes :Text .
 :url a rdf:Property;
   rdfs:comment "A URL at which the entity can be found, such as a web page's address or a link to the record in its source.";
   owl:maxCardinality 1;
@@ -201,6 +205,10 @@
   owl:maxCardinality 1;
   :domainIncludes :Entity;
   :rangeIncludes :Realm .
+:inAccount a rdf:Property;
+  rdfs:comment "The agent whose account holds the entity, as that account's service knows them, such as the owner of an email account a message was delivered to. An entity held in several accounts is :inAccount each. Identifiers an account issues are unique within it.";
+  :domainIncludes :Entity;
+  :rangeIncludes :Agent .
 
 :ConsumeAction a rdfs:Class;
   rdfs:comment "The agent took in the :object, such as by reading, watching, listening to, eating, or drinking it. The subclasses name how. A :ConsumeAction of no subclass records consumption in progress with no known start.";
@@ -267,6 +275,12 @@
   :domainIncludes :Entity;
   :rangeIncludes :Text .
 
+:MoveAction a rdfs:Class;
+  rdfs:comment "The agent moved from the :object to the :target. The subclasses name the kind of movement.";
+  rdfs:subClassOf :Action .
+:NavigateAction a rdfs:Class;
+  rdfs:comment "The agent took one step through an information space, from the :object to the :target, such as following a link from one web page to another. A path through several pages is a sequence of these steps.";
+  rdfs:subClassOf :MoveAction .
 :VisitAction a rdfs:Class;
   rdfs:comment "The agent stayed at the :object place from :startTime to :endTime. Travel between stays is a :TravelAction.";
   rdfs:subClassOf :Action .
@@ -318,6 +332,9 @@
 :Event a rdfs:Class;
   rdfs:comment "A named happening with a planned start and end, such as a calendar entry, a concert, or a picnic. Its :scheduledStart and :scheduledEnd give the plan. The actions that record it give when it actually happened.";
   rdfs:subClassOf :Entity .
+:Calendar a rdfs:Class;
+  rdfs:subClassOf :Collection;
+  rdfs:comment "A calendar of events, such as a person's primary calendar, a shared team calendar, or a subscribed holiday calendar. Its events are :isPartOf it." .
 :attendee a rdf:Property;
   rdfs:comment "An agent invited to the event, such as a guest on a calendar entry, whatever their reply.";
   rdfs:subPropertyOf :involvement;

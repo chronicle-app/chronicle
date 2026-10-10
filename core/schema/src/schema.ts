@@ -94,6 +94,7 @@ export type ActionAndChildren =
   | FindActionAndChildren
   | InteractActionAndChildren
   | MessageActionAndChildren
+  | MoveActionAndChildren
   | OrganizeActionAndChildren
   | PlanActionAndChildren
   | RejectActionAndChildren
@@ -179,12 +180,14 @@ export const AddActionSchema: z.ZodType<AddAction> = z
 export interface Entity extends Omit<Base, '@type'> {
   '@type': 'Entity';
   about?: EntityAndChildren[];
+  alternateName?: string[];
   body?: string;
   category?: string[];
   contains?: MediaObjectAndChildren[];
   description?: string;
   emblem?: ImageObjectAndChildren;
   handle?: string;
+  inAccount?: AgentAndChildren[];
   inRealm?: RealmAndChildren;
   isPartOf?: EntityAndChildren[];
   location?: LocationAndChildren | PlaceAndChildren;
@@ -214,12 +217,14 @@ export type EntityAndChildren =
 const EntityProperties = {
   ...BaseProperties,
   about: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
+  alternateName: z.lazy(() => z.array(z.string())).optional(),
   body: z.lazy(() => z.string()).optional(),
   category: z.lazy(() => z.array(z.string())).optional(),
   contains: z.lazy(() => z.array(MediaObjectAndChildrenSchema)).optional(),
   description: z.lazy(() => z.string()).optional(),
   emblem: z.lazy(() => ImageObjectAndChildrenSchema).optional(),
   handle: z.lazy(() => z.string()).optional(),
+  inAccount: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
   inRealm: z.lazy(() => RealmAndChildrenSchema).optional(),
   isPartOf: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
   location: z.lazy(() => z.union([LocationAndChildrenSchema, PlaceAndChildrenSchema])).optional(),
@@ -496,6 +501,43 @@ export const BookmarkActionSchema: z.ZodType<BookmarkAction> = z
   })
   .superRefine(requireNodeIdentity);
 
+// Collection, child of https://schema.chronicle.app/CreativeWork
+export interface Collection extends Omit<CreativeWork, '@type'> {
+  '@type': 'Collection';
+}
+
+export type CollectionAndChildren =
+  Collection | CalendarAndChildren | DirectoryAndChildren | ProjectAndChildren | ThreadAndChildren;
+
+const CollectionProperties = {
+  ...CreativeWorkProperties,
+};
+
+export const CollectionSchema: z.ZodType<Collection> = z
+  .object({
+    '@type': z.literal('Collection'),
+    ...CollectionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Calendar, child of https://schema.chronicle.app/Collection
+export interface Calendar extends Omit<Collection, '@type'> {
+  '@type': 'Calendar';
+}
+
+export type CalendarAndChildren = Calendar;
+
+const CalendarProperties = {
+  ...CollectionProperties,
+};
+
+export const CalendarSchema: z.ZodType<Calendar> = z
+  .object({
+    '@type': z.literal('Calendar'),
+    ...CalendarProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // InteractAction, child of https://schema.chronicle.app/Action
 export interface InteractAction extends Omit<Action, '@type'> {
   '@type': 'InteractAction';
@@ -736,25 +778,6 @@ export const CheckInActionSchema: z.ZodType<CheckInAction> = z
   .object({
     '@type': z.literal('CheckInAction'),
     ...CheckInActionProperties,
-  })
-  .superRefine(requireNodeIdentity);
-
-// Collection, child of https://schema.chronicle.app/CreativeWork
-export interface Collection extends Omit<CreativeWork, '@type'> {
-  '@type': 'Collection';
-}
-
-export type CollectionAndChildren =
-  Collection | DirectoryAndChildren | ProjectAndChildren | ThreadAndChildren;
-
-const CollectionProperties = {
-  ...CreativeWorkProperties,
-};
-
-export const CollectionSchema: z.ZodType<Collection> = z
-  .object({
-    '@type': z.literal('Collection'),
-    ...CollectionProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -1416,6 +1439,24 @@ export const MessageActionSchema: z.ZodType<MessageAction> = z
   })
   .superRefine(requireNodeIdentity);
 
+// MoveAction, child of https://schema.chronicle.app/Action
+export interface MoveAction extends Omit<Action, '@type'> {
+  '@type': 'MoveAction';
+}
+
+export type MoveActionAndChildren = MoveAction | NavigateActionAndChildren;
+
+const MoveActionProperties = {
+  ...ActionProperties,
+};
+
+export const MoveActionSchema: z.ZodType<MoveAction> = z
+  .object({
+    '@type': z.literal('MoveAction'),
+    ...MoveActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // MusicAlbum, child of https://schema.chronicle.app/CreativeWork
 export interface MusicAlbum extends Omit<CreativeWork, '@type'> {
   '@type': 'MusicAlbum';
@@ -1515,6 +1556,24 @@ export const MusicRecordingSchema: z.ZodType<MusicRecording> = z
   .object({
     '@type': z.literal('MusicRecording'),
     ...MusicRecordingProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// NavigateAction, child of https://schema.chronicle.app/MoveAction
+export interface NavigateAction extends Omit<MoveAction, '@type'> {
+  '@type': 'NavigateAction';
+}
+
+export type NavigateActionAndChildren = NavigateAction;
+
+const NavigateActionProperties = {
+  ...MoveActionProperties,
+};
+
+export const NavigateActionSchema: z.ZodType<NavigateAction> = z
+  .object({
+    '@type': z.literal('NavigateAction'),
+    ...NavigateActionProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -2169,6 +2228,8 @@ export const PersonAndChildrenSchema = PersonSchema;
 
 export const PageSelectorAndChildrenSchema = PageSelectorSchema;
 
+export const NavigateActionAndChildrenSchema = NavigateActionSchema;
+
 export const MusicRecordingAndChildrenSchema = MusicRecordingSchema;
 
 export const MusicGroupAndChildrenSchema = MusicGroupSchema;
@@ -2206,6 +2267,19 @@ export const OrganizationAndChildrenSchema: z.ZodType<OrganizationAndChildren> =
   .superRefine(requireNodeIdentity);
 export const MusicAlbumAndChildrenSchema = MusicAlbumSchema;
 
+export const MoveActionAndChildrenSchema: z.ZodType<MoveActionAndChildren> = z
+  .discriminatedUnion('@type', [
+    z.object({
+      '@type': z.literal('MoveAction'),
+      ...MoveActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('NavigateAction'),
+      ...NavigateActionProperties,
+    }),
+  ])
+  .superRefine(requireNodeIdentity);
 export const MessageActionAndChildrenSchema = MessageActionSchema;
 
 export const MessageAndChildrenSchema = MessageSchema;
@@ -2385,29 +2459,6 @@ export const ResponseAndChildrenSchema: z.ZodType<ResponseAndChildren> = z
   .superRefine(requireNodeIdentity);
 export const CommandAndChildrenSchema = CommandSchema;
 
-export const CollectionAndChildrenSchema: z.ZodType<CollectionAndChildren> = z
-  .discriminatedUnion('@type', [
-    z.object({
-      '@type': z.literal('Collection'),
-      ...CollectionProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Thread'),
-      ...ThreadProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Project'),
-      ...ProjectProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Directory'),
-      ...DirectoryProperties,
-    }),
-  ])
-  .superRefine(requireNodeIdentity);
 export const CheckInActionAndChildrenSchema = CheckInActionSchema;
 
 export const ChannelAndChildrenSchema = ChannelSchema;
@@ -2549,6 +2600,36 @@ export const InteractActionAndChildrenSchema: z.ZodType<InteractActionAndChildre
     z.object({
       '@type': z.literal('CallAction'),
       ...CallActionProperties,
+    }),
+  ])
+  .superRefine(requireNodeIdentity);
+export const CalendarAndChildrenSchema = CalendarSchema;
+
+export const CollectionAndChildrenSchema: z.ZodType<CollectionAndChildren> = z
+  .discriminatedUnion('@type', [
+    z.object({
+      '@type': z.literal('Collection'),
+      ...CollectionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Thread'),
+      ...ThreadProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Project'),
+      ...ProjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Directory'),
+      ...DirectoryProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Calendar'),
+      ...CalendarProperties,
     }),
   ])
   .superRefine(requireNodeIdentity);
@@ -2697,6 +2778,16 @@ export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> =
     }),
 
     z.object({
+      '@type': z.literal('Channel'),
+      ...ChannelProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Changeset'),
+      ...ChangesetProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Collection'),
       ...CollectionProperties,
     }),
@@ -2717,13 +2808,8 @@ export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> =
     }),
 
     z.object({
-      '@type': z.literal('Channel'),
-      ...ChannelProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Changeset'),
-      ...ChangesetProperties,
+      '@type': z.literal('Calendar'),
+      ...CalendarProperties,
     }),
 
     z.object({
@@ -3018,6 +3104,16 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('Channel'),
+      ...ChannelProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Changeset'),
+      ...ChangesetProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Collection'),
       ...CollectionProperties,
     }),
@@ -3038,13 +3134,8 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('Channel'),
-      ...ChannelProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Changeset'),
-      ...ChangesetProperties,
+      '@type': z.literal('Calendar'),
+      ...CalendarProperties,
     }),
 
     z.object({
@@ -3155,6 +3246,16 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     z.object({
       '@type': z.literal('PlanAction'),
       ...PlanActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('MoveAction'),
+      ...MoveActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('NavigateAction'),
+      ...NavigateActionProperties,
     }),
 
     z.object({
@@ -3531,6 +3632,16 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('Channel'),
+      ...ChannelProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Changeset'),
+      ...ChangesetProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Collection'),
       ...CollectionProperties,
     }),
@@ -3551,13 +3662,8 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('Channel'),
-      ...ChannelProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Changeset'),
-      ...ChangesetProperties,
+      '@type': z.literal('Calendar'),
+      ...CalendarProperties,
     }),
 
     z.object({
@@ -3648,6 +3754,16 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('PlanAction'),
       ...PlanActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('MoveAction'),
+      ...MoveActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('NavigateAction'),
+      ...NavigateActionProperties,
     }),
 
     z.object({

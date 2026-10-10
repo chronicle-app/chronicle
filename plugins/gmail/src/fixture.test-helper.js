@@ -125,8 +125,16 @@ export const MESSAGES = [
   },
 ];
 
-/** Your contact for the friend: another address, and a number. */
+/**
+ * Your contact for the friend: the name you saved, beside the one on their own
+ * profile, another address, and a number.
+ */
 export const FRIEND_CONTACT = {
+  resourceName: 'people/c1001',
+  names: [
+    { displayName: 'Friend From Contacts', metadata: { source: { type: 'CONTACT' } } },
+    { displayName: 'Friend Profile Name', metadata: { source: { type: 'PROFILE' } } },
+  ],
   emailAddresses: [{ value: 'Friend@Example.com' }, { value: 'friend@home.example' }],
   phoneNumbers: [{ value: '416 555 0100', canonicalForm: '+14165550100' }],
 };
