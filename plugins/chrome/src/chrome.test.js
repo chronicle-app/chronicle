@@ -35,7 +35,8 @@ test('visits become schema-valid ViewActions, newest first', async t => {
   const { input } = fixture(t);
   const records = await extract({ input });
   // Redirect hop 2, subframe 4, chrome:// page 5, imported visit 6, the
-  // keyword visit 9 generated beside visit 8, and file 13 are skipped.
+  // keyword visit 9 generated beside visit 8, file 13, and visit 14 an
+  // extension added are skipped.
   assert.deepEqual(
     records.map(r => r.data.visit_id),
     VISITS

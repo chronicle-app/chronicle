@@ -66,9 +66,11 @@ export function fixture(t, { prefs = preferences, profile = 'Default', legacy = 
       (10, 2, ${chrome(JAN_1 + 2 * DAY_MS + 1000)}, ${FORM_SUBMIT}, '', 8, 1, NULL),
       (11, 3, ${chrome(JAN_1 + 2 * DAY_MS + 2000)}, ${BACK}, '', 10, 0, NULL),
       (12, 3, ${chrome(JAN_1 + 2 * DAY_MS + 3000)}, ${LINK}, '', 11, 0, NULL),
-      (13, 6, ${chrome(JAN_1 + 2 * DAY_MS + 4000)}, ${LINK}, '', 12, 0, NULL);
-    -- 6 was imported from Safari, 7 synced from another device.
-    INSERT INTO visit_source VALUES (6, 5), (7, 0);
+      (13, 6, ${chrome(JAN_1 + 2 * DAY_MS + 4000)}, ${LINK}, '', 12, 0, NULL),
+      (14, 1, ${chrome(JAN_1 + 2 * DAY_MS + 5000)}, ${LINK}, '', 0, 0, NULL);
+    -- 6 was imported from Safari, 7 synced from another device, 14 added by
+    -- an extension, and 12 browsed, which Chrome usually leaves unrecorded.
+    INSERT INTO visit_source VALUES (6, 5), (7, 0), (12, 1), (14, 2);
   `);
   if (legacy) {
     db.exec(`ALTER TABLE visits DROP COLUMN opener_visit;

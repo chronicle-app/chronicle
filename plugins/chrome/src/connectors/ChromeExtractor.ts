@@ -25,10 +25,12 @@ const CORE_MASK = 0xff;
 // automatically or by a click there (3, 4), and the extra visit Chrome adds to
 // a search engine's keyword URL when you search from the address bar (10).
 const SKIPPED_TYPES = [3, 4, 10];
-// visit_source.source for visits imported from another browser or device
-// migration (Firefox, IE, Safari, OS migration). Another browser's history
-// belongs to that browser's source.
-const IMPORTED_SOURCES = [3, 4, 5, 6];
+// visit_source.source for visits you made: synced from another device (0) or
+// browsed here (1, which Chrome usually leaves unrecorded). Not ones an
+// extension added (2), or imported from another browser or device migration
+// (Firefox, IE, Safari, OS migration): another browser's history belongs to
+// that browser's source.
+const BROWSED_SOURCES = [0, 1];
 // Web pages only: not browser or extension pages, files, or blobs.
 const WEB_SCHEMES = ['http://', 'https://'];
 // A redirect chain's first visit: its transition says how the navigation
@@ -198,7 +200,7 @@ export class ChromeExtractor extends SqliteExtractor<typeof ChromeExtractor> {
     const conditions = [
       `(visits.transition & ${CHAIN_END}) != 0`,
       `(visits.transition & ${CORE_MASK}) NOT IN (${SKIPPED_TYPES.join(', ')})`,
-      `(visit_source.source IS NULL OR visit_source.source NOT IN (${IMPORTED_SOURCES.join(', ')}))`,
+      `(visit_source.source IS NULL OR visit_source.source IN (${BROWSED_SOURCES.join(', ')}))`,
       `(${WEB_SCHEMES.map(() => `urls.url LIKE ? || '%'`).join(' OR ')})`,
       ...range.conditions,
     ];
