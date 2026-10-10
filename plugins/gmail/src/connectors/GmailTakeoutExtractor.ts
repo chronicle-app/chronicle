@@ -99,6 +99,9 @@ export class GmailTakeoutExtractor extends Extractor<typeof GmailTakeoutExtracto
           owner:
             addressIn(mail.headers['delivered-to']) ??
             (labels.includes('Sent') ? (mail.from?.address.toLowerCase() ?? null) : null),
+          // Those addresses can be aliases or send-as addresses, not the
+          // account, and nothing in the mbox names the account it came from.
+          account: null,
         },
       };
       yield this.createRecord(record, { recordType: 'messages' });

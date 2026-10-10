@@ -13,8 +13,16 @@ export interface GmailRecord {
     labels: string[];
     /** When Gmail received it: the API's internal date, or a Takeout's `From ` line. */
     receivedAt: string | null;
-    /** The mailbox's own address: the API's profile, or a Takeout's Delivered-To. */
+    /**
+     * Your address on the message: the API's profile, or a Takeout's
+     * Delivered-To, or the sender of mail in Sent.
+     */
     owner: string | null;
+    /**
+     * The Google account the mailbox is, by its address: the API's profile.
+     * A Takeout doesn't say which account it came from, so it has none.
+     */
+    account: string | null;
   };
   /** What your contacts link each address on it to (API only). */
   contacts?: { [address: string]: ContactLinks };

@@ -159,22 +159,39 @@ test('--sent and --label go by label ID, --query and the window by search', asyn
   });
 });
 
-test('a Takeout becomes the same messages, threads, and labels', async t => {
+test('a Takeout becomes the same messages and labels, in no account', async t => {
   await fakeGmail(t);
   const input = takeout(t);
   const fromApi = await extract(GmailApiExtractor);
   const fromTakeout = await extract(GmailTakeoutExtractor, { input });
 
   // The mbox is oldest first, as Takeout writes it here; Spam is left out.
-  const byKey = actions => Object.fromEntries(actions.map(action => [action.sourceId, action]));
-  const api = byKey(fromApi.actions);
-  const local = byKey(fromTakeout.actions);
+  const bySourceId = actions =>
+    Object.fromEntries(actions.map(action => [action.sourceId, action]));
+  const api = bySourceId(fromApi.actions);
+  const local = bySourceId(fromTakeout.actions);
   assert.deepEqual(Object.keys(local).sort(), Object.keys(api).sort());
-  // Every message is the same node either way: same thread, same labels, and
-  // you are you as a recipient too, by the Takeout's Delivered-To.
-  assert.deepEqual(local, api);
-  assert.deepEqual(local['plans@example.com'].object.isPartOf, [thread]);
-  assert.deepEqual(local['plans@example.com'].object.tags, ['Inbox', 'Starred', 'Work', 'Café']);
+  // The mbox doesn't name the account it came from, so a message is in none,
+  // its thread is keyed by Gmail's thread ID alone, and you are `@me`, by the
+  // Delivered-To and as the sender of mail in Sent, with no Google account.
+  const me = person(OWNER, 'Test Owner', ['@me']);
+  const threadById = {
+    '@type': 'Thread',
+    '@key': ['@type', 'source', 'sourceId'],
+    source: 'gmail',
+    sourceId: THREAD,
+  };
+  const { inAccount: _inAccount, ...reply } = api['reply@example.com'].object;
+  assert.deepEqual(local['reply@example.com'], {
+    ...api['reply@example.com'],
+    agent: me,
+    object: { ...reply, author: [byKey(me)], isPartOf: [threadById] },
+  });
+  const plans = local['plans@example.com'].object;
+  assert.deepEqual(plans.recipient, [person(OWNER, undefined, ['@me'])]);
+  assert.deepEqual(plans.isPartOf, [threadById]);
+  assert.deepEqual(plans.tags, ['Inbox', 'Starred', 'Work', 'Café']);
+  for (const action of fromTakeout.actions) assert.equal(action.object.inAccount, undefined);
 });
 
 test('a Takeout never reads your contacts', async t => {

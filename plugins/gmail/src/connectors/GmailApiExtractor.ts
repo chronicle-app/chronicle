@@ -208,7 +208,9 @@ export class GmailApiExtractor extends Extractor<typeof GmailApiExtractor> {
           .map(id => labelName(id, this.labelNames))
           .filter((name): name is string => name !== undefined),
         receivedAt: new Date(Number(message.internalDate)).toISOString(),
+        // The profile's address is the account the API read, and yours.
         owner: this.owner,
+        account: this.owner,
       },
       contacts: this.contacts.linksFor(
         [mail.from, ...mail.to, ...mail.cc, ...mail.bcc].flatMap(person =>
