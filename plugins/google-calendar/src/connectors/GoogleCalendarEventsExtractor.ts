@@ -155,9 +155,12 @@ export class GoogleCalendarEventsExtractor extends Extractor<typeof GoogleCalend
   private recordOf(event: CalendarEvent, calendar: CalendarListEntry): EventRecord {
     const people = [event.organizer, event.creator, ...(event.attendees ?? [])];
     return {
-      contacts: this.contacts.linksFor(
-        people.flatMap(person => (person?.email ? [person.email] : []))
-      ),
+      // The calendar's ID too: an account's own calendar has its owner's
+      // address, who's the agent of an event that names no one.
+      contacts: this.contacts.linksFor([
+        ...people.flatMap(person => (person?.email ? [person.email] : [])),
+        calendar.id,
+      ]),
       event,
       calendar: {
         id: calendar.id,

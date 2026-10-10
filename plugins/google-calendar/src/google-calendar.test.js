@@ -140,8 +140,28 @@ test('events on the shown calendars become plans for named events, with their gu
 
 test('--link-contacts links guests to your contacts', async t => {
   await fakeCalendar(t);
+  // The guest's own calendar, shared with you, with an event that names no
+  // one: its agent is the calendar's owner, linked as a guest is.
+  const GUEST = 'guest@example.com';
+  CALENDARS.push({ id: GUEST, summary: GUEST, selected: true });
+  EVENTS[GUEST] = [
+    {
+      id: 'shared1',
+      iCalUID: 'shared@example.com',
+      created: '2025-01-04T12:00:00Z',
+      summary: 'Shared',
+      start: { date: '2025-01-04' },
+    },
+  ];
+  t.after(() => {
+    CALENDARS.pop();
+    delete EVENTS[GUEST];
+  });
   const { actions } = await extract({ linkContacts: true });
   const standup = actions.find(action => action.object.name === 'Standup');
+  const shared = actions.find(action => action.object.name === 'Shared');
+  assert.equal(shared.agent.handle, GUEST);
+  assert.deepEqual(shared.agent.sameAs, standup.agent.sameAs);
   // Your contact for the guest: the entry in your Google account, named as you
   // saved it, with their number.
   assert.deepEqual(standup.agent.sameAs, [
