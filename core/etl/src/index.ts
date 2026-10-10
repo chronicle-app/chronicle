@@ -42,6 +42,7 @@ export {
 } from '@chronicle.app/logging';
 export * from './selfAgent.js';
 export * from './phone.js';
+export * from './isrc.js';
 export * from './media.js';
 export * from './FilterFieldsTransformer.js';
 export * from './Base64TruncateTransformer.js';
