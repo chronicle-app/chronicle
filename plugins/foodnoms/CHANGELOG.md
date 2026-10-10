@@ -1,5 +1,17 @@
 # @chronicle.app/foodnoms
 
+## 0.4.0
+
+### Patch Changes
+
+- b567d4e: `DateTime` is now the one datatype for a point in time, and `Date` is gone. A `DateTime` is a JavaScript `Date` or an EDTF string at the precision the source knows: a UTC instant (`2024-03-02T14:05:00Z`), a year, month, or day (`1987`, `1987-06`, `1987-06-12`), unspecified digits (`198X`, `XXXX-03-12`), and an uncertain or approximate date (`1987?`, `1950~`). Strings are checked rather than accepted as they are, and `isDateTime` checks one. `@assertedAt` must be an instant, which `isInstant` checks, so an event dated only partly is no longer asserted at that date. FoodNoms timestamps are now instants rather than strings with a space before the time.
+- 7e12eb1: Fix `chronicle extract foodnoms` failing with `ERR_OUT_OF_RANGE` when a meal slot's `sortIndex` is outside JavaScript's safe integer range. FoodNoms can store values near Int64.min there; those now come through as decimal strings.
+- Updated dependencies [b0982a5]
+- Updated dependencies [2148753]
+- Updated dependencies [59904c0]
+  - @chronicle.app/etl-sqlite@0.4.0
+  - @chronicle.app/icloud@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes

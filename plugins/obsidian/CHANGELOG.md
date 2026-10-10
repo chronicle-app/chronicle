@@ -1,5 +1,11 @@
 # @chronicle.app/obsidian
 
+## 0.4.0
+
+### Patch Changes
+
+- 3b0a929: The Zotero and Obsidian plugins declare `chronicle.deepLinks` in their package.json again, so hosts that serve stored records can link them into the app.
+
 ## 0.3.0
 
 ### Minor Changes
