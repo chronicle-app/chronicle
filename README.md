@@ -68,6 +68,7 @@ other source by name, for example `chronicle plugins install lastfm`, or let
 | LinkedIn data export                                                  | [linkedin](plugins/linkedin/README.md)                     | archive (export)                |
 | Obsidian notes and links                                              | [obsidian](plugins/obsidian/README.md)                     | vault (local)                   |
 | Pinboard bookmarks                                                    | [pinboard](plugins/pinboard/README.md)                     | api                             |
+| Songs identified with Shazam and Music Recognition                    | [shazam](plugins/shazam/README.md)                         | app-db (local)                  |
 | Slack messages from a slackdump export                                | [slack](plugins/slack/README.md)                           | archive (export)                |
 | Spotify listens, saved tracks and albums, playlists                   | [spotify](plugins/spotify/README.md)                       | api                             |
 | Timing app usage, time entries, and calls                             | [timing-app](plugins/timing-app/README.md)                 | app-db (local)                  |

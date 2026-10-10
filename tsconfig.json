@@ -122,6 +122,9 @@
       "path": "plugins/claude-code/tsconfig.lib.json"
     },
     {
+      "path": "plugins/shazam/tsconfig.lib.json"
+    },
+    {
       "path": "core/auth/tsconfig.lib.json"
     },
     {
