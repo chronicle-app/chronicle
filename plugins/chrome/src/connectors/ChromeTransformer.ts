@@ -27,7 +27,10 @@ export default class ChromeTransformer extends ChronicleTransformer {
     return {
       '@type': 'ViewAction',
       timestamp: new Date(record.data.unix_ms),
-      '@key': ['@type', 'source', 'timestamp'],
+      // Chrome's visit id is only unique within one History file, but a
+      // synced visit keeps its time, so the page and time are the visit on
+      // every device. Two pages can open in the same millisecond.
+      '@key': ['@type', 'source', 'object.url', 'timestamp'],
       source: 'chrome',
       // A profile never signed in can't identify the viewer, so omit them.
       ...(user && { agent: user }),
@@ -51,7 +54,8 @@ export default class ChromeTransformer extends ChronicleTransformer {
     return {
       '@type': 'NavigateAction',
       timestamp: new Date(record.data.unix_ms),
-      '@key': ['@type', 'source', 'timestamp'],
+      // Keyed as the visit is: the page landed on, and when.
+      '@key': ['@type', 'source', 'target.url', 'timestamp'],
       source: 'chrome',
       ...(user && { agent: user }),
       object: {

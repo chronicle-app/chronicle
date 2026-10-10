@@ -13,7 +13,7 @@ converted from the record. Every node also has `source`.
 ## views
 
 ```ts
-ViewAction key(timestamp) {
+ViewAction key(object.url, timestamp) {
   timestamp*
   agent?: Agent key(handle) {
     handle, name
@@ -22,7 +22,7 @@ ViewAction key(timestamp) {
   object: Entity key(url, any source) { url, name }
 }
 // Some records also become:
-NavigateAction key(timestamp) {
+NavigateAction key(target.url, timestamp) {
   timestamp*
   agent?: Agent key(handle) {
     handle, name

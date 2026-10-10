@@ -45,6 +45,9 @@ test('visits become schema-valid ViewActions, newest first', async t => {
   const [first, redirected, synced] = [1, 3, 7].map(id => actions.get(id)[0]);
   // SHAPES.md shows the full shape; these are the values it can't show.
   assert.deepEqual(first.timestamp, new Date('2025-01-01T00:00:01Z'));
+  // A visit is its page and its time: a synced copy keeps both, and two pages
+  // opened in the same millisecond stay two.
+  assert.deepEqual(first['@key'], ['@type', 'source', 'object.url', 'timestamp']);
   // The profile's own account, not another one signed in on the web: you by
   // its address, lowercased as mail keys it, the Google account at that address.
   assert.deepEqual(first.agent, {
@@ -108,10 +111,13 @@ test('a link or form followed from a page is a NavigateAction beside the view', 
       [12, undefined],
     ])
   );
-  // The step happened as the page was viewed, by the same viewer.
+  // The step happened as the page was viewed, by the same viewer, and is
+  // keyed as the visit is: by the page landed on and the time.
   const [view, navigate] = actions.get(3);
   assert.deepEqual(navigate.timestamp, view.timestamp);
   assert.deepEqual(navigate.agent, view.agent);
+  assert.deepEqual(navigate['@key'], ['@type', 'source', 'target.url', 'timestamp']);
+  assert.equal(navigate.target.url, view.object.url);
 
   // A History file from before 2022 keeps only the page before in the same tab.
   const legacy = await transform(await extract({ input: fixture(t, { legacy: true }).input }));
