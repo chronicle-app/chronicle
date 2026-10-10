@@ -72,12 +72,6 @@ export interface MessageNodeOptions {
   meIdentities?: Agent[];
   /** The account the source read the message from: the message is `inAccount` it. */
   account?: Agent;
-  /**
-   * The source's own identity for its copy of the message (Gmail's message
-   * ID), linked by `sameAs`, keyed within the account that issued it. The
-   * message stays keyed by its Message-ID, which every copy shares.
-   */
-  identity?: { source: string; sourceId: string; inAccount?: Agent };
 }
 
 /**
@@ -109,22 +103,11 @@ export function messageAction(mail: MailMessage, options: MessageNodeOptions = {
   );
 
   const messageId = mail.messageId && msgId(mail.messageId);
-  const { identity } = options;
-  const copy: Message | undefined = identity && {
-    '@type': 'Message',
-    '@key': identity.inAccount
-      ? ['@type', 'source', 'inAccount[*].handle', 'sourceId']
-      : ['@type', 'source', 'sourceId'],
-    source: identity.source,
-    sourceId: identity.sourceId,
-    ...(identity.inAccount && { inAccount: [identity.inAccount] }),
-  };
   const message: Message = {
     '@type': 'Message',
     ...(messageId
       ? { '@key': MESSAGE_KEY, source: EMAIL, sourceId: messageId }
       : { '@key': KEYLESS_MESSAGE_KEY, source: EMAIL }),
-    ...(copy && { sameAs: [copy] }),
     ...(options.account && { inAccount: [options.account] }),
     name: mail.subject,
     ...(mail.text && { body: mail.text }),
