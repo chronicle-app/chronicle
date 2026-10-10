@@ -10,7 +10,7 @@ no `source`. `?` marks a property that is sometimes absent, `[]` a list,
 and `*` a value computed in the transformer rather than copied or
 converted from the record. Every node also has `source`.
 
-## shazams
+## listens
 
 ```ts
 ListenAction key(sourceId) {

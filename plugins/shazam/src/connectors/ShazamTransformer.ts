@@ -38,7 +38,7 @@ export default class ShazamTransformer extends ChronicleTransformer {
   static override source = SOURCE;
 
   async transform(record: Record): Promise<ActionAndChildren[]> {
-    if (record.extraction.recordType !== 'shazams') return [];
+    if (record.extraction.recordType !== 'listens') return [];
     const shazam = record.data as Shazam;
     // Without an iCloud account the listener can't be identified, so omit them.
     const listener = await buildICloudPersonSchema(record.context.account);

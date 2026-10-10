@@ -59,7 +59,7 @@ export class ShazamExtractor extends SqliteExtractor<typeof ShazamExtractor> {
 
   static override delivery = 'local' as const;
   static override strategy = 'app-db';
-  static override recordTypes = ['shazams'];
+  static override recordTypes = ['listens'];
   static override default = true;
   static override defaultTransformer = ShazamTransformer;
   static override newestFirst = true;
