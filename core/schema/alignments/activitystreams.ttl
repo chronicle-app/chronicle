@@ -55,6 +55,8 @@ as: rdfs:label "Activity Streams 2.0";
 :LikeAction rdfs:subClassOf as:Like .
 :ListenAction rdfs:subClassOf as:Listen .
 :MediaObject rdfs:subClassOf as:Document .
+:MoveAction doc:unlike as:Move;
+  doc:note "An as:Move is the actor moving the as:object from the as:origin to the as:target, such as a post from one list to another." .
 :Organization rdfs:subClassOf as:Organization .
 :Person rdfs:subClassOf as:Person .
 :Place rdfs:subClassOf as:Place;

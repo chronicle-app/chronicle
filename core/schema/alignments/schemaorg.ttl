@@ -33,6 +33,7 @@ schemaorg: rdfs:label "schema.org";
 :DeleteAction doc:note "The agent removed the entity itself, such as by moving it to the trash. A schemaorg:DeleteAction edits something by removing one of its objects, such as an item from a list." .
 :FindAction doc:unlike schemaorg:FindAction;
   doc:note "A schemaorg:FindAction is finding something, which a search can lead to. Searching is a schemaorg:SearchAction." .
+:MoveAction doc:note "A :MoveAction can be a step through an information space, such as following a link from one web page to another. A schemaorg:MoveAction is relocating to a place, from its schemaorg:fromLocation to its schemaorg:toLocation." .
 :Project doc:unlike schemaorg:Project;
   doc:note "A schemaorg:Project is an enterprise, a kind of schemaorg:Organization." .
 :QuoteAction doc:unlike schemaorg:QuoteAction;

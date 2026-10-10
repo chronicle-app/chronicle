@@ -43,7 +43,8 @@
 :alternateName a rdf:Property;
   rdfs:comment "Another name the entity was shown with, such as the display name a message gave its sender or a recipient. An entity can have many.";
   :domainIncludes :Entity;
-  :rangeIncludes :Text .
+  :rangeIncludes :Text;
+  skos:exactMatch schemaorg:alternateName .
 :url a rdf:Property;
   rdfs:comment "A URL at which the entity can be found, such as a web page's address or a link to the record in its source.";
   owl:maxCardinality 1;
@@ -328,7 +329,8 @@
 
 :MoveAction a rdfs:Class;
   rdfs:comment "The agent moved from the :object to the :target. The subclasses name the kind of movement.";
-  rdfs:subClassOf :Action .
+  rdfs:subClassOf :Action;
+  skos:closeMatch schemaorg:MoveAction .
 :NavigateAction a rdfs:Class;
   rdfs:comment "The agent took one step through an information space, from the :object to the :target, such as following a link from one web page to another. A path through several pages is a sequence of these steps.";
   rdfs:subClassOf :MoveAction .
