@@ -455,7 +455,7 @@
   rdfs:comment "The agent ate the :object, a :Meal. Where they ate is the action's :location.";
   rdfs:subClassOf :ConsumeAction,
     schemaorg:EatAction .
-:DrankAction a owl:Class;
+:DrinkAction a owl:Class;
   rdfs:comment "The agent drank the :object.";
   rdfs:subClassOf :ConsumeAction,
     schemaorg:DrinkAction .

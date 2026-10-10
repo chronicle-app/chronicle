@@ -776,12 +776,12 @@ example:drink-logged
   rdfs:label "Logging a drink";
   rdfs:comment """
 FoodNoms doesn't record whether an entry is food or drink. An entry whose
-:name contains a common drink word becomes a :DrankAction instead of an
+:name contains a common drink word becomes a :DrinkAction instead of an
 :EatAction. The action's key leaves out its type, so the same entry keeps its
 identity if the guess changes.
 """;
   rdf:value [
-    a :DrankAction;
+    a :DrinkAction;
     doc:key ("source" "sourceId");
     :source "foodnoms";
     :sourceId "8b1e4d7a-2c9f-4e3b-b6a1-5f0d3c7e9a24";
@@ -3686,7 +3686,7 @@ course is saved but not when, so the action has no :timestamp.
 :CallAction skos:example example:phone-call, example:group-call .
 :CallSession skos:example example:phone-call, example:group-call .
 :EatAction skos:example example:meal-logged .
-:DrankAction skos:example example:drink-logged .
+:DrinkAction skos:example example:drink-logged .
 :Meal skos:example example:meal-logged, example:drink-logged .
 :Post skos:example example:tweet-published, example:tweet-liked, example:like, example:reaction .
 :PublishAction skos:example example:tweet-published .
