@@ -1,6 +1,6 @@
 {
   "name": "@chronicle.app/email-core",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
@@ -23,9 +23,9 @@
   "type": "module",
   "description": "Email parsing, mbox reading, and message nodes shared by Chronicle mail sources",
   "devDependencies": {
-    "@chronicle.app/etl": "0.3.0",
-    "@chronicle.app/schema": "0.3.0",
-    "@chronicle.app/tsconfig": "0.3.0",
+    "@chronicle.app/etl": "0.4.0",
+    "@chronicle.app/schema": "0.4.0",
+    "@chronicle.app/tsconfig": "0.4.0",
     "@types/node": "^22.10.1",
     "typescript": "^5.7.2"
   },
