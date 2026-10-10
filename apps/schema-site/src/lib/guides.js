@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import MarkdownIt from 'markdown-it';
+import { findTerm, REFERENCE } from './alignments.js';
 import { escape, paths, slugify, TERM } from './html.js';
 
 const slugOf = file => file.replace(/\.md$/, '').replace(/^\d+-/, '');
@@ -11,26 +12,38 @@ const defaultRender = (tokens, i, options, env, self) => self.renderToken(tokens
  * Guides are ordinary Markdown files, read in filename order. Besides links
  * between guides, a guide can link into the reference with `example:<id>`,
  * `class:<Name>`, or `property:<name>`, and `:Term` in text links to that
- * term. An image of a local .svg file is inlined as a figure, so it can use
- * the site's colours and link to the reference the same way. Every link is
- * checked when the site is built.
+ * term. `prefix:Name` links to the term of another vocabulary the schema has an
+ * alignment for, such as `as:origin`. An image of a local .svg file is inlined
+ * as a figure, so it can use the site's colours and link to the reference the
+ * same way. Every link is checked when the site is built. The comparisons with
+ * other vocabularies are read the same way.
  */
 export async function loadGuides(schema, directory) {
   const files = (await readdir(directory)).filter(file => file.endsWith('.md')).sort();
   const exampleIds = new Set(schema.examples.map(example => example.id));
   const indexes = new Set(['classes/index.html', 'properties/index.html', 'examples/index.html']);
 
-  // `:Term` references in text become links to the reference.
-  function linkTerms(content) {
+  // `:Term` references in text become links to the reference, and
+  // `prefix:Name` references to the other vocabulary's term.
+  const prefixes = new Set(schema.vocabularies.map(vocabulary => vocabulary.prefix));
+  function linkTerms(content, file) {
     let html = '';
     let cursor = 0;
-    for (const match of content.matchAll(TERM)) {
-      const name = match[0].slice(1);
-      const isClass = schema.classes.has(name);
-      if (!isClass && !schema.properties.has(name)) continue;
-      const target = isClass ? paths.class(name) : paths.property(name);
-      html += escape(content.slice(cursor, match.index));
-      html += `<a class="term${isClass ? '' : ' property'}" href="../${target}">${escape(name)}</a>`;
+    for (const match of content.matchAll(REFERENCE)) {
+      let link;
+      if (match[0].startsWith(':')) {
+        const name = match[0].slice(1);
+        const isClass = schema.classes.has(name);
+        if (!isClass && !schema.properties.has(name)) continue;
+        const target = isClass ? paths.class(name) : paths.property(name);
+        link = `<a class="term${isClass ? '' : ' property'}" href="../${target}">${escape(name)}</a>`;
+      } else {
+        if (!prefixes.has(match[1])) continue;
+        const term = findTerm(schema.vocabularies, match[1], match[2]);
+        if (!term) throw new Error(`Unknown term in ${file}: ${match[0]}`);
+        link = `<a class="term external" href="${escape(term.uri)}">${escape(match[0])}</a>`;
+      }
+      html += escape(content.slice(cursor, match.index)) + link;
       cursor = match.index + match[0].length;
     }
     return html + escape(content.slice(cursor));
@@ -75,7 +88,7 @@ export async function loadGuides(schema, directory) {
           (_, href) => `href="../${destination(href, file)}"`
         );
         const caption = token.attrGet('title');
-        return `<figure class="diagram">${svg}${caption ? `<figcaption>${linkTerms(caption)}</figcaption>` : ''}</figure>`;
+        return `<figure class="diagram">${svg}${caption ? `<figcaption>${linkTerms(caption, file)}</figcaption>` : ''}</figure>`;
       };
       rules.heading_open = (tokens, i, options, env, self) => {
         const token = tokens[i];
@@ -99,7 +112,7 @@ export async function loadGuides(schema, directory) {
           );
         // Inside a link, `:Term` is just the term's name.
         if (inLink) return escape(content.replaceAll(TERM, match => match.slice(1)));
-        return linkTerms(content);
+        return linkTerms(content, file);
       };
 
       // A diagram stands alone, so it should not stay inside a paragraph.

@@ -13,5 +13,8 @@ and the link syntax guides use.
   so renaming one can break a link.
 - Diagrams are local SVG files. Use the site's CSS variables with a fallback,
   such as `var(--accent, #c8323e)`, so they work in both themes.
+- A comparison in `vocabularies/` describes both vocabularies as they are.
+  Put a difference between two terms in the alignment's `doc:note`, which the
+  comparison's tables show, rather than in the comparison's text.
 - Run `npm test` here after any change. It builds the site and fails on broken
   links and invalid examples.

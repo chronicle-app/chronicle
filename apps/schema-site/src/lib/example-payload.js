@@ -1,8 +1,9 @@
+import { cardinalityOf } from '../../../../core/schema/scripts/terms.js';
+
 const CHRONICLE = 'https://schema.chronicle.app/';
 const DOC = 'https://schema.chronicle.app/docs/';
 const RDF = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#';
 const XSD = 'http://www.w3.org/2001/XMLSchema#';
-const OWL = 'http://www.w3.org/2002/07/owl#';
 
 function literal(term) {
   if (term.language) return { '@value': term.value, '@language': term.language };
@@ -108,10 +109,9 @@ export async function serializeExample(store, roots, statements) {
         result['doc:key'] = { '@list': keyFields(terms[0]) };
         continue;
       }
-      const maxTerm = store.getObjects(predicate, OWL + 'maxCardinality', null)[0];
-      const max = maxTerm ? Number(maxTerm.value) : null;
+      const { max } = cardinalityOf(store, predicate);
       if (max !== null && terms.length > max) {
-        throw new Error(`Example property ${compact(predicate)} exceeds maxCardinality ${max}`);
+        throw new Error(`Example property ${compact(predicate)} exceeds sh:maxCount ${max}`);
       }
       const values = terms.map(term =>
         term.termType === 'Literal' ? literal(term) : render(term)

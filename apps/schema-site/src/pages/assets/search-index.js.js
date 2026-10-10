@@ -9,6 +9,7 @@ import {
   plain,
   properties,
   SECTIONS,
+  vocabularies,
 } from '../../lib/site.js';
 
 const flat = text => plain(text).replaceAll(/\s+/g, ' ');
@@ -20,6 +21,10 @@ const entry = ({ path, kind, title, description = '', search = '' }) => ({
   keywords: flat(`${description} ${search}`),
 });
 const section = kind => entry({ ...SECTIONS[kind], kind });
+// The names of the terms a term relates to, so searching for schema.org's
+// SocialMediaPosting finds Post.
+const related = term =>
+  term.alignments.flatMap(alignment => alignment.relations.map(relation => relation.name));
 
 export function GET() {
   const index = [
@@ -44,6 +49,7 @@ export function GET() {
         search: [
           ...[cls.name, ...cls.ancestors].flatMap(name => classes.get(name).properties),
           ...cls.ancestors,
+          ...related(cls),
         ].join(' '),
       })
     ),
@@ -54,7 +60,7 @@ export function GET() {
         kind: 'property',
         title: property.name,
         description: property.comment,
-        search: [...property.domain, ...property.range].join(' '),
+        search: [...property.domain, ...property.range, ...related(property)].join(' '),
       })
     ),
     section('examples'),
@@ -65,6 +71,16 @@ export function GET() {
         title: example.title,
         description: example.body,
         search: example.usedBy.join(' '),
+      })
+    ),
+    section('vocabularies'),
+    ...vocabularies.map(vocabulary =>
+      entry({
+        path: paths.vocabulary(vocabulary.id),
+        kind: 'vocabulary',
+        title: vocabulary.comparison.title,
+        description: vocabulary.comparison.lead,
+        search: vocabulary.comparison.text,
       })
     ),
     section('validator'),

@@ -1,0 +1,35 @@
+---
+// How a term relates to other vocabularies: one row for each vocabulary, with
+// the terms it relates to and how they differ.
+import { href, vocabularyById } from '../lib/site.js';
+import Prose from './Prose.astro';
+import Relation from './Relation.astro';
+
+interface Props {
+  alignments: { vocabulary: string; relations: { relation: string; name: string; uri: string; pending: boolean }[]; note: string }[];
+}
+const { alignments } = Astro.props;
+const notes = alignments.some(alignment => alignment.note);
+---
+
+<section id="other-vocabularies">
+  <h2>In other vocabularies</h2>
+  <div class="table-wrap">
+    <table class="alignments">
+      <thead>
+        <tr><th scope="col">Vocabulary</th><th scope="col">Term</th>{notes && <th scope="col">How they differ</th>}</tr>
+      </thead>
+      <tbody>
+        {
+          alignments.map(alignment => (
+            <tr>
+              <th scope="row"><a href={href.vocabulary(alignment.vocabulary)}>{vocabularyById.get(alignment.vocabulary).name}</a></th>
+              <td>{alignment.relations.map(relation => <Relation relation={relation} />)}</td>
+              {notes && <td><Prose text={alignment.note} /></td>}
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </div>
+</section>

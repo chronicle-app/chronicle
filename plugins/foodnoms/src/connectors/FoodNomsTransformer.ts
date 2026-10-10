@@ -1,5 +1,5 @@
 import { ChronicleTransformer, Record } from '@chronicle.app/etl';
-import { ActionAndChildren, EatAction, DrankAction, Meal, Agent } from '@chronicle.app/schema';
+import { ActionAndChildren, EatAction, DrinkAction, Meal, Agent } from '@chronicle.app/schema';
 import { buildICloudPersonSchema, type ICloudAccount } from '@chronicle.app/icloud';
 
 /**
@@ -92,8 +92,8 @@ export default class FoodNomsTransformer extends ChronicleTransformer {
       object: meal,
     };
 
-    const action: (EatAction | DrankAction) & ActionAndChildren = this.isDrink(record.data.name)
-      ? { '@type': 'DrankAction', ...shared }
+    const action: (EatAction | DrinkAction) & ActionAndChildren = this.isDrink(record.data.name)
+      ? { '@type': 'DrinkAction', ...shared }
       : { '@type': 'EatAction', ...shared };
 
     return [action];
