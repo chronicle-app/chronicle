@@ -251,18 +251,24 @@ test('an event’s agent is who put it on the calendar, and you are the signed-i
     // No one named, on a calendar made in your account.
     day('unnamed', '2025-01-06', {})
   );
-  // Invited under an alias, on your primary calendar.
   EVENTS[OWNER].push(
+    // Invited under an alias, on your primary calendar.
     day('alias', '2025-01-07', {
       organizer: { email: 'guest@example.com', displayName: 'Test Guest' },
       attendees: [{ email: 'Alias@Example.com', self: true }],
+    }),
+    // Imported from a file that named no organizer: Google's placeholder is
+    // its organizer, and you, who imported it, its creator.
+    day('imported', '2025-01-08', {
+      organizer: { email: 'unknownorganizer@calendar.google.com' },
+      creator: { email: OWNER, self: true },
     })
   );
   t.after(() => {
     CALENDARS.pop();
     delete EVENTS[PARTNER];
     EVENTS[TEAM].splice(-2);
-    EVENTS[OWNER].splice(-1);
+    EVENTS[OWNER].splice(-2);
   });
 
   const { actions } = await extract();
@@ -271,6 +277,7 @@ test('an event’s agent is who put it on the calendar, and you are the signed-i
   // Its owner, not you, though Google marks them as the calendar's.
   assert.deepEqual(plan('theirs').agent, person(PARTNER));
   assert.deepEqual(plan('made').agent, person(OWNER, undefined, { sameAs: you }));
+  assert.deepEqual(plan('imported').agent, person(OWNER, undefined, { sameAs: you }));
   assert.deepEqual(plan('unnamed').agent, {
     '@type': 'Agent',
     '@key': ['@type', 'source', 'sourceId'],

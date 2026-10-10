@@ -24,9 +24,11 @@ interface Context {
 /**
  * IDs Google gives calendars that aren't an account's own: ones made in an
  * account, subscribed and holiday calendars, rooms. An account's own (primary)
- * calendar has its address as its ID.
+ * calendar has its address as its ID. Google also names a placeholder,
+ * `unknownorganizer@calendar.google.com`, as the organizer of an event
+ * imported without one.
  */
-const CALENDAR_ID = /\.calendar\.google\.com$/i;
+const CALENDAR_ID = /[@.]calendar\.google\.com$/i;
 
 export default class GoogleCalendarTransformer extends ChronicleTransformer {
   override async transform(record: Record): Promise<ActionAndChildren[]> {
