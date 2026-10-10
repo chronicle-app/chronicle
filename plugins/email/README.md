@@ -70,8 +70,10 @@ Messages are built by [@chronicle.app/email-core](../../core/email/README.md), t
   addresses, and it is `inReplyTo` the message its In-Reply-To names.
 - Its `body` is what the sender wrote, as plain text or Markdown: no HTML,
   quoted history, or signature.
-- Each address is an `Agent` whose `handle` is the email address, lowercased,
-  and whose `name` is the display name, or the address when there is none.
+- Each address is an `Agent` whose `handle` is the email address, lowercased.
+  A display name is an `alternateName`, not its `name`: the sender or their
+  address book chose it, and it changes from message to message. A display
+  name that's only the address is left out.
 
 A message is keyed by its Message-ID in the `email` namespace, so the same email read
 from an mbox and from Gmail is one node. A person is their address, lowercased,
