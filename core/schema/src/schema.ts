@@ -860,7 +860,7 @@ export interface ConsumeAction extends Omit<Action, '@type'> {
 
 export type ConsumeActionAndChildren =
   | ConsumeAction
-  | DrankActionAndChildren
+  | DrinkActionAndChildren
   | EatActionAndChildren
   | ListenActionAndChildren
   | ReadActionAndChildren
@@ -990,21 +990,21 @@ export const DocumentObjectSchema: z.ZodType<DocumentObject> = z
   })
   .superRefine(requireNodeIdentity);
 
-// DrankAction, child of https://schema.chronicle.app/ConsumeAction
-export interface DrankAction extends Omit<ConsumeAction, '@type'> {
-  '@type': 'DrankAction';
+// DrinkAction, child of https://schema.chronicle.app/ConsumeAction
+export interface DrinkAction extends Omit<ConsumeAction, '@type'> {
+  '@type': 'DrinkAction';
 }
 
-export type DrankActionAndChildren = DrankAction;
+export type DrinkActionAndChildren = DrinkAction;
 
-const DrankActionProperties = {
+const DrinkActionProperties = {
   ...ConsumeActionProperties,
 };
 
-export const DrankActionSchema: z.ZodType<DrankAction> = z
+export const DrinkActionSchema: z.ZodType<DrinkAction> = z
   .object({
-    '@type': z.literal('DrankAction'),
-    ...DrankActionProperties,
+    '@type': z.literal('DrinkAction'),
+    ...DrinkActionProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -2377,7 +2377,7 @@ export const EnrollmentAndChildrenSchema = EnrollmentSchema;
 
 export const EatActionAndChildrenSchema = EatActionSchema;
 
-export const DrankActionAndChildrenSchema = DrankActionSchema;
+export const DrinkActionAndChildrenSchema = DrinkActionSchema;
 
 export const DocumentObjectAndChildrenSchema = DocumentObjectSchema;
 
@@ -2435,8 +2435,8 @@ export const ConsumeActionAndChildrenSchema: z.ZodType<ConsumeActionAndChildren>
     }),
 
     z.object({
-      '@type': z.literal('DrankAction'),
-      ...DrankActionProperties,
+      '@type': z.literal('DrinkAction'),
+      ...DrinkActionProperties,
     }),
   ])
   .superRefine(requireNodeIdentity);
@@ -3324,8 +3324,8 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('DrankAction'),
-      ...DrankActionProperties,
+      '@type': z.literal('DrinkAction'),
+      ...DrinkActionProperties,
     }),
 
     z.object({
@@ -3832,8 +3832,8 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('DrankAction'),
-      ...DrankActionProperties,
+      '@type': z.literal('DrinkAction'),
+      ...DrinkActionProperties,
     }),
 
     z.object({

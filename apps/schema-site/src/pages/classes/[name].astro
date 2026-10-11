@@ -1,4 +1,5 @@
 ---
+import Alignments from '../../components/Alignments.astro';
 import Card from '../../components/Card.astro';
 import ExamplesSection from '../../components/ExamplesSection.astro';
 import PropertyTable from '../../components/PropertyTable.astro';
@@ -23,6 +24,7 @@ const usedAs = [...properties.values()]
   )
   .sort((a, b) => Number(Boolean(a.via)) - Number(Boolean(b.via)));
 const toc = [
+  ...(cls.alignments.length > 0 ? [{ id: 'other-vocabularies', title: 'In other vocabularies' }] : []),
   { id: 'properties', title: 'Properties' },
   ...(usedAs.length > 0 ? [{ id: 'used-as', title: 'Used as a value' }] : []),
   ...(cls.children.length > 0 ? [{ id: 'subclasses', title: 'Subclasses' }] : []),
@@ -45,6 +47,7 @@ const toc = [
     <h1>{cls.name}</h1>
     {cls.comment && <p class="lead"><Prose text={cls.comment} /></p>}
   </header>
+  {cls.alignments.length > 0 && <Alignments alignments={cls.alignments} />}
   <section id="properties">
     <h2>Properties</h2>
     {

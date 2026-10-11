@@ -41,11 +41,24 @@ test('generation fails for cyclic or undeclared parents', () => {
   assert.match(missing.stderr, /Undeclared parent/);
 });
 
-test('generation fails for undeclared property ranges and malformed Turtle', () => {
-  const missing = generate(ontology.replace(':rangeIncludes :URL', ':rangeIncludes :Missing'));
+test('generation fails for undeclared property ranges, split domains, and malformed Turtle', () => {
+  const missing = generate(ontology.replace('rdfs:range :URL', 'rdfs:range :Missing'));
   assert.notEqual(missing.status, 0);
   assert.match(missing.stderr, /Undeclared class/);
+  // OWL reads two domains as both at once, so they must be one union.
+  const split = generate(`${ontology}\n:name rdfs:domain :Action .`);
+  assert.notEqual(split.status, 0);
+  assert.match(split.stderr, /more than one .*domain/);
   assert.notEqual(generate('this is not Turtle').status, 0);
+});
+
+test('a class with two parents is listed once in each union', () => {
+  const result = generate(
+    `${ontology}\n:LocalBusiness a owl:Class; rdfs:subClassOf :Venue, :Organization; rdfs:comment "A business at a place." .`
+  );
+  assert.equal(result.status, 0, result.stderr);
+  const union = result.generated.match(/export const EntityAndChildrenSchema[\s\S]*?\]\)/)[0];
+  assert.equal(union.match(/literal\('LocalBusiness'\)/g).length, 1);
 });
 
 test('vocabulary version is generated and invalid declarations are rejected', () => {

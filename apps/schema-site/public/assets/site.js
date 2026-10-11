@@ -38,6 +38,7 @@ const results = document.querySelector('#search-results');
 const status = document.querySelector('#search-status');
 const kindLabels = {
   guide: 'Guide',
+  vocabulary: 'Vocabulary',
   class: 'Class',
   property: 'Property',
   example: 'Example',
@@ -47,8 +48,9 @@ const kindLabels = {
   properties: 'Page',
   examples: 'Page',
   validator: 'Page',
+  vocabularies: 'Page',
 };
-const kindOrder = ['class', 'property', 'guide', 'example'];
+const kindOrder = ['class', 'property', 'guide', 'vocabulary', 'example'];
 let matches = [];
 let active = -1;
 let returnFocus = null;

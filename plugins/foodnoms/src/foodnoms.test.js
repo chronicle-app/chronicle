@@ -116,7 +116,7 @@ async function records(input, config = {}) {
   }
 }
 
-test('food entries become schema-valid EatActions and DrankActions, newest first', async t => {
+test('food entries become schema-valid EatActions and DrinkActions, newest first', async t => {
   const input = fixture(t);
   const rows = await records(input);
   assert.deepEqual(
@@ -169,7 +169,7 @@ test('food entries become schema-valid EatActions and DrankActions, newest first
 
   const [drank] = await transformer.performTransform(latte);
   assert.deepEqual(drank.data, {
-    '@type': 'DrankAction',
+    '@type': 'DrinkAction',
     timestamp: new Date('2025-01-02T14:05:00.000Z'),
     '@assertedAt': new Date('2025-01-02T14:05:00.000Z'),
     '@key': ['source', 'sourceId'],
@@ -189,7 +189,7 @@ test('food entries become schema-valid EatActions and DrankActions, newest first
 
   // An unnamed custom slot goes uncategorized; "coffee cake" matches a drink word.
   const [cakeAction] = await transformer.performTransform(cake);
-  assert.equal(cakeAction.data['@type'], 'DrankAction');
+  assert.equal(cakeAction.data['@type'], 'DrinkAction');
   assert.deepEqual(cakeAction.data.object, {
     '@type': 'Meal',
     '@key': ['@type', 'source', 'sourceId'],

@@ -589,6 +589,30 @@ a.term.property {
   font-size: 0.9em;
   font-weight: 500;
 }
+/* A term in another vocabulary, such as schema.org's VideoObject. */
+a.term.external::after {
+  content: '\2197';
+  margin-left: 1px;
+  color: var(--muted);
+  font-size: 0.8em;
+}
+
+/* How a term relates to another vocabulary's terms. */
+.relation {
+  display: block;
+}
+.relation + .relation {
+  margin-top: 4px;
+}
+.relation-label {
+  color: var(--muted);
+}
+.relation-unlike .relation-label {
+  color: var(--accent);
+}
+.relation .tag {
+  margin-left: 4px;
+}
 
 .tag {
   display: inline-block;
@@ -1004,6 +1028,9 @@ tr.group a {
 }
 .facts dd {
   margin: 0;
+}
+.facts + .prose > :first-child {
+  margin-top: 32px;
 }
 
 /* --------------------------------------------------------------- examples */

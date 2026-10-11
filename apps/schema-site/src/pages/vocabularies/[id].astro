@@ -1,0 +1,64 @@
+---
+// One vocabulary that Chronicle's terms relate to: the comparison, then every
+// class and property that relates to one of its terms.
+import Prose from '../../components/Prose.astro';
+import Relation from '../../components/Relation.astro';
+import TermLink from '../../components/TermLink.astro';
+import Layout from '../../layouts/Layout.astro';
+import { classes, paths, properties, url, vocabularies } from '../../lib/site.js';
+
+export function getStaticPaths() {
+  return vocabularies.map(vocabulary => ({ params: { id: vocabulary.id }, props: { vocabulary } }));
+}
+const { vocabulary } = Astro.props;
+const rows = terms =>
+  terms.flatMap(term => {
+    const alignment = term.alignments.find(candidate => candidate.vocabulary === vocabulary.id);
+    return alignment ? [{ term, ...alignment }] : [];
+  });
+const mapped = rows => rows.filter(row => row.relations.some(relation => relation.relation !== 'unlike'));
+const groups = [
+  { id: 'classes', title: 'Classes', rows: rows([...classes.values()]), total: classes.size },
+  { id: 'properties', title: 'Properties', rows: rows([...properties.values()]), total: properties.size },
+];
+const unlike = groups.flatMap(group => group.rows).filter(row => row.relations.some(relation => relation.relation === 'unlike'));
+const toc = [...vocabulary.comparison.headings, ...groups.map(({ id, title }) => ({ id, title }))];
+---
+
+<Layout path={paths.vocabulary(vocabulary.id)} kind="vocabulary" title={vocabulary.comparison.title} description={vocabulary.comparison.lead} toc={toc}>
+  <header class="page-header">
+    <p class="eyebrow"><a href={url('vocabularies/index.html')}>Other vocabularies</a></p>
+    <h1>{vocabulary.comparison.title}</h1>
+  </header>
+  <dl class="facts">
+    <div><dt>Compared with</dt><dd><a href={vocabulary.url}>{vocabulary.name} {vocabulary.release}</a></dd></div>
+    {groups.map(group => <div><dt>{group.title} mapped</dt><dd>{mapped(group.rows).length} of {group.total}</dd></div>)}
+    <div><dt>Same name, other meaning</dt><dd>{unlike.length}</dd></div>
+  </dl>
+  {/* Rendered from Markdown by the guide loader, which escapes text and checks links. */}
+  <article class="prose" set:html={vocabulary.comparison.html} />
+  {
+    groups.map(group => (
+      <section id={group.id}>
+        <h2>{group.title}</h2>
+        <div class="table-wrap">
+          <table class="alignments">
+            <thead>
+              <tr><th scope="col">Chronicle</th><th scope="col">{vocabulary.name}</th><th scope="col">How they differ</th></tr>
+            </thead>
+            <tbody>
+              {group.rows.map(row => (
+                <tr>
+                  <th scope="row"><TermLink name={row.term.name} /></th>
+                  <td>{row.relations.map(relation => <Relation relation={relation} />)}</td>
+                  <td><Prose text={row.note} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    ))
+  }
+  <p class="uri">Namespace <code>{vocabulary.namespace}</code> · <a href={url(paths.alignment(vocabulary.id))} download>Download the alignment</a></p>
+</Layout>

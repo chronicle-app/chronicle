@@ -9,10 +9,13 @@ export const DATA_DIRECTORIES = {
   // site is rebuilt from that tag's vocabulary.
   schema: fileURLToPath(new URL('../../../core/schema/', import.meta.url)),
   guides: fileURLToPath(new URL('../guides/', import.meta.url)),
+  // Comparisons with other vocabularies, one for each alignment in the schema.
+  vocabularies: fileURLToPath(new URL('../vocabularies/', import.meta.url)),
 };
 
 /** Vite `define` entries that hand the data directories to the pages. */
-export const defineDirectories = ({ schema, guides } = DATA_DIRECTORIES) => ({
+export const defineDirectories = ({ schema, guides, vocabularies } = DATA_DIRECTORIES) => ({
   __SCHEMA_DIRECTORY__: JSON.stringify(schema),
   __GUIDES_DIRECTORY__: JSON.stringify(guides),
+  __VOCABULARIES_DIRECTORY__: JSON.stringify(vocabularies),
 });

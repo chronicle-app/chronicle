@@ -1,6 +1,15 @@
 import { DataFactory, Parser, Store } from 'n3';
 import fs from 'node:fs';
 import { schemaVersion } from './schema-version.js';
+import {
+  cardinalityOf,
+  declaredClasses,
+  declaredDatatypes,
+  declaredProperties,
+  domainOf,
+  parentsOf,
+  rangeOf,
+} from './terms.js';
 
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -38,16 +47,6 @@ const getComment = (store, classId) => {
   return comment[0]?.object?.value;
 };
 
-const getDomain = (store, propertyId) =>
-  store
-    .getQuads(namedNode(propertyId), namedNode('https://schema.chronicle.app/domainIncludes'), null)
-    .map(quad => quad.object.value);
-
-const getRange = (store, propertyId) =>
-  store
-    .getQuads(namedNode(propertyId), namedNode('https://schema.chronicle.app/rangeIncludes'), null)
-    .map(quad => quad.object.value);
-
 const getSeeAlso = (store, id) => {
   const seeAlso = store.getQuads(
     namedNode(id),
@@ -58,60 +57,13 @@ const getSeeAlso = (store, id) => {
   return seeAlso[0]?.object?.value;
 };
 
-// owl:minCardinality 1
-const isRequired = (store, propertyId) => {
-  const minCardinality = store.getQuads(
-    namedNode(propertyId),
-    namedNode('http://www.w3.org/2002/07/owl#minCardinality'),
-    null
-  );
-
-  if (minCardinality.length === 0) {
-    return false;
-  }
-
-  return minCardinality[0]?.object?.value === '1';
-};
-
-const isMany = (store, propertyId) => {
-  const maxCardinality = store.getQuads(
-    namedNode(propertyId),
-    namedNode('http://www.w3.org/2002/07/owl#maxCardinality'),
-    null
-  );
-
-  if (maxCardinality.length === 0) {
-    return true;
-  }
-
-  return maxCardinality[0]?.object?.value !== '1';
-};
-
-const getParents = (store, classId) => {
-  const parents = store
-    .getQuads(
-      namedNode(classId),
-      namedNode('http://www.w3.org/2000/01/rdf-schema#subClassOf'),
-      null
-    )
-    .map(quad => quad.object.value);
-
-  return parents;
-};
-
 const extractSchemaInfo = store => {
-  const classIds = store.getQuads(
-    null,
-    namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
-    namedNode('http://www.w3.org/2000/01/rdf-schema#Class')
-  );
-
-  const classesRaw = classIds.map(classQuad => {
-    const classId = classQuad.subject.value;
+  const classesRaw = declaredClasses(store).map(classTerm => {
+    const classId = classTerm.value;
 
     return {
       classId,
-      parents: getParents(store, classId),
+      parents: parentsOf(store, classId),
       shortName: classId.split('/').pop(),
       children: findChildren(store, classId),
       comment: getComment(store, classId),
@@ -121,35 +73,32 @@ const extractSchemaInfo = store => {
 
   const classes = sortClassesTopologically(classesRaw);
 
-  const propertyIds = store.getQuads(
-    null,
-    namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
-    namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#Property')
-  );
-
-  const properties = propertyIds
-    .sort((a, b) => a.subject.value.localeCompare(b.subject.value))
-    .map(propertyQuad => {
-      const propertyId = propertyQuad.subject.value;
+  const properties = declaredProperties(store)
+    .sort((a, b) => a.value.localeCompare(b.value))
+    .map(propertyTerm => {
+      const propertyId = propertyTerm.value;
+      const { min, max } = cardinalityOf(store, propertyId);
 
       return {
         propertyId,
         shortName: propertyId.split('/').pop(),
         comment: getComment(store, propertyId),
         seeAlso: getSeeAlso(store, propertyId),
-        domain: getDomain(store, propertyId),
-        range: getRange(store, propertyId),
-        isRequired: isRequired(store, propertyId),
-        isMany: isMany(store, propertyId),
+        domain: domainOf(store, propertyId),
+        range: rangeOf(store, propertyId),
+        isRequired: min >= 1,
+        isMany: max !== 1,
       };
     })
     .filter(p => p.range.length > 0);
 
-  const knownClasses = new Set(classes.map(c => c.classId));
+  const knownTerms = new Set([
+    ...classes.map(c => c.classId),
+    ...declaredDatatypes(store).map(datatype => datatype.value),
+  ]);
   for (const property of properties) {
     for (const id of [...property.domain, ...property.range]) {
-      if (!knownClasses.has(id))
-        throw new Error(`Undeclared class ${id} on ${property.propertyId}`);
+      if (!knownTerms.has(id)) throw new Error(`Undeclared class ${id} on ${property.propertyId}`);
     }
   }
 
@@ -229,19 +178,7 @@ const writeSchemaFile = (classes, properties, version) =>
       return Boolean(c) && (c.parents || []).some(p => descendsFromBase(p, seen));
     };
 
-    for (const classInfo of classes.filter(classInfo => {
-      const literalTypes = [
-        'Boolean',
-        'DataType',
-        'DateTime',
-        'Float',
-        'Integer',
-        'Number',
-        'Text',
-        'URL',
-      ];
-      return !literalTypes.includes(classInfo.shortName);
-    })) {
+    for (const classInfo of classes) {
       const { classId, shortName, children, parents } = classInfo;
 
       schemaFile.write(`\n\n// ${shortName}, child of ${classInfo.parents}\n`);
@@ -364,19 +301,7 @@ ${shortName === 'Base' ? ',"@key": z.array(z.union([z.string(), z.object({ key: 
 
     // put the discriminated union at the end so that all the classes are defined
     // reverse so that the parent classes are defined before the child
-    for (const classInfo of classes.reverse().filter(classInfo => {
-      const literalTypes = [
-        'Boolean',
-        'DataType',
-        'DateTime',
-        'Float',
-        'Integer',
-        'Number',
-        'Text',
-        'URL',
-      ];
-      return !literalTypes.includes(classInfo.shortName);
-    })) {
+    for (const classInfo of classes.reverse()) {
       const { classId, shortName } = classInfo;
 
       let discriminatedUnionStr;
@@ -413,18 +338,18 @@ const objectSchemaForClass = classId => {
   `;
 };
 
+// A class with two parents is reachable twice. List each class once, since a
+// discriminated union rejects a repeated @type.
 const objectSchemaForClassAndChildren = (classId, classes) => {
-  const schemas = [];
+  const classIds = [];
+  const visit = id => {
+    if (classIds.includes(id)) return;
+    classIds.push(id);
+    for (const child of classes.filter(c => c.parents.includes(id))) visit(child.classId);
+  };
+  visit(classId);
 
-  schemas.push(objectSchemaForClass(classId));
-
-  const children = classes.filter(c => c.parents.includes(classId));
-
-  for (const child of children) {
-    schemas.push(objectSchemaForClassAndChildren(child.classId, classes));
-  }
-
-  return schemas.join(',\n');
+  return classIds.map(id => objectSchemaForClass(id)).join(',\n');
 };
 
 const main = async () => {

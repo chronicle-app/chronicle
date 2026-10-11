@@ -1,0 +1,26 @@
+---
+import Card from '../../components/Card.astro';
+import Prose from '../../components/Prose.astro';
+import Layout from '../../layouts/Layout.astro';
+import { firstSentence, href, SECTIONS, vocabularies } from '../../lib/site.js';
+---
+
+<Layout {...SECTIONS.vocabularies} kind="vocabularies">
+  <header class="page-header">
+    <p class="eyebrow">Reference</p>
+    <h1>{SECTIONS.vocabularies.title}</h1>
+    <p class="lead">
+      Chronicle's terms point to the closest terms in other vocabularies, as hints for mapping data. Each page compares
+      Chronicle with one vocabulary and lists every term that relates to one of its terms, with how the two differ.
+    </p>
+  </header>
+  <div class="grid">
+    {
+      vocabularies.map(vocabulary => (
+        <Card href={href.vocabulary(vocabulary.id)} kicker={`${vocabulary.name} ${vocabulary.release}`} title={vocabulary.comparison.title}>
+          <Prose text={firstSentence(vocabulary.comparison.lead)} links={false} />
+        </Card>
+      ))
+    }
+  </div>
+</Layout>

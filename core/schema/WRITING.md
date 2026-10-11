@@ -53,7 +53,8 @@ colon is plain text.
 
 **2.2 Name only declared terms.** Every `:name` must be a class or property
 in `chronicle.ttl`. Do not describe properties or classes the vocabulary
-does not have.
+does not have. A note on another vocabulary also names that vocabulary's
+terms (8.3).
 
 **2.3 Use backticks for literal values only:** `1987-06-12`, `XXXX`,
 `https://example.com/`.
@@ -121,3 +122,24 @@ three sentences. Datatypes and terms that restrict their values need more.
 
 The `:Tenure` rewrite also drops `:employer`, which the vocabulary does not
 declare.
+
+## 8. Notes on other vocabularies
+
+A `doc:note` in an [alignment](alignments) says how a Chronicle term differs
+from the term it maps to in another vocabulary. The site shows it beside the
+mapping. Sections 1.2 to 6 apply to notes too, with these additions.
+
+**8.1 Say what a reader needs to translate a record.** State how the values,
+the scope, or the structure differ, as a fact about each vocabulary.
+
+> "A number of pixels. schemaorg:width can also be a distance with a unit,
+> such as `5 cm`."
+
+**8.2 Do not restate the mapping.** Whether the terms are the same, one is a
+kind of the other, or they are close is shown next to the note. A mapping with
+no difference to state needs no note.
+
+**8.3 Write the other vocabulary's terms with its prefix,** such as
+`as:origin` or `schemaorg:fromLocation`, without backticks. The site links
+them, and its build fails on a name that the vocabulary's release does not
+have.

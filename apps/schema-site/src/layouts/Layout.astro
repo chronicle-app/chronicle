@@ -79,6 +79,7 @@ const open = (prefix: string) => current.startsWith(prefix);
           <a {...nav('properties/index.html')}>Properties</a>
           <a {...nav('examples/index.html')}>Examples</a>
           <a {...nav('validator.html')}>Validator</a>
+          <a {...nav('vocabularies/index.html')}>Other vocabularies</a>
           <details open={open('classes/')}>
             <summary>All classes <span class="count">{classes.size}</span></summary>
             {[...classes.keys()].map(name => <a {...nav(paths.class(name))}>{name}</a>)}

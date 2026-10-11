@@ -11,6 +11,8 @@ export const paths = {
   property: name => `properties/${encodeURIComponent(name)}.html`,
   example: id => `examples/${encodeURIComponent(id)}.html`,
   guide: slug => `guides/${encodeURIComponent(slug)}.html`,
+  vocabulary: id => `vocabularies/${encodeURIComponent(id)}.html`,
+  alignment: id => `alignments/${encodeURIComponent(id)}.ttl`,
 };
 
 // A term reference in prose: `:Name`, not preceded by a word character, slash,

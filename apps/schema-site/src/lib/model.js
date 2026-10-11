@@ -1,32 +1,58 @@
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Parser, Store } from 'n3';
 import { schemaVersion } from '../../../../core/schema/scripts/schema-version.js';
+import {
+  cardinalityOf,
+  declaredClasses,
+  declaredDatatypes,
+  declaredProperties,
+  domainOf,
+  parentsOf,
+  rangeOf,
+} from '../../../../core/schema/scripts/terms.js';
+import { alignTerms } from './alignments.js';
 import { serializeExample } from './example-payload.js';
 
 export const NAMESPACE = 'https://schema.chronicle.app/';
 const RDF = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#';
 const RDFS = 'http://www.w3.org/2000/01/rdf-schema#';
-const OWL = 'http://www.w3.org/2002/07/owl#';
 const SKOS = 'http://www.w3.org/2004/02/skos/core#';
 const DOC = 'https://schema.chronicle.app/docs/';
 
 const localName = uri => (uri.startsWith(NAMESPACE) ? uri.slice(NAMESPACE.length) : uri);
 const byName = (a, b) => a.name.localeCompare(b.name, 'en');
 
-/** Reads chronicle.ttl and examples.ttl from a schema package directory. */
+/** Reads chronicle.ttl, examples.ttl, and the alignments from a schema package directory. */
 export async function readSchema(directory) {
   return loadSchema({
     ontology: await readFile(join(directory, 'chronicle.ttl'), 'utf8'),
     examples: await readFile(join(directory, 'examples.ttl'), 'utf8'),
+    alignments: await readAlignments(join(directory, 'alignments')),
   });
+}
+
+/** Each alignment's Turtle, with the terms of the release it is checked against. */
+async function readAlignments(directory) {
+  const files = (await readdir(directory)).filter(file => file.endsWith('.ttl')).sort();
+  return Promise.all(
+    files.map(async file => {
+      const id = file.slice(0, -'.ttl'.length);
+      return {
+        id,
+        turtle: await readFile(join(directory, file), 'utf8'),
+        terms: JSON.parse(await readFile(join(directory, `${id}.terms.json`), 'utf8')),
+      };
+    })
+  );
 }
 
 /**
  * Reads the vocabulary and its documentation examples into one graph. Each file
  * is parsed on its own, so prefixes and blank-node labels stay local to it.
+ * `alignments` relate the terms to other vocabularies (see alignments.js).
  */
-export async function loadSchema({ ontology, examples }) {
+export async function loadSchema({ ontology, examples, alignments = [] }) {
   const store = new Store();
   // Keep statements in authored order so examples render as they are written.
   const statements = new Map();
@@ -41,10 +67,6 @@ export async function loadSchema({ ontology, examples }) {
 
   const objects = (subject, predicate) => store.getObjects(subject, predicate, null);
   const first = (subject, predicate) => objects(subject, predicate)[0]?.value;
-  const declared = type =>
-    store
-      .getSubjects(RDF + 'type', type, null)
-      .filter(subject => subject.value.startsWith(NAMESPACE) && subject.value !== NAMESPACE);
 
   const exampleRecords = new Map();
   async function readExample(node) {
@@ -71,34 +93,31 @@ export async function loadSchema({ ontology, examples }) {
     Promise.all(objects(subject, SKOS + 'example').map(node => readExample(node)));
 
   const classes = new Map();
-  for (const subject of declared(RDFS + 'Class')) {
+  const datatypes = new Set(declaredDatatypes(store).map(subject => subject.value));
+  for (const subject of [...declaredClasses(store), ...declaredDatatypes(store)]) {
     classes.set(localName(subject.value), {
       kind: 'class',
       uri: subject.value,
       name: localName(subject.value),
+      datatype: datatypes.has(subject.value),
       comment: first(subject, RDFS + 'comment') ?? '',
-      parents: objects(subject, RDFS + 'subClassOf').map(parent => localName(parent.value)),
+      parents: parentsOf(store, subject).map(parent => localName(parent)),
       properties: [],
       examples: await examplesOf(subject),
     });
   }
 
   const properties = new Map();
-  for (const subject of declared(RDF + 'Property')) {
+  for (const subject of declaredProperties(store)) {
     const name = localName(subject.value);
-    const cardinality = predicate => {
-      const value = first(subject, OWL + predicate);
-      return value === undefined ? null : Number(value);
-    };
     const property = {
       kind: 'property',
       uri: subject.value,
       name,
       comment: first(subject, RDFS + 'comment') ?? '',
-      domain: objects(subject, NAMESPACE + 'domainIncludes').map(term => localName(term.value)),
-      range: objects(subject, NAMESPACE + 'rangeIncludes').map(term => localName(term.value)),
-      min: cardinality('minCardinality') ?? 0,
-      max: cardinality('maxCardinality'),
+      domain: domainOf(store, subject).map(term => localName(term)),
+      range: rangeOf(store, subject).map(term => localName(term)),
+      ...cardinalityOf(store, subject),
       examples: await examplesOf(subject),
     };
     for (const term of [...property.domain, ...property.range]) {
@@ -127,6 +146,8 @@ export async function loadSchema({ ontology, examples }) {
       .sort();
   }
 
+  const vocabularies = alignTerms({ ontology: store, alignments, classes, properties });
+
   const overview = await examplesOf(NAMESPACE);
   // Examples and their sections keep the order they are written in.
   const examplesList = [...exampleRecords.values()].sort((a, b) => a.position - b.position);
@@ -144,5 +165,6 @@ export async function loadSchema({ ontology, examples }) {
     properties: new Map([...properties.values()].sort(byName).map(record => [record.name, record])),
     overview,
     examples: examplesList,
+    vocabularies,
   };
 }

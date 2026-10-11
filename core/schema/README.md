@@ -14,6 +14,40 @@ The schema is documented at https://schema.chronicle.app, built from
 site lives in [apps/schema-site](../../apps/schema-site), which also describes
 the examples format.
 
+## Other vocabularies
+
+Chronicle's vocabulary stands on its own. It borrows schema.org's model and
+names, and `chronicle.ttl` points each term to the closest schema.org term as a
+hint for mapping data between them: `skos:exactMatch` for the same meaning,
+`skos:closeMatch` for a similar one, and `skos:broadMatch` when schema.org's
+term is broader. A reasoner draws nothing from SKOS mappings, so the hints
+don't claim the vocabularies are compatible. They aren't: values, scope, and
+structure differ in places. No `rdfs:subClassOf`, `rdfs:subPropertyOf`,
+`owl:equivalentClass`, or `owl:equivalentProperty` points to another
+vocabulary, and the schema site's build fails on one.
+
+[alignments/](alignments) holds one file for each vocabulary that Chronicle's
+terms relate to, `schemaorg.ttl` and `activitystreams.ttl`. Each names the
+release its terms were checked against, and holds:
+
+- `doc:note`: how a Chronicle term differs from the term it maps to, written
+  by the rules in [WRITING.md](WRITING.md#8-notes-on-other-vocabularies).
+- `doc:unlike`: a term with the same name as a Chronicle term but a different
+  meaning, such as schema.org's `Project`.
+- The mappings to any vocabulary other than schema.org. They can change
+  without a vocabulary release.
+
+`<name>.terms.json` lists the classes and properties of the release. To move to
+a newer one, run `node scripts/snapshot-vocabulary.js schemaorg <release>` (or
+`activitystreams`), update `doc:release`, and fix what the schema site's build
+reports. The site shows each term's relations, has a page for each vocabulary,
+and fails when a mapping names a term the release does not have, or when a
+Chronicle term shares a name with a term it neither maps to nor marks unlike.
+Names are also compared without the endings in `doc:nameEnding`, so
+`LikeAction` is compared with Activity Streams' `Like`. To relate the
+vocabulary to another one, add its alignment, its `.terms.json`, and a
+comparison in [the site's vocabularies/](../../apps/schema-site/vocabularies).
+
 ## Vocabulary
 
 - `Base`: an identity-bearing node; carries `sourceId`.
@@ -28,11 +62,10 @@ visits, trips, places, and journeys; WhatsApp adds group channels, members, and
 quoted replies. Shared properties cover source identity,
 event time, agents, membership, authors, and recipients.
 
-`Text`, `URL`, `DateTime`, and `Number` are literal datatypes, under `DataType`. A
+`Text`, `URL`, `DateTime`, and `Number` are datatypes. A
 `DateTime` is a `Date` or an EDTF string at the source's precision, such as `1987` or
-`XXXX-03-12`; `isDateTime` checks a string. Cardinality in
-`chronicle.ttl` defines each property's constraints: `owl:minCardinality 1` makes
-it required, and `owl:maxCardinality 1` makes it single-valued; otherwise it is a list. Records carry `@type` and at least one of `@key` (a nonempty list of
+`XXXX-03-12`; `isDateTime` checks a string. A property takes a list of values
+unless its SHACL shape sets `sh:maxCount 1`. Records carry `@type` and at least one of `@key` (a nonempty list of
 identity fields or computed key entries) or `@id` (an existing identity). A
 record can also carry `@assertedAt`, the instant its source observed it, and
 `@asserts`, the predicates it states completely (`'*'` for all of them).
@@ -67,12 +100,33 @@ and cardinality. Unknown object fields are stripped by Zod; undeclared record
 types are rejected. Import interfaces such as `Entity` and `Action` for static
 typing; use validators at runtime to enforce identity requirements.
 
+## Writing the ontology
+
+`chronicle.ttl` says what terms mean in OWL, and how records use them in SHACL:
+
+- A class is an `owl:Class`. `:Base` is the disjoint union of `:Entity` and
+  `:Action`, so nothing is both.
+- A property is an `owl:ObjectProperty` when it links to records and an
+  `owl:DatatypeProperty` when it holds values. `:sameAs` takes either, so it is
+  an `rdf:Property`.
+- A property's `rdfs:domain` and `rdfs:range` name one term, or several in one
+  `owl:unionOf`. Don't add a second `rdfs:domain` or `rdfs:range`: OWL reads two
+  as both at once, so the generator rejects it.
+- A datatype is an `rdfs:Datatype` defined over XSD. Each accepts the plain
+  strings that Chronicle JSON becomes in JSON-LD as well as typed values, such
+  as an `xsd:dateTime` for an instant.
+- A SHACL property shape after a property holds its record rules. `sh:maxCount 1`
+  makes it take one value. A shape with `sh:targetClass` and `sh:minCount 1`
+  makes it required on that class.
+
 ## Generation and compatibility
 
-The generator turns N3/Turtle into TypeScript types and Zod validators. It handles
-inheritance, domain/range, and OWL cardinality and fails for cyclic inheritance or
-undeclared referenced classes. The package has no persistence metadata, derived
-effects, or runtime filesystem parser.
+The generator turns the ontology into TypeScript types and Zod validators. It
+reads terms through `scripts/terms.js`, which the schema site also uses. It
+handles inheritance, including a class with two parents, domains and ranges,
+and SHACL counts, and it fails for cyclic inheritance, undeclared referenced
+classes, or a property with two domains or ranges. The package has no
+persistence metadata, derived effects, or runtime filesystem parser.
 Generated runtime code depends only on Zod; the TTL is also included in the package.
 
 ## Schema versions

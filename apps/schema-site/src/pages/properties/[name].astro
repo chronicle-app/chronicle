@@ -1,4 +1,5 @@
 ---
+import Alignments from '../../components/Alignments.astro';
 import Cardinality from '../../components/Cardinality.astro';
 import ExamplesSection from '../../components/ExamplesSection.astro';
 import ExpectedType from '../../components/ExpectedType.astro';
@@ -11,7 +12,10 @@ export function getStaticPaths() {
   return [...properties.values()].map(property => ({ params: { name: property.name }, props: { property } }));
 }
 const { property } = Astro.props;
-const toc = property.examples.length > 0 ? [{ id: 'examples', title: 'Examples' }] : [];
+const toc = [
+  ...(property.alignments.length > 0 ? [{ id: 'other-vocabularies', title: 'In other vocabularies' }] : []),
+  ...(property.examples.length > 0 ? [{ id: 'examples', title: 'Examples' }] : []),
+];
 ---
 
 <Layout path={paths.property(property.name)} kind="property" title={property.name} description={property.comment} toc={toc}>
@@ -32,6 +36,7 @@ const toc = property.examples.length > 0 ? [{ id: 'examples', title: 'Examples' 
     <div><dt>Values</dt><dd>{property.max === 1 ? 'At most one value' : 'A list of values'}</dd></div>
     <div><dt>Required</dt><dd>{property.min > 0 ? 'Yes' : 'No'}</dd></div>
   </dl>
+  {property.alignments.length > 0 && <Alignments alignments={property.alignments} />}
   <ExamplesSection examples={property.examples} />
   <p class="uri">URI <code>{property.uri}</code> · <a href={suggestChange(property.name)}>Suggest a change</a></p>
 </Layout>

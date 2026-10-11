@@ -1,5 +1,6 @@
 ---
-// Inline text: `code` spans and :Term references that become links. Inside
+// Inline text: `code` spans, and :Term and `as:origin` references that become
+// links to Chronicle's terms and to other vocabularies' terms. Inside
 // another link, such as a card, pass `links={false}`: links cannot nest, and
 // browsers end the outer link at the first inner one.
 import { tokenize } from '../lib/site.js';
@@ -22,6 +23,12 @@ const tokens = tokenize(text);
         <TermLink name={token.name} />
       ) : (
         token.name
+      )
+    ) : token.type === 'external' ? (
+      links ? (
+        <a class="term external" href={token.uri}>{token.text}</a>
+      ) : (
+        token.text
       )
     ) : (
       token.text

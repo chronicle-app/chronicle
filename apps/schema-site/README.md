@@ -12,7 +12,7 @@ npm run schema:docs          # serve at http://localhost:4321, rebuilding on cha
 npm run schema:docs:build    # write the static site to apps/schema-site/build/site
 ```
 
-The site is generated and not committed. It is built from three sources:
+The site is generated and not committed. It is built from these sources:
 
 - [chronicle.ttl](../../core/schema/chronicle.ttl): the classes and properties.
 - [examples.ttl](../../core/schema/examples.ttl): example records. Each has an
@@ -24,12 +24,22 @@ The site is generated and not committed. It is built from three sources:
 - [guides/](guides): Markdown guides, ordered by filename. Link to the reference
   with `example:<id>`, `class:<Name>`, or `property:<name>`, and to other guides
   by filename; `:Term` in text links to that term.
+- [alignments/](../../core/schema/alignments): how Chronicle's terms relate to
+  other vocabularies, with the terms of each vocabulary's pinned release. See
+  [Other vocabularies](../../core/schema/README.md#other-vocabularies). Each
+  term page shows its relations, and `alignments/<name>.ttl` is published.
+- [vocabularies/](vocabularies): a comparison with each vocabulary that has an
+  alignment, written like a guide and named after the alignment, such as
+  `01-schemaorg.md` for `schemaorg.ttl`. The filename's number orders the
+  vocabularies. Its page adds tables of every term that relates. In a guide or a
+  comparison, `prefix:Name`, such as `as:origin`, links to that vocabulary's
+  term.
 
-The site reads both Turtle files from `core/schema` by path rather than through
+The site reads the Turtle files from `core/schema` by path rather than through
 the installed package, so a release tag's site is rebuilt from that tag's
 vocabulary. `npm test` validates every example against the generated Zod
 schemas (run `npm run build` first) and builds the site, failing on broken
-links.
+links and on alignments that name terms the vocabularies do not have.
 
 ## Layout
 
