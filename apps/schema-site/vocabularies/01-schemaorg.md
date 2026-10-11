@@ -6,6 +6,16 @@ schema.org is a shared vocabulary for describing things on the web, such as peop
 
 Web publishers add schema.org to their pages so that search engines and other programs can tell what a page is about, such as an article, a recipe, a product, or an event. It covers hundreds of kinds of things. Its rules are loose: a property lists the types it expects, but other values are allowed, and no property is required.
 
+## Why Chronicle has its own vocabulary
+
+Search engines read schema.org on web pages and make the best of whatever they find. Chronicle's records are written by many independent plugins, kept in a personal archive, and read by programs years later. That needs three things that schema.org leaves open on purpose:
+
+- **One way to write each fact.** Two plugins that see the same thing must write the same record, or one thing becomes two. schema.org accepts several forms for most values, such as plain text where it expects a person.
+- **A closed set of terms.** "What did I watch in 2019?" has a complete answer only if every plugin records watching the same way. Chronicle has about a hundred classes, each added when a source needs it. schema.org has over 900, and anyone can add more.
+- **Meanings that stay put.** A record kept for years must still mean what it meant when it was written. Chronicle versions its vocabulary and publishes each release, which it can do only for terms it owns.
+
+Restricting schema.org's terms to meet these needs would still make a second vocabulary, one that uses schema.org's names but means something narrower. A program reading schemaorg:width would expect schema.org's meaning, not Chronicle's number of pixels. And schema.org's strength, that any program reading a web page understands it, matters little for records that stay in an archive. So Chronicle defines its own terms and points each to the closest schema.org term, for translating data as it enters or leaves an archive.
+
 ## Shared model
 
 Chronicle describes what happened the way schema.org does. An :Action has an :agent who performed it and an :object it was carried out on, and it can have a :result, an :instrument, a :target, and a :location. A work is a :CreativeWork, with an :author and a :datePublished. A media file is a :MediaObject, with subclasses such as :VideoObject.
