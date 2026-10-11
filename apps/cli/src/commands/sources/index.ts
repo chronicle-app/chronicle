@@ -1,15 +1,15 @@
 import { Flags } from '@oclif/core';
 import { BaseCommand } from '../../baseCommand.js';
+import { stdoutWidth, tokens } from '../../output/index.js';
 import { listSources, type SourceListing } from '../../plugins/catalog.js';
-import { getTheme } from '../../theme.js';
-import { renderSourcesScreen } from '../../screens/index.js';
+import { sourcesTable } from '../../utils/sourcesTable.js';
 
 const legacyNote = (count: number) =>
   `Not showing ${count} legacy ${count === 1 ? 'source' : 'sources'} for services that no ` +
-  'longer exist. Run chronicle sources --all to include them.';
+  'longer exist. Run `chronicle sources --all` to include them.';
 
 export default class Sources extends BaseCommand<typeof Sources> {
-  static override description = 'List catalog and installed sources and the records they can pull';
+  static override description = 'List the sources and the record types each has';
 
   static override examples = [
     'chronicle sources',
@@ -27,20 +27,22 @@ export default class Sources extends BaseCommand<typeof Sources> {
       helpGroup: 'FILTER',
     }),
     source: Flags.string({
-      summary: 'Filter by source (e.g., shell, imessage)',
+      summary: 'Only this source',
+      helpValue: '<name>',
       helpGroup: 'FILTER',
     }),
     delivery: Flags.string({
-      summary: 'Filter by delivery — how the source is read',
+      summary: 'Only sources that arrive this way',
       options: ['export', 'api', 'local', 'direct'],
       helpGroup: 'FILTER',
     }),
     'record-type': Flags.string({
-      summary: 'Filter by record type (e.g., messages, tasks)',
+      summary: 'Only sources with this record type, like messages',
+      helpValue: '<type>',
       helpGroup: 'FILTER',
     }),
     format: Flags.string({
-      summary: 'Output format',
+      summary: 'How to print the list',
       options: ['table', 'json', 'csv'],
       default: 'table',
       helpGroup: 'OUTPUT',
@@ -48,8 +50,6 @@ export default class Sources extends BaseCommand<typeof Sources> {
   };
 
   async run(): Promise<void> {
-    const theme = getTheme(this.flags.theme);
-
     try {
       const matching = this.applyFilters(await listSources());
       // Legacy sources are for services that no longer exist: listed on request.
@@ -58,8 +58,8 @@ export default class Sources extends BaseCommand<typeof Sources> {
       const hiddenLegacy = matching.length - sources.length;
 
       if (sources.length === 0 && this.flags.format === 'table') {
-        this.log(theme.warning('No sources found matching the specified criteria.'));
-        if (hiddenLegacy > 0) this.log(theme.textDim(legacyNote(hiddenLegacy)));
+        this.logger.info('No sources match');
+        if (hiddenLegacy > 0) this.hint(legacyNote(hiddenLegacy));
         return;
       }
 
@@ -73,8 +73,8 @@ export default class Sources extends BaseCommand<typeof Sources> {
           break;
         case 'table':
         default:
-          await this.displayAsTable(sources);
-          if (hiddenLegacy > 0) this.log(theme.textDim(` ${legacyNote(hiddenLegacy)}`));
+          this.displayAsTable(sources);
+          if (hiddenLegacy > 0) this.hint(legacyNote(hiddenLegacy));
           break;
       }
     } catch (error) {
@@ -106,12 +106,16 @@ export default class Sources extends BaseCommand<typeof Sources> {
     return filtered;
   }
 
-  private displayAsTable(sources: SourceListing[]): Promise<void> {
-    // Resolves once the Ink screen unmounts so anything printed after it
-    // lands below, not interleaved.
-    return renderSourcesScreen(sources, {
-      theme: this.flags.theme || 'default',
-    });
+  private displayAsTable(sources: SourceListing[]) {
+    const t = tokens({ stream: 'stdout', theme: this.flags.theme });
+    for (const line of sourcesTable(sources, t, stdoutWidth())) this.log(line);
+    // A source that runs here, for an example that works as printed: shell when it's listed.
+    const runs = sources.filter(s => s.installed && s.supported);
+    const example = runs.find(s => s.source === 'shell') ?? runs[0] ?? sources[0];
+    this.hint(
+      `Run \`chronicle sources info ${example.source}\` to see a source, or ` +
+        `\`chronicle extract ${example.source}\` to extract it.`
+    );
   }
 
   private displayAsCsv(sources: SourceListing[]) {

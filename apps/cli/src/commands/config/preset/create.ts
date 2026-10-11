@@ -1,18 +1,21 @@
 import { BaseCommand } from '../../../baseCommand.js';
 import { Args, Flags } from '@oclif/core';
 import { ConfigManager } from '../../../config/index.js';
+import { typedFlags } from '../../../config/display.js';
 
 export default class PresetCreateCommand extends BaseCommand<typeof PresetCreateCommand> {
-  static override description = 'Create a configuration preset';
+  static override description = 'Save flags as a preset to use with `--preset`';
+
+  static override usage = 'config preset create <name> [flags...]';
 
   static override examples = [
-    '<%= config.bin %> <%= command.id %> test --limit 5 --log-level debug',
-    '<%= config.bin %> <%= command.id %> export --loader json --limit 0',
+    'chronicle config preset create quick --limit 5 --loader table',
+    'chronicle config preset create everything --limit 0 -d "Every record"',
   ];
 
   static override args = {
     name: Args.string({
-      description: 'Name of the preset to create',
+      description: "The preset's name",
       required: true,
     }),
   };
@@ -20,7 +23,7 @@ export default class PresetCreateCommand extends BaseCommand<typeof PresetCreate
   static override flags = {
     description: Flags.string({
       char: 'd',
-      description: 'Description of the preset',
+      summary: 'What the preset is for',
     }),
   };
 
@@ -32,7 +35,9 @@ export default class PresetCreateCommand extends BaseCommand<typeof PresetCreate
     // Parse manually to capture unknown flags
     const presetName = this.argv[0];
     if (!presetName) {
-      this.fail('Preset name is required');
+      this.fail('No preset name given', {
+        hint: 'Name it before its flags, like `chronicle config preset create quick --limit 5`.',
+      });
     }
     const configManager = new ConfigManager(this.config.configDir);
 
@@ -84,35 +89,24 @@ export default class PresetCreateCommand extends BaseCommand<typeof PresetCreate
       }
 
       if (Object.keys(presetFlags).length === 0) {
-        this.fail('No flags provided for preset. At least one flag must be specified.');
+        this.fail('No flags given', {
+          hint: `Add the flags to save, like \`chronicle config preset create ${presetName} --limit 5\`.`,
+        });
       }
 
-      // Check if preset already exists
       const existing = await configManager.getPreset(presetName);
-      if (existing) {
-        this.log(`Preset '${presetName}' already exists. Updating...`);
-      }
-
       await configManager.savePreset(presetName, {
         description,
         flags: presetFlags,
       });
 
-      const flagCount = Object.keys(presetFlags).length;
-      const action = existing ? 'Updated' : 'Created';
-      this.log(`${action} preset '${presetName}' with ${flagCount} flags`);
-
-      if (description) {
-        this.log(`Description: ${description}`);
-      }
-
-      // Show the flags that were saved
-      this.log('Flags:');
-      for (const [key, value] of Object.entries(presetFlags)) {
-        this.log(`  --${key}: ${JSON.stringify(value)}`);
-      }
+      this.logger.emit({
+        level: 'info',
+        kind: 'summary',
+        message: `${existing ? 'Updated' : 'Saved'} the preset ${presetName} with ${typedFlags(presetFlags)}`,
+      });
     } catch (error) {
-      this.failFrom(error, 'Failed to create preset');
+      this.failFrom(error, "Couldn't save the preset");
     }
   }
 }

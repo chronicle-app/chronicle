@@ -5,7 +5,7 @@ import { installPlugin, resolveInstallTarget } from '../../plugins/install.js';
 import { getTheme } from '../../theme.js';
 
 export default class PluginsInstall extends BaseCommand<typeof PluginsInstall> {
-  static override description = 'Install a plugin by its catalog name, package name, or path';
+  static override description = 'Install a plugin from the catalog, npm, or a folder';
 
   static override examples = [
     'chronicle plugins install lastfm',
@@ -14,7 +14,10 @@ export default class PluginsInstall extends BaseCommand<typeof PluginsInstall> {
   ];
 
   static override args = {
-    plugin: Args.string({ description: 'Catalog name, package, or path', required: true }),
+    plugin: Args.string({
+      description: 'A catalog name, npm package, or path',
+      required: true,
+    }),
   };
 
   async run(): Promise<void> {

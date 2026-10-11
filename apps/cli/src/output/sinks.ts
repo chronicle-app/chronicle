@@ -142,6 +142,10 @@ export interface SinkOptions {
 const terminalWidth = () =>
   process.stderr.isTTY ? (process.stderr.columns || 80) - 1 : Number.POSITIVE_INFINITY;
 
+/** Columns a listing on stdout fits: the terminal's, or unbounded when piped, so nothing is cut. */
+export const stdoutWidth = () =>
+  process.stdout.isTTY ? (process.stdout.columns || 80) - 1 : Number.POSITIVE_INFINITY;
+
 /**
  * For a person at a terminal: color, the time of day at the right edge of
  * notices and errors, and a live progress line redrawn in place while a run

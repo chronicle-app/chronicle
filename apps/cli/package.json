@@ -1,6 +1,6 @@
 {
   "name": "@chronicle.app/cli",
-  "description": "Chronicle CLI",
+  "description": "Extract your digital history into a shared vocabulary.",
   "version": "0.3.0",
   "author": "Andrew Louis",
   "bin": {
@@ -63,7 +63,7 @@
     "bin": "chronicle",
     "dirname": "chronicle",
     "commands": "./dist/commands",
-    "helpClass": "./dist/help/SourceHelp.js",
+    "helpClass": "./dist/help/Help.js",
     "plugins": [
       "@oclif/plugin-help",
       "@oclif/plugin-commands",
@@ -73,19 +73,22 @@
     "topicSeparator": " ",
     "topics": {
       "extract": {
-        "description": "Pull records from a source to stdout (Chronicle JSON-LD)"
+        "description": "Extract records from a source as Chronicle JSON-LD"
       },
       "sources": {
-        "description": "List catalog and installed sources"
+        "description": "List the sources and the record types each has"
       },
       "auth": {
-        "description": "Authenticate sources and manage stored credentials"
+        "description": "Sign in to providers and manage stored credentials"
       },
       "config": {
-        "description": "Manage Chronicle configuration"
+        "description": "Set flag defaults and save presets"
+      },
+      "config:preset": {
+        "description": "Save sets of flags to use with `--preset`"
       },
       "plugins": {
-        "description": "Install and remove source plugins"
+        "description": "List, install, and remove source plugins"
       }
     },
     "pjson": {

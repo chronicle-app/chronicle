@@ -10,7 +10,7 @@ export default class PluginsUninstall extends BaseCommand<typeof PluginsUninstal
   static override examples = ['chronicle plugins uninstall lastfm'];
 
   static override args = {
-    plugin: Args.string({ description: 'Catalog name or package', required: true }),
+    plugin: Args.string({ description: 'A catalog name or npm package', required: true }),
   };
 
   async run(): Promise<void> {

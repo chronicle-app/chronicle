@@ -188,6 +188,74 @@ export function guide(
   return lines.join('\n');
 }
 
+/**
+ * Plain sentences wrapped to the width under an indent, read in full like a
+ * guide: not muted, commands whole and in the code style.
+ */
+export function paragraph(text: string, t: Tokens, width: number, indent = 0): string[] {
+  const pad = ' '.repeat(indent);
+  return wrap(text, width - indent).map(part => pad + codeSpans(part, t, false));
+}
+
+/** A term and what it means, for `definitions`. */
+export interface Definition {
+  /** What to type or look for, styled by the caller. */
+  term: Segment[];
+  /** Plain sentences; a line break starts a new line. */
+  text?: string;
+  /** A short fact after the text, muted: `default: 100`. */
+  note?: string;
+}
+
+/** The widest a term column gets before a long term takes a line of its own. */
+const TERM_MAX = 32;
+/** The narrowest text column; any narrower and the text goes under its term. */
+const TEXT_MIN = 24;
+
+/**
+ * Terms in a column and their text beside them, wrapped under one another:
+ * flags, commands, strategies. A term too wide for the column takes a line of
+ * its own with its text below; when the width leaves no room for a column,
+ * every text goes under its term.
+ *
+ *   -l, --limit <n>    The most records to extract. Use 0 for all.
+ *                      default: 100
+ */
+export function definitions(items: Definition[], t: Tokens, width: number, indent = 2): string[] {
+  const pad = ' '.repeat(indent);
+  // As wide as the widest term that fits, so one long term doesn't push every text over.
+  const column = Math.max(0, ...items.map(({ term }) => measure(term)).filter(w => w <= TERM_MAX));
+  const stacked = column === 0 || width - indent - column - GAP < TEXT_MIN;
+  const at = stacked ? indent + 4 : indent + column + GAP;
+  const lines: string[] = [];
+  for (const { term, text = '', note } of items) {
+    // Each line of the text wraps on its own.
+    const parts = text ? text.split('\n').flatMap(part => wrap(part, width - at)) : [];
+    if (note) {
+      const last = parts.at(-1);
+      if (last !== undefined && last.length + GAP + note.length <= width - at) {
+        parts[parts.length - 1] = `${last}${' '.repeat(GAP)}${NOTE}${note}`;
+      } else parts.push(`${NOTE}${note}`);
+    }
+    const body = parts.map(part => {
+      const [prose, muted] = part.split(NOTE);
+      return codeSpans(prose, t, false) + (muted === undefined ? '' : t.muted(muted));
+    });
+    const termWidth = measure(term);
+    if (!stacked && termWidth <= column && body.length > 0) {
+      lines.push(
+        `${pad}${line(term, width - indent)}${' '.repeat(column - termWidth + GAP)}${body[0]}`,
+        ...body.slice(1).map(part => ' '.repeat(at) + part)
+      );
+    } else {
+      lines.push(pad + line(term, width - indent), ...body.map(part => ' '.repeat(at) + part));
+    }
+  }
+  return lines;
+}
+
+const NOTE = '\u0001';
+
 /** Items one per line under a bullet. */
 export const list = (items: string[], t: Tokens, width: number) =>
   items.map(item =>

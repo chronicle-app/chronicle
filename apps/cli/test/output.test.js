@@ -7,8 +7,11 @@ test('the gallery renders every block and event within its width, in every sink 
   const { gallery, EVENTS } = await import('../dist/output/gallery.js');
   const sections = gallery();
   assert.ok(sections.length > 0);
-  for (const { title, width, format, lines } of sections) {
+  for (const { title, width, format, color, lines } of sections) {
     assert.ok(lines.length > 0, `${title} is empty`);
+    if (color === false) {
+      for (const line of lines) assert.doesNotMatch(line, ANSI, `${title} has color`);
+    }
     if (format === 'json') {
       const events = lines.map(line => JSON.parse(line));
       // Personal fields are redacted, a keyed flood aggregates, progress is a heartbeat.
@@ -53,8 +56,8 @@ test('the gallery renders every block and event within its width, in every sink 
     }
     for (const line of lines) {
       const visible = line.replaceAll(ANSI, '');
-      // A hint's command prints whole, on a line of its own: one split can't be copied.
-      const command = /^(\d\d:\d\d:\d\d )? {4,6}`?chronicle [^`]*`?[.?]?$/.test(visible);
+      // A command prints whole, on a line of its own: one split can't be copied.
+      const command = /^(\d\d:\d\d:\d\d )? {2,6}`?chronicle [^`]*`?[.?]?$/.test(visible);
       if (command) continue;
       assert.ok(visible.length <= width, `${title}: ${visible.length} > ${width}: ${visible}`);
     }

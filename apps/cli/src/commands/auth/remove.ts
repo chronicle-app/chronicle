@@ -3,7 +3,7 @@ import { BaseCommand } from '../../baseCommand.js';
 import { CredentialManager, TokenHelper } from '../../auth/index.js';
 
 export default class AuthRemove extends BaseCommand<typeof AuthRemove> {
-  static override description = 'Remove stored credentials for a source';
+  static override description = "Remove a provider's stored credentials";
 
   static override examples = ['chronicle auth remove spotify'];
 
@@ -12,24 +12,35 @@ export default class AuthRemove extends BaseCommand<typeof AuthRemove> {
   };
 
   static override args = {
-    provider: Args.string({ description: 'OAuth provider name', required: true }),
+    provider: Args.string({ description: 'A provider, like spotify', required: true }),
   };
 
   async run(): Promise<void> {
     const { args } = await this.parse(AuthRemove);
     const { provider } = args;
 
+    let stored: boolean;
     try {
-      const hasCredentials = await CredentialManager.hasCredentials(provider);
-      if (!hasCredentials) {
-        this.log(`No credentials found for ${provider}`);
-        return;
-      }
-
-      await TokenHelper.removeCredentials(provider);
-      this.log(`✅ Removed credentials for ${provider}`);
+      stored = await CredentialManager.hasCredentials(provider);
     } catch (error) {
-      this.failFrom(error, `Failed to remove credentials for ${provider}`);
+      this.failFrom(error, `Couldn't read the credentials for ${provider}`);
     }
+    if (!stored) {
+      this.fail(`No credentials stored for ${provider}`, {
+        code: 'no-credentials',
+        hint: "Run `chronicle auth list` to see what's stored.",
+      });
+    }
+
+    try {
+      await TokenHelper.removeCredentials(provider);
+    } catch (error) {
+      this.failFrom(error, `Couldn't remove the credentials for ${provider}`);
+    }
+    this.logger.emit({
+      level: 'info',
+      kind: 'summary',
+      message: `Removed the credentials for ${provider}`,
+    });
   }
 }

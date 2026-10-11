@@ -10,6 +10,7 @@ import { BrowserLauncher } from './BrowserLauncher.js';
 import { CredentialManager } from './CredentialManager.js';
 import { ClientCredentials, OAuthParams, ProviderSetupContext, TokenResponse } from './types.js';
 import { EXIT_CODES, ExtractorError, createLogger } from '@chronicle.app/logging';
+import { closest } from '../utils/closest.js';
 
 const logger = createLogger({ scope: 'auth' });
 
@@ -51,9 +52,15 @@ export class OAuthCommand {
     // Validate provider exists
     const ProviderClass = OAuthProviderRegistry.get(this.providerId);
     if (!ProviderClass) {
-      throw new Error(
-        `Unknown OAuth provider: ${this.providerId}. Available providers: ${OAuthProviderRegistry.getProviderIds().join(', ')}`
-      );
+      const providers = OAuthProviderRegistry.getProviderIds().sort();
+      const guess = closest(this.providerId, providers);
+      throw new ExtractorError(`No provider named "${this.providerId}"`, {
+        code: 'unknown-provider',
+        exitCode: EXIT_CODES.usage,
+        hint: guess
+          ? `Did you mean \`chronicle auth login ${guess}\`?`
+          : `The providers are ${providers.join(', ')}.`,
+      });
     }
 
     const config = ProviderClass.getConfig();

@@ -4,28 +4,33 @@ import { BaseCommand } from '../../baseCommand.js';
 import { CredentialManager } from '../../auth/index.js';
 
 export default class AuthSet extends BaseCommand<typeof AuthSet> {
-  static override description = 'Store a static API key / access token for a source (non-OAuth)';
+  static override description = "Store an API key or token for a provider that doesn't use OAuth";
 
   static override examples = [
-    'chronicle auth set pinboard --token user:HEXTOKEN',
-    'chronicle auth set pinboard            # prompts for the token (not echoed)',
-    'chronicle auth set lastfm --token API_KEY --username hyfen',
-    'chronicle auth set lastfm --username hyfen   # add username to an existing token',
+    { description: 'Store a token.', command: 'chronicle auth set pinboard --token <token>' },
+    { description: 'Type the token in, hidden.', command: 'chronicle auth set pinboard' },
+    {
+      description: 'Store a key with your username, for a provider whose API needs it.',
+      command: 'chronicle auth set lastfm --token <key> --username <username>',
+    },
+    {
+      description: 'Add a username to a stored token.',
+      command: 'chronicle auth set lastfm --username <username>',
+    },
   ];
 
   static override flags = {
     ...BaseCommand.baseFlags,
     token: Flags.string({
-      description: 'The API key / access token. Omit to be prompted (not echoed).',
+      summary: 'The API key or token. Leave it out to type it in, hidden.',
     }),
     username: Flags.string({
-      description:
-        'Account username to store alongside the token, for sources whose API needs it (e.g. lastfm).',
+      summary: 'Your username, for a provider whose API needs it, like lastfm',
     }),
   };
 
   static override args = {
-    provider: Args.string({ description: 'Source name (e.g. pinboard)', required: true }),
+    provider: Args.string({ description: 'A provider, like pinboard', required: true }),
   };
 
   async run(): Promise<void> {
@@ -44,7 +49,7 @@ export default class AuthSet extends BaseCommand<typeof AuthSet> {
           : (await this.readToken()).trim();
     }
     if (!token) {
-      this.fail('No token provided.');
+      this.fail('No token given', { hint: 'Pass one with `--token`, or type it when asked.' });
     }
 
     // Carry forward a previously stored username when only the token is being set.
@@ -62,11 +67,11 @@ export default class AuthSet extends BaseCommand<typeof AuthSet> {
       ...(username && { username }),
     });
 
-    this.log(`✅ Stored credentials for ${provider}`);
-    if (username) {
-      this.log(`   username: ${username}`);
-    }
-    this.log(`   ${CredentialManager.getCredentialsPath()}`);
+    this.logger.emit({
+      level: 'info',
+      kind: 'summary',
+      message: `Stored the credentials for ${provider}${username ? `, with username ${username}` : ''}`,
+    });
   }
 
   // Read the token from an interactive prompt without echoing it, so it never
@@ -75,7 +80,7 @@ export default class AuthSet extends BaseCommand<typeof AuthSet> {
   // consume it first).
   private async readToken(): Promise<string> {
     if (!process.stdin.isTTY) {
-      this.fail('No token provided', { hint: 'Pass one with `--token` when not at a terminal.' });
+      this.fail('No token given', { hint: 'Pass one with `--token` when not at a terminal.' });
     }
 
     const rl = readline.createInterface({ input: process.stdin, output: process.stderr });

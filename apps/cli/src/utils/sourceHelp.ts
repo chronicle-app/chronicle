@@ -1,5 +1,6 @@
 import { BaseCommand } from '../baseCommand.js';
-import { getTheme } from '../theme.js';
+import { sourceHelp, helpWidth, type FlagLike, type SourceHelpInput } from '../help/render.js';
+import { tokens } from '../output/index.js';
 import { defaultKinds } from './recordKinds.js';
 import { FlagManager } from './FlagManager.js';
 import { strategiesOf, type ExtractorMetadata } from '../plugins/PluginScanner.js';
@@ -16,6 +17,8 @@ export interface SourceFlagInfo {
   name: string;
   required: boolean;
   isBoolean: boolean;
+  /** A boolean that also takes `--no-<name>`. */
+  allowNo?: boolean;
   summary?: string;
   default?: unknown;
   options?: string[];
@@ -36,6 +39,7 @@ export function sourceFlagInfos(candidates: ExtractorMetadata[]): SourceFlagInfo
         name,
         required,
         isBoolean: d.type === 'boolean',
+        allowNo: Boolean(d.allowNo),
         summary: d.summary || d.description,
         default: typeof d.default === 'function' ? undefined : d.default,
         options: Array.isArray(d.options) ? d.options : undefined,
@@ -43,14 +47,6 @@ export function sourceFlagInfos(candidates: ExtractorMetadata[]): SourceFlagInfo
     }
   }
   return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
-}
-
-/** What a strategy needs from the person running it, for the help line. */
-function needsNote(delivery: string): string {
-  if (delivery === 'export') return 'export, needs --input';
-  if (delivery === 'api') return 'live, needs auth';
-  if (delivery === 'local') return 'live, reads in place';
-  return delivery;
 }
 
 /**
@@ -78,14 +74,6 @@ function bareRunKinds(candidates: ExtractorMetadata[]): string[] | undefined {
   const chosen = strategies.find(s => s.extractors.some(e => e.default)) ?? strategies[0];
   const kinds = chosen ? defaultKinds(chosen.extractors) : [];
   return kinds.length > 0 ? kinds : undefined;
-}
-
-/** What a run without kinds reads: `only submissions`, `every kind`, or undefined when it asks. */
-function bareRunSummary(candidates: ExtractorMetadata[]): string | undefined {
-  const kinds = bareRunKinds(candidates);
-  if (!kinds) return undefined;
-  const all = new Set(candidates.flatMap(e => e.recordType));
-  return kinds.length === all.size ? 'every kind' : `only ${kinds.join(', ')}`;
 }
 
 /**
@@ -119,74 +107,52 @@ export function recordTypesHint(
   };
 }
 
+/** A source's help, as data: its strategies, its flags and the common ones, its defaults. */
+export function describeSource(
+  source: string,
+  candidates: ExtractorMetadata[],
+  verb = 'extract'
+): SourceHelpInput {
+  const kinds = bareRunKinds(candidates);
+  const all = new Set(candidates.flatMap(e => e.recordType));
+  return {
+    source,
+    verb,
+    strategies: strategiesOf(candidates).map(s => ({
+      name: s.name,
+      delivery: s.delivery,
+      default: s.extractors.some(e => e.default),
+      recordTypes: s.recordTypes,
+    })),
+    flags: sourceFlagInfos(candidates).map(f => ({
+      name: f.name,
+      type: f.isBoolean ? 'boolean' : 'option',
+      summary: f.summary,
+      default: f.default,
+      options: f.options,
+      required: f.required,
+      allowNo: f.allowNo,
+    })),
+    common: COMMON_FLAG_KEYS.filter(name => BASE_FLAGS[name]).map(
+      name => ({ ...BASE_FLAGS[name], name }) as FlagLike
+    ),
+    defaults: kinds && kinds.length === all.size ? 'all' : kinds,
+  };
+}
+
 /**
- * Render a source as strategies × record kinds, plus the flags they accept. Shared
- * by the custom Help class (`extract <source> --help`) and the dispatcher's
- * `--list-types` / non-TTY selection error, so the surfaces never drift.
+ * A source's help: its strategies and record types, and the flags they take.
+ * Shared by the help class (`extract <source> --help`) and the dispatcher, so
+ * the two never drift.
  */
 export function renderSourceHelp(
   source: string,
   candidates: ExtractorMetadata[],
   opts: { verb?: string; theme?: string } = {}
 ): string {
-  const theme = getTheme(opts.theme);
-  const verb = opts.verb || 'extract';
-  const lines: string[] = [];
-  const strategies = strategiesOf(candidates);
-
-  lines.push(theme.textBold(source), '', theme.textDim('strategies:'));
-  for (const s of strategies) {
-    const def = s.extractors.some(e => e.default) ? theme.success(' (default)') : '';
-    lines.push(
-      `  ${theme.text(s.name.padEnd(12))} ${theme.textDim(`${needsNote(s.delivery)}`)}${def}`,
-      `  ${' '.repeat(12)} ${theme.textDim(`types: ${s.recordTypes.join(', ')}`)}`
-    );
-  }
-
-  const flags = sourceFlagInfos(candidates);
-  if (flags.length > 0) {
-    lines.push('', theme.textDim('flags:'));
-    for (const f of flags) {
-      const value = f.isBoolean ? '' : f.options ? ` <${f.options.join('|')}>` : ' <value>';
-      const meta: string[] = [];
-      if (f.required) meta.push(theme.warning('required'));
-      if (f.default !== undefined && f.default !== '' && f.default !== false) {
-        meta.push(theme.textDim(`default: ${String(f.default)}`));
-      }
-      const metaStr = meta.length > 0 ? `  ${meta.join('  ')}` : '';
-      const summary = f.summary ? `\n      ${theme.textDim(f.summary)}` : '';
-      lines.push(`  ${theme.text(`--${f.name}${value}`)}${metaStr}${summary}`);
-    }
-  }
-
-  lines.push('', theme.textDim('common flags:'));
-  for (const name of COMMON_FLAG_KEYS) {
-    const f = BASE_FLAGS[name];
-    if (!f) continue;
-    const value =
-      f.type === 'boolean'
-        ? ''
-        : f.options
-          ? ` <${f.options.join('|')}>`
-          : ` ${f.helpValue ?? '<value>'}`;
-    const short = f.char ? `-${f.char}, ` : '';
-    const def =
-      f.default !== undefined && typeof f.default !== 'function'
-        ? `  ${theme.textDim(`default: ${String(f.default)}`)}`
-        : '';
-    lines.push(
-      `  ${theme.text(`${short}--${name}${value}`)}${def}`,
-      `      ${theme.textDim(f.summary)}`
-    );
-  }
-
-  lines.push(
-    '',
-    theme.textDim('usage:'),
-    `  chronicle ${verb} ${source} [kind...] [--strategy <name>] [flags]`,
-    theme.textDim(
-      `  with no kinds, reads ${bareRunSummary(candidates) ?? 'the kinds you pick when asked'}; \`-t all\` reads every kind`
-    )
+  return sourceHelp(
+    describeSource(source, candidates, opts.verb || 'extract'),
+    tokens({ stream: 'stdout', theme: opts.theme }),
+    helpWidth()
   );
-  return lines.join('\n');
 }

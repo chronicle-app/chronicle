@@ -14,7 +14,7 @@ export default class PluginsAdd extends BaseCommand<typeof PluginsAdd> {
 
   static override args = {
     path: Args.string({
-      description: "The plugin's folder (with its package.json), or a single file",
+      description: "A plugin's folder (with its package.json), or a single file",
       required: true,
     }),
   };

@@ -1,25 +1,27 @@
 import { BaseCommand } from '../../../baseCommand.js';
 import { Args, Flags } from '@oclif/core';
 import { ConfigManager } from '../../../config/index.js';
+import { typedFlags } from '../../../config/display.js';
+import { card, date, stdoutWidth, tokens } from '../../../output/index.js';
 
 export default class PresetShowCommand extends BaseCommand<typeof PresetShowCommand> {
-  static override description = 'Show details of a configuration preset';
+  static override description = "Show a preset's flags";
 
   static override examples = [
-    '<%= config.bin %> <%= command.id %> test',
-    '<%= config.bin %> <%= command.id %> chronicle --json',
+    'chronicle config preset show quick',
+    'chronicle config preset show quick --json',
   ];
 
   static override args = {
     name: Args.string({
-      description: 'Name of the preset to show',
+      description: "The preset's name",
       required: true,
     }),
   };
 
   static override flags = {
     json: Flags.boolean({
-      description: 'Output in JSON format',
+      summary: 'Print it as JSON',
     }),
   };
 
@@ -27,47 +29,37 @@ export default class PresetShowCommand extends BaseCommand<typeof PresetShowComm
     const { args, flags } = await this.parse(PresetShowCommand);
     const configManager = new ConfigManager(this.config.configDir);
 
+    let preset;
     try {
-      const preset = await configManager.getPreset(args.name);
-
-      if (!preset) {
-        this.fail(`Preset '${args.name}' not found`);
-      }
-
-      if (flags.json) {
-        this.log(JSON.stringify(preset, null, 2));
-        return;
-      }
-
-      // Human-readable format
-      this.log(`Preset: ${preset.name}`);
-      this.log('='.repeat(preset.name.length + 8));
-
-      if (preset.description) {
-        this.log(`Description: ${preset.description}`);
-      }
-
-      this.log(`Created: ${preset.created}`);
-      if (preset.modified && preset.modified !== preset.created) {
-        this.log(`Modified: ${preset.modified}`);
-      }
-
-      const flagCount = Object.keys(preset.flags).length;
-      this.log(`\nFlags (${flagCount}):`);
-
-      if (flagCount === 0) {
-        this.log('  (none)');
-      } else {
-        for (const [key, value] of Object.entries(preset.flags)) {
-          this.log(`  --${key}: ${JSON.stringify(value)}`);
-        }
-      }
-
-      this.log(`\nUsage:`);
-      this.log(`  chronicle extract <source> --preset ${preset.name}`);
-      this.log(`  chronicle extract <source> --preset ${preset.name} --limit 10  # override flags`);
+      preset = await configManager.getPreset(args.name);
     } catch (error) {
-      this.failFrom(error, 'Failed to show preset');
+      this.failFrom(error, "Couldn't read the presets");
     }
+
+    if (!preset) {
+      this.fail(`No preset named "${args.name}"`, {
+        code: 'unknown-preset',
+        hint: 'Run `chronicle config preset list` to see them.',
+      });
+    }
+
+    if (flags.json) {
+      this.log(JSON.stringify(preset, null, 2));
+      return;
+    }
+
+    const t = tokens({ stream: 'stdout', theme: this.flags.theme });
+    const entries: [string, string][] = [
+      ['flags', typedFlags(preset.flags) || 'none'],
+      ...(preset.description ? [['description', preset.description] as [string, string]] : []),
+      ['created', date(new Date(preset.created))],
+      ...(preset.modified && preset.modified !== preset.created
+        ? [['modified', date(new Date(preset.modified))] as [string, string]]
+        : []),
+    ];
+    for (const line of card(preset.name, entries, t, stdoutWidth())) this.log(line);
+    this.hint(
+      `Use it with \`--preset ${preset.name}\`, as in \`chronicle extract shell --preset ${preset.name}\`.`
+    );
   }
 }

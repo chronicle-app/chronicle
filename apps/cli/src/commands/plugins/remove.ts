@@ -14,7 +14,7 @@ export default class PluginsRemove extends BaseCommand<typeof PluginsRemove> {
   ];
 
   static override args = {
-    plugin: Args.string({ description: 'The plugin name or path', required: true }),
+    plugin: Args.string({ description: "A plugin's name or path", required: true }),
   };
 
   async run(): Promise<void> {

@@ -1,18 +1,20 @@
 import { BaseCommand } from '../../../baseCommand.js';
 import { Flags } from '@oclif/core';
 import { ConfigManager } from '../../../config/index.js';
+import { presetDefinitions } from '../../../config/display.js';
+import { definitions, stdoutWidth, tokens } from '../../../output/index.js';
 
 export default class PresetListCommand extends BaseCommand<typeof PresetListCommand> {
-  static override description = 'List all configuration presets';
+  static override description = 'List the presets';
 
   static override examples = [
-    '<%= config.bin %> <%= command.id %>',
-    '<%= config.bin %> <%= command.id %> --json',
+    'chronicle config preset list',
+    'chronicle config preset list --json',
   ];
 
   static override flags = {
     json: Flags.boolean({
-      description: 'Output in JSON format',
+      summary: 'Print them as JSON',
     }),
   };
 
@@ -20,45 +22,27 @@ export default class PresetListCommand extends BaseCommand<typeof PresetListComm
     const { flags } = await this.parse(PresetListCommand);
     const configManager = new ConfigManager(this.config.configDir);
 
+    let presets;
     try {
-      const config = await configManager.loadConfig();
-      const presets = config.presets || {};
-
-      if (flags.json) {
-        this.log(JSON.stringify(presets, null, 2));
-        return;
-      }
-
-      const presetNames = Object.keys(presets);
-
-      if (presetNames.length === 0) {
-        this.log('No presets configured.');
-        this.log('Create a preset with: chronicle config preset create <name> [flags...]');
-        return;
-      }
-
-      this.log('Configuration Presets:');
-      this.log('=====================');
-
-      for (const name of presetNames.sort()) {
-        const preset = presets[name];
-        const flagCount = Object.keys(preset.flags).length;
-
-        this.log(`\n${name}`);
-        if (preset.description) {
-          this.log(`  Description: ${preset.description}`);
-        }
-        this.log(`  Flags: ${flagCount}`);
-        this.log(`  Created: ${preset.created}`);
-        if (preset.modified && preset.modified !== preset.created) {
-          this.log(`  Modified: ${preset.modified}`);
-        }
-      }
-
-      this.log(`\nTotal: ${presetNames.length} presets`);
-      this.log('Use "chronicle config preset show <name>" to see details');
+      presets = (await configManager.loadConfig()).presets ?? {};
     } catch (error) {
-      this.failFrom(error, 'Failed to list presets');
+      this.failFrom(error, "Couldn't read the presets");
+    }
+
+    if (flags.json) {
+      this.log(JSON.stringify(presets, null, 2));
+      return;
+    }
+
+    if (Object.keys(presets).length === 0) {
+      this.logger.info('No presets');
+      this.hint('Run `chronicle config preset create quick --limit 5` to save one.');
+      return;
+    }
+
+    const t = tokens({ stream: 'stdout', theme: this.flags.theme });
+    for (const line of definitions(presetDefinitions(presets, t), t, stdoutWidth(), 0)) {
+      this.log(line);
     }
   }
 }

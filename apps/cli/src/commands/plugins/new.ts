@@ -17,16 +17,22 @@ export default class PluginsNew extends BaseCommand<typeof PluginsNew> {
   ];
 
   static override args = {
-    name: Args.string({ description: 'The plugin and source name, in kebab-case', required: true }),
+    name: Args.string({
+      description: 'The plugin and source name, in lowercase words joined by hyphens',
+      required: true,
+    }),
   };
 
   static override flags = {
     ...BaseCommand.baseFlags,
     from: Flags.string({
-      summary: 'How the data reaches you (asked when omitted)',
+      summary: "How the data reaches you. You're asked when it's left out.",
       options: Object.keys(KINDS),
     }),
-    dir: Flags.string({ summary: 'Where to create it (default: ./<name>)' }),
+    dir: Flags.string({
+      summary: 'The folder to create it in. The default is one named after it.',
+      helpValue: '<folder>',
+    }),
   };
 
   async run(): Promise<void> {

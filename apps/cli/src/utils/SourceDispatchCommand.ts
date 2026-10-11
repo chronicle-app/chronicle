@@ -5,7 +5,6 @@ import { BaseCommand } from '../baseCommand.js';
 import { PluginScanner, type ExtractorMetadata } from '../plugins/PluginScanner.js';
 import { FlagManager } from './FlagManager.js';
 import { recordTypesHint, renderRecordTypes, renderSourceHelp } from './sourceHelp.js';
-import { getTheme } from '../theme.js';
 import { outputFlagsIn } from '../output/index.js';
 
 // NOTE: nothing here may statically import `ink` (ExtractorSelector/InkSelect,
@@ -41,7 +40,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
   protected readonly parsesFlagsForNonSource: boolean = true;
 
   static override args = {
-    source: Args.string({ description: 'Source name (e.g. shell, imessage)', required: false }),
+    source: Args.string({ description: 'A source, like shell or imessage', required: false }),
   };
 
   static override strict = false;
