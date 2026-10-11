@@ -193,6 +193,12 @@
       "summary": "Twitter/X archive tweets, likes, and DMs"
     },
     {
+      "name": "voice-memos",
+      "package": "@chronicle.app/voice-memos",
+      "tier": "official",
+      "summary": "Voice Memos recordings and their transcripts"
+    },
+    {
       "name": "whatsapp",
       "package": "@chronicle.app/whatsapp",
       "tier": "official",
