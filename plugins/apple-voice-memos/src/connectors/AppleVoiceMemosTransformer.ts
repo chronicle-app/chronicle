@@ -2,9 +2,9 @@ import { extname } from 'node:path';
 import { ChronicleTransformer, Record } from '@chronicle.app/etl';
 import { ActionAndChildren, AudioObject, CreateAction } from '@chronicle.app/schema';
 import { buildICloudPersonSchema } from '@chronicle.app/icloud';
-import type { VoiceMemo } from './VoiceMemosExtractor.js';
+import type { VoiceMemo } from './AppleVoiceMemosExtractor.js';
 
-const SOURCE = 'voice-memos';
+const SOURCE = 'apple-voice-memos';
 
 // What each kind of recording file is. `.qta` is a QuickTime audio movie,
 // which macOS declares as `audio/x-quicktime`.
@@ -17,7 +17,7 @@ const MIME_TYPES: { [extension: string]: string } = {
  *   CreateAction  agent: you   startTime, endTime
  *     result: AudioObject  (the recording, by its UUID)   transcript?
  */
-export default class VoiceMemosTransformer extends ChronicleTransformer {
+export default class AppleVoiceMemosTransformer extends ChronicleTransformer {
   static override source = SOURCE;
 
   async transform(record: Record): Promise<ActionAndChildren[]> {

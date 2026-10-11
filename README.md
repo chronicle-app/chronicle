@@ -51,6 +51,7 @@ other source by name, for example `chronicle plugins install lastfm`, or let
 | Shell history (bash, zsh, fish)                                       | [shell](plugins/shell/README.md)                           | history (local)                 |
 | Things 3                                                              | [things-todo](plugins/things-todo/README.md)               | app-db (local)                  |
 | Phone and FaceTime calls (Apple Call History)                         | [apple-call-history](plugins/apple-call-history/README.md) | app-db (local)                  |
+| Voice Memos recordings and their transcripts                          | [apple-voice-memos](plugins/apple-voice-memos/README.md)   | app-db (local)                  |
 | Arc Timeline visits and trips                                         | [arc-timeline](plugins/arc-timeline/README.md)             | icloud-backup (local)           |
 | Are.na channels, blocks, comments, and follows                        | [arena](plugins/arena/README.md)                           | api                             |
 | Bluesky follows, followers, and likes                                 | [bluesky](plugins/bluesky/README.md)                       | api                             |
@@ -74,7 +75,6 @@ other source by name, for example `chronicle plugins install lastfm`, or let
 | Spotify listens, saved tracks and albums, playlists                   | [spotify](plugins/spotify/README.md)                       | api                             |
 | Timing app usage, time entries, and calls                             | [timing-app](plugins/timing-app/README.md)                 | app-db (local)                  |
 | Twitter/X archive tweets, likes, and DMs                              | [twitter](plugins/twitter/README.md)                       | archive (export)                |
-| Voice Memos recordings and their transcripts                          | [voice-memos](plugins/voice-memos/README.md)               | app-db (local)                  |
 | WhatsApp messages                                                     | [whatsapp](plugins/whatsapp/README.md)                     | app-db (local), backup (export) |
 | YouTube likes, subscriptions, playlists, uploads, and Takeout history | [youtube](plugins/youtube/README.md)                       | api, takeout (export)           |
 | Zotero works, highlights, notes, and reading                          | [zotero](plugins/zotero/README.md)                         | app-db (local)                  |

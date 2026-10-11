@@ -1,13 +1,13 @@
-# @chronicle.app/voice-memos
+# @chronicle.app/apple-voice-memos
 
 Your Voice Memos recordings and the transcripts Voice Memos made of them, from the library macOS keeps in step with iCloud.
 
 ## Usage
 
 ```sh
-chronicle extract voice-memos
-chronicle extract voice-memos --since 2024-01-01 --until 2025-01-01
-chronicle extract voice-memos --input "/path/to/Recordings/CloudRecordings.db"
+chronicle extract apple-voice-memos
+chronicle extract apple-voice-memos --since 2024-01-01 --until 2025-01-01
+chronicle extract apple-voice-memos --input "/path/to/Recordings/CloudRecordings.db"
 ```
 
 The library is `~/Library/Group Containers/group.com.apple.VoiceMemos.shared/Recordings/CloudRecordings.db`, opened read-only with built-in `node:sqlite`, and the audio files sit beside it. Voice Memos syncs the library through iCloud, so it holds the recordings made on every device signed in to your account: your iPhone, iPad, Apple Watch, and Mac. With `--input`, the audio files are read from the folder the database is in.
@@ -19,7 +19,7 @@ Recordings come out newest first, and `--since` and `--until` bound when each on
 | Voice Memos thing | Chronicle node | Key                                                            | Properties                                                                                                                                                                            |
 | ----------------- | -------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Recording a memo  | `CreateAction` | `@type`, `source`, `sourceId` (the recording's UUID)           | `agent` (you), `result` (the recording), `startTime` (when recording started), `endTime` (when it stopped)                                                                            |
-| The recording     | `AudioObject`  | `@type`, `source` (`voice-memos`), `sourceId` (its UUID)       | `name` (its title), `duration`, `contentPath` and `mimeType` (its audio file, when it's on this Mac: `audio/mp4` for `.m4a`, `audio/x-quicktime` for `.qta`), `transcript` (its text) |
+| The recording     | `AudioObject`  | `@type`, `source` (`apple-voice-memos`), `sourceId` (its UUID) | `name` (its title), `duration`, `contentPath` and `mimeType` (its audio file, when it's on this Mac: `audio/mp4` for `.m4a`, `audio/x-quicktime` for `.qta`), `transcript` (its text) |
 | You               | `Person`       | `@type`, `source` (`icloud`), `sourceId` (your account's DSID) | `handle` (your Apple Account email); `sameAs` `@me`                                                                                                                                   |
 
 `SHAPES.md` sketches the output, generated from the tests.

@@ -7,6 +7,12 @@
       "summary": "Phone and FaceTime calls (Apple Call History)"
     },
     {
+      "name": "apple-voice-memos",
+      "package": "@chronicle.app/apple-voice-memos",
+      "tier": "official",
+      "summary": "Voice Memos recordings and their transcripts"
+    },
+    {
       "name": "arc-timeline",
       "package": "@chronicle.app/arc-timeline",
       "tier": "official",
@@ -191,12 +197,6 @@
       "package": "@chronicle.app/twitter",
       "tier": "official",
       "summary": "Twitter/X archive tweets, likes, and DMs"
-    },
-    {
-      "name": "voice-memos",
-      "package": "@chronicle.app/voice-memos",
-      "tier": "official",
-      "summary": "Voice Memos recordings and their transcripts"
     },
     {
       "name": "whatsapp",

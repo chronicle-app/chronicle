@@ -1,5 +1,5 @@
 {
-  "name": "@chronicle.app/voice-memos",
+  "name": "@chronicle.app/apple-voice-memos",
   "version": "0.3.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -16,7 +16,7 @@
   },
   "keywords": [
     "chronicle",
-    "voice-memos",
+    "apple-voice-memos",
     "audio"
   ],
   "author": "Andrew Louis",
@@ -34,7 +34,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/chronicle-app/chronicle.git",
-    "directory": "plugins/voice-memos"
+    "directory": "plugins/apple-voice-memos"
   },
   "publishConfig": {
     "access": "public",
@@ -61,7 +61,7 @@
   "chronicle": {
     "plugin": true,
     "sources": {
-      "voice-memos": {
+      "apple-voice-memos": {
         "strategies": {
           "app-db": {
             "delivery": "local",

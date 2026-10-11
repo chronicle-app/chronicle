@@ -13,7 +13,7 @@ import { getICloudAccount } from '@chronicle.app/icloud';
 import { z } from 'zod';
 import { readRecordingMetadata } from '../mp4.js';
 import { parseTranscript, type Transcript } from '../transcript.js';
-import VoiceMemosTransformer from './VoiceMemosTransformer.js';
+import AppleVoiceMemosTransformer from './AppleVoiceMemosTransformer.js';
 
 const DEFAULT_DB = `${process.env.HOME}/Library/Group Containers/group.com.apple.VoiceMemos.shared/Recordings/CloudRecordings.db`;
 
@@ -59,15 +59,15 @@ interface Row {
  * recordings made on every device signed in to the account. Their audio
  * files sit beside the database.
  */
-export class VoiceMemosExtractor extends SqliteExtractor<typeof VoiceMemosExtractor> {
-  static override source = 'voice-memos';
+export class AppleVoiceMemosExtractor extends SqliteExtractor<typeof AppleVoiceMemosExtractor> {
+  static override source = 'apple-voice-memos';
   static override description = 'Your Voice Memos recordings and their transcripts';
 
   static override delivery = 'local' as const;
   static override strategy = 'app-db';
   static override recordTypes = ['recordings'];
   static override default = true;
-  static override defaultTransformer = VoiceMemosTransformer;
+  static override defaultTransformer = AppleVoiceMemosTransformer;
   static override newestFirst = true;
 
   static override schema = SqliteExtractor.schema.omit({ input: true }).extend({

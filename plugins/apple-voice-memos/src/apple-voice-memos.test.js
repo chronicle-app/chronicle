@@ -3,15 +3,15 @@ import { test } from 'node:test';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
-import { VoiceMemosExtractor, VoiceMemosTransformer } from '../dist/index.js';
-import { account, ids, writeVoiceMemosFixture } from './fixture.test-helper.js';
+import { AppleVoiceMemosExtractor, AppleVoiceMemosTransformer } from '../dist/index.js';
+import { account, ids, writeAppleVoiceMemosFixture } from './fixture.test-helper.js';
 
 // An explicit account keeps the host's iCloud account out of the test.
 async function extract(t) {
-  const dir = mkdtempSync(join(tmpdir(), 'voice-memos-fixture-'));
+  const dir = mkdtempSync(join(tmpdir(), 'apple-voice-memos-fixture-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const input = writeVoiceMemosFixture(dir);
-  const extractor = new VoiceMemosExtractor({ input, account, limit: 0 });
+  const input = writeAppleVoiceMemosFixture(dir);
+  const extractor = new AppleVoiceMemosExtractor({ input, account, limit: 0 });
   try {
     await extractor.setup();
     return {
@@ -23,7 +23,7 @@ async function extract(t) {
   }
 }
 
-const transformer = new VoiceMemosTransformer();
+const transformer = new AppleVoiceMemosTransformer();
 const transform = async record => (await transformer.performTransform(record))[0].data;
 
 test('each recording is extracted newest first, with its file and transcript, as a CreateAction', async t => {

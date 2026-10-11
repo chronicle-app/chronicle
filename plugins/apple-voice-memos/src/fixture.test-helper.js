@@ -47,7 +47,7 @@ const WORDS = [
  * - deleted: the newest recording, in Recently Deleted.
  * - old: an `.m4a` from before transcripts, with an `iOS` encoder tag.
  */
-export function writeVoiceMemosFixture(dir) {
+export function writeAppleVoiceMemosFixture(dir) {
   const input = join(dir, 'CloudRecordings.db');
   const db = new DatabaseSync(input);
   db.exec(`
