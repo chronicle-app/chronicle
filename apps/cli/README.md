@@ -21,9 +21,9 @@ chronicle extract shell --limit 10
 
 ## Usage
 
-Run `chronicle sources` to list sources and whether each is installed
-(`--all` adds sources for services that no longer exist), and `chronicle extract <source> --help`
-for options. The CLI bundles `shell`, `imessage`, `safari`, `things-todo`, and
+Run `chronicle sources` to list sources (`--all` adds sources for services that
+no longer exist), `chronicle sources info <source>` to see one and whether its
+plugin is installed, and `chronicle extract <source> --help` for options. The CLI bundles `shell`, `imessage`, `safari`, `things-todo`, and
 `claude-code`; `chronicle plugins install <name>` adds any other catalog source.
 
 JSON is the default; use `--loader csv`, `yaml`, or `table`, and `--output <file>`

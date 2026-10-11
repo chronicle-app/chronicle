@@ -81,12 +81,12 @@ test('bundled sources are discoverable from an unrelated cwd; JSON has no diagno
   // Legacy sources are listed only on request, and a hint under the table says so.
   assert.ok(sources.every(x => x.tier !== 'legacy'));
   const table = run('sources');
-  assert.match(success(table), /^source +strategy +status/);
+  assert.match(success(table), /^source +strategy +description/);
   assert.match(table.stderr, /Not showing \d+ legacy sources.*chronicle sources --all/);
   const legacy = all.filter(x => x.tier === 'legacy');
   assert.ok(legacy.length > 0);
   assert.match(success(run('sources', 'info', legacy[0].source)), /tier +legacy/);
-  assert.match(success(run('sources', '--all')), new RegExp(`${legacy[0].source} .*legacy`));
+  assert.match(success(run('sources', '--all')), new RegExp(`^${legacy[0].source} `, 'm'));
   // An unknown source is reported as one, even with a source's own flags.
   const unknown = run('extract', 'no-such-source', '--limit', '1');
   assert.notEqual(unknown.status, 0);
@@ -470,7 +470,8 @@ export class Fixture extends Extractor {
   const [listing] = JSON.parse(success(run('sources', '--source', 'fixture', '--format', 'json')));
   assert.equal(listing.origin, 'installed');
   assert.equal(listing.tier, null);
-  assert.match(success(run('sources', '--source', 'fixture')), /not in catalog · fixture-plugin/);
+  assert.match(success(run('sources', 'info', 'fixture')), /plugin +fixture-plugin\n/);
+  assert.match(success(run('sources', 'info', 'fixture')), /tier +not in catalog/);
   assert.match(success(run('auth', 'login', '--list')), /fixture/);
   const extracted = run('extract', 'fixture', '--raw');
   assert.equal(JSON.parse(success(extracted)).name, 'installed fixture');
@@ -544,7 +545,7 @@ export class MyShell extends Extractor {
   assert.match(success(run('plugins')), /my-shell +local/);
   const [listing] = JSON.parse(success(run('sources', '--source', 'shell', '--format', 'json')));
   assert.equal(listing.origin, 'local');
-  assert.match(success(run('sources', '--source', 'shell')), /local · my-shell/);
+  assert.match(success(run('sources', 'info', 'shell')), /plugin +my-shell\n/);
 
   // A second local plugin for the source keeps the first one's extractors.
   writeFileSync(
@@ -670,6 +671,10 @@ test(
     assert.match(
       success(run.with(env)('extract', 'google-reader', '--help')),
       /chronicle plugins install google-reader/
+    );
+    assert.match(
+      success(run.with(env)('sources', 'info', 'google-reader')),
+      /plugin +@chronicle\.app\/google-reader, not installed/
     );
   }
 );

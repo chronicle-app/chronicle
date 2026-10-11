@@ -36,7 +36,7 @@ export default class SourcesInfo extends BaseCommand<typeof SourcesInfo> {
     for (const entry of card(
       undefined,
       [
-        ['plugin', listing.package],
+        ['plugin', listing.installed ? listing.package : `${listing.package}, not installed`],
         ['tier', listing.tier ?? 'not in catalog'],
         ['types', types.join(', ')],
         ...(runsOn
