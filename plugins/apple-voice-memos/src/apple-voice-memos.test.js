@@ -48,9 +48,12 @@ test('each recording is extracted newest first, with its file, as a RecordAction
     actions.set(record.data.uniqueID, { record: record.data, action, transcription });
   }
 
-  // The recording spans from when it started to its duration later.
+  // It's dated when recording started. When it stopped isn't known, since
+  // recording can be paused.
   const { action: runs } = actions.get(ids.runs);
-  assert.equal(new Date(runs.endTime) - new Date(runs.startTime), 12_750);
+  assert.equal(runs.timestamp.toISOString(), '2025-01-01T00:10:00.000Z');
+  assert.equal(runs.startTime, undefined);
+  assert.equal(runs.endTime, undefined);
   assert.equal(runs.result.duration, 'PT12S');
 
   // Only a file that's on this Mac is the recording's content.

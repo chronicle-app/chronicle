@@ -14,7 +14,7 @@ converted from the record. Every node also has `source`.
 
 ```ts
 RecordAction key(sourceId) {
-  sourceId, startTime, endTime*
+  sourceId, timestamp
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
   result: AudioObject key(sourceId) { sourceId, name, duration*, contentPath?, mimeType?* }
 }

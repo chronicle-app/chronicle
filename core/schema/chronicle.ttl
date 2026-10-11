@@ -474,7 +474,7 @@
   rdfs:subClassOf :Action;
   skos:broadMatch schemaorg:CreateAction .
 :RecordAction a owl:Class;
-  rdfs:comment "The agent recorded sound or video, such as a voice memo, a video clip, or a screen recording. Its :result is the :AudioObject or :VideoObject. Its :startTime and :endTime are when recording started and stopped. Taking a still image is a :PhotographAction.";
+  rdfs:comment "The agent recorded sound or video, such as a voice memo, a video clip, or a screen recording. Its :result is the :AudioObject or :VideoObject. Recording can be paused, so the action can last longer than the recording's :duration. When only the start is known, the :timestamp is when recording started. Taking a still image is a :PhotographAction.";
   rdfs:subClassOf :CreateAction .
 :PhotographAction a owl:Class;
   rdfs:comment "The agent took a photograph. Its :result is the :ImageObject.";

@@ -18,7 +18,7 @@ Recordings come out newest first, and `--since` and `--until` bound when each on
 
 | Voice Memos thing       | Chronicle node        | Key                                                                      | Properties                                                                                                                                                   |
 | ----------------------- | --------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Recording a memo        | `RecordAction`        | `@type`, `source`, `sourceId` (the recording's UUID)                     | `agent` (you), `result` (the recording), `startTime` (when recording started), `endTime` (when it stopped)                                                   |
+| Recording a memo        | `RecordAction`        | `@type`, `source`, `sourceId` (the recording's UUID)                     | `agent` (you), `result` (the recording), `timestamp` (when recording started)                                                                                |
 | The recording           | `AudioObject`         | `@type`, `source` (`apple-voice-memos`), `sourceId` (its UUID)           | `name` (its title), `duration`, `contentPath` and `mimeType` (its audio file, when it's on this Mac: `audio/mp4` for `.m4a`, `audio/x-quicktime` for `.qta`) |
 | Transcribing it         | `TranscribeAction`    | `@type`, `source`, `sourceId` (the recording's UUID)                     | `agent` (you), `instrument` (Voice Memos), `result` (the transcript), `timestamp` (when Voice Memos saved the file)                                          |
 | Voice Memos' transcript | `Transcript`          | `@type`, `source`, `sourceId` (the recording's UUID)                     | `body` (its text), `isBasedOn` (the recording)                                                                                                               |
@@ -29,7 +29,9 @@ Recordings come out newest first, and `--since` and `--until` bound when each on
 
 ### Decisions
 
-**Recording a memo is a `RecordAction`.** Its `result` is the recording, keyed by the recording's UUID. Voice Memos writes the same UUID into the audio file, so the recording keeps its key wherever its file is read from. The action runs from when recording started to its duration later.
+**Recording a memo is a `RecordAction`.** Its `result` is the recording, keyed by the recording's UUID. Voice Memos writes the same UUID into the audio file, so the recording keeps its key wherever its file is read from. The action's `timestamp` is when recording started, which the audio file's own `date` tag agrees with.
+
+**No `endTime`.** Voice Memos keeps the recording's duration but not when recording stopped. A memo can be paused, resumed later, or trimmed, so the start plus the duration isn't always when recording stopped, and the action has none. The recording's `duration` is its length.
 
 **The recording's file, when it's on this Mac.** A recording's `contentPath` is its audio file, captured at ingest. iCloud can keep a recording's audio in the cloud alone, leaving no file or an empty one; that recording has no `contentPath`. Older recordings are `.m4a` files, and newer ones `.qta`, QuickTime audio, which macOS declares as `audio/x-quicktime`.
 

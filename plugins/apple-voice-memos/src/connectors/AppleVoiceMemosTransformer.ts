@@ -30,7 +30,7 @@ const VOICE_MEMOS: SoftwareApplication = {
 };
 
 /**
- *   RecordAction  agent: you   startTime, endTime
+ *   RecordAction  agent: you   timestamp (when recording started)
  *     result: AudioObject  (the recording, by its UUID)
  *   TranscribeAction  agent: you   instrument: Voice Memos   timestamp (when the file was saved)
  *     result: Transcript  (by the recording's UUID)   body
@@ -44,15 +44,16 @@ export default class AppleVoiceMemosTransformer extends ChronicleTransformer {
     const memo = record.data as VoiceMemo;
     // Without an iCloud account the recorder can't be identified, so omit them.
     const recorder = await buildICloudPersonSchema(record.context.account);
-    const start = new Date(memo.date);
 
+    // Voice Memos keeps when recording started but not when it stopped: a
+    // memo can be paused, resumed later, or trimmed, so the start plus the
+    // recording's duration isn't always the end.
     const recording: RecordAction = {
       '@type': 'RecordAction',
       '@key': ['@type', 'source', 'sourceId'],
       source: SOURCE,
       sourceId: memo.uniqueID,
-      startTime: start,
-      endTime: new Date(start.getTime() + memo.duration * 1000),
+      timestamp: new Date(memo.date),
       ...(recorder && { agent: recorder }),
       result: buildRecording(memo),
     };

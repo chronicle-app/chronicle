@@ -3997,17 +3997,17 @@ a sentence of prose, so the action has no :object.
 example:voice-memo
   rdfs:label "Recording a voice memo";
   rdfs:comment """
-A :RecordAction whose :result is the recording, an :AudioObject, from its
-:startTime to its :endTime. The action and the recording are both keyed by the
-memo's ID.
+A :RecordAction whose :result is the recording, an :AudioObject. Voice Memos
+keeps when recording started, the :timestamp, and the recording's :duration,
+but not when recording stopped, since it can be paused. The action and the
+recording are both keyed by the memo's ID.
 """;
   rdf:value [
     a :RecordAction;
     doc:key ("@type" "source" "sourceId");
     :source "apple-voice-memos";
     :sourceId "7C2E9A41-3B8D-4F6A-9E15-2D4C8B7A1F30";
-    :startTime "2026-05-09T13:02:10.000Z"^^xsd:dateTime;
-    :endTime "2026-05-09T13:02:52.000Z"^^xsd:dateTime;
+    :timestamp "2026-05-09T13:02:10.000Z"^^xsd:dateTime;
     :agent [
       a :Person;
       doc:key ("@type" "source" "sourceId");
