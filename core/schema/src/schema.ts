@@ -427,6 +427,7 @@ export interface AudioObject extends Omit<MediaObject, '@type'> {
   artist?: MusicGroupAndChildren[];
   duration?: string;
   genre?: string[];
+  transcript?: string;
 }
 
 export type AudioObjectAndChildren = AudioObject;
@@ -436,6 +437,7 @@ const AudioObjectProperties = {
   artist: z.lazy(() => z.array(MusicGroupAndChildrenSchema)).optional(),
   duration: z.lazy(() => z.string()).optional(),
   genre: z.lazy(() => z.array(z.string())).optional(),
+  transcript: z.lazy(() => z.string()).optional(),
 };
 
 export const AudioObjectSchema: z.ZodType<AudioObject> = z
@@ -2082,6 +2084,7 @@ export interface VideoObject extends Omit<MediaObject, '@type'> {
   '@type': 'VideoObject';
   duration?: string;
   height?: number;
+  transcript?: string;
   width?: number;
 }
 
@@ -2091,6 +2094,7 @@ const VideoObjectProperties = {
   ...MediaObjectProperties,
   duration: z.lazy(() => z.string()).optional(),
   height: z.lazy(() => z.number()).optional(),
+  transcript: z.lazy(() => z.string()).optional(),
   width: z.lazy(() => z.number()).optional(),
 };
 

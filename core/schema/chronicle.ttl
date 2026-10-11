@@ -231,6 +231,12 @@
   rdfs:range :Text;
   skos:closeMatch schemaorg:encodingFormat .
 [] a sh:PropertyShape; sh:path :mimeType; sh:targetSubjectsOf :mimeType; sh:maxCount 1 .
+:transcript a owl:DatatypeProperty;
+  rdfs:comment "The words spoken in the recording, written out, such as a voice memo's transcript or a video's captions. It is plain text with no timings. A recording's spoken words are its :transcript, not its :body.";
+  rdfs:domain [ a owl:Class; owl:unionOf ( :AudioObject :VideoObject ) ];
+  rdfs:range :Text;
+  skos:exactMatch schemaorg:transcript .
+[] a sh:PropertyShape; sh:path :transcript; sh:targetSubjectsOf :transcript; sh:maxCount 1 .
 
 :SoftwareAgent a owl:Class;
   rdfs:subClassOf :Agent;
