@@ -31,8 +31,8 @@ export default class ConfigResetCommand extends BaseCommand<typeof ConfigResetCo
             hint: 'Run `chronicle config reset --force` to reset without asking.',
           });
         }
-        const { inkConfirm } = await import('../../components/InkConfirm.js');
-        const result = await inkConfirm(
+        const { confirm } = await import('../../output/prompts.js');
+        const result = await confirm(
           'Delete every flag default and preset, and forget the plugins you added?',
           { defaultValue: false }
         );

@@ -3,7 +3,7 @@ import { Args } from '@oclif/core';
 import { BaseCommand } from '../../baseCommand.js';
 import { ConfigManager } from '../../config/ConfigManager.js';
 import { localPlugin } from '../../plugins/PluginScanner.js';
-import { getTheme } from '../../theme.js';
+import { tokens } from '../../output/index.js';
 
 export default class PluginsRemove extends BaseCommand<typeof PluginsRemove> {
   static override description = 'Stop running a plugin added with `chronicle plugins add`';
@@ -19,7 +19,7 @@ export default class PluginsRemove extends BaseCommand<typeof PluginsRemove> {
 
   async run(): Promise<void> {
     const { args } = await this.parse(PluginsRemove);
-    const theme = getTheme(this.flags.theme);
+    const t = tokens({ stream: 'stdout', theme: this.flags.theme });
     const configManager = new ConfigManager(this.config.configDir);
     const config = await configManager.loadConfig();
     const paths = config.plugins ?? [];
@@ -46,6 +46,6 @@ export default class PluginsRemove extends BaseCommand<typeof PluginsRemove> {
 
     config.plugins = kept;
     await configManager.saveConfig(config);
-    this.log(`${theme.success('Removed')} ${theme.textBold(args.plugin)}`);
+    this.log(`${t.success('Removed')} ${t.strong(args.plugin)}`);
   }
 }

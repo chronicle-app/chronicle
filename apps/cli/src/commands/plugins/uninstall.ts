@@ -2,7 +2,7 @@ import { Args } from '@oclif/core';
 import { BaseCommand } from '../../baseCommand.js';
 import { uninstallPlugin } from '../../plugins/install.js';
 import { PluginScanner } from '../../plugins/PluginScanner.js';
-import { getTheme } from '../../theme.js';
+import { tokens } from '../../output/index.js';
 
 export default class PluginsUninstall extends BaseCommand<typeof PluginsUninstall> {
   static override description = 'Remove a plugin installed with `chronicle plugins install`';
@@ -15,7 +15,7 @@ export default class PluginsUninstall extends BaseCommand<typeof PluginsUninstal
 
   async run(): Promise<void> {
     const { args } = await this.parse(PluginsUninstall);
-    const theme = getTheme(this.flags.theme);
+    const t = tokens({ stream: 'stdout', theme: this.flags.theme });
 
     let removed: boolean;
     try {
@@ -24,7 +24,7 @@ export default class PluginsUninstall extends BaseCommand<typeof PluginsUninstal
       this.failFrom(error);
     }
     if (removed) {
-      this.log(`${theme.success('Uninstalled')} ${theme.textBold(args.plugin)}`);
+      this.log(`${t.success('Uninstalled')} ${t.strong(args.plugin)}`);
       return;
     }
 

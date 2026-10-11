@@ -1,5 +1,4 @@
 import { EXIT_CODES, ExtractorError } from '@chronicle.app/logging';
-import { inkSelect } from '../components/InkSelect.js';
 import { closest } from './closest.js';
 import { canMerge, combineExtractors } from './combineExtractors.js';
 import { ALL_KINDS, DEFAULT_KINDS, allKinds, defaultKinds, expandKinds } from './recordKinds.js';
@@ -175,16 +174,15 @@ export class ExtractorSelector {
   /** Ask which kinds to read; outside a terminal, say how to name them. */
   private async pickKinds(pool: ExtractorMetadata[]): Promise<string[]> {
     if (!this.input.interactive) throw this.noDefaults(pool);
-    const { inkMultiSelect } = await import('../components/InkMultiSelect.js');
-    const result = await inkMultiSelect(
+    const { multiSelect } = await import('../output/prompts.js');
+    const result = await multiSelect(
       `Which ${this.input.source} records?`,
       allKinds(pool).map(kind => ({
         label: kind,
         value: kind,
         description: pool.find(e => e.recordType.includes(kind))?.description,
       })),
-      defaultKinds(pool),
-      this.input.theme
+      { defaults: defaultKinds(pool), theme: this.input.theme }
     );
     if (result.cancelled)
       throw Object.assign(new Error('Selection cancelled'), { oclif: { exit: 130 } });
@@ -249,15 +247,15 @@ export class ExtractorSelector {
         `${this.input.source} needs a strategy — pick one with --strategy. ${this.strategiesSentence(strategies)}`
       );
     }
-    const result = await inkSelect(
+    const { select } = await import('../output/prompts.js');
+    const result = await select(
       `How should ${this.input.source} be read?`,
       strategies.map(s => ({
         label: s.name,
         value: s.name,
         description: `${s.delivery} · ${s.recordTypes.join(', ')}`,
       })),
-      undefined,
-      this.input.theme
+      { theme: this.input.theme }
     );
     if (result.cancelled)
       throw Object.assign(new Error('Selection cancelled'), { oclif: { exit: 130 } });

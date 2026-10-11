@@ -45,8 +45,8 @@ export default class PresetDeleteCommand extends BaseCommand<typeof PresetDelete
             hint: `Run \`chronicle config preset delete ${args.name} --force\` to delete it without asking.`,
           });
         }
-        const { inkConfirm } = await import('../../../components/InkConfirm.js');
-        const result = await inkConfirm(`Delete the preset ${args.name}?`, { defaultValue: false });
+        const { confirm } = await import('../../../output/prompts.js');
+        const result = await confirm(`Delete the preset ${args.name}?`, { defaultValue: false });
 
         if (result.cancelled || !result.confirmed) {
           this.logger.info('Delete cancelled');

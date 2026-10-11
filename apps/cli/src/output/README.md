@@ -95,7 +95,7 @@ redacted.
 
 - `tokens({ stream, theme })`: the color roles for stdout or stderr, with
   color detection, `NO_COLOR`, and `--theme` handled once. `plainTokens` style
-  nothing.
+  nothing. `jsonColors(theme)`: the JSON loader's syntax colors.
 - `glyphs`: the glyph set.
 - Formatters: `count`, `duration`, `clock`, `plural`, `date`, `truncate`,
   `relativePath`.
@@ -105,6 +105,12 @@ redacted.
   `progress` (the live line).
 - Help: every help screen (`src/help/render.ts`), drawn from these blocks by
   the help class oclif loads (`src/help/Help.ts`).
+- Prompts (`prompts.ts`): `confirm`, `select`, `multiSelect`, and `input`,
+  drawn on stderr with the tokens and the picker glyphs, on `@inquirer/core`.
+  Esc or Ctrl+C cancels; a cancel clears the question, and an answer leaves one
+  line. Import them from `prompts.js` where a question is asked, not from the
+  index, so commands that never ask don't load them. Ask only at a terminal;
+  without one, say which flag to pass instead.
 - Sinks: `createSink`, `PrettySink`, `PlainSink`, and `render`, their shared
   look.
 

@@ -1,7 +1,6 @@
 import { Command, Interfaces } from '@oclif/core';
 
 import { BaseCommand } from './baseCommand.js';
-import { inkInput } from './components/InkInput.js';
 import { PluginScanner } from './plugins/PluginScanner.js';
 import { FlagManager } from './utils/FlagManager.js';
 
@@ -80,7 +79,8 @@ export default abstract class ExtractCommand<T extends typeof Command> extends B
         hint: { action: `Pass \`--${flagName}\` next time to skip this question.` },
       });
 
-      const result = await inkInput(`Enter value for required flag --${flagName}:`, {
+      const { input } = await import('./output/prompts.js');
+      const result = await input(`Enter value for required flag --${flagName}:`, {
         validate(input: string) {
           if (!input.trim()) return `${flagName} is required`;
           return true;

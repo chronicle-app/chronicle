@@ -7,11 +7,6 @@ import { FlagManager } from './FlagManager.js';
 import { recordTypesHint, renderRecordTypes, renderSourceHelp } from './sourceHelp.js';
 import { outputFlagsIn } from '../output/index.js';
 
-// NOTE: nothing here may statically import `ink` (ExtractorSelector/InkSelect,
-// ExtractCommand). Importing ink resumes
-// process.stdin at load time, which would drain piped input before the
-// file/stdin (non-source) path reads it. Those are dynamic-imported below,
-// only on the dispatch path — which never touches stdin.
 const EXTRACT_BASE_FLAGS = FlagManager.getBaseFlags(BaseCommand.baseFlags);
 
 /**
@@ -433,12 +428,12 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     }
 
     const command = `chronicle plugins install ${listing.plugin}`;
-    // The prompt draws on stdout, so only offer it when records aren't piped.
-    if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    // The question draws on stderr and reads the answer from stdin.
+    if (!process.stdin.isTTY || !process.stderr.isTTY) {
       this.fail(`${source} isn't installed`, { hint: `Install it with \`${command}\`.` });
     }
-    const { inkConfirm } = await import('../components/InkConfirm.js');
-    const { confirmed } = await inkConfirm(
+    const { confirm } = await import('../output/prompts.js');
+    const { confirmed } = await confirm(
       `${source} needs the ${listing.package} plugin. Install it now?`,
       { defaultValue: true, theme: (this.flags as any)?.theme }
     );

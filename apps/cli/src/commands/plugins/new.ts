@@ -5,7 +5,7 @@ import { BaseCommand } from '../../baseCommand.js';
 import { findEntry, loadCatalog } from '../../plugins/catalog.js';
 import { addLocalPlugin } from '../../plugins/local.js';
 import { KINDS, type Kind, isPluginName, scaffold } from '../../plugins/scaffold.js';
-import { getTheme } from '../../theme.js';
+import { tokens } from '../../output/index.js';
 
 export default class PluginsNew extends BaseCommand<typeof PluginsNew> {
   static override description =
@@ -37,7 +37,7 @@ export default class PluginsNew extends BaseCommand<typeof PluginsNew> {
 
   async run(): Promise<void> {
     const { args, flags } = await this.parse(PluginsNew);
-    const theme = getTheme(flags.theme);
+    const t = tokens({ stream: 'stdout', theme: flags.theme });
     const { name } = args;
 
     if (!isPluginName(name)) {
@@ -75,10 +75,10 @@ export default class PluginsNew extends BaseCommand<typeof PluginsNew> {
       this.failFrom(error);
     }
 
-    this.log(`${theme.success('Created and added')} ${theme.textBold(name)} ${theme.textDim(dir)}`);
+    this.log(`${t.success('Created and added')} ${t.strong(name)} ${t.muted(dir)}`);
     this.log('');
     this.log(
-      `${theme.textDim('Next: follow')} ${path.join(dir, 'AGENTS.md')}${theme.textDim(
+      `${t.muted('Next: follow')} ${path.join(dir, 'AGENTS.md')}${t.muted(
         ', or point a coding agent at it.'
       )}`
     );
@@ -88,8 +88,8 @@ export default class PluginsNew extends BaseCommand<typeof PluginsNew> {
     if (!interactive) {
       this.fail(`Say how the data reaches you with --from (${Object.keys(KINDS).join(', ')}).`);
     }
-    const { inkSelect } = await import('../../components/InkSelect.js');
-    const { value, cancelled } = await inkSelect(
+    const { select } = await import('../../output/prompts.js');
+    const { value, cancelled } = await select(
       'How does the data reach you?',
       Object.entries(KINDS).map(([value, { label }]) => ({ label, value }))
     );

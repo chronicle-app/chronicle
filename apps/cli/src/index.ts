@@ -2,16 +2,15 @@ export { default as ExtractCommand } from './ExtractCommand.js';
 
 export { run } from '@oclif/core';
 
-// UI Components for external tools
-export { InkPicker, picker, inkInput, inkSelect } from './components/InkPicker.js';
+// Questions to ask at a terminal, for external tools
+export { confirm, select, multiSelect, input } from './output/prompts.js';
 export type {
-  PickerStep,
-  PickerConfig,
-  PickerResult,
   SelectOption,
-  InkInputResult,
-  InkSelectResult,
-} from './components/InkPicker.js';
+  ConfirmResult,
+  SelectResult,
+  MultiSelectResult,
+  InputResult,
+} from './output/prompts.js';
 
 // OAuth exports for plugins
 export {

@@ -2,7 +2,7 @@ import { Args } from '@oclif/core';
 import { BaseCommand } from '../../baseCommand.js';
 import { listSources } from '../../plugins/catalog.js';
 import { installPlugin, resolveInstallTarget } from '../../plugins/install.js';
-import { getTheme } from '../../theme.js';
+import { tokens } from '../../output/index.js';
 
 export default class PluginsInstall extends BaseCommand<typeof PluginsInstall> {
   static override description = 'Install a plugin from the catalog, npm, or a folder';
@@ -22,7 +22,7 @@ export default class PluginsInstall extends BaseCommand<typeof PluginsInstall> {
 
   async run(): Promise<void> {
     const { args } = await this.parse(PluginsInstall);
-    const theme = getTheme(this.flags.theme);
+    const t = tokens({ stream: 'stdout', theme: this.flags.theme });
 
     const target = await resolveInstallTarget(args.plugin, this.config.version);
     if (!target.entry) {
@@ -36,9 +36,9 @@ export default class PluginsInstall extends BaseCommand<typeof PluginsInstall> {
     }
 
     const sources = (await listSources()).filter(s => s.package === name);
-    this.log(`${theme.success('Installed')} ${theme.textBold(name)}`);
+    this.log(`${t.success('Installed')} ${t.strong(name)}`);
     for (const s of sources) {
-      this.log(`  ${theme.text(`chronicle extract ${s.source}`)}`);
+      this.log(`  ${t.command(`chronicle extract ${s.source}`)}`);
     }
   }
 }

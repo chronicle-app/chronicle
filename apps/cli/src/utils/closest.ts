@@ -2,8 +2,6 @@
  * The known name a mistyped one most likely meant: one that contains it or is
  * contained in it (`star` for `stars`), nearest in length, else one a
  * couple of edits away.
- * Lives apart from the selector so the dispatcher can use it without loading
- * ink.
  */
 export function closest(typed: string, known: string[]): string | undefined {
   const needle = typed.toLowerCase();
