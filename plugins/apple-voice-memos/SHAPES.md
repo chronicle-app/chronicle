@@ -13,9 +13,19 @@ converted from the record. Every node also has `source`.
 ## recordings
 
 ```ts
-CreateAction key(sourceId) {
+RecordAction key(sourceId) {
   sourceId, startTime, endTime*
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
-  result: AudioObject key(sourceId) { sourceId, name, duration*, contentPath?, mimeType?*, transcript? }
+  result: AudioObject key(sourceId) { sourceId, name, duration*, contentPath?, mimeType?* }
+}
+// Some records also become:
+TranscribeAction key(sourceId) {
+  sourceId, timestamp
+  agent: Person key(sourceId) { sourceId, handle, sameAs[] }
+  instrument: SoftwareApplication key(handle) { handle, name }
+  result: Transcript key(sourceId) {
+    sourceId, body
+    isBasedOn[]: AudioObject key(sourceId) { sourceId }
+  }
 }
 ```

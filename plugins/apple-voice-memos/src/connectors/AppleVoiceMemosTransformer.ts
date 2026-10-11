@@ -1,6 +1,13 @@
 import { extname } from 'node:path';
 import { ChronicleTransformer, Record } from '@chronicle.app/etl';
-import { ActionAndChildren, AudioObject, CreateAction } from '@chronicle.app/schema';
+import {
+  ActionAndChildren,
+  AudioObject,
+  Person,
+  RecordAction,
+  SoftwareApplication,
+  TranscribeAction,
+} from '@chronicle.app/schema';
 import { buildICloudPersonSchema } from '@chronicle.app/icloud';
 import type { VoiceMemo } from './AppleVoiceMemosExtractor.js';
 
@@ -13,9 +20,21 @@ const MIME_TYPES: { [extension: string]: string } = {
   '.qta': 'audio/x-quicktime',
 };
 
+// The app that recognized the speech, by its bundle ID, as Timing names apps.
+const VOICE_MEMOS: SoftwareApplication = {
+  '@type': 'SoftwareApplication',
+  '@key': ['@type', 'source', 'handle'],
+  source: 'apple-bundle-id',
+  handle: 'com.apple.VoiceMemos',
+  name: 'Voice Memos',
+};
+
 /**
- *   CreateAction  agent: you   startTime, endTime
- *     result: AudioObject  (the recording, by its UUID)   transcript?
+ *   RecordAction  agent: you   startTime, endTime
+ *     result: AudioObject  (the recording, by its UUID)
+ *   TranscribeAction  agent: you   instrument: Voice Memos   timestamp (when the file was saved)
+ *     result: Transcript  (by the recording's UUID)   body
+ *       isBasedOn: AudioObject  (the recording)
  */
 export default class AppleVoiceMemosTransformer extends ChronicleTransformer {
   static override source = SOURCE;
@@ -27,8 +46,8 @@ export default class AppleVoiceMemosTransformer extends ChronicleTransformer {
     const recorder = await buildICloudPersonSchema(record.context.account);
     const start = new Date(memo.date);
 
-    const action: CreateAction = {
-      '@type': 'CreateAction',
+    const recording: RecordAction = {
+      '@type': 'RecordAction',
       '@key': ['@type', 'source', 'sourceId'],
       source: SOURCE,
       sourceId: memo.uniqueID,
@@ -37,14 +56,12 @@ export default class AppleVoiceMemosTransformer extends ChronicleTransformer {
       ...(recorder && { agent: recorder }),
       result: buildRecording(memo),
     };
-    return [action];
+    const transcription = buildTranscription(memo, recorder);
+    return transcription ? [recording, transcription] : [recording];
   }
 }
 
-/**
- * The recording, keyed by its UUID, with its file when it's on this Mac and
- * the transcript Voice Memos made, unless it heard no speech.
- */
+/** The recording, keyed by its UUID, with its file when it's on this Mac. */
 function buildRecording(memo: VoiceMemo): AudioObject {
   const mimeType = memo.file ? MIME_TYPES[extname(memo.file).toLowerCase()] : undefined;
   return {
@@ -56,6 +73,27 @@ function buildRecording(memo: VoiceMemo): AudioObject {
     duration: `PT${Math.floor(memo.duration)}S`,
     ...(memo.file && { contentPath: memo.file }),
     ...(mimeType && { mimeType }),
-    ...(memo.transcript?.text && { transcript: memo.transcript.text }),
+  };
+}
+
+/**
+ * Voice Memos' transcript of the recording, made when it saved the transcript
+ * into the file. None when it heard no speech, or the file has no save time.
+ */
+function buildTranscription(memo: VoiceMemo, recorder: Person | null): TranscribeAction | null {
+  if (!memo.transcript?.text || !memo.modified) return null;
+  const key = { '@key': ['@type', 'source', 'sourceId'], source: SOURCE, sourceId: memo.uniqueID };
+  return {
+    '@type': 'TranscribeAction',
+    ...key,
+    timestamp: new Date(memo.modified),
+    ...(recorder && { agent: recorder }),
+    instrument: VOICE_MEMOS,
+    result: {
+      '@type': 'Transcript',
+      ...key,
+      body: memo.transcript.text,
+      isBasedOn: [{ '@type': 'AudioObject', ...key }],
+    },
   };
 }

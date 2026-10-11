@@ -42,6 +42,12 @@ export interface VoiceMemo {
   encoder: string | null;
   /** The transcript Voice Memos made, when the file has one. */
   transcript: Transcript | null;
+  /**
+   * When the file was last saved, in UTC, from its movie header. Voice Memos
+   * saves a transcript into the file, so this is when the transcript was
+   * written, or a later edit.
+   */
+  modified: string | null;
 }
 
 /** A ZCLOUDRECORDING row, as the query selects it. */
@@ -138,10 +144,11 @@ export class AppleVoiceMemosExtractor extends SqliteExtractor<typeof AppleVoiceM
       file,
       encoder: metadata?.encoder ?? null,
       transcript: metadata?.transcript ? this.parse(metadata.transcript) : null,
+      modified: metadata?.modified?.toISOString() ?? null,
     };
   }
 
-  // A file that doesn't read loses only its tags and transcript, not the memo.
+  // A file that doesn't read loses only its tags, transcript, and time, not the memo.
   private readFile(file: string) {
     try {
       return readRecordingMetadata(file);
