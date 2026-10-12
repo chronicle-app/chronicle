@@ -274,8 +274,7 @@ export type CreateActionAndChildren =
   | PhotographActionAndChildren
   | PublishActionAndChildren
   | QuoteActionAndChildren
-  | RecordActionAndChildren
-  | TranscribeActionAndChildren;
+  | RecordActionAndChildren;
 
 const CreateActionProperties = {
   ...ActionProperties,
@@ -339,8 +338,7 @@ export type CreativeWorkAndChildren =
   | ResponseAndChildren
   | RevisionAndChildren
   | SoftwareApplicationAndChildren
-  | SoftwareSourceCodeAndChildren
-  | TranscriptAndChildren;
+  | SoftwareSourceCodeAndChildren;
 
 const CreativeWorkProperties = {
   ...EntityProperties,
@@ -434,6 +432,7 @@ export interface AudioObject extends Omit<MediaObject, '@type'> {
   artist?: MusicGroupAndChildren[];
   duration?: string;
   genre?: string[];
+  transcript?: string[];
 }
 
 export type AudioObjectAndChildren = AudioObject;
@@ -443,6 +442,7 @@ const AudioObjectProperties = {
   artist: z.lazy(() => z.array(MusicGroupAndChildrenSchema)).optional(),
   duration: z.lazy(() => z.string()).optional(),
   genre: z.lazy(() => z.array(z.string())).optional(),
+  transcript: z.lazy(() => z.array(z.string())).optional(),
 };
 
 export const AudioObjectSchema: z.ZodType<AudioObject> = z
@@ -2084,42 +2084,6 @@ export const ThreadSchema: z.ZodType<Thread> = z
   })
   .superRefine(requireNodeIdentity);
 
-// TranscribeAction, child of https://schema.chronicle.app/CreateAction
-export interface TranscribeAction extends Omit<CreateAction, '@type'> {
-  '@type': 'TranscribeAction';
-}
-
-export type TranscribeActionAndChildren = TranscribeAction;
-
-const TranscribeActionProperties = {
-  ...CreateActionProperties,
-};
-
-export const TranscribeActionSchema: z.ZodType<TranscribeAction> = z
-  .object({
-    '@type': z.literal('TranscribeAction'),
-    ...TranscribeActionProperties,
-  })
-  .superRefine(requireNodeIdentity);
-
-// Transcript, child of https://schema.chronicle.app/CreativeWork
-export interface Transcript extends Omit<CreativeWork, '@type'> {
-  '@type': 'Transcript';
-}
-
-export type TranscriptAndChildren = Transcript;
-
-const TranscriptProperties = {
-  ...CreativeWorkProperties,
-};
-
-export const TranscriptSchema: z.ZodType<Transcript> = z
-  .object({
-    '@type': z.literal('Transcript'),
-    ...TranscriptProperties,
-  })
-  .superRefine(requireNodeIdentity);
-
 // TravelAction, child of https://schema.chronicle.app/Action
 export interface TravelAction extends Omit<Action, '@type'> {
   '@type': 'TravelAction';
@@ -2161,6 +2125,7 @@ export interface VideoObject extends Omit<MediaObject, '@type'> {
   '@type': 'VideoObject';
   duration?: string;
   height?: number;
+  transcript?: string[];
   width?: number;
 }
 
@@ -2170,6 +2135,7 @@ const VideoObjectProperties = {
   ...MediaObjectProperties,
   duration: z.lazy(() => z.string()).optional(),
   height: z.lazy(() => z.number()).optional(),
+  transcript: z.lazy(() => z.array(z.string())).optional(),
   width: z.lazy(() => z.number()).optional(),
 };
 
@@ -2245,10 +2211,6 @@ export const VideoObjectAndChildrenSchema = VideoObjectSchema;
 export const VenueAndChildrenSchema = VenueSchema;
 
 export const TravelActionAndChildrenSchema = TravelActionSchema;
-
-export const TranscriptAndChildrenSchema = TranscriptSchema;
-
-export const TranscribeActionAndChildrenSchema = TranscribeActionSchema;
 
 export const ThreadAndChildrenSchema = ThreadSchema;
 
@@ -2800,11 +2762,6 @@ export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> =
     }),
 
     z.object({
-      '@type': z.literal('Transcript'),
-      ...TranscriptProperties,
-    }),
-
-    z.object({
       '@type': z.literal('SoftwareSourceCode'),
       ...SoftwareSourceCodeProperties,
     }),
@@ -2947,11 +2904,6 @@ export const CreateActionAndChildrenSchema: z.ZodType<CreateActionAndChildren> =
     z.object({
       '@type': z.literal('CreateAction'),
       ...CreateActionProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('TranscribeAction'),
-      ...TranscribeActionProperties,
     }),
 
     z.object({
@@ -3143,11 +3095,6 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     z.object({
       '@type': z.literal('CreativeWork'),
       ...CreativeWorkProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Transcript'),
-      ...TranscriptProperties,
     }),
 
     z.object({
@@ -3511,11 +3458,6 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('TranscribeAction'),
-      ...TranscribeActionProperties,
-    }),
-
-    z.object({
       '@type': z.literal('RecordAction'),
       ...RecordActionProperties,
     }),
@@ -3691,11 +3633,6 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('CreativeWork'),
       ...CreativeWorkProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Transcript'),
-      ...TranscriptProperties,
     }),
 
     z.object({
@@ -4036,11 +3973,6 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('CreateAction'),
       ...CreateActionProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('TranscribeAction'),
-      ...TranscribeActionProperties,
     }),
 
     z.object({

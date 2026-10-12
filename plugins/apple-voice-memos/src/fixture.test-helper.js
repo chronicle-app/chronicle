@@ -5,9 +5,6 @@ import { join } from 'node:path';
 // Seconds since the Apple epoch; 757382400 is 2025-01-01T00:00:00Z.
 const JAN_1 = 757_382_400;
 
-// A movie header's times are seconds since 1904; the Apple epoch is 2001.
-const header = seconds => seconds + 978_307_200 + 2_082_844_800;
-
 export const account = {
   accountID: 'you@example.com',
   email: 'you@example.com',
@@ -39,19 +36,16 @@ const WORDS = [
  * ZCLOUDRECORDING table, and audio files beside it with no real audio.
  *
  * - runs: an `.m4a` whose transcript lists its runs and an attribute table,
- *   recorded on an iPhone and saved when recording stopped. Its media data
- *   comes before the movie header.
+ *   recorded on an iPhone. Its media data comes before the movie header.
  * - inline: an `.m4a` whose transcript gives each run's attributes inline,
- *   saved a day later, with a 64-bit media data box and a version 1 movie
- *   header.
+ *   with a 64-bit media data box.
  * - empty: an `.m4a` whose transcript heard no speech.
  * - qta: a `.qta` with its transcript in its first track's QuickTime metadata,
  *   and no encoder tag.
  * - noPath: a row with no file name, as for a recording with no local audio.
  * - notDownloaded: an empty file, as iCloud leaves before downloading one.
  * - deleted: the newest recording, in Recently Deleted.
- * - old: an `.m4a` from before transcripts, with an `iOS` encoder tag and no
- *   times in its movie header.
+ * - old: an `.m4a` from before transcripts, with an `iOS` encoder tag.
  */
 export function writeAppleVoiceMemosFixture(dir) {
   const input = join(dir, 'CloudRecordings.db');
@@ -85,12 +79,7 @@ export function writeAppleVoiceMemosFixture(dir) {
       ZDURATION: 12.75,
       ZFLAGS: 1540,
       ZENCRYPTEDTITLE: 'Kettle Reminder',
-      file: m4a({
-        encoder: iPhone,
-        transcript: runsTranscript(),
-        times: { created: header(JAN_1 + 600), modified: header(JAN_1 + 613) },
-        mdatFirst: true,
-      }),
+      file: m4a({ encoder: iPhone, transcript: runsTranscript(), mdatFirst: true }),
     },
     {
       id: ids.inline,
@@ -101,7 +90,6 @@ export function writeAppleVoiceMemosFixture(dir) {
       file: m4a({
         encoder: 'com.apple.VoiceMemos (Watch Version 11.3 (Build 22S555))',
         transcript: inlineTranscript(),
-        times: { created: header(JAN_1 + 500), modified: header(JAN_1 + 500 + 86_400), version: 1 },
         largeMdat: true,
       }),
     },
@@ -111,11 +99,7 @@ export function writeAppleVoiceMemosFixture(dir) {
       ZDURATION: 1.2,
       ZFLAGS: 516,
       ZENCRYPTEDTITLE: 'New Recording 3',
-      file: m4a({
-        encoder: iPhone,
-        transcript: JSON.stringify({ attributedString: '' }),
-        times: { created: header(JAN_1 + 400), modified: header(JAN_1 + 401) },
-      }),
+      file: m4a({ encoder: iPhone, transcript: JSON.stringify({ attributedString: '' }) }),
     },
     {
       id: ids.qta,
@@ -124,10 +108,7 @@ export function writeAppleVoiceMemosFixture(dir) {
       ZFLAGS: 5636,
       ZENCRYPTEDTITLE: 'New Recording 2',
       extension: 'qta',
-      file: qta({
-        transcript: runsTranscript(),
-        times: { created: header(JAN_1 + 300), modified: header(JAN_1 + 336) },
-      }),
+      file: qta({ transcript: runsTranscript() }),
     },
     {
       id: ids.noPath,
@@ -229,24 +210,8 @@ const u32 = value => {
 };
 const text = value => Buffer.from(value, 'utf8');
 
-/**
- * A movie header: a version and flags word, then the creation and
- * modification times, 32-bit in version 0 and 64-bit in version 1, then the
- * fields a reader walks past.
- */
-function mvhd({ created = 0, modified = 0, version = 0 } = {}) {
-  const times = Buffer.alloc(version === 1 ? 16 : 8);
-  if (version === 1) {
-    times.writeBigUInt64BE(BigInt(created));
-    times.writeBigUInt64BE(BigInt(modified), 8);
-  } else {
-    times.writeUInt32BE(created);
-    times.writeUInt32BE(modified, 4);
-  }
-  return box('mvhd', Buffer.from([version, 0, 0, 0]), times, Buffer.alloc(version === 1 ? 92 : 88));
-}
-
 // Stand-ins for the boxes a reader walks past.
+const mvhd = () => box('mvhd', Buffer.alloc(100));
 const tkhd = () => box('tkhd', Buffer.alloc(84));
 const mdia = () => box('mdia', box('mdhd', Buffer.alloc(24)), box('hdlr', Buffer.alloc(25)));
 const mdat = () => box('mdat', Buffer.from([0x21, 0x10, 0x04, 0x60, 0x8c, 0x1c]));
@@ -258,7 +223,7 @@ const data = value => box('data', u32(1), u32(0), value);
  * An `.m4a` as Voice Memos writes it: the transcript in the audio track's
  * `udta/tsrp`, and the tags in the movie's `udta/meta`, an ISO `meta` box.
  */
-function m4a({ encoder, transcript, times, mdatFirst = false, largeMdat = false }) {
+function m4a({ encoder, transcript, mdatFirst = false, largeMdat = false }) {
   const tags = box(
     'udta',
     box('date', text('2025-01-01T00:10:00Z')),
@@ -279,7 +244,7 @@ function m4a({ encoder, transcript, times, mdatFirst = false, largeMdat = false 
     mdia(),
     ...(transcript ? [box('udta', box('tsrp', text(transcript)))] : [])
   );
-  const moov = box('moov', mvhd(times), trak, tags);
+  const moov = box('moov', mvhd(), trak, tags);
   const media = largeMdat ? largeBox('mdat', Buffer.from([0x21, 0x10, 0x04, 0x60])) : mdat();
   const ftyp = box('ftyp', text('M4A '), u32(0), text('M4A isommp42'));
   return Buffer.concat(mdatFirst ? [ftyp, media, moov] : [ftyp, moov, media]);
@@ -290,7 +255,7 @@ function m4a({ encoder, transcript, times, mdatFirst = false, largeMdat = false 
  * QuickTime `meta` box (no version word), under an `mdta` key, beside
  * another key.
  */
-function qta({ transcript, times }) {
+function qta({ transcript }) {
   const keys = ['com.apple.quicktime.track-name', 'com.apple.VoiceMemos.tsrp'];
   const keysBox = box(
     'keys',
@@ -304,12 +269,7 @@ function qta({ transcript, times }) {
     keysBox,
     box('ilst', box(u32(1), data(text('Main'))), box(u32(2), data(text(transcript))))
   );
-  const moov = box(
-    'moov',
-    mvhd(times),
-    box('trak', tkhd(), mdia(), meta),
-    box('trak', tkhd(), mdia())
-  );
+  const moov = box('moov', mvhd(), box('trak', tkhd(), mdia(), meta), box('trak', tkhd(), mdia()));
   const ftyp = box('ftyp', text('qt  '), u32(0), text('qt  '));
   return Buffer.concat([ftyp, box('wide'), mdat(), moov]);
 }

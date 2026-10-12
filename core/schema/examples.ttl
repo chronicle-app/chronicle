@@ -3999,8 +3999,9 @@ example:voice-memo
   rdfs:comment """
 A :RecordAction whose :result is the recording, an :AudioObject. Voice Memos
 keeps when recording started, the :timestamp, and the recording's :duration,
-but not when recording stopped, since it can be paused. The action and the
-recording are both keyed by the memo's ID.
+but not when recording stopped, since it can be paused. The words spoken in
+the recording are its :transcript. The action and the recording are both keyed
+by the memo's ID.
 """;
   rdf:value [
     a :RecordAction;
@@ -4024,57 +4025,11 @@ recording are both keyed by the memo's ID.
       :name "Garden Street";
       :duration "PT42S";
       :contentPath "/Users/sam/Library/Group Containers/group.com.apple.VoiceMemos.shared/Recordings/20260509 090210-7C2E9A41.m4a";
-      :mimeType "audio/mp4"
+      :mimeType "audio/mp4";
+      :transcript "Pick up seeds for the tomatoes, and call the hardware store about the hose."
     ]
   ] .
 
 :AudioObject skos:example example:voice-memo .
 :RecordAction skos:example example:voice-memo .
-
-example:voice-memo-transcript
-  rdfs:label "Transcribing a voice memo";
-  rdfs:comment """
-A :TranscribeAction whose :result is the :Transcript of a voice memo. The app
-that recognized the speech is the :instrument, a :SoftwareApplication keyed by
-its bundle ID. The transcript's :body is the text, and it :isBasedOn the
-recording. Another transcript of the same recording, such as one made later
-with a different model, is the :result of its own :TranscribeAction.
-""";
-  rdf:value [
-    a :TranscribeAction;
-    doc:key ("@type" "source" "sourceId");
-    :source "apple-voice-memos";
-    :sourceId "7C2E9A41-3B8D-4F6A-9E15-2D4C8B7A1F30";
-    :timestamp "2026-05-09T13:02:52.000Z"^^xsd:dateTime;
-    :agent [
-      a :Person;
-      doc:key ("@type" "source" "sourceId");
-      :source "icloud";
-      :sourceId "1234567890";
-      :handle "you@example.com";
-      :sameAs "@me"
-    ];
-    :instrument [
-      a :SoftwareApplication;
-      doc:key ("@type" "source" "handle");
-      :source "apple-bundle-id";
-      :handle "com.apple.VoiceMemos";
-      :name "Voice Memos"
-    ];
-    :result [
-      a :Transcript;
-      doc:key ("@type" "source" "sourceId");
-      :source "apple-voice-memos";
-      :sourceId "7C2E9A41-3B8D-4F6A-9E15-2D4C8B7A1F30";
-      :body "Pick up seeds for the tomatoes, and call the hardware store about the hose.";
-      :isBasedOn [
-        a :AudioObject;
-        doc:key ("@type" "source" "sourceId");
-        :source "apple-voice-memos";
-        :sourceId "7C2E9A41-3B8D-4F6A-9E15-2D4C8B7A1F30"
-      ]
-    ]
-  ] .
-
-:TranscribeAction skos:example example:voice-memo-transcript .
-:Transcript skos:example example:voice-memo-transcript .
+:transcript skos:example example:voice-memo .

@@ -231,6 +231,11 @@
   rdfs:range :Text;
   skos:closeMatch schemaorg:encodingFormat .
 [] a sh:PropertyShape; sh:path :mimeType; sh:targetSubjectsOf :mimeType; sh:maxCount 1 .
+:transcript a owl:DatatypeProperty;
+  rdfs:comment "The words spoken in the recording, written out, such as a voice memo's transcript or a video's captions. It is plain text with no timings. A recording can have several, such as one from the app that recorded it and one from another speech recognizer. A recording's spoken words are its :transcript, not its :body.";
+  rdfs:domain [ a owl:Class; owl:unionOf ( :AudioObject :VideoObject ) ];
+  rdfs:range :Text;
+  skos:exactMatch schemaorg:transcript .
 
 :SoftwareAgent a owl:Class;
   rdfs:subClassOf :Agent;
@@ -480,12 +485,6 @@
   rdfs:comment "The agent took a photograph. Its :result is the :ImageObject.";
   rdfs:subClassOf :CreateAction;
   skos:exactMatch schemaorg:PhotographAction .
-:TranscribeAction a owl:Class;
-  rdfs:comment "The agent wrote out the words spoken in a recording. Its :result is the :Transcript. Its :instrument, if any, is the application or model that recognized the speech.";
-  rdfs:subClassOf :CreateAction .
-:Transcript a owl:Class;
-  rdfs:comment "The words spoken in a recording, written out. Its :body is the text, without timings. It :isBasedOn the recording. A recording can have several transcripts, each the :result of its own :TranscribeAction.";
-  rdfs:subClassOf :CreativeWork .
 :LikeAction a owl:Class;
   rdfs:comment "The agent liked the :object.";
   rdfs:subClassOf :ReactAction;

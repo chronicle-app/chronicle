@@ -2,12 +2,10 @@ import { closeSync, fstatSync, openSync, readSync } from 'node:fs';
 
 /** What Voice Memos writes into a recording's file besides the audio. */
 export interface RecordingMetadata {
-  /** The `©too` tag: the app and the kind of device that recorded it. */
+  /** The `©too` tag: the app, and the kind of device and OS version that last wrote the file. */
   encoder: string | null;
   /** The transcript's JSON, as Voice Memos stores it. */
   transcript: string | null;
-  /** When the file was last saved: the movie header's modification time. */
-  modified: Date | null;
 }
 
 /** A box's type, where it begins, and where its contents lie, after its header. */
@@ -21,24 +19,20 @@ interface Box {
 // The metadata key a `.qta` file stores its transcript under.
 const TRANSCRIPT_KEY = 'com.apple.VoiceMemos.tsrp';
 
-// A movie header's times are seconds since 1904-01-01 UTC.
-const MAC_EPOCH_OFFSET_SECONDS = 2_082_844_800;
-
 // A movie header far larger than any recording's is a damaged file.
 const MAX_MOOV = 64 * 1024 * 1024;
 
 /**
- * Read the encoder tag, the transcript, and when the file was last saved from
- * a recording. Both formats are QuickTime movies: an `.m4a` keeps its
- * transcript in a track's `udta/tsrp` box, and a `.qta` in a track's metadata
- * under `com.apple.VoiceMemos.tsrp`.
+ * Read the encoder tag and the transcript from a recording. Both formats are
+ * QuickTime movies: an `.m4a` keeps its transcript in a track's `udta/tsrp`
+ * box, and a `.qta` in a track's metadata under `com.apple.VoiceMemos.tsrp`.
  * Only the movie header (`moov`) is read, not the audio. Null when the file is
  * missing, empty, or has no movie header.
  */
 export function readRecordingMetadata(path: string): RecordingMetadata | null {
   const moov = readMoov(path);
   if (!moov) return null;
-  return { encoder: encoderOf(moov), transcript: transcriptOf(moov), modified: modifiedOf(moov) };
+  return { encoder: encoderOf(moov), transcript: transcriptOf(moov) };
 }
 
 /** The `moov` box's contents, found by reading only the top-level box headers. */
@@ -137,21 +131,6 @@ function encoderOf(moov: Buffer): string | null {
     }
   }
   return null;
-}
-
-/**
- * The `mvhd` box's modification time. After its version and flags word come
- * the creation and modification times: 32-bit in version 0, 64-bit in
- * version 1. Null when it's unset.
- */
-function modifiedOf(moov: Buffer): Date | null {
-  const mvhd = childrenOf(moov, 0, moov.length, 'mvhd')[0];
-  if (!mvhd || mvhd.end - mvhd.start < 4) return null;
-  const wide = moov[mvhd.start] === 1;
-  const at = mvhd.start + (wide ? 12 : 8);
-  if (at + (wide ? 8 : 4) > mvhd.end) return null;
-  const seconds = wide ? Number(moov.readBigUInt64BE(at)) : moov.readUInt32BE(at);
-  return seconds ? new Date((seconds - MAC_EPOCH_OFFSET_SECONDS) * 1000) : null;
 }
 
 /** The transcript JSON from the first track that has one. */
