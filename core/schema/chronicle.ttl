@@ -231,24 +231,41 @@
   rdfs:range :Text;
   skos:closeMatch schemaorg:encodingFormat .
 [] a sh:PropertyShape; sh:path :mimeType; sh:targetSubjectsOf :mimeType; sh:maxCount 1 .
+:transcript a owl:DatatypeProperty;
+  rdfs:comment "The words spoken in a recording or an episode, written out, such as a voice memo's transcript, a podcast episode's transcript, or a video's captions. It is plain text with no timings. It belongs to the work rather than to one of its files, so a podcast episode's transcript is the episode's, not its audio file's. Spoken words are a :transcript, not a :body.";
+  rdfs:domain [ a owl:Class; owl:unionOf ( :AudioObject :VideoObject :PodcastEpisode ) ];
+  rdfs:range :Text;
+  skos:closeMatch schemaorg:transcript .
+[] a sh:PropertyShape; sh:path :transcript; sh:targetSubjectsOf :transcript; sh:maxCount 1 .
 
 :SoftwareAgent a owl:Class;
   rdfs:subClassOf :Agent;
-  rdfs:comment "Software that acts as a participant, such as an assistant, a bot, or an automation. Software used as a tool is a :SoftwareApplication." .
-:SoftwareApplication a owl:Class;
+  rdfs:comment "Software that acts as a participant, such as an assistant, a bot, or an automation. Software used as a tool is :Software." .
+:Software a owl:Class;
   rdfs:subClassOf :CreativeWork;
-  rdfs:comment "A software application or model used to do work. An action names it as its :instrument.";
+  rdfs:comment "A program, such as an application, an operating system, or a model. An action names the software used as its :instrument.";
+  skos:closeMatch schemaorg:SoftwareApplication .
+:SoftwareApplication a owl:Class;
+  rdfs:subClassOf :Software;
+  rdfs:comment "A software application used to do work.";
   skos:broadMatch schemaorg:SoftwareApplication .
+:AIModel a owl:Class;
+  rdfs:subClassOf :Software;
+  rdfs:comment "A trained model that generates or interprets content, such as a language model or a speech recognizer. An assistant that acts is a :SoftwareAgent, and the model it runs is an :AIModel.";
+  skos:broadMatch schemaorg:SoftwareApplication .
+:OperatingSystem a owl:Class;
+  rdfs:subClassOf :Software;
+  rdfs:comment "An operating system, or one release of it, that applications run on, such as a phone's or a computer's.";
+  skos:closeMatch schemaorg:OperatingSystem .
 :Thread a owl:Class;
   rdfs:subClassOf :Collection;
   rdfs:comment "A conversation that its source groups together, such as an email thread or a chat with an assistant. Its messages are :isPartOf it, and its :name is the conversation's title.";
   skos:closeMatch schemaorg:Conversation .
 :instrument a owl:ObjectProperty;
-  rdfs:comment "The tool, device, application, or model used to perform an action. The :agent is who acted. The :instrument is what they used.";
+  rdfs:comment "The tool, device, application, or model used to perform an action. The :agent is who acted. The :instrument is what they used. When only the kind of device is known, it is a :ProductModel rather than a :Device.";
   rdfs:domain :Action;
   rdfs:range :Entity;
   skos:exactMatch schemaorg:instrument .
-[] a sh:PropertyShape; sh:path :instrument; sh:targetSubjectsOf :instrument; sh:maxCount 1 .
 :author a owl:ObjectProperty;
   rdfs:comment "An agent who wrote the work, such as a person or a software assistant.";
   rdfs:domain [ a owl:Class; owl:unionOf ( :CreativeWork :Message ) ];
@@ -473,6 +490,13 @@
   rdfs:comment "The agent brought a work into being. Its :result is the work. The subclasses name the kind of making.";
   rdfs:subClassOf :Action;
   skos:broadMatch schemaorg:CreateAction .
+:RecordAction a owl:Class;
+  rdfs:comment "The agent recorded sound or video, such as a voice memo, a video clip, or a screen recording. Its :result is the :AudioObject or :VideoObject. Recording can be paused, so the action can last longer than the recording's :duration. When only the start is known, the :timestamp is when recording started. Taking a still image is a :PhotographAction.";
+  rdfs:subClassOf :CreateAction .
+:PhotographAction a owl:Class;
+  rdfs:comment "The agent took a photograph. Its :result is the :ImageObject.";
+  rdfs:subClassOf :CreateAction;
+  skos:exactMatch schemaorg:PhotographAction .
 :LikeAction a owl:Class;
   rdfs:comment "The agent liked the :object.";
   rdfs:subClassOf :ReactAction;
@@ -698,6 +722,10 @@
 :Device a owl:Class;
   rdfs:comment "A physical computing device the subject runs software on, such as a computer, a phone, or a tablet. It is the :instrument of an :ExecuteAction. It names a role, not a kind, so its :category says what kind of device it is. It is :inRealm the logical machine, which can outlive the hardware.";
   rdfs:subClassOf :PhysicalObject .
+:ProductModel a owl:Class;
+  rdfs:comment "A kind of product, such as a line of phones or one model of camera, rather than one particular product. One particular computing device is a :Device.";
+  rdfs:subClassOf :Entity;
+  skos:closeMatch schemaorg:ProductModel .
 :Directory a owl:Class;
   rdfs:subClassOf :Collection;
   rdfs:comment "A filesystem directory. Its members are the files and directories it :contains, and they are its only content. Its :handle is its path, and it is :inRealm the machine it is on." .

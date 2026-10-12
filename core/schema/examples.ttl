@@ -475,7 +475,7 @@ example:assistant-reply
   rdfs:comment """
 A :MessageAction for a reply from an AI assistant. The :agent is the
 assistant, a :SoftwareAgent. The model that generated the reply is the
-:instrument, a :SoftwareApplication.
+:instrument, an :AIModel.
 
 The :Message is part of a :Thread for the session, and the thread is part of
 the :Project the session ran in. The project is keyed by its directory path,
@@ -496,7 +496,7 @@ which is only unique on one machine, so the key includes the :Realm from
       :name "Claude"
     ];
     :instrument [
-      a :SoftwareApplication;
+      a :AIModel;
       doc:key ("@type" "source" "handle");
       :source "anthropic";
       :handle "claude-sonnet-5";
@@ -3402,7 +3402,7 @@ are keyed by their numeric GitHub id, the repository by its owner (its
 :Agent skos:example example:task-completed, example:message-with-photo .
 :Person skos:example example:shell-command, example:assistant-prompt .
 :SoftwareAgent skos:example example:assistant-reply .
-:SoftwareApplication skos:example example:assistant-reply .
+:AIModel skos:example example:assistant-reply .
 :Realm skos:example example:shell-command, example:assistant-reply .
 :Command skos:example example:shell-command .
 :ExecuteAction skos:example example:shell-command .
@@ -3993,3 +3993,64 @@ a sentence of prose, so the action has no :object.
 :about skos:example example:hackernews-reply .
 :Repository skos:example example:github-issue-closed .
 :Task skos:example example:github-issue-closed .
+
+example:voice-memo
+  rdfs:label "Recording a voice memo";
+  rdfs:comment """
+A :RecordAction whose :result is the recording, an :AudioObject. Voice Memos
+keeps when recording started, the :timestamp, and the recording's :duration,
+but not when recording stopped, since it can be paused. The words spoken in
+the recording are its :transcript. The action and the recording are both keyed
+by the memo's ID.
+
+The audio file names the kind of device and the OS release that recorded it,
+but not which device. The action's :instrument is that release, an
+:OperatingSystem as the file writes it, and the kind of device, a
+:ProductModel keyed by its Wikidata ID so that other sources can name the same
+one.
+""";
+  rdf:value [
+    a :RecordAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "apple-voice-memos";
+    :sourceId "7C2E9A41-3B8D-4F6A-9E15-2D4C8B7A1F30";
+    :timestamp "2026-05-09T13:02:10.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "icloud";
+      :sourceId "1234567890";
+      :handle "you@example.com";
+      :sameAs "@me"
+    ];
+    :instrument [
+      a :OperatingSystem;
+      doc:key ("@type" "source" "handle");
+      :source "apple-voice-memos";
+      :handle "iPhone Version 26.4 (Build 23E246)"
+    ], [
+      a :ProductModel;
+      doc:key ("source" "sourceId");
+      :source "wikidata";
+      :sourceId "Q2766";
+      :name "iPhone";
+      :url "https://www.wikidata.org/wiki/Q2766"
+    ];
+    :result [
+      a :AudioObject;
+      doc:key ("@type" "source" "sourceId");
+      :source "apple-voice-memos";
+      :sourceId "7C2E9A41-3B8D-4F6A-9E15-2D4C8B7A1F30";
+      :name "Garden Street";
+      :duration "PT42S";
+      :contentPath "/Users/sam/Library/Group Containers/group.com.apple.VoiceMemos.shared/Recordings/20260509 090210-7C2E9A41.m4a";
+      :mimeType "audio/mp4";
+      :transcript "Pick up seeds for the tomatoes, and call the hardware store about the hose."
+    ]
+  ] .
+
+:AudioObject skos:example example:voice-memo .
+:RecordAction skos:example example:voice-memo .
+:transcript skos:example example:voice-memo .
+:ProductModel skos:example example:voice-memo .
+:OperatingSystem skos:example example:voice-memo .

@@ -6,7 +6,9 @@ This guide covers the properties that link records to each other, with an exampl
 
 An action's :agent is who did it, and its :instrument is what they used.
 
-In [an assistant's reply](example:assistant-reply), the :agent is Claude, a :SoftwareAgent, and the :instrument is the model that generated the reply, a :SoftwareApplication.
+In [an assistant's reply](example:assistant-reply), the :agent is Claude, a :SoftwareAgent, and the :instrument is the model that generated the reply, an :AIModel.
+
+An action can have several instruments, each saying as much as its source knows. In [recording a voice memo](example:voice-memo), the audio file names the OS release that recorded it, an :OperatingSystem, and the kind of device, a :ProductModel, but not which device. Both are the action's :instrument. Another source that tells which device it was can add the :Device beside them.
 
 ## Messages and attachments
 

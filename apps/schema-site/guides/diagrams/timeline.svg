@@ -139,9 +139,9 @@
     <text class="name" x="610" y="334" text-anchor="middle">Alex</text>
     <text class="type" x="610" y="349" text-anchor="middle">Agent</text>
   </g></a>
-  <a href="class:SoftwareApplication"><g class="entity">
+  <a href="class:AIModel"><g class="entity">
     <rect x="560" y="427" width="160" height="40" rx="8"/>
     <text class="name" x="640" y="444" text-anchor="middle">claude-sonnet-5</text>
-    <text class="type" x="640" y="459" text-anchor="middle">SoftwareApplication</text>
+    <text class="type" x="640" y="459" text-anchor="middle">AIModel</text>
   </g></a>
 </svg>

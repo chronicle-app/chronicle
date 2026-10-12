@@ -148,7 +148,7 @@ export default class TimingAppTransformer extends ChronicleTransformer {
     const app = this.buildApplication(ctx.app);
     if (app) action.object = app;
 
-    if (device) action.instrument = device;
+    if (device) action.instrument = [device];
 
     return action;
   }

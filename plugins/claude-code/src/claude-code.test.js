@@ -65,7 +65,8 @@ test('groups streaming reply blocks and maps messages, authors, model, thread an
     if (record.data.role === 'human') assert.deepEqual(action.agent.sameAs, ['@me']);
     else {
       assert.equal(action.agent.handle, 'claude');
-      assert.equal(action.instrument.handle, 'fixture-model');
+      assert.equal(action.instrument[0]['@type'], 'AIModel');
+      assert.equal(action.instrument[0].handle, 'fixture-model');
     }
   }
 });
