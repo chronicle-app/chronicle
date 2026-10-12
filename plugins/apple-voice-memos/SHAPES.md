@@ -16,7 +16,7 @@ converted from the record. Every node also has `source`.
 RecordAction key(sourceId) {
   sourceId, timestamp
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
-  instrument[]?: OperatingSystem | ProductModel key(handle) / key(sourceId) { handle?*, sourceId?*, name?* }
+  instrument[]?: OperatingSystem | ProductModel key(handle) / key(sourceId) { handle?*, sourceId?*, name?*, url?* }
   result: AudioObject key(sourceId) { sourceId, name, duration?*, contentPath?, mimeType?*, transcript? }
 }
 ```

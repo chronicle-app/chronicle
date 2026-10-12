@@ -32,10 +32,10 @@ async function extract(t) {
 const transformer = new AppleVoiceMemosTransformer();
 const transform = async record => (await transformer.performTransform(record))[0].data;
 
-// An instrument as [type, key, name]: an OS release keyed by its tag, or a
+// An instrument as [type, key, name, url]: an OS release keyed by its tag, or a
 // kind of device keyed by its Wikidata ID.
-const release = handle => ['OperatingSystem', handle, undefined];
-const line = (id, name) => ['ProductModel', id, name];
+const release = handle => ['OperatingSystem', handle, undefined, undefined];
+const line = (id, name) => ['ProductModel', id, name, `https://www.wikidata.org/wiki/${id}`];
 
 test('each recording is extracted newest first, with its file and transcript, as a RecordAction', async t => {
   const { input, records, count, events } = await extract(t);
@@ -129,7 +129,12 @@ test('a recording names the OS release and the kind of device its file says it w
     const action = await transform(record);
     instruments.set(
       record.data.uniqueID,
-      action.instrument?.map(node => [node['@type'], node.handle ?? node.sourceId, node.name])
+      action.instrument?.map(node => [
+        node['@type'],
+        node.handle ?? node.sourceId,
+        node.name,
+        node.url,
+      ])
     );
   }
   assert.deepEqual(instruments.get(ids.runs), [

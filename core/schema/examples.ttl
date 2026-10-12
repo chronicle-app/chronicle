@@ -4033,7 +4033,8 @@ one.
       doc:key ("source" "sourceId");
       :source "wikidata";
       :sourceId "Q2766";
-      :name "iPhone"
+      :name "iPhone";
+      :url "https://www.wikidata.org/wiki/Q2766"
     ];
     :result [
       a :AudioObject;

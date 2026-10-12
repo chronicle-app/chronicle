@@ -72,13 +72,16 @@ function buildInstrument(memo: VoiceMemo): Array<OperatingSystem | ProductModel>
   const { wikidataId, name } = recorder.line;
   return [
     release,
-    // Keyed like an ISBN: by the ID alone, so anything naming the same item merges with it.
+    // Keyed like an ISBN: by the ID alone, so anything naming the same item
+    // merges with it. Its page's address, as a browser records it, joins a
+    // visit to that page.
     {
       '@type': 'ProductModel',
       '@key': ['source', 'sourceId'],
       source: 'wikidata',
       sourceId: wikidataId,
       name,
+      url: `https://www.wikidata.org/wiki/${wikidataId}`,
     },
   ];
 }
