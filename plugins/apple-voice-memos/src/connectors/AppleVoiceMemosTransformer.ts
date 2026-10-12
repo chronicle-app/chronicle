@@ -79,15 +79,16 @@ function buildInstrument(memo: VoiceMemo): Array<SoftwareApplication | ProductMo
  */
 function buildRecording(memo: VoiceMemo): AudioObject {
   const mimeType = memo.file ? MIME_TYPES[extname(memo.file).toLowerCase()] : undefined;
+  const transcript = memo.transcript?.text.trim();
   return {
     '@type': 'AudioObject',
     '@key': ['@type', 'source', 'sourceId'],
     source: SOURCE,
     sourceId: memo.uniqueID,
     ...(memo.title && { name: memo.title }),
-    duration: `PT${Math.floor(memo.duration)}S`,
+    ...(memo.duration !== null && { duration: `PT${Math.floor(memo.duration)}S` }),
     ...(memo.file && { contentPath: memo.file }),
     ...(mimeType && { mimeType }),
-    ...(memo.transcript?.text && { transcript: [memo.transcript.text] }),
+    ...(transcript && { transcript }),
   };
 }

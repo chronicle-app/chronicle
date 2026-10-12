@@ -232,10 +232,11 @@
   skos:closeMatch schemaorg:encodingFormat .
 [] a sh:PropertyShape; sh:path :mimeType; sh:targetSubjectsOf :mimeType; sh:maxCount 1 .
 :transcript a owl:DatatypeProperty;
-  rdfs:comment "The words spoken in a recording or an episode, written out, such as a voice memo's transcript, a podcast episode's transcript, or a video's captions. It is plain text with no timings. It belongs to the work rather than to one of its files, so a podcast episode's transcript is the episode's, not its audio file's. A recording can have several, such as one from the app that recorded it and one from another speech recognizer. Spoken words are a :transcript, not a :body.";
+  rdfs:comment "The words spoken in a recording or an episode, written out, such as a voice memo's transcript, a podcast episode's transcript, or a video's captions. It is plain text with no timings. It belongs to the work rather than to one of its files, so a podcast episode's transcript is the episode's, not its audio file's. Spoken words are a :transcript, not a :body.";
   rdfs:domain [ a owl:Class; owl:unionOf ( :AudioObject :VideoObject :PodcastEpisode ) ];
   rdfs:range :Text;
   skos:closeMatch schemaorg:transcript .
+[] a sh:PropertyShape; sh:path :transcript; sh:targetSubjectsOf :transcript; sh:maxCount 1 .
 
 :SoftwareAgent a owl:Class;
   rdfs:subClassOf :Agent;
@@ -249,7 +250,7 @@
   rdfs:comment "A conversation that its source groups together, such as an email thread or a chat with an assistant. Its messages are :isPartOf it, and its :name is the conversation's title.";
   skos:closeMatch schemaorg:Conversation .
 :instrument a owl:ObjectProperty;
-  rdfs:comment "The tool, device, application, or model used to perform an action. The :agent is who acted. The :instrument is what they used. An action can have several, such as the software that ran and the kind of device it ran on, a :ProductModel. A source that knows only the kind of device names that, and the particular :Device can be added beside it once another source tells which one.";
+  rdfs:comment "The tool, device, application, or model used to perform an action. The :agent is who acted. The :instrument is what they used. When only the kind of device is known, it is a :ProductModel rather than a :Device.";
   rdfs:domain :Action;
   rdfs:range :Entity;
   skos:exactMatch schemaorg:instrument .
@@ -710,7 +711,7 @@
   rdfs:comment "A physical computing device the subject runs software on, such as a computer, a phone, or a tablet. It is the :instrument of an :ExecuteAction. It names a role, not a kind, so its :category says what kind of device it is. It is :inRealm the logical machine, which can outlive the hardware.";
   rdfs:subClassOf :PhysicalObject .
 :ProductModel a owl:Class;
-  rdfs:comment "A kind of product, such as the iPhone line or the iPhone 14 Pro, rather than one particular product. A particular phone is a :Device, and its :model is its make and model. An action names a :ProductModel as its :instrument when its source knows only the kind of device used, such as a recording made on an iPhone.";
+  rdfs:comment "A kind of product, such as a line of phones or one model of camera, rather than one particular product. One particular computing device is a :Device.";
   rdfs:subClassOf :Entity;
   skos:closeMatch schemaorg:ProductModel .
 :Directory a owl:Class;

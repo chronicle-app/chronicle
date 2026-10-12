@@ -1,5 +1,5 @@
 import { statSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { Record } from '@chronicle.app/etl';
 import {
   APPLE_EPOCH_OFFSET_SECONDS,
@@ -29,8 +29,8 @@ export interface VoiceMemo {
   uniqueID: string;
   /** When recording started, in UTC. */
   date: string;
-  /** How long the recording lasts, in seconds. */
-  duration: number;
+  /** How long the recording lasts, in seconds, when the library says. */
+  duration: number | null;
   /** The title. `New Recording 3` and the like until it's renamed. */
   title: string | null;
   /** The audio file's name in the library's folder, which starts with the local start time. */
@@ -83,6 +83,23 @@ export class AppleVoiceMemosExtractor extends SqliteExtractor<typeof AppleVoiceM
       .optional(),
   }) as any;
 
+  private libraryChanged: Date | null = null;
+
+  override async setup(): Promise<void> {
+    await super.setup();
+    this.libraryChanged = lastChanged(this.config.input);
+  }
+
+  /**
+   * When the library last changed, not when the run started. A recording's
+   * title and transcript can change after it's recorded, so each record is
+   * observed as of the library it was read from. An unchanged library gives
+   * the same time on every run, so its records come out the same.
+   */
+  protected override asOfTime(): Date {
+    return this.libraryChanged ?? super.asOfTime();
+  }
+
   /** The recording's UUID: the same in the library and in the audio file. */
   override keyOf(record: Record): string | null {
     return (record.data as VoiceMemo).uniqueID ?? null;
@@ -118,10 +135,14 @@ export class AppleVoiceMemosExtractor extends SqliteExtractor<typeof AppleVoiceM
 
     const account =
       this.config.account === undefined ? await getICloudAccount() : this.config.account;
-    const folder = dirname(this.config.input);
+    const folder = dirname(resolve(this.config.input));
 
     for (const row of iterateRows<Row>(this.db.prepare(ordered), ...values)) {
-      yield this.createRecord(this.memoOf(row, folder), { account });
+      yield this.createRecord(
+        this.memoOf(row, folder),
+        { account },
+        { assertedAt: this.asOfTime() }
+      );
     }
   }
 
@@ -131,7 +152,7 @@ export class AppleVoiceMemosExtractor extends SqliteExtractor<typeof AppleVoiceM
     return {
       uniqueID: row.uniqueID,
       date: appleDate(row.date),
-      duration: row.duration ?? 0,
+      duration: row.duration ?? null,
       title: row.title ?? null,
       path: row.path ?? null,
       flags: row.flags ?? 0,
@@ -181,6 +202,21 @@ function onDisk(file: string): string | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * When the library last changed: the database, or its write-ahead log, which
+ * holds changes Core Data hasn't yet written back.
+ */
+function lastChanged(database: string): Date {
+  const times = [database, `${database}-wal`].flatMap(file => {
+    try {
+      return [statSync(file).mtimeMs];
+    } catch {
+      return [];
+    }
+  });
+  return new Date(Math.max(...times));
 }
 
 function appleDate(seconds: number): string {

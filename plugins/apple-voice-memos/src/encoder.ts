@@ -51,8 +51,12 @@ const RELEASED: { [os: string]: { [major: string]: string } } = {
 
 const TAG = /^com\.apple\.VoiceMemos \((.+)\)$/;
 const VERSIONED = /^(iPhone|Watch) Version (\d+)/;
-const IOS = /^iOS (\d+)[\d.]*$/;
-const MAC_OS_X = /^Mac OS X (10\.\d+)[\d.]*$/;
+const IOS = /^iOS (\d+)/;
+const MAC_OS_X = /^Mac OS X (10\.\d+)/;
+// A build ending in a lowercase letter is a beta, or a security response
+// release. A beta can record before its release's public date, so it isn't
+// checked against it.
+const PRERELEASE_BUILD = /\(Build \w*[a-z]\)/;
 
 /**
  * Read a recording's encoder tag, such as
@@ -89,6 +93,7 @@ export function readEncoder(tag: string, recorded: Date): Recorder | null {
   }
 
   const released = os && major ? RELEASED[os]?.[major] : undefined;
-  if (released && recorded < new Date(released)) return null;
+  const checked = released && !PRERELEASE_BUILD.test(release);
+  if (checked && recorded < new Date(released)) return null;
   return { release, line: kind ? LINES[kind] : null };
 }

@@ -17,6 +17,6 @@ RecordAction key(sourceId) {
   sourceId, timestamp
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
   instrument[]?: SoftwareApplication | ProductModel key(sourceId) / key(url, any source) { sourceId?*, name*, url?* }
-  result: AudioObject key(sourceId) { sourceId, name, duration*, contentPath?, mimeType?*, transcript[]? }
+  result: AudioObject key(sourceId) { sourceId, name, duration?*, contentPath?, mimeType?*, transcript? }
 }
 ```

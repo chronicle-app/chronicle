@@ -40,12 +40,13 @@ const WORDS = [
  *   recorded on an iPhone. Its media data comes before the movie header.
  * - inline: an `.m4a` whose transcript gives each run's attributes inline,
  *   with a 64-bit media data box.
- * - empty: an `.m4a` whose transcript heard no speech, recorded on a Mac,
+ * - empty: an `.m4a` whose transcript heard no speech, only a space, recorded on a Mac,
  *   whose tag says `iPad`, with a macOS version and build.
  * - qta: a `.qta` with its transcript in its first track's QuickTime metadata,
  *   and no encoder tag.
  * - noPath: a row with no file name, as for a recording with no local audio.
- * - notDownloaded: an empty file, as iCloud leaves before downloading one.
+ * - notDownloaded: an empty file, as iCloud leaves before downloading one,
+ *   and no duration.
  * - deleted: the newest recording, in Recently Deleted.
  * - iosOnly: an `.m4a` recorded on iOS 13, whose tag doesn't say iPhone or
  *   iPad.
@@ -106,7 +107,7 @@ export function writeAppleVoiceMemosFixture(dir) {
       ZENCRYPTEDTITLE: 'New Recording 3',
       file: m4a({
         encoder: 'com.apple.VoiceMemos (iPad Version 15.2 (Build 24C101))',
-        transcript: JSON.stringify({ attributedString: '' }),
+        transcript: JSON.stringify({ attributedString: ' ' }),
       }),
     },
     {
@@ -129,7 +130,7 @@ export function writeAppleVoiceMemosFixture(dir) {
     {
       id: ids.notDownloaded,
       ZDATE: JAN_1 + 100,
-      ZDURATION: 21.9,
+      ZDURATION: null,
       ZFLAGS: 4,
       ZENCRYPTEDTITLE: 'Bus Stop',
       file: Buffer.alloc(0),

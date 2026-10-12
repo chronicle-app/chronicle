@@ -433,7 +433,7 @@ export interface AudioObject extends Omit<MediaObject, '@type'> {
   artist?: MusicGroupAndChildren[];
   duration?: string;
   genre?: string[];
-  transcript?: string[];
+  transcript?: string;
 }
 
 export type AudioObjectAndChildren = AudioObject;
@@ -443,7 +443,7 @@ const AudioObjectProperties = {
   artist: z.lazy(() => z.array(MusicGroupAndChildrenSchema)).optional(),
   duration: z.lazy(() => z.string()).optional(),
   genre: z.lazy(() => z.array(z.string())).optional(),
-  transcript: z.lazy(() => z.array(z.string())).optional(),
+  transcript: z.lazy(() => z.string()).optional(),
 };
 
 export const AudioObjectSchema: z.ZodType<AudioObject> = z
@@ -1679,7 +1679,7 @@ export const PlanActionSchema: z.ZodType<PlanAction> = z
 export interface PodcastEpisode extends Omit<CreativeWork, '@type'> {
   '@type': 'PodcastEpisode';
   duration?: string;
-  transcript?: string[];
+  transcript?: string;
 }
 
 export type PodcastEpisodeAndChildren = PodcastEpisode;
@@ -1687,7 +1687,7 @@ export type PodcastEpisodeAndChildren = PodcastEpisode;
 const PodcastEpisodeProperties = {
   ...CreativeWorkProperties,
   duration: z.lazy(() => z.string()).optional(),
-  transcript: z.lazy(() => z.array(z.string())).optional(),
+  transcript: z.lazy(() => z.string()).optional(),
 };
 
 export const PodcastEpisodeSchema: z.ZodType<PodcastEpisode> = z
@@ -2146,7 +2146,7 @@ export interface VideoObject extends Omit<MediaObject, '@type'> {
   '@type': 'VideoObject';
   duration?: string;
   height?: number;
-  transcript?: string[];
+  transcript?: string;
   width?: number;
 }
 
@@ -2156,7 +2156,7 @@ const VideoObjectProperties = {
   ...MediaObjectProperties,
   duration: z.lazy(() => z.string()).optional(),
   height: z.lazy(() => z.number()).optional(),
-  transcript: z.lazy(() => z.array(z.string())).optional(),
+  transcript: z.lazy(() => z.string()).optional(),
   width: z.lazy(() => z.number()).optional(),
 };
 

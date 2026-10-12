@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, join } from 'node:path';
+import { basename, isAbsolute, join, relative } from 'node:path';
 import { AppleVoiceMemosExtractor, AppleVoiceMemosTransformer } from '../dist/index.js';
 import { account, ids, writeAppleVoiceMemosFixture } from './fixture.test-helper.js';
 
@@ -11,10 +11,13 @@ async function extract(t) {
   const dir = mkdtempSync(join(tmpdir(), 'apple-voice-memos-fixture-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const input = writeAppleVoiceMemosFixture(dir);
-  const extractor = new AppleVoiceMemosExtractor({ input, account, limit: 0 });
+  // A relative path to the library still gives each file's absolute path.
+  const relativeInput = relative(process.cwd(), input);
+  const extractor = new AppleVoiceMemosExtractor({ input: relativeInput, account, limit: 0 });
   try {
     await extractor.setup();
     return {
+      input,
       records: await Array.fromAsync(extractor.extract()),
       count: await extractor.determineCount(),
     };
@@ -32,7 +35,7 @@ const release = name => ['SoftwareApplication', name, name];
 const line = (id, name) => ['ProductModel', `http://www.wikidata.org/entity/${id}`, name];
 
 test('each recording is extracted newest first, with its file and transcript, as a RecordAction', async t => {
-  const { records, count } = await extract(t);
+  const { input, records, count } = await extract(t);
   // A recording in Recently Deleted is left out.
   assert.deepEqual(
     records.map(record => record.data.uniqueID),
@@ -40,8 +43,12 @@ test('each recording is extracted newest first, with its file and transcript, as
   );
   assert.equal(count, 8);
 
+  // Each record is observed as of the library's last change, since a title or
+  // transcript can change after the recording is made.
+  const libraryChanged = statSync(input).mtime.toISOString();
   const actions = new Map();
   for (const record of records) {
+    assert.equal(record.extraction.recordAssertedAt, libraryChanged);
     const action = await transform(record);
     assert.equal(action['@type'], 'RecordAction');
     assert.equal(action.sourceId, record.data.uniqueID);
@@ -59,8 +66,13 @@ test('each recording is extracted newest first, with its file and transcript, as
   assert.equal(runs.startTime, undefined);
   assert.equal(runs.endTime, undefined);
   assert.equal(runs.result.duration, 'PT12S');
+  // A recording whose length the library doesn't give has no duration.
+  assert.equal(actions.get(ids.notDownloaded).action.result.duration, undefined);
 
   // Only a file that's on this Mac is the recording's content.
+  for (const { action } of actions.values()) {
+    if (action.result.contentPath) assert.ok(isAbsolute(action.result.contentPath));
+  }
   const files = [...actions.values()].map(({ action }) => [
     action.result.sourceId,
     action.result.contentPath && basename(action.result.contentPath).split('.').pop(),
@@ -83,11 +95,11 @@ test('each recording is extracted newest first, with its file and transcript, as
     assert.equal(record.transcript.text, 'Remember the blue kettle.', id);
     assert.equal(record.transcript.locale, 'en_CA');
     assert.deepEqual(record.transcript.segments.at(-1), { text: 'kettle.', start: 1.3, end: 2.1 });
-    assert.deepEqual(action.result.transcript, ['Remember the blue kettle.']);
+    assert.equal(action.result.transcript, 'Remember the blue kettle.');
   }
   // No speech, or no transcript, gives the recording none.
   const empty = actions.get(ids.empty);
-  assert.equal(empty.record.transcript.text, '');
+  assert.equal(empty.record.transcript.text, ' ');
   assert.equal(empty.action.result.transcript, undefined);
   for (const id of [ids.iosOnly, ids.old, ids.noPath, ids.notDownloaded]) {
     assert.equal(actions.get(id).record.transcript, null, id);
