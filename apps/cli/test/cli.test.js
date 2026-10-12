@@ -306,7 +306,7 @@ test('global config and explicit flag precedence reach the dynamic dispatcher', 
 
 test('every command has help, asked for either way, drawn by the help class', async t => {
   const { env, run } = fixture(t);
-  const ids = JSON.parse(success(run('commands', '--json'))).map(command => command.id);
+  const listed = JSON.parse(success(run('commands', '--format', 'json')));
   const ask = args =>
     new Promise(resolve => {
       const child = spawn(process.execPath, [bin, ...args], { env, stdio: 'pipe' });
@@ -317,11 +317,12 @@ test('every command has help, asked for either way, drawn by the help class', as
       child.on('close', status => resolve({ status, stdout, stderr }));
     });
   // Multi-word commands as a shell passes them: each word its own argument.
-  const asked = ids
-    .filter(id => id.includes(':'))
-    .flatMap(id => [
-      [...id.split(':'), '--help'],
-      ['help', ...id.split(':')],
+  const asked = listed
+    .map(({ command }) => command.split(' '))
+    .filter(words => words.length > 1)
+    .flatMap(words => [
+      [...words, '--help'],
+      ['help', ...words],
     ]);
   const results = await Promise.all(asked.map(ask));
   for (const [i, { status, stdout, stderr }] of results.entries()) {
@@ -337,6 +338,12 @@ test('every command has help, asked for either way, drawn by the help class', as
   const root = success(run('--help'));
   assert.equal(root.match(/^ {2}extract /gm)?.length, 1);
   assert.doesNotMatch(root, /^ {2}e /m);
+  // `commands` lists them all the same way, oclif's in plain words.
+  const commands = success(run('commands'));
+  assert.match(commands, /^command +description\n/);
+  assert.match(commands, /^config preset show +Show a preset's flags$/m);
+  assert.match(commands, /^autocomplete +Set up tab completion for your shell$/m);
+  assert.doesNotMatch(commands, /^e /m);
   // A whole command in one quoted argument gets it back with its words apart.
   const quoted = run('auth list --help', '--log-format', 'json');
   assert.equal(quoted.status, 2);

@@ -3,10 +3,11 @@ import { unknownCommand } from '../hooks/commandNotFound.js';
 import { outputFlagsIn, paragraph, tokens, type Tokens } from '../output/index.js';
 import { renderSourceHelp } from '../utils/sourceHelp.js';
 import {
+  PLUGIN_SUMMARIES,
   commandHelp,
   helpWidth,
+  listedSummary,
   rootHelp,
-  summaryOf,
   topicHelp,
   typed,
   type Entry,
@@ -17,13 +18,6 @@ const SOURCE_VERBS = new Map<string, string>([
   ['extract', 'extract'],
   ['e', 'extract'],
 ]);
-
-/** Plain summaries for the commands oclif's plugins bring. */
-const PLUGIN_SUMMARIES: Record<string, string> = {
-  autocomplete: 'Set up tab completion for your shell',
-  commands: 'List every command',
-  help: 'Show help for a command',
-};
 
 /**
  * Every help screen, drawn with the output module like the rest of the CLI:
@@ -103,7 +97,7 @@ export default class ChronicleHelp extends Help {
     const plugins: Entry[] = [];
     for (const command of this.sortedCommands) {
       if (command.id.includes(':') || command.aliases.includes(command.id)) continue;
-      const entry = { name: command.id, summary: this.summaryFor(command) };
+      const entry = { name: command.id, summary: listedSummary(command) };
       if (command.pluginName === this.config.name) own.set(command.id, entry);
       else plugins.push(entry);
     }
@@ -135,11 +129,6 @@ export default class ChronicleHelp extends Help {
     );
   }
 
-  /** What a command does in a list: ours as written, a plugin's in plain words. */
-  private summaryFor(command: Command.Cached): string {
-    return PLUGIN_SUMMARIES[command.id] ?? summaryOf(command).summary;
-  }
-
   /** The topics and commands one level under `name`. */
   private childrenOf(name: string): Entry[] {
     const depth = name.split(':').length + 1;
@@ -150,7 +139,7 @@ export default class ChronicleHelp extends Help {
     const commands = this.sortedCommands
       .filter(command => under(command.id) && !command.aliases.includes(command.id))
       .filter(command => !topics.some(topic => topic.name === typed(command.id)))
-      .map(command => ({ name: typed(command.id), summary: this.summaryFor(command) }));
+      .map(command => ({ name: typed(command.id), summary: listedSummary(command) }));
     return [...topics, ...commands].sort((a, b) => a.name.localeCompare(b.name));
   }
 }

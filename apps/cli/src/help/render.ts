@@ -188,6 +188,17 @@ export function summaryOf(command: Pick<Command.Cached, 'summary' | 'description
   return { summary: first, description: rest.join('\n') };
 }
 
+/** Plain summaries for the commands oclif's plugins bring. */
+export const PLUGIN_SUMMARIES: Record<string, string> = {
+  autocomplete: 'Set up tab completion for your shell',
+  help: 'Show help for a command',
+};
+
+/** What a command does in a list: ours as written, a plugin's in plain words. */
+export function listedSummary(command: Pick<Command.Cached, 'summary' | 'description' | 'id'>) {
+  return PLUGIN_SUMMARIES[command.id] ?? summaryOf(command).summary;
+}
+
 export interface RootInput {
   version: string;
   summary?: string;
