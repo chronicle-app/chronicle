@@ -241,7 +241,7 @@ function onDisk(file: string): string | null {
 function lastChanged(database: string): Date {
   const times = [database, `${database}-wal`].flatMap(file => {
     try {
-      return [statSync(file).mtimeMs];
+      return [statSync(file).mtime.getTime()];
     } catch {
       return [];
     }

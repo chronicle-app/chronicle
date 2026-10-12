@@ -66,6 +66,165 @@ export const BaseSchema: z.ZodType<Base> = z
   })
   .superRefine(requireNodeIdentity);
 
+// Entity, child of https://schema.chronicle.app/Base
+export interface Entity extends Omit<Base, '@type'> {
+  '@type': 'Entity';
+  about?: EntityAndChildren[];
+  alternateName?: string[];
+  body?: string;
+  category?: string[];
+  contains?: MediaObjectAndChildren[];
+  description?: string;
+  emblem?: ImageObjectAndChildren;
+  handle?: string;
+  inAccount?: AgentAndChildren[];
+  inRealm?: RealmAndChildren;
+  isPartOf?: EntityAndChildren[];
+  location?: LocationAndChildren | PlaceAndChildren;
+  name?: string;
+  references?: EntityAndChildren[];
+  sameAs?: (EntityAndChildren | string)[];
+  tags?: string[];
+  url?: string;
+}
+
+export type EntityAndChildren =
+  | Entity
+  | AgentAndChildren
+  | CommandAndChildren
+  | CreativeWorkAndChildren
+  | EventAndChildren
+  | IntangibleAndChildren
+  | JourneyAndChildren
+  | MealAndChildren
+  | PhysicalObjectAndChildren
+  | PlaceAndChildren
+  | ProductModelAndChildren
+  | RealmAndChildren
+  | SessionAndChildren
+  | TagAndChildren
+  | TaskAndChildren;
+
+const EntityProperties = {
+  ...BaseProperties,
+  about: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
+  alternateName: z.lazy(() => z.array(z.string())).optional(),
+  body: z.lazy(() => z.string()).optional(),
+  category: z.lazy(() => z.array(z.string())).optional(),
+  contains: z.lazy(() => z.array(MediaObjectAndChildrenSchema)).optional(),
+  description: z.lazy(() => z.string()).optional(),
+  emblem: z.lazy(() => ImageObjectAndChildrenSchema).optional(),
+  handle: z.lazy(() => z.string()).optional(),
+  inAccount: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
+  inRealm: z.lazy(() => RealmAndChildrenSchema).optional(),
+  isPartOf: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
+  location: z.lazy(() => z.union([LocationAndChildrenSchema, PlaceAndChildrenSchema])).optional(),
+  name: z.lazy(() => z.string()).optional(),
+  references: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
+  sameAs: z.lazy(() => z.array(z.union([EntityAndChildrenSchema, z.string()]))).optional(),
+  tags: z.lazy(() => z.array(z.string())).optional(),
+  url: z.lazy(() => z.string().url()).optional(),
+};
+
+export const EntitySchema: z.ZodType<Entity> = z
+  .object({
+    '@type': z.literal('Entity'),
+    ...EntityProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// CreativeWork, child of https://schema.chronicle.app/Entity
+export interface CreativeWork extends Omit<Entity, '@type'> {
+  '@type': 'CreativeWork';
+  author?: AgentAndChildren[];
+  creator?: AgentAndChildren[];
+  datePublished?: Date | string;
+  genre?: string[];
+  isBasedOn?: CreativeWorkAndChildren[];
+  publisher?: OrganizationAndChildren[];
+  references?: EntityAndChildren[];
+  sourceFormat?: string;
+  visibility?: string;
+}
+
+export type CreativeWorkAndChildren =
+  | CreativeWork
+  | ArticleAndChildren
+  | BookAndChildren
+  | ChangesetAndChildren
+  | ChannelAndChildren
+  | CollectionAndChildren
+  | MediaObjectAndChildren
+  | MessageAndChildren
+  | MusicAlbumAndChildren
+  | MusicRecordingAndChildren
+  | PodcastEpisodeAndChildren
+  | PostAndChildren
+  | QueryAndChildren
+  | QuotationAndChildren
+  | RepositoryAndChildren
+  | ResponseAndChildren
+  | RevisionAndChildren
+  | SoftwareAndChildren
+  | SoftwareSourceCodeAndChildren;
+
+const CreativeWorkProperties = {
+  ...EntityProperties,
+  author: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
+  creator: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
+  datePublished: z.lazy(() => DateTimeSchema).optional(),
+  genre: z.lazy(() => z.array(z.string())).optional(),
+  isBasedOn: z.lazy(() => z.array(CreativeWorkAndChildrenSchema)).optional(),
+  publisher: z.lazy(() => z.array(OrganizationAndChildrenSchema)).optional(),
+  references: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
+  sourceFormat: z.lazy(() => z.string()).optional(),
+  visibility: z.lazy(() => z.string()).optional(),
+};
+
+export const CreativeWorkSchema: z.ZodType<CreativeWork> = z
+  .object({
+    '@type': z.literal('CreativeWork'),
+    ...CreativeWorkProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Software, child of https://schema.chronicle.app/CreativeWork
+export interface Software extends Omit<CreativeWork, '@type'> {
+  '@type': 'Software';
+}
+
+export type SoftwareAndChildren =
+  Software | AIModelAndChildren | OperatingSystemAndChildren | SoftwareApplicationAndChildren;
+
+const SoftwareProperties = {
+  ...CreativeWorkProperties,
+};
+
+export const SoftwareSchema: z.ZodType<Software> = z
+  .object({
+    '@type': z.literal('Software'),
+    ...SoftwareProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// AIModel, child of https://schema.chronicle.app/Software
+export interface AIModel extends Omit<Software, '@type'> {
+  '@type': 'AIModel';
+}
+
+export type AIModelAndChildren = AIModel;
+
+const AIModelProperties = {
+  ...SoftwareProperties,
+};
+
+export const AIModelSchema: z.ZodType<AIModel> = z
+  .object({
+    '@type': z.literal('AIModel'),
+    ...AIModelProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // Action, child of https://schema.chronicle.app/Base
 export interface Action extends Omit<Base, '@type'> {
   '@type': 'Action';
@@ -176,73 +335,6 @@ export const AddActionSchema: z.ZodType<AddAction> = z
   })
   .superRefine(requireNodeIdentity);
 
-// Entity, child of https://schema.chronicle.app/Base
-export interface Entity extends Omit<Base, '@type'> {
-  '@type': 'Entity';
-  about?: EntityAndChildren[];
-  alternateName?: string[];
-  body?: string;
-  category?: string[];
-  contains?: MediaObjectAndChildren[];
-  description?: string;
-  emblem?: ImageObjectAndChildren;
-  handle?: string;
-  inAccount?: AgentAndChildren[];
-  inRealm?: RealmAndChildren;
-  isPartOf?: EntityAndChildren[];
-  location?: LocationAndChildren | PlaceAndChildren;
-  name?: string;
-  references?: EntityAndChildren[];
-  sameAs?: (EntityAndChildren | string)[];
-  tags?: string[];
-  url?: string;
-}
-
-export type EntityAndChildren =
-  | Entity
-  | AgentAndChildren
-  | CommandAndChildren
-  | CreativeWorkAndChildren
-  | EventAndChildren
-  | IntangibleAndChildren
-  | JourneyAndChildren
-  | MealAndChildren
-  | PhysicalObjectAndChildren
-  | PlaceAndChildren
-  | ProductModelAndChildren
-  | RealmAndChildren
-  | SessionAndChildren
-  | TagAndChildren
-  | TaskAndChildren;
-
-const EntityProperties = {
-  ...BaseProperties,
-  about: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
-  alternateName: z.lazy(() => z.array(z.string())).optional(),
-  body: z.lazy(() => z.string()).optional(),
-  category: z.lazy(() => z.array(z.string())).optional(),
-  contains: z.lazy(() => z.array(MediaObjectAndChildrenSchema)).optional(),
-  description: z.lazy(() => z.string()).optional(),
-  emblem: z.lazy(() => ImageObjectAndChildrenSchema).optional(),
-  handle: z.lazy(() => z.string()).optional(),
-  inAccount: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
-  inRealm: z.lazy(() => RealmAndChildrenSchema).optional(),
-  isPartOf: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
-  location: z.lazy(() => z.union([LocationAndChildrenSchema, PlaceAndChildrenSchema])).optional(),
-  name: z.lazy(() => z.string()).optional(),
-  references: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
-  sameAs: z.lazy(() => z.array(z.union([EntityAndChildrenSchema, z.string()]))).optional(),
-  tags: z.lazy(() => z.array(z.string())).optional(),
-  url: z.lazy(() => z.string().url()).optional(),
-};
-
-export const EntitySchema: z.ZodType<Entity> = z
-  .object({
-    '@type': z.literal('Entity'),
-    ...EntityProperties,
-  })
-  .superRefine(requireNodeIdentity);
-
 // Agent, child of https://schema.chronicle.app/Entity
 export interface Agent extends Omit<Entity, '@type'> {
   '@type': 'Agent';
@@ -303,61 +395,6 @@ export const AnnotateActionSchema: z.ZodType<AnnotateAction> = z
   .object({
     '@type': z.literal('AnnotateAction'),
     ...AnnotateActionProperties,
-  })
-  .superRefine(requireNodeIdentity);
-
-// CreativeWork, child of https://schema.chronicle.app/Entity
-export interface CreativeWork extends Omit<Entity, '@type'> {
-  '@type': 'CreativeWork';
-  author?: AgentAndChildren[];
-  creator?: AgentAndChildren[];
-  datePublished?: Date | string;
-  genre?: string[];
-  isBasedOn?: CreativeWorkAndChildren[];
-  publisher?: OrganizationAndChildren[];
-  references?: EntityAndChildren[];
-  sourceFormat?: string;
-  visibility?: string;
-}
-
-export type CreativeWorkAndChildren =
-  | CreativeWork
-  | ArticleAndChildren
-  | BookAndChildren
-  | ChangesetAndChildren
-  | ChannelAndChildren
-  | CollectionAndChildren
-  | MediaObjectAndChildren
-  | MessageAndChildren
-  | MusicAlbumAndChildren
-  | MusicRecordingAndChildren
-  | PodcastEpisodeAndChildren
-  | PostAndChildren
-  | QueryAndChildren
-  | QuotationAndChildren
-  | RepositoryAndChildren
-  | ResponseAndChildren
-  | RevisionAndChildren
-  | SoftwareAndChildren
-  | SoftwareSourceCodeAndChildren;
-
-const CreativeWorkProperties = {
-  ...EntityProperties,
-  author: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
-  creator: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
-  datePublished: z.lazy(() => DateTimeSchema).optional(),
-  genre: z.lazy(() => z.array(z.string())).optional(),
-  isBasedOn: z.lazy(() => z.array(CreativeWorkAndChildrenSchema)).optional(),
-  publisher: z.lazy(() => z.array(OrganizationAndChildrenSchema)).optional(),
-  references: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
-  sourceFormat: z.lazy(() => z.string()).optional(),
-  visibility: z.lazy(() => z.string()).optional(),
-};
-
-export const CreativeWorkSchema: z.ZodType<CreativeWork> = z
-  .object({
-    '@type': z.literal('CreativeWork'),
-    ...CreativeWorkProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -1585,25 +1622,6 @@ export const NavigateActionSchema: z.ZodType<NavigateAction> = z
   })
   .superRefine(requireNodeIdentity);
 
-// Software, child of https://schema.chronicle.app/CreativeWork
-export interface Software extends Omit<CreativeWork, '@type'> {
-  '@type': 'Software';
-}
-
-export type SoftwareAndChildren =
-  Software | OperatingSystemAndChildren | SoftwareApplicationAndChildren;
-
-const SoftwareProperties = {
-  ...CreativeWorkProperties,
-};
-
-export const SoftwareSchema: z.ZodType<Software> = z
-  .object({
-    '@type': z.literal('Software'),
-    ...SoftwareProperties,
-  })
-  .superRefine(requireNodeIdentity);
-
 // OperatingSystem, child of https://schema.chronicle.app/Software
 export interface OperatingSystem extends Omit<Software, '@type'> {
   '@type': 'OperatingSystem';
@@ -2339,24 +2357,6 @@ export const PageSelectorAndChildrenSchema = PageSelectorSchema;
 
 export const OperatingSystemAndChildrenSchema = OperatingSystemSchema;
 
-export const SoftwareAndChildrenSchema: z.ZodType<SoftwareAndChildren> = z
-  .discriminatedUnion('@type', [
-    z.object({
-      '@type': z.literal('Software'),
-      ...SoftwareProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('SoftwareApplication'),
-      ...SoftwareApplicationProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('OperatingSystem'),
-      ...OperatingSystemProperties,
-    }),
-  ])
-  .superRefine(requireNodeIdentity);
 export const NavigateActionAndChildrenSchema = NavigateActionSchema;
 
 export const MusicRecordingAndChildrenSchema = MusicRecordingSchema;
@@ -2834,159 +2834,6 @@ export const AssessActionAndChildrenSchema: z.ZodType<AssessActionAndChildren> =
   .superRefine(requireNodeIdentity);
 export const ArticleAndChildrenSchema = ArticleSchema;
 
-export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> = z
-  .discriminatedUnion('@type', [
-    z.object({
-      '@type': z.literal('CreativeWork'),
-      ...CreativeWorkProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('SoftwareSourceCode'),
-      ...SoftwareSourceCodeProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Revision'),
-      ...RevisionProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Repository'),
-      ...RepositoryProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Quotation'),
-      ...QuotationProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Query'),
-      ...QueryProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Post'),
-      ...PostProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('PodcastEpisode'),
-      ...PodcastEpisodeProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Software'),
-      ...SoftwareProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('SoftwareApplication'),
-      ...SoftwareApplicationProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('OperatingSystem'),
-      ...OperatingSystemProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('MusicRecording'),
-      ...MusicRecordingProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('MusicAlbum'),
-      ...MusicAlbumProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Message'),
-      ...MessageProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Response'),
-      ...ResponseProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Comment'),
-      ...CommentProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Channel'),
-      ...ChannelProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Changeset'),
-      ...ChangesetProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Collection'),
-      ...CollectionProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Thread'),
-      ...ThreadProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Project'),
-      ...ProjectProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Directory'),
-      ...DirectoryProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Calendar'),
-      ...CalendarProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Book'),
-      ...BookProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('MediaObject'),
-      ...MediaObjectProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('VideoObject'),
-      ...VideoObjectProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('ImageObject'),
-      ...ImageObjectProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('DocumentObject'),
-      ...DocumentObjectProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('AudioObject'),
-      ...AudioObjectProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Article'),
-      ...ArticleProperties,
-    }),
-  ])
-  .superRefine(requireNodeIdentity);
 export const AnnotateActionAndChildrenSchema = AnnotateActionSchema;
 
 export const CreateActionAndChildrenSchema: z.ZodType<CreateActionAndChildren> = z
@@ -3024,319 +2871,6 @@ export const CreateActionAndChildrenSchema: z.ZodType<CreateActionAndChildren> =
   .superRefine(requireNodeIdentity);
 export const AgentAndChildrenSchema: z.ZodType<AgentAndChildren> = z
   .discriminatedUnion('@type', [
-    z.object({
-      '@type': z.literal('Agent'),
-      ...AgentProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('SoftwareAgent'),
-      ...SoftwareAgentProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Person'),
-      ...PersonProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Organization'),
-      ...OrganizationProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('PerformingGroup'),
-      ...PerformingGroupProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('MusicGroup'),
-      ...MusicGroupProperties,
-    }),
-  ])
-  .superRefine(requireNodeIdentity);
-export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
-  .discriminatedUnion('@type', [
-    z.object({
-      '@type': z.literal('Entity'),
-      ...EntityProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Task'),
-      ...TaskProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Tag'),
-      ...TagProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Realm'),
-      ...RealmProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('ProductModel'),
-      ...ProductModelProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Place'),
-      ...PlaceProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Venue'),
-      ...VenueProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Meal'),
-      ...MealProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Journey'),
-      ...JourneyProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Event'),
-      ...EventProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('PhysicalObject'),
-      ...PhysicalObjectProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Device'),
-      ...DeviceProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Command'),
-      ...CommandProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Intangible'),
-      ...IntangibleProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Selector'),
-      ...SelectorProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('PageSelector'),
-      ...PageSelectorProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('EpubCfiSelector'),
-      ...EpubCfiSelectorProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('DefinedTerm'),
-      ...DefinedTermProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Category'),
-      ...CategoryProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Session'),
-      ...SessionProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Tenure'),
-      ...TenureProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Relationship'),
-      ...RelationshipProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Membership'),
-      ...MembershipProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Enrollment'),
-      ...EnrollmentProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('DeviceSession'),
-      ...DeviceSessionProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('CallSession'),
-      ...CallSessionProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('CreativeWork'),
-      ...CreativeWorkProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('SoftwareSourceCode'),
-      ...SoftwareSourceCodeProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Revision'),
-      ...RevisionProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Repository'),
-      ...RepositoryProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Quotation'),
-      ...QuotationProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Query'),
-      ...QueryProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Post'),
-      ...PostProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('PodcastEpisode'),
-      ...PodcastEpisodeProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Software'),
-      ...SoftwareProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('SoftwareApplication'),
-      ...SoftwareApplicationProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('OperatingSystem'),
-      ...OperatingSystemProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('MusicRecording'),
-      ...MusicRecordingProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('MusicAlbum'),
-      ...MusicAlbumProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Message'),
-      ...MessageProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Response'),
-      ...ResponseProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Comment'),
-      ...CommentProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Channel'),
-      ...ChannelProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Changeset'),
-      ...ChangesetProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Collection'),
-      ...CollectionProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Thread'),
-      ...ThreadProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Project'),
-      ...ProjectProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Directory'),
-      ...DirectoryProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Calendar'),
-      ...CalendarProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Book'),
-      ...BookProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('MediaObject'),
-      ...MediaObjectProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('VideoObject'),
-      ...VideoObjectProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('ImageObject'),
-      ...ImageObjectProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('DocumentObject'),
-      ...DocumentObjectProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('AudioObject'),
-      ...AudioObjectProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Article'),
-      ...ArticleProperties,
-    }),
-
     z.object({
       '@type': z.literal('Agent'),
       ...AgentProperties,
@@ -3603,13 +3137,191 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     }),
   ])
   .superRefine(requireNodeIdentity);
-export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
+export const AIModelAndChildrenSchema = AIModelSchema;
+
+export const SoftwareAndChildrenSchema: z.ZodType<SoftwareAndChildren> = z
   .discriminatedUnion('@type', [
     z.object({
-      '@type': z.literal('Base'),
-      ...BaseProperties,
+      '@type': z.literal('Software'),
+      ...SoftwareProperties,
     }),
 
+    z.object({
+      '@type': z.literal('SoftwareApplication'),
+      ...SoftwareApplicationProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('OperatingSystem'),
+      ...OperatingSystemProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('AIModel'),
+      ...AIModelProperties,
+    }),
+  ])
+  .superRefine(requireNodeIdentity);
+export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> = z
+  .discriminatedUnion('@type', [
+    z.object({
+      '@type': z.literal('CreativeWork'),
+      ...CreativeWorkProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('SoftwareSourceCode'),
+      ...SoftwareSourceCodeProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Revision'),
+      ...RevisionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Repository'),
+      ...RepositoryProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Quotation'),
+      ...QuotationProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Query'),
+      ...QueryProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Post'),
+      ...PostProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('PodcastEpisode'),
+      ...PodcastEpisodeProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('MusicRecording'),
+      ...MusicRecordingProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('MusicAlbum'),
+      ...MusicAlbumProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Message'),
+      ...MessageProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Response'),
+      ...ResponseProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Comment'),
+      ...CommentProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Channel'),
+      ...ChannelProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Changeset'),
+      ...ChangesetProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Collection'),
+      ...CollectionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Thread'),
+      ...ThreadProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Project'),
+      ...ProjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Directory'),
+      ...DirectoryProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Calendar'),
+      ...CalendarProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Book'),
+      ...BookProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('MediaObject'),
+      ...MediaObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('VideoObject'),
+      ...VideoObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ImageObject'),
+      ...ImageObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('DocumentObject'),
+      ...DocumentObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('AudioObject'),
+      ...AudioObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Article'),
+      ...ArticleProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Software'),
+      ...SoftwareProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('SoftwareApplication'),
+      ...SoftwareApplicationProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('OperatingSystem'),
+      ...OperatingSystemProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('AIModel'),
+      ...AIModelProperties,
+    }),
+  ])
+  .superRefine(requireNodeIdentity);
+export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
+  .discriminatedUnion('@type', [
     z.object({
       '@type': z.literal('Entity'),
       ...EntityProperties,
@@ -3741,6 +3453,36 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('Agent'),
+      ...AgentProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('SoftwareAgent'),
+      ...SoftwareAgentProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Person'),
+      ...PersonProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Organization'),
+      ...OrganizationProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('PerformingGroup'),
+      ...PerformingGroupProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('MusicGroup'),
+      ...MusicGroupProperties,
+    }),
+
+    z.object({
       '@type': z.literal('CreativeWork'),
       ...CreativeWorkProperties,
     }),
@@ -3778,21 +3520,6 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('PodcastEpisode'),
       ...PodcastEpisodeProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('Software'),
-      ...SoftwareProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('SoftwareApplication'),
-      ...SoftwareApplicationProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('OperatingSystem'),
-      ...OperatingSystemProperties,
     }),
 
     z.object({
@@ -3891,33 +3618,31 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('Agent'),
-      ...AgentProperties,
+      '@type': z.literal('Software'),
+      ...SoftwareProperties,
     }),
 
     z.object({
-      '@type': z.literal('SoftwareAgent'),
-      ...SoftwareAgentProperties,
+      '@type': z.literal('SoftwareApplication'),
+      ...SoftwareApplicationProperties,
     }),
 
     z.object({
-      '@type': z.literal('Person'),
-      ...PersonProperties,
+      '@type': z.literal('OperatingSystem'),
+      ...OperatingSystemProperties,
     }),
 
     z.object({
-      '@type': z.literal('Organization'),
-      ...OrganizationProperties,
+      '@type': z.literal('AIModel'),
+      ...AIModelProperties,
     }),
-
+  ])
+  .superRefine(requireNodeIdentity);
+export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
+  .discriminatedUnion('@type', [
     z.object({
-      '@type': z.literal('PerformingGroup'),
-      ...PerformingGroupProperties,
-    }),
-
-    z.object({
-      '@type': z.literal('MusicGroup'),
-      ...MusicGroupProperties,
+      '@type': z.literal('Base'),
+      ...BaseProperties,
     }),
 
     z.object({
@@ -4133,6 +3858,321 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('AcceptAction'),
       ...AcceptActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Entity'),
+      ...EntityProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Task'),
+      ...TaskProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Tag'),
+      ...TagProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Realm'),
+      ...RealmProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ProductModel'),
+      ...ProductModelProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Place'),
+      ...PlaceProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Venue'),
+      ...VenueProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Meal'),
+      ...MealProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Journey'),
+      ...JourneyProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Event'),
+      ...EventProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('PhysicalObject'),
+      ...PhysicalObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Device'),
+      ...DeviceProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Command'),
+      ...CommandProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Intangible'),
+      ...IntangibleProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Selector'),
+      ...SelectorProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('PageSelector'),
+      ...PageSelectorProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('EpubCfiSelector'),
+      ...EpubCfiSelectorProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('DefinedTerm'),
+      ...DefinedTermProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Category'),
+      ...CategoryProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Session'),
+      ...SessionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Tenure'),
+      ...TenureProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Relationship'),
+      ...RelationshipProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Membership'),
+      ...MembershipProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Enrollment'),
+      ...EnrollmentProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('DeviceSession'),
+      ...DeviceSessionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('CallSession'),
+      ...CallSessionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Agent'),
+      ...AgentProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('SoftwareAgent'),
+      ...SoftwareAgentProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Person'),
+      ...PersonProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Organization'),
+      ...OrganizationProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('PerformingGroup'),
+      ...PerformingGroupProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('MusicGroup'),
+      ...MusicGroupProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('CreativeWork'),
+      ...CreativeWorkProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('SoftwareSourceCode'),
+      ...SoftwareSourceCodeProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Revision'),
+      ...RevisionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Repository'),
+      ...RepositoryProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Quotation'),
+      ...QuotationProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Query'),
+      ...QueryProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Post'),
+      ...PostProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('PodcastEpisode'),
+      ...PodcastEpisodeProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('MusicRecording'),
+      ...MusicRecordingProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('MusicAlbum'),
+      ...MusicAlbumProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Message'),
+      ...MessageProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Response'),
+      ...ResponseProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Comment'),
+      ...CommentProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Channel'),
+      ...ChannelProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Changeset'),
+      ...ChangesetProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Collection'),
+      ...CollectionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Thread'),
+      ...ThreadProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Project'),
+      ...ProjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Directory'),
+      ...DirectoryProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Calendar'),
+      ...CalendarProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Book'),
+      ...BookProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('MediaObject'),
+      ...MediaObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('VideoObject'),
+      ...VideoObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ImageObject'),
+      ...ImageObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('DocumentObject'),
+      ...DocumentObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('AudioObject'),
+      ...AudioObjectProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Article'),
+      ...ArticleProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Software'),
+      ...SoftwareProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('SoftwareApplication'),
+      ...SoftwareApplicationProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('OperatingSystem'),
+      ...OperatingSystemProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('AIModel'),
+      ...AIModelProperties,
     }),
   ])
   .superRefine(requireNodeIdentity);

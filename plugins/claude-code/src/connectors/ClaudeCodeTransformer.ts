@@ -1,6 +1,7 @@
 import { hostname } from 'node:os';
 import { ChronicleTransformer, Record, selfAgent } from '@chronicle.app/etl';
 import {
+  AIModel,
   Agent,
   Message,
   MessageAction,
@@ -8,7 +9,6 @@ import {
   Project,
   Realm,
   SoftwareAgent,
-  SoftwareApplication,
   Thread,
 } from '@chronicle.app/schema';
 import type { Account, SessionContext, TranscriptMessage } from './ClaudeCodeExtractor.js';
@@ -106,9 +106,9 @@ export default class ClaudeCodeTransformer extends ChronicleTransformer {
    * The model a reply ran on: a kind, not an individual — the same weights
    * answer everyone — so it is the instrument of the reply, not its author.
    */
-  private model(id: string): SoftwareApplication {
+  private model(id: string): AIModel {
     return {
-      '@type': 'SoftwareApplication',
+      '@type': 'AIModel',
       '@key': BY_HANDLE,
       source: ANTHROPIC,
       handle: id,

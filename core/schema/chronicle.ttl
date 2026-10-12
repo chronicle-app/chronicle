@@ -247,7 +247,11 @@
   skos:closeMatch schemaorg:SoftwareApplication .
 :SoftwareApplication a owl:Class;
   rdfs:subClassOf :Software;
-  rdfs:comment "A software application or model used to do work.";
+  rdfs:comment "A software application used to do work.";
+  skos:broadMatch schemaorg:SoftwareApplication .
+:AIModel a owl:Class;
+  rdfs:subClassOf :Software;
+  rdfs:comment "A trained model that generates or interprets content, such as a language model or a speech recognizer. An assistant that acts is a :SoftwareAgent, and the model it runs is an :AIModel.";
   skos:broadMatch schemaorg:SoftwareApplication .
 :OperatingSystem a owl:Class;
   rdfs:subClassOf :Software;
