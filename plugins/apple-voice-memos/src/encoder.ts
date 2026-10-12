@@ -7,16 +7,15 @@ export interface Recorder {
 }
 
 export interface ProductLine {
-  /** Its Wikidata entity, which other sources can name too. */
-  url: string;
+  /** Its Wikidata ID, such as `Q2766`, which other sources can name too. */
+  wikidataId: string;
   name: string;
 }
 
-const WIKIDATA = 'http://www.wikidata.org/entity/';
 const LINES = {
-  iPhone: { url: `${WIKIDATA}Q2766`, name: 'iPhone' },
-  Watch: { url: `${WIKIDATA}Q18010946`, name: 'Apple Watch' },
-  Mac: { url: `${WIKIDATA}Q75687`, name: 'Mac' },
+  iPhone: { wikidataId: 'Q2766', name: 'iPhone' },
+  Watch: { wikidataId: 'Q18010946', name: 'Apple Watch' },
+  Mac: { wikidataId: 'Q75687', name: 'Mac' },
 } satisfies { [kind: string]: ProductLine };
 
 // The tag's forms. `<device> Version <version> (Build <build>)` is the

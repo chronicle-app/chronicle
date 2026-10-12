@@ -4005,8 +4005,9 @@ by the memo's ID.
 
 The audio file names the kind of device and the OS release that recorded it,
 but not which device. The action's :instrument is that release, an
-:OperatingSystem as the file writes it, and the kind of device, a :ProductModel keyed by its Wikidata URL so
-that other sources can name the same one.
+:OperatingSystem as the file writes it, and the kind of device, a
+:ProductModel keyed by its Wikidata ID so that other sources can name the same
+one.
 """;
   rdf:value [
     a :RecordAction;
@@ -4029,8 +4030,9 @@ that other sources can name the same one.
       :handle "iPhone Version 26.4 (Build 23E246)"
     ], [
       a :ProductModel;
-      doc:key ("url");
-      :url "http://www.wikidata.org/entity/Q2766";
+      doc:key ("source" "sourceId");
+      :source "wikidata";
+      :sourceId "Q2766";
       :name "iPhone"
     ];
     :result [

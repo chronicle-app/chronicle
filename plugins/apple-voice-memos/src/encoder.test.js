@@ -3,9 +3,9 @@ import { test } from 'node:test';
 import { readEncoder } from '../dist/encoder.js';
 
 const read = (tag, recorded) => readEncoder(`com.apple.VoiceMemos (${tag})`, new Date(recorded));
-const IPHONE = { url: 'http://www.wikidata.org/entity/Q2766', name: 'iPhone' };
-const WATCH = { url: 'http://www.wikidata.org/entity/Q18010946', name: 'Apple Watch' };
-const MAC = { url: 'http://www.wikidata.org/entity/Q75687', name: 'Mac' };
+const IPHONE = { wikidataId: 'Q2766', name: 'iPhone' };
+const WATCH = { wikidataId: 'Q18010946', name: 'Apple Watch' };
+const MAC = { wikidataId: 'Q75687', name: 'Mac' };
 
 test('a tag names the release as written and the kind of device it names', () => {
   assert.deepEqual(read('iPhone Version 18.3 (Build 22D63)', '2025-01-01'), {

@@ -33,9 +33,9 @@ const transformer = new AppleVoiceMemosTransformer();
 const transform = async record => (await transformer.performTransform(record))[0].data;
 
 // An instrument as [type, key, name]: an OS release keyed by its tag, or a
-// kind of device keyed by its Wikidata entity.
+// kind of device keyed by its Wikidata ID.
 const release = handle => ['OperatingSystem', handle, undefined];
-const line = (id, name) => ['ProductModel', `http://www.wikidata.org/entity/${id}`, name];
+const line = (id, name) => ['ProductModel', id, name];
 
 test('each recording is extracted newest first, with its file and transcript, as a RecordAction', async t => {
   const { input, records, count, events } = await extract(t);
@@ -129,7 +129,7 @@ test('a recording names the OS release and the kind of device its file says it w
     const action = await transform(record);
     instruments.set(
       record.data.uniqueID,
-      action.instrument?.map(node => [node['@type'], node.handle ?? node.url, node.name])
+      action.instrument?.map(node => [node['@type'], node.handle ?? node.sourceId, node.name])
     );
   }
   assert.deepEqual(instruments.get(ids.runs), [

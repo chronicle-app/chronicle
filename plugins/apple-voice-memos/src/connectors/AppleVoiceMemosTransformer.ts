@@ -23,7 +23,7 @@ const MIME_TYPES: { [extension: string]: string } = {
 /**
  *   RecordAction  agent: you   timestamp (when recording started)
  *     instrument?: OperatingSystem  (the release the file names, as written)
- *                  ProductModel?    (the kind of device, by its Wikidata URL)
+ *                  ProductModel?    (the kind of device, by its Wikidata ID)
  *     result: AudioObject  (the recording, by its UUID)   transcript?
  */
 export default class AppleVoiceMemosTransformer extends ChronicleTransformer {
@@ -69,7 +69,18 @@ function buildInstrument(memo: VoiceMemo): Array<OperatingSystem | ProductModel>
     handle: recorder.release,
   };
   if (!recorder.line) return [release];
-  return [release, { '@type': 'ProductModel', '@key': ['url'], ...recorder.line }];
+  const { wikidataId, name } = recorder.line;
+  return [
+    release,
+    // Keyed like an ISBN: by the ID alone, so anything naming the same item merges with it.
+    {
+      '@type': 'ProductModel',
+      '@key': ['source', 'sourceId'],
+      source: 'wikidata',
+      sourceId: wikidataId,
+      name,
+    },
+  ];
 }
 
 /**
