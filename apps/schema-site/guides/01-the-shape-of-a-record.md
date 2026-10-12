@@ -38,7 +38,7 @@ Most actions use these fields from :Action:
 
 - :agent is who did it, if the source knows. An action can have no agent.
 - :object is the entity the action was carried out on.
-- :instrument is the tool, application, or model that was used.
+- :instrument is the tool, device, application, or model that was used. An action can have several.
 - :timestamp is when the action happened, not when Chronicle read it.
 
 More specific actions use the same fields. A :CompleteAction completes its :object, and a :MessageAction sends its :object, a :Message.

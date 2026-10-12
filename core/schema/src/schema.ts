@@ -71,7 +71,7 @@ export interface Action extends Omit<Base, '@type'> {
   '@type': 'Action';
   agent?: AgentAndChildren;
   endTime?: Date | string;
-  instrument?: EntityAndChildren;
+  instrument?: EntityAndChildren[];
   location?: LocationAndChildren | PlaceAndChildren;
   object?: EntityAndChildren;
   result?: EntityAndChildren;
@@ -106,7 +106,7 @@ const ActionProperties = {
   ...BaseProperties,
   agent: z.lazy(() => AgentAndChildrenSchema).optional(),
   endTime: z.lazy(() => DateTimeSchema).optional(),
-  instrument: z.lazy(() => EntityAndChildrenSchema).optional(),
+  instrument: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
   location: z.lazy(() => z.union([LocationAndChildrenSchema, PlaceAndChildrenSchema])).optional(),
   object: z.lazy(() => EntityAndChildrenSchema).optional(),
   result: z.lazy(() => EntityAndChildrenSchema).optional(),
@@ -209,6 +209,7 @@ export type EntityAndChildren =
   | MealAndChildren
   | PhysicalObjectAndChildren
   | PlaceAndChildren
+  | ProductModelAndChildren
   | RealmAndChildren
   | SessionAndChildren
   | TagAndChildren
@@ -1714,6 +1715,24 @@ export const PostSchema: z.ZodType<Post> = z
   })
   .superRefine(requireNodeIdentity);
 
+// ProductModel, child of https://schema.chronicle.app/Entity
+export interface ProductModel extends Omit<Entity, '@type'> {
+  '@type': 'ProductModel';
+}
+
+export type ProductModelAndChildren = ProductModel;
+
+const ProductModelProperties = {
+  ...EntityProperties,
+};
+
+export const ProductModelSchema: z.ZodType<ProductModel> = z
+  .object({
+    '@type': z.literal('ProductModel'),
+    ...ProductModelProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // Project, child of https://schema.chronicle.app/Collection
 export interface Project extends Omit<Collection, '@type'> {
   '@type': 'Project';
@@ -2253,6 +2272,8 @@ export const QueryAndChildrenSchema = QuerySchema;
 export const PublishActionAndChildrenSchema = PublishActionSchema;
 
 export const ProjectAndChildrenSchema = ProjectSchema;
+
+export const ProductModelAndChildrenSchema = ProductModelSchema;
 
 export const PostAndChildrenSchema = PostSchema;
 
@@ -2990,6 +3011,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('ProductModel'),
+      ...ProductModelProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Place'),
       ...PlaceProperties,
     }),
@@ -3525,6 +3551,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('Realm'),
       ...RealmProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ProductModel'),
+      ...ProductModelProperties,
     }),
 
     z.object({

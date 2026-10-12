@@ -4002,6 +4002,11 @@ keeps when recording started, the :timestamp, and the recording's :duration,
 but not when recording stopped, since it can be paused. The words spoken in
 the recording are its :transcript. The action and the recording are both keyed
 by the memo's ID.
+
+The audio file names the kind of device and the OS release that recorded it,
+but not which device. The action's :instrument is that release, as the file
+writes it, and the kind of device, a :ProductModel keyed by its Wikidata URL so
+that other sources can name the same one.
 """;
   rdf:value [
     a :RecordAction;
@@ -4016,6 +4021,18 @@ by the memo's ID.
       :sourceId "1234567890";
       :handle "you@example.com";
       :sameAs "@me"
+    ];
+    :instrument [
+      a :SoftwareApplication;
+      doc:key ("@type" "source" "sourceId");
+      :source "apple-voice-memos";
+      :sourceId "iPhone Version 26.4 (Build 23E246)";
+      :name "iPhone Version 26.4 (Build 23E246)"
+    ], [
+      a :ProductModel;
+      doc:key ("url");
+      :url "http://www.wikidata.org/entity/Q2766";
+      :name "iPhone"
     ];
     :result [
       a :AudioObject;
@@ -4033,3 +4050,4 @@ by the memo's ID.
 :AudioObject skos:example example:voice-memo .
 :RecordAction skos:example example:voice-memo .
 :transcript skos:example example:voice-memo .
+:ProductModel skos:example example:voice-memo .

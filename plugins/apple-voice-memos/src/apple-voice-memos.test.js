@@ -26,14 +26,19 @@ async function extract(t) {
 const transformer = new AppleVoiceMemosTransformer();
 const transform = async record => (await transformer.performTransform(record))[0].data;
 
+// An instrument as [type, key, name]: an OS release keyed by its tag, or a
+// kind of device keyed by its Wikidata entity.
+const release = name => ['SoftwareApplication', name, name];
+const line = (id, name) => ['ProductModel', `http://www.wikidata.org/entity/${id}`, name];
+
 test('each recording is extracted newest first, with its file and transcript, as a RecordAction', async t => {
   const { records, count } = await extract(t);
   // A recording in Recently Deleted is left out.
   assert.deepEqual(
     records.map(record => record.data.uniqueID),
-    [ids.runs, ids.inline, ids.empty, ids.qta, ids.noPath, ids.notDownloaded, ids.old]
+    [ids.runs, ids.inline, ids.empty, ids.qta, ids.noPath, ids.notDownloaded, ids.iosOnly, ids.old]
   );
-  assert.equal(count, 7);
+  assert.equal(count, 8);
 
   const actions = new Map();
   for (const record of records) {
@@ -68,6 +73,7 @@ test('each recording is extracted newest first, with its file and transcript, as
     [ids.qta, 'qta', 'audio/x-quicktime'],
     [ids.noPath, undefined, undefined],
     [ids.notDownloaded, undefined, undefined],
+    [ids.iosOnly, 'm4a', 'audio/mp4'],
     [ids.old, 'm4a', 'audio/mp4'],
   ]);
 
@@ -83,7 +89,7 @@ test('each recording is extracted newest first, with its file and transcript, as
   const empty = actions.get(ids.empty);
   assert.equal(empty.record.transcript.text, '');
   assert.equal(empty.action.result.transcript, undefined);
-  for (const id of [ids.old, ids.noPath, ids.notDownloaded]) {
+  for (const id of [ids.iosOnly, ids.old, ids.noPath, ids.notDownloaded]) {
     assert.equal(actions.get(id).record.transcript, null, id);
     assert.equal(actions.get(id).action.result.transcript, undefined, id);
   }
@@ -91,4 +97,34 @@ test('each recording is extracted newest first, with its file and transcript, as
   // The encoder tag is kept as written; a .qta file has none.
   assert.match(actions.get(ids.inline).record.encoder, /\(Watch Version /);
   assert.equal(actions.get(ids.qta).record.encoder, null);
+});
+
+test('a recording names the OS release and the kind of device its file says it was made on', async t => {
+  const { records } = await extract(t);
+  const instruments = new Map();
+  for (const record of records) {
+    const action = await transform(record);
+    instruments.set(
+      record.data.uniqueID,
+      action.instrument?.map(node => [node['@type'], node.sourceId ?? node.url, node.name])
+    );
+  }
+  assert.deepEqual(instruments.get(ids.runs), [
+    release('iPhone Version 18.3 (Build 22D63)'),
+    line('Q2766', 'iPhone'),
+  ]);
+  assert.deepEqual(instruments.get(ids.inline), [
+    release('Watch Version 11.3 (Build 22S555)'),
+    line('Q18010946', 'Apple Watch'),
+  ]);
+  // A tag that doesn't name the kind of device gives only the release:
+  // `iOS` could be an iPhone or an iPad, and `iPad` could be a Mac, whose
+  // Voice Memos is the iPad app.
+  assert.deepEqual(instruments.get(ids.iosOnly), [release('iOS 13.3.1')]);
+  assert.deepEqual(instruments.get(ids.empty), [release('iPad Version 15.2 (Build 24C101)')]);
+  // A release newer than the recording is a later rewrite of the file, and
+  // a recording with no tag or no file has nothing to say.
+  for (const id of [ids.old, ids.qta, ids.noPath, ids.notDownloaded]) {
+    assert.equal(instruments.get(id), undefined, id);
+  }
 });

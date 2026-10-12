@@ -103,7 +103,7 @@ const execute = (id, start, end, result, object, instrument = mac) => ({
   agent: me,
   result: { ...byId('DeviceSession', id), ...result },
   object,
-  instrument,
+  instrument: [instrument],
   '@assertedAt': iso(start),
 });
 const call = (id, start, end, result) => ({

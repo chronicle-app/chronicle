@@ -22,6 +22,7 @@ export const ids = {
   noPath: '00000000-0000-4000-8000-000000000005',
   notDownloaded: '00000000-0000-4000-8000-000000000006',
   old: '00000000-0000-4000-8000-000000000008',
+  iosOnly: '00000000-0000-4000-8000-000000000009',
 };
 
 const WORDS = [
@@ -39,13 +40,17 @@ const WORDS = [
  *   recorded on an iPhone. Its media data comes before the movie header.
  * - inline: an `.m4a` whose transcript gives each run's attributes inline,
  *   with a 64-bit media data box.
- * - empty: an `.m4a` whose transcript heard no speech.
+ * - empty: an `.m4a` whose transcript heard no speech, recorded on a Mac,
+ *   whose tag says `iPad`, with a macOS version and build.
  * - qta: a `.qta` with its transcript in its first track's QuickTime metadata,
  *   and no encoder tag.
  * - noPath: a row with no file name, as for a recording with no local audio.
  * - notDownloaded: an empty file, as iCloud leaves before downloading one.
  * - deleted: the newest recording, in Recently Deleted.
- * - old: an `.m4a` from before transcripts, with an `iOS` encoder tag.
+ * - iosOnly: an `.m4a` recorded on iOS 13, whose tag doesn't say iPhone or
+ *   iPad.
+ * - old: an `.m4a` from before transcripts, recorded before iOS 13 and
+ *   rewritten by it, so its `iOS 13.1.2` tag isn't about the recording.
  */
 export function writeAppleVoiceMemosFixture(dir) {
   const input = join(dir, 'CloudRecordings.db');
@@ -99,7 +104,10 @@ export function writeAppleVoiceMemosFixture(dir) {
       ZDURATION: 1.2,
       ZFLAGS: 516,
       ZENCRYPTEDTITLE: 'New Recording 3',
-      file: m4a({ encoder: iPhone, transcript: JSON.stringify({ attributedString: '' }) }),
+      file: m4a({
+        encoder: 'com.apple.VoiceMemos (iPad Version 15.2 (Build 24C101))',
+        transcript: JSON.stringify({ attributedString: '' }),
+      }),
     },
     {
       id: ids.qta,
@@ -127,12 +135,20 @@ export function writeAppleVoiceMemosFixture(dir) {
       file: Buffer.alloc(0),
     },
     {
+      id: ids.iosOnly,
+      ZDATE: JAN_1 - 155_000_000,
+      ZDURATION: 5,
+      ZFLAGS: 4,
+      ZENCRYPTEDTITLE: 'New Recording',
+      file: m4a({ encoder: 'com.apple.VoiceMemos (iOS 13.3.1)' }),
+    },
+    {
       id: ids.old,
       ZDATE: JAN_1 - 400_000_000,
       ZDURATION: 64.3,
       ZFLAGS: 4,
       ZENCRYPTEDTITLE: '2012-04-30, 9:15 AM',
-      file: m4a({ encoder: 'com.apple.VoiceMemos (iOS)' }),
+      file: m4a({ encoder: 'com.apple.VoiceMemos (iOS 13.1.2)' }),
     },
   ];
 

@@ -58,7 +58,7 @@ export default class ClaudeCodeTransformer extends ChronicleTransformer {
         sourceId: message.uuid,
         timestamp: new Date(message.timestamp),
         agent: author,
-        ...(!human && { instrument: this.model(message.model!) }),
+        ...(!human && { instrument: [this.model(message.model!)] }),
         object: {
           '@type': 'Message',
           '@key': BY_SOURCE_ID,

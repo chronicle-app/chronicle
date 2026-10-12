@@ -242,18 +242,17 @@
   rdfs:comment "Software that acts as a participant, such as an assistant, a bot, or an automation. Software used as a tool is a :SoftwareApplication." .
 :SoftwareApplication a owl:Class;
   rdfs:subClassOf :CreativeWork;
-  rdfs:comment "A software application or model used to do work. An action names it as its :instrument.";
+  rdfs:comment "A software application, operating system, or model used to do work. An action names it as its :instrument.";
   skos:broadMatch schemaorg:SoftwareApplication .
 :Thread a owl:Class;
   rdfs:subClassOf :Collection;
   rdfs:comment "A conversation that its source groups together, such as an email thread or a chat with an assistant. Its messages are :isPartOf it, and its :name is the conversation's title.";
   skos:closeMatch schemaorg:Conversation .
 :instrument a owl:ObjectProperty;
-  rdfs:comment "The tool, device, application, or model used to perform an action. The :agent is who acted. The :instrument is what they used.";
+  rdfs:comment "The tool, device, application, or model used to perform an action. The :agent is who acted. The :instrument is what they used. An action can have several, such as the software that ran and the kind of device it ran on, a :ProductModel. A source that knows only the kind of device names that, and the particular :Device can be added beside it once another source tells which one.";
   rdfs:domain :Action;
   rdfs:range :Entity;
   skos:exactMatch schemaorg:instrument .
-[] a sh:PropertyShape; sh:path :instrument; sh:targetSubjectsOf :instrument; sh:maxCount 1 .
 :author a owl:ObjectProperty;
   rdfs:comment "An agent who wrote the work, such as a person or a software assistant.";
   rdfs:domain [ a owl:Class; owl:unionOf ( :CreativeWork :Message ) ];
@@ -710,6 +709,10 @@
 :Device a owl:Class;
   rdfs:comment "A physical computing device the subject runs software on, such as a computer, a phone, or a tablet. It is the :instrument of an :ExecuteAction. It names a role, not a kind, so its :category says what kind of device it is. It is :inRealm the logical machine, which can outlive the hardware.";
   rdfs:subClassOf :PhysicalObject .
+:ProductModel a owl:Class;
+  rdfs:comment "A kind of product, such as the iPhone line or the iPhone 14 Pro, rather than one particular product. A particular phone is a :Device, and its :model is its make and model. An action names a :ProductModel as its :instrument when its source knows only the kind of device used, such as a recording made on an iPhone.";
+  rdfs:subClassOf :Entity;
+  skos:closeMatch schemaorg:ProductModel .
 :Directory a owl:Class;
   rdfs:subClassOf :Collection;
   rdfs:comment "A filesystem directory. Its members are the files and directories it :contains, and they are its only content. Its :handle is its path, and it is :inRealm the machine it is on." .
