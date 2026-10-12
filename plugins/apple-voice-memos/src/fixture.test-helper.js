@@ -49,7 +49,7 @@ const WORDS = [
  *   and no duration.
  * - deleted: the newest recording, in Recently Deleted.
  * - iosOnly: an `.m4a` recorded on iOS 13, whose tag doesn't say iPhone or
- *   iPad.
+ *   iPad, with a transcript that doesn't read.
  * - old: an `.m4a` from before transcripts, recorded before iOS 13 and
  *   rewritten by it, so its `iOS 13.1.2` tag isn't about the recording.
  */
@@ -141,7 +141,7 @@ export function writeAppleVoiceMemosFixture(dir) {
       ZDURATION: 5,
       ZFLAGS: 4,
       ZENCRYPTEDTITLE: 'New Recording',
-      file: m4a({ encoder: 'com.apple.VoiceMemos (iOS 13.3.1)' }),
+      file: m4a({ encoder: 'com.apple.VoiceMemos (iOS 13.3.1)', transcript: 'not a transcript' }),
     },
     {
       id: ids.old,

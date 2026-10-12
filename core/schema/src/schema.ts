@@ -338,7 +338,7 @@ export type CreativeWorkAndChildren =
   | RepositoryAndChildren
   | ResponseAndChildren
   | RevisionAndChildren
-  | SoftwareApplicationAndChildren
+  | SoftwareAndChildren
   | SoftwareSourceCodeAndChildren;
 
 const CreativeWorkProperties = {
@@ -1585,6 +1585,43 @@ export const NavigateActionSchema: z.ZodType<NavigateAction> = z
   })
   .superRefine(requireNodeIdentity);
 
+// Software, child of https://schema.chronicle.app/CreativeWork
+export interface Software extends Omit<CreativeWork, '@type'> {
+  '@type': 'Software';
+}
+
+export type SoftwareAndChildren =
+  Software | OperatingSystemAndChildren | SoftwareApplicationAndChildren;
+
+const SoftwareProperties = {
+  ...CreativeWorkProperties,
+};
+
+export const SoftwareSchema: z.ZodType<Software> = z
+  .object({
+    '@type': z.literal('Software'),
+    ...SoftwareProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// OperatingSystem, child of https://schema.chronicle.app/Software
+export interface OperatingSystem extends Omit<Software, '@type'> {
+  '@type': 'OperatingSystem';
+}
+
+export type OperatingSystemAndChildren = OperatingSystem;
+
+const OperatingSystemProperties = {
+  ...SoftwareProperties,
+};
+
+export const OperatingSystemSchema: z.ZodType<OperatingSystem> = z
+  .object({
+    '@type': z.literal('OperatingSystem'),
+    ...OperatingSystemProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // PageSelector, child of https://schema.chronicle.app/Selector
 export interface PageSelector extends Omit<Selector, '@type'> {
   '@type': 'PageSelector';
@@ -1993,15 +2030,15 @@ export const SoftwareAgentSchema: z.ZodType<SoftwareAgent> = z
   })
   .superRefine(requireNodeIdentity);
 
-// SoftwareApplication, child of https://schema.chronicle.app/CreativeWork
-export interface SoftwareApplication extends Omit<CreativeWork, '@type'> {
+// SoftwareApplication, child of https://schema.chronicle.app/Software
+export interface SoftwareApplication extends Omit<Software, '@type'> {
   '@type': 'SoftwareApplication';
 }
 
 export type SoftwareApplicationAndChildren = SoftwareApplication;
 
 const SoftwareApplicationProperties = {
-  ...CreativeWorkProperties,
+  ...SoftwareProperties,
 };
 
 export const SoftwareApplicationSchema: z.ZodType<SoftwareApplication> = z
@@ -2300,6 +2337,26 @@ export const PersonAndChildrenSchema = PersonSchema;
 
 export const PageSelectorAndChildrenSchema = PageSelectorSchema;
 
+export const OperatingSystemAndChildrenSchema = OperatingSystemSchema;
+
+export const SoftwareAndChildrenSchema: z.ZodType<SoftwareAndChildren> = z
+  .discriminatedUnion('@type', [
+    z.object({
+      '@type': z.literal('Software'),
+      ...SoftwareProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('SoftwareApplication'),
+      ...SoftwareApplicationProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('OperatingSystem'),
+      ...OperatingSystemProperties,
+    }),
+  ])
+  .superRefine(requireNodeIdentity);
 export const NavigateActionAndChildrenSchema = NavigateActionSchema;
 
 export const MusicRecordingAndChildrenSchema = MusicRecordingSchema;
@@ -2790,11 +2847,6 @@ export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> =
     }),
 
     z.object({
-      '@type': z.literal('SoftwareApplication'),
-      ...SoftwareApplicationProperties,
-    }),
-
-    z.object({
       '@type': z.literal('Revision'),
       ...RevisionProperties,
     }),
@@ -2822,6 +2874,21 @@ export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> =
     z.object({
       '@type': z.literal('PodcastEpisode'),
       ...PodcastEpisodeProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Software'),
+      ...SoftwareProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('SoftwareApplication'),
+      ...SoftwareApplicationProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('OperatingSystem'),
+      ...OperatingSystemProperties,
     }),
 
     z.object({
@@ -3131,11 +3198,6 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('SoftwareApplication'),
-      ...SoftwareApplicationProperties,
-    }),
-
-    z.object({
       '@type': z.literal('Revision'),
       ...RevisionProperties,
     }),
@@ -3163,6 +3225,21 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     z.object({
       '@type': z.literal('PodcastEpisode'),
       ...PodcastEpisodeProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Software'),
+      ...SoftwareProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('SoftwareApplication'),
+      ...SoftwareApplicationProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('OperatingSystem'),
+      ...OperatingSystemProperties,
     }),
 
     z.object({
@@ -3674,11 +3751,6 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('SoftwareApplication'),
-      ...SoftwareApplicationProperties,
-    }),
-
-    z.object({
       '@type': z.literal('Revision'),
       ...RevisionProperties,
     }),
@@ -3706,6 +3778,21 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('PodcastEpisode'),
       ...PodcastEpisodeProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Software'),
+      ...SoftwareProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('SoftwareApplication'),
+      ...SoftwareApplicationProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('OperatingSystem'),
+      ...OperatingSystemProperties,
     }),
 
     z.object({

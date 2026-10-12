@@ -34,28 +34,27 @@ test("a tag that doesn't name the kind of device gives only the release", () => 
     release: 'iPad Version 26.0.1 (Build 25A362)',
     line: null,
   });
-  assert.deepEqual(read('aphone5 (null)', '2021-03-01'), { release: 'aphone5 (null)', line: null });
 });
 
-test('a release that came out after the recording is a later rewrite, and says nothing', () => {
+test("a tag that doesn't name an OS release, or isn't Voice Memos', says nothing", () => {
+  assert.equal(read('aphone5 (null)', '2021-03-01'), null);
+  assert.equal(readEncoder('Lavf58.29.100', new Date('2020-01-01')), null);
+});
+
+test('an older-form tag naming a release newer than the recording is from iOS 13’s rewrite', () => {
   assert.equal(read('iOS 13.1.2', '2012-04-30'), null);
   assert.equal(read('iOS 13.1.2 (Build 17A860)', '2012-04-30'), null);
   assert.equal(read('Mac OS X 10.15.3', '2018-01-01'), null);
-  assert.equal(read('Watch Version 11.5 (Build 22T572)', '2023-01-01'), null);
 });
 
-test('a beta, and a release the plugin has no date for, are not checked', () => {
-  // Recorded on the iOS 18 beta, before iOS 18's public release.
+test('a tag in the current form is taken as written, with no release dates to keep up', () => {
+  // Recorded on a beta, before its release came out, and on a release with no date here.
   assert.deepEqual(read('iPhone Version 18.0 (Build 22A5307f)', '2024-07-01'), {
     release: 'iPhone Version 18.0 (Build 22A5307f)',
     line: IPHONE,
   });
-  assert.deepEqual(read('iPhone Version 27.0 (Build 24A100)', '2026-10-01'), {
-    release: 'iPhone Version 27.0 (Build 24A100)',
-    line: IPHONE,
+  assert.deepEqual(read('Watch Version 27.0 (Build 24R100)', '2026-10-01'), {
+    release: 'Watch Version 27.0 (Build 24R100)',
+    line: WATCH,
   });
-});
-
-test("another app's tag isn't Voice Memos'", () => {
-  assert.equal(readEncoder('Lavf58.29.100', new Date('2020-01-01')), null);
 });

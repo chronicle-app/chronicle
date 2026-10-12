@@ -14,12 +14,15 @@ async function extract(t) {
   // A relative path to the library still gives each file's absolute path.
   const relativeInput = relative(process.cwd(), input);
   const extractor = new AppleVoiceMemosExtractor({ input: relativeInput, account, limit: 0 });
+  const events = [];
+  extractor.useOutput({ emit: event => events.push(event) });
   try {
     await extractor.setup();
     return {
       input,
       records: await Array.fromAsync(extractor.extract()),
       count: await extractor.determineCount(),
+      events,
     };
   } finally {
     await extractor.teardown();
@@ -31,11 +34,11 @@ const transform = async record => (await transformer.performTransform(record))[0
 
 // An instrument as [type, key, name]: an OS release keyed by its tag, or a
 // kind of device keyed by its Wikidata entity.
-const release = name => ['SoftwareApplication', name, name];
+const release = name => ['OperatingSystem', name, name];
 const line = (id, name) => ['ProductModel', `http://www.wikidata.org/entity/${id}`, name];
 
 test('each recording is extracted newest first, with its file and transcript, as a RecordAction', async t => {
-  const { input, records, count } = await extract(t);
+  const { input, records, count, events } = await extract(t);
   // A recording in Recently Deleted is left out.
   assert.deepEqual(
     records.map(record => record.data.uniqueID),
@@ -105,6 +108,14 @@ test('each recording is extracted newest first, with its file and transcript, as
     assert.equal(actions.get(id).record.transcript, null, id);
     assert.equal(actions.get(id).action.result.transcript, undefined, id);
   }
+
+  // A transcript that doesn't read is left out, and the run says so.
+  const hints = events.filter(event => event.kind === 'hint');
+  assert.deepEqual(
+    hints.map(hint => hint.message),
+    ['1 transcript couldn’t be read, so its memo has none']
+  );
+  assert.match(hints[0].hint.action, /Update Chronicle/);
 
   // The encoder tag is kept as written; a .qta file has none.
   assert.match(actions.get(ids.inline).record.encoder, /\(Watch Version /);

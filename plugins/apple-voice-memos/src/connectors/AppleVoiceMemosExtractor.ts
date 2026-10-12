@@ -84,6 +84,8 @@ export class AppleVoiceMemosExtractor extends SqliteExtractor<typeof AppleVoiceM
   }) as any;
 
   private libraryChanged: Date | null = null;
+  // Files and transcripts that didn't read this run, for the run's summary.
+  private unreadable = { files: 0, transcripts: 0 };
 
   override async setup(): Promise<void> {
     await super.setup();
@@ -137,6 +139,7 @@ export class AppleVoiceMemosExtractor extends SqliteExtractor<typeof AppleVoiceM
       this.config.account === undefined ? await getICloudAccount() : this.config.account;
     const folder = dirname(resolve(this.config.input));
 
+    this.unreadable = { files: 0, transcripts: 0 };
     for (const row of iterateRows<Row>(this.db.prepare(ordered), ...values)) {
       yield this.createRecord(
         this.memoOf(row, folder),
@@ -144,6 +147,7 @@ export class AppleVoiceMemosExtractor extends SqliteExtractor<typeof AppleVoiceM
         { assertedAt: this.asOfTime() }
       );
     }
+    this.hintUnreadable();
   }
 
   private memoOf(row: Row, folder: string): VoiceMemo {
@@ -168,6 +172,7 @@ export class AppleVoiceMemosExtractor extends SqliteExtractor<typeof AppleVoiceM
       return readRecordingMetadata(file);
     } catch (error) {
       this.logger.warn(`Can't read a voice memo's audio file: ${(error as Error).message}`);
+      this.unreadable.files++;
       return null;
     }
   }
@@ -177,7 +182,32 @@ export class AppleVoiceMemosExtractor extends SqliteExtractor<typeof AppleVoiceM
       return parseTranscript(json);
     } catch (error) {
       this.logger.warn(`Can't read a voice memo's transcript: ${(error as Error).message}`);
+      this.unreadable.transcripts++;
       return null;
+    }
+  }
+
+  /**
+   * Say when files or transcripts didn't read. The memos are kept, but a
+   * format Voice Memos changed would otherwise only show in the log.
+   */
+  private hintUnreadable(): void {
+    const { files, transcripts } = this.unreadable;
+    const action =
+      'Voice Memos may have changed how it stores recordings. Update Chronicle, and report it if that doesn’t help.';
+    if (files > 0) {
+      const memos =
+        files === 1
+          ? '1 audio file couldn’t be read, so its memo has'
+          : `${files} audio files couldn’t be read, so their memos have`;
+      this.hint(`${memos} no transcript or device`, { action });
+    }
+    if (transcripts > 0) {
+      const memos =
+        transcripts === 1
+          ? '1 transcript couldn’t be read, so its memo has'
+          : `${transcripts} transcripts couldn’t be read, so their memos have`;
+      this.hint(`${memos} none`, { action });
     }
   }
 

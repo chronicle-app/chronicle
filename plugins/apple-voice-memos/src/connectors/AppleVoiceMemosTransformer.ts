@@ -3,9 +3,9 @@ import { ChronicleTransformer, Record } from '@chronicle.app/etl';
 import {
   ActionAndChildren,
   AudioObject,
+  OperatingSystem,
   ProductModel,
   RecordAction,
-  SoftwareApplication,
 } from '@chronicle.app/schema';
 import { buildICloudPersonSchema } from '@chronicle.app/icloud';
 import { readEncoder } from '../encoder.js';
@@ -22,8 +22,8 @@ const MIME_TYPES: { [extension: string]: string } = {
 
 /**
  *   RecordAction  agent: you   timestamp (when recording started)
- *     instrument?: SoftwareApplication  (the OS release the file names)
- *                  ProductModel?        (the kind of device, by its Wikidata URL)
+ *     instrument?: OperatingSystem  (the release the file names, as written)
+ *                  ProductModel?    (the kind of device, by its Wikidata URL)
  *     result: AudioObject  (the recording, by its UUID)   transcript?
  */
 export default class AppleVoiceMemosTransformer extends ChronicleTransformer {
@@ -56,14 +56,14 @@ export default class AppleVoiceMemosTransformer extends ChronicleTransformer {
 /**
  * What the recording was made on, from its file's encoder tag: the OS release,
  * as the tag writes it, and the kind of device when the tag names one. The
- * tag never says which device. A tag left by a later rewrite of the file says
- * nothing about the recording, so it gives none.
+ * tag never says which device. A tag that doesn't name an OS release, or that
+ * iOS 13 left when it rewrote an older file, gives none.
  */
-function buildInstrument(memo: VoiceMemo): Array<SoftwareApplication | ProductModel> {
+function buildInstrument(memo: VoiceMemo): Array<OperatingSystem | ProductModel> {
   const recorder = memo.encoder ? readEncoder(memo.encoder, new Date(memo.date)) : null;
   if (!recorder) return [];
-  const release: SoftwareApplication = {
-    '@type': 'SoftwareApplication',
+  const release: OperatingSystem = {
+    '@type': 'OperatingSystem',
     '@key': ['@type', 'source', 'sourceId'],
     source: SOURCE,
     sourceId: recorder.release,

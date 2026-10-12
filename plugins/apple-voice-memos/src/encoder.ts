@@ -1,6 +1,6 @@
 /** What a recording's encoder tag says about where it was recorded. */
 export interface Recorder {
-  /** The tag inside `com.apple.VoiceMemos (…)`, as written, such as `Watch Version 11.5 (Build 22T572)`. */
+  /** The OS release, as the tag inside `com.apple.VoiceMemos (…)` writes it, such as `Watch Version 11.5 (Build 22T572)`. */
   release: string;
   /** The kind of device, when the tag names one. */
   line: ProductLine | null;
@@ -19,81 +19,51 @@ const LINES = {
   Mac: { url: `${WIKIDATA}Q75687`, name: 'Mac' },
 } satisfies { [kind: string]: ProductLine };
 
-// When each major release came out. A tag naming a release that came out
-// after the recording was made comes from a device that rewrote the file
-// later, as iOS 13 did to older recordings. A release missing here isn't
-// checked, so a new one only needs adding to catch a later rewrite.
-const RELEASED: { [os: string]: { [major: string]: string } } = {
-  iOS: {
-    12: '2018-09-17',
-    13: '2019-09-19',
-    14: '2020-09-16',
-    15: '2021-09-20',
-    16: '2022-09-12',
-    17: '2023-09-18',
-    18: '2024-09-16',
-    26: '2025-09-15',
-  },
-  watchOS: {
-    5: '2018-09-17',
-    6: '2019-09-19',
-    7: '2020-09-16',
-    8: '2021-09-20',
-    9: '2022-09-12',
-    10: '2023-09-18',
-    11: '2024-09-16',
-    26: '2025-09-15',
-  },
-  // Only `Mac OS X 10.x` tags name macOS: since then, Voice Memos on a Mac
-  // has been the iPad app.
-  macOS: { '10.14': '2018-09-24', '10.15': '2019-10-07' },
-};
-
+// The tag's forms. `<device> Version <version> (Build <build>)` is the
+// current one, and `iOS <version>` and `Mac OS X <version>` are older ones.
 const TAG = /^com\.apple\.VoiceMemos \((.+)\)$/;
-const VERSIONED = /^(iPhone|Watch) Version (\d+)/;
+const VERSIONED = /^(iPhone|iPad|Watch) Version \d/;
 const IOS = /^iOS (\d+)/;
 const MAC_OS_X = /^Mac OS X (10\.\d+)/;
-// A build ending in a lowercase letter is a beta, or a security response
-// release. A beta can record before its release's public date, so it isn't
-// checked against it.
-const PRERELEASE_BUILD = /\(Build \w*[a-z]\)/;
+
+// When each release that wrote an older form came out. iOS 13 rewrote older
+// recordings with its own tag, so an older-form tag naming a release that
+// came out after the recording was made is from that rewrite. Voice Memos
+// stopped writing these forms in 2020, so the list doesn't grow.
+const OLDER_FORM_RELEASED: { [release: string]: string } = {
+  'iOS 12': '2018-09-17',
+  'iOS 13': '2019-09-19',
+  'Mac OS X 10.14': '2018-09-24',
+  'Mac OS X 10.15': '2019-10-07',
+};
 
 /**
  * Read a recording's encoder tag, such as
  * `com.apple.VoiceMemos (Watch Version 11.5 (Build 22T572))`. The tag names
- * the kind of device and the OS release that wrote the file, but not which
- * device. `null` when it isn't Voice Memos' tag, or when the release came out
- * after the recording was made, so the tag describes a later rewrite.
+ * the OS release that wrote the file, and sometimes the kind of device, but
+ * never which device. `null` when it isn't Voice Memos' tag, when it doesn't
+ * name an OS release, or when it's from iOS 13's rewrite of an older file.
  */
 export function readEncoder(tag: string, recorded: Date): Recorder | null {
   const release = TAG.exec(tag)?.[1];
   if (!release) return null;
 
-  let os: string | null = null;
-  let major: string | null = null;
-  let kind: keyof typeof LINES | null = null;
   const versioned = VERSIONED.exec(release);
-  const ios = IOS.exec(release);
-  const macOSX = MAC_OS_X.exec(release);
-  // `iPad Version …` names no kind of device: Voice Memos on a Mac is the iPad
-  // app, so a Mac's tag says `iPad` too, with macOS's version.
   if (versioned) {
-    const [, device, version] = versioned;
-    os = device === 'Watch' ? 'watchOS' : 'iOS';
-    major = version;
-    kind = device as 'iPhone' | 'Watch';
-  } else if (ios) {
-    // `iOS 13.1.2` doesn't say whether it was an iPhone or an iPad.
-    os = 'iOS';
-    major = ios[1];
-  } else if (macOSX) {
-    os = 'macOS';
-    major = macOSX[1];
-    kind = 'Mac';
+    // `iPad` names no kind of device: Voice Memos on a Mac is the iPad app, so
+    // a Mac's tag says `iPad` too.
+    const device = versioned[1] as 'iPhone' | 'iPad' | 'Watch';
+    return { release, line: device === 'iPad' ? null : LINES[device] };
   }
 
-  const released = os && major ? RELEASED[os]?.[major] : undefined;
-  const checked = released && !PRERELEASE_BUILD.test(release);
-  if (checked && recorded < new Date(released)) return null;
-  return { release, line: kind ? LINES[kind] : null };
+  const ios = IOS.exec(release);
+  const macOSX = MAC_OS_X.exec(release);
+  let older: string;
+  if (ios) older = `iOS ${ios[1]}`;
+  else if (macOSX) older = `Mac OS X ${macOSX[1]}`;
+  else return null;
+  const released = OLDER_FORM_RELEASED[older];
+  if (released && recorded < new Date(released)) return null;
+  // `iOS 13.1.2` doesn't say whether it was an iPhone or an iPad.
+  return { release, line: macOSX ? LINES.Mac : null };
 }

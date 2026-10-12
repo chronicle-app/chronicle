@@ -240,11 +240,19 @@
 
 :SoftwareAgent a owl:Class;
   rdfs:subClassOf :Agent;
-  rdfs:comment "Software that acts as a participant, such as an assistant, a bot, or an automation. Software used as a tool is a :SoftwareApplication." .
-:SoftwareApplication a owl:Class;
+  rdfs:comment "Software that acts as a participant, such as an assistant, a bot, or an automation. Software used as a tool is :Software." .
+:Software a owl:Class;
   rdfs:subClassOf :CreativeWork;
-  rdfs:comment "A software application, operating system, or model used to do work. An action names it as its :instrument.";
+  rdfs:comment "A program, such as an application, an operating system, or a model. An action names the software used as its :instrument.";
+  skos:closeMatch schemaorg:SoftwareApplication .
+:SoftwareApplication a owl:Class;
+  rdfs:subClassOf :Software;
+  rdfs:comment "A software application or model used to do work.";
   skos:broadMatch schemaorg:SoftwareApplication .
+:OperatingSystem a owl:Class;
+  rdfs:subClassOf :Software;
+  rdfs:comment "An operating system, or one release of it, that applications run on, such as a phone's or a computer's.";
+  skos:closeMatch schemaorg:OperatingSystem .
 :Thread a owl:Class;
   rdfs:subClassOf :Collection;
   rdfs:comment "A conversation that its source groups together, such as an email thread or a chat with an assistant. Its messages are :isPartOf it, and its :name is the conversation's title.";

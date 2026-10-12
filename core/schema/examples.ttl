@@ -4004,8 +4004,8 @@ the recording are its :transcript. The action and the recording are both keyed
 by the memo's ID.
 
 The audio file names the kind of device and the OS release that recorded it,
-but not which device. The action's :instrument is that release, as the file
-writes it, and the kind of device, a :ProductModel keyed by its Wikidata URL so
+but not which device. The action's :instrument is that release, an
+:OperatingSystem as the file writes it, and the kind of device, a :ProductModel keyed by its Wikidata URL so
 that other sources can name the same one.
 """;
   rdf:value [
@@ -4023,7 +4023,7 @@ that other sources can name the same one.
       :sameAs "@me"
     ];
     :instrument [
-      a :SoftwareApplication;
+      a :OperatingSystem;
       doc:key ("@type" "source" "sourceId");
       :source "apple-voice-memos";
       :sourceId "iPhone Version 26.4 (Build 23E246)";
@@ -4051,3 +4051,4 @@ that other sources can name the same one.
 :RecordAction skos:example example:voice-memo .
 :transcript skos:example example:voice-memo .
 :ProductModel skos:example example:voice-memo .
+:OperatingSystem skos:example example:voice-memo .
