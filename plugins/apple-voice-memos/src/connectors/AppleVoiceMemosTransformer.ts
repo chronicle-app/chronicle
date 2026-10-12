@@ -64,10 +64,9 @@ function buildInstrument(memo: VoiceMemo): Array<OperatingSystem | ProductModel>
   if (!recorder) return [];
   const release: OperatingSystem = {
     '@type': 'OperatingSystem',
-    '@key': ['@type', 'source', 'sourceId'],
+    '@key': ['@type', 'source', 'handle'],
     source: SOURCE,
-    sourceId: recorder.release,
-    name: recorder.release,
+    handle: recorder.release,
   };
   if (!recorder.line) return [release];
   return [release, { '@type': 'ProductModel', '@key': ['url'], ...recorder.line }];

@@ -4024,10 +4024,9 @@ that other sources can name the same one.
     ];
     :instrument [
       a :OperatingSystem;
-      doc:key ("@type" "source" "sourceId");
+      doc:key ("@type" "source" "handle");
       :source "apple-voice-memos";
-      :sourceId "iPhone Version 26.4 (Build 23E246)";
-      :name "iPhone Version 26.4 (Build 23E246)"
+      :handle "iPhone Version 26.4 (Build 23E246)"
     ], [
       a :ProductModel;
       doc:key ("url");

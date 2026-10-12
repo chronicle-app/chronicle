@@ -34,7 +34,7 @@ const transform = async record => (await transformer.performTransform(record))[0
 
 // An instrument as [type, key, name]: an OS release keyed by its tag, or a
 // kind of device keyed by its Wikidata entity.
-const release = name => ['OperatingSystem', name, name];
+const release = handle => ['OperatingSystem', handle, undefined];
 const line = (id, name) => ['ProductModel', `http://www.wikidata.org/entity/${id}`, name];
 
 test('each recording is extracted newest first, with its file and transcript, as a RecordAction', async t => {
@@ -129,7 +129,7 @@ test('a recording names the OS release and the kind of device its file says it w
     const action = await transform(record);
     instruments.set(
       record.data.uniqueID,
-      action.instrument?.map(node => [node['@type'], node.sourceId ?? node.url, node.name])
+      action.instrument?.map(node => [node['@type'], node.handle ?? node.url, node.name])
     );
   }
   assert.deepEqual(instruments.get(ids.runs), [
