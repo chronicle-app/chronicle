@@ -232,10 +232,10 @@
   skos:closeMatch schemaorg:encodingFormat .
 [] a sh:PropertyShape; sh:path :mimeType; sh:targetSubjectsOf :mimeType; sh:maxCount 1 .
 :transcript a owl:DatatypeProperty;
-  rdfs:comment "The words spoken in the recording, written out, such as a voice memo's transcript or a video's captions. It is plain text with no timings. A recording can have several, such as one from the app that recorded it and one from another speech recognizer. A recording's spoken words are its :transcript, not its :body.";
-  rdfs:domain [ a owl:Class; owl:unionOf ( :AudioObject :VideoObject ) ];
+  rdfs:comment "The words spoken in a recording or an episode, written out, such as a voice memo's transcript, a podcast episode's transcript, or a video's captions. It is plain text with no timings. It belongs to the work rather than to one of its files, so a podcast episode's transcript is the episode's, not its audio file's. A recording can have several, such as one from the app that recorded it and one from another speech recognizer. Spoken words are a :transcript, not a :body.";
+  rdfs:domain [ a owl:Class; owl:unionOf ( :AudioObject :VideoObject :PodcastEpisode ) ];
   rdfs:range :Text;
-  skos:exactMatch schemaorg:transcript .
+  skos:closeMatch schemaorg:transcript .
 
 :SoftwareAgent a owl:Class;
   rdfs:subClassOf :Agent;
