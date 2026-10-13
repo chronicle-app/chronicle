@@ -1,7 +1,7 @@
 {
   "name": "@chronicle.app/cli",
   "description": "Extract your digital history into a shared vocabulary.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "author": "Andrew Louis",
   "bin": {
     "chronicle": "./bin/run.js"
@@ -10,16 +10,16 @@
     "url": "https://github.com/chronicle-app/chronicle/issues/new?labels=cli&title=[cli]%20"
   },
   "dependencies": {
-    "@chronicle.app/auth": "0.3.0",
-    "@chronicle.app/claude-code": "0.3.0",
-    "@chronicle.app/etl": "0.3.0",
-    "@chronicle.app/etl-sqlite": "0.3.0",
-    "@chronicle.app/imessage": "0.3.0",
-    "@chronicle.app/logging": "0.3.0",
-    "@chronicle.app/safari": "0.3.0",
-    "@chronicle.app/schema": "0.3.0",
-    "@chronicle.app/shell": "0.3.0",
-    "@chronicle.app/things-todo": "0.3.0",
+    "@chronicle.app/auth": "0.4.0",
+    "@chronicle.app/claude-code": "0.4.0",
+    "@chronicle.app/etl": "0.4.0",
+    "@chronicle.app/etl-sqlite": "0.4.0",
+    "@chronicle.app/imessage": "0.4.0",
+    "@chronicle.app/logging": "0.4.0",
+    "@chronicle.app/safari": "0.4.0",
+    "@chronicle.app/schema": "0.4.0",
+    "@chronicle.app/shell": "0.4.0",
+    "@chronicle.app/things-todo": "0.4.0",
     "@inquirer/core": "^12.0.3",
     "@oclif/core": "^4.2",
     "@oclif/plugin-autocomplete": "^3.2.11",
@@ -31,7 +31,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@chronicle.app/tsconfig": "0.3.0",
+    "@chronicle.app/tsconfig": "0.4.0",
     "@types/node": "^22.10.1",
     "oclif": "^4",
     "typescript": "^5.7.2"
