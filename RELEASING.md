@@ -31,10 +31,10 @@ The vocabulary has an independent stable semantic version in the ontology's
 `SCHEMA_VERSION` for future extraction or assertion-log metadata. Package versions
 identify software; vocabulary versions identify data contracts.
 
-Use patch releases for compatible fixes, minor releases for compatible features,
-and major releases for breaking public APIs, including generated types or
-validators, even during 0.x. A vocabulary version bump does not replace a required
-software version bump.
+Use patch releases for compatible fixes and minor releases for everything else.
+Until 1.0, a minor release can break public APIs, including generated types and
+validators. From 1.0, breaking changes need a major release. A vocabulary version
+bump does not replace a required software version bump.
 
 Review vocabulary changes against the last published snapshot and explicitly
 choose the appropriate schema bump; automation cannot infer semantic compatibility.
@@ -83,11 +83,12 @@ consumer, for example `npx @chronicle.app/cli@latest sources` in an empty direct
 Git tags preserve old versions without copying them into versioned source files.
 
 - Patch: description corrections that do not change meaning.
-- Minor: new terms or other compatible additions.
-- Major: term removal, changed meanings, or incompatible constraints.
+- Minor: any other change. Until 1.0, that includes renamed and removed terms,
+  changed meanings, and constraints that existing data may fail.
+- Major: from 1.0, term removal, changed meanings, or incompatible constraints.
 
-Apply these compatibility rules during `0.x` as well. Term identifiers remain
-unversioned and stable; a fundamentally different concept needs a new term.
+Term identifiers are unversioned, so don't reuse one for a different concept.
+Give that concept a new term.
 
 For an approved schema release:
 
