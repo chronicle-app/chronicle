@@ -1,4 +1,5 @@
 import { Help, type Command, type Interfaces } from '@oclif/core';
+import { getHelpFlagAdditions, standardizeIDFromArgv } from '@oclif/core/help';
 import { unknownCommand } from '../hooks/commandNotFound.js';
 import { outputFlagsIn, paragraph, tokens, type Tokens } from '../output/index.js';
 import { renderSourceHelp } from '../utils/sourceHelp.js';
@@ -65,14 +66,20 @@ export default class ChronicleHelp extends Help {
       }
     }
 
-    try {
-      await super.showHelp(argv);
-    } catch (error) {
-      // `chronicle help nope`: the same error as running it.
-      const missing = error instanceof Error && error.message.match(/^Command (.+) not found/);
-      if (missing) unknownCommand(this.config, missing[1], []);
-      throw error;
+    // `chronicle help nope`: the same error as running it. The subject is
+    // found the way oclif finds it: the first word, unless a flag comes first.
+    const helpFlags = getHelpFlagAdditions(this.config);
+    const words = standardizeIDFromArgv(
+      argv.filter(arg => !helpFlags.includes(arg)),
+      this.config
+    );
+    const at = words.findIndex(arg => arg !== 'help');
+    const subject = at >= 0 && !words[at].startsWith('-') ? words[at] : undefined;
+    if (subject && !this.config.findCommand(subject) && !this.config.findTopic(subject)) {
+      // The flags after it are kept, with --help, so a command it suggests still shows help.
+      unknownCommand(this.config, subject, ['--help', ...words.slice(at + 1)]);
     }
+    await super.showHelp(argv);
   }
 
   async showRootHelp(): Promise<void> {
@@ -89,15 +96,18 @@ export default class ChronicleHelp extends Help {
 
   formatRoot(): string {
     // A name that's both a topic and a command (`sources`) is listed once, by
-    // its command; an alias (`e`) isn't listed at all.
+    // its command; an alias (`e`) isn't listed at all. `chronicle help
+    // --nested-commands` lists every command instead of the top level.
+    const nested = Boolean(this.opts.all);
     const own = new Map<string, Entry>();
-    for (const topic of this.sortedTopics.filter(topic => !topic.name.includes(':'))) {
+    for (const topic of nested ? [] : this.sortedTopics.filter(t => !t.name.includes(':'))) {
       own.set(topic.name, { name: topic.name, summary: topic.description });
     }
     const plugins: Entry[] = [];
     for (const command of this.sortedCommands) {
-      if (command.id.includes(':') || command.aliases.includes(command.id)) continue;
-      const entry = { name: command.id, summary: listedSummary(command) };
+      if (command.hidden || command.aliases.includes(command.id)) continue;
+      if (!nested && command.id.includes(':')) continue;
+      const entry = { name: typed(command.id), summary: listedSummary(command) };
       if (command.pluginName === this.config.name) own.set(command.id, entry);
       else plugins.push(entry);
     }

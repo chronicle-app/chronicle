@@ -19,8 +19,9 @@ export function unknownCommand(
     .filter(command => !command.hidden)
     .map(command => command.id.replaceAll(':', ' '));
   const words = typed.trim().split(/\s+/);
+  // oclif's ids never hold a space, so one means the words came as one argument.
   const joined =
-    words.length > 1 && words.some((_, i) => commands.includes(words.slice(0, i + 1).join(' ')));
+    id.includes(' ') && words.some((_, i) => commands.includes(words.slice(0, i + 1).join(' ')));
   const guess = closest(typed, commands);
   logger.emit({
     level: 'error',

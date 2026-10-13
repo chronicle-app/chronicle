@@ -348,10 +348,30 @@ test('every command has help, asked for either way, drawn by the help class', as
   const quoted = run('auth list --help', '--log-format', 'json');
   assert.equal(quoted.status, 2);
   assert.match(quoted.stderr, /unknown-command.*chronicle auth list --help/);
+  // Asked for help, it's given back with --help kept, and the flags after it.
+  const quotedHelp = run('auth list', '--help', '--log-format', 'json');
+  assert.equal(quotedHelp.status, 2);
+  assert.match(
+    JSON.parse(quotedHelp.stderr).hint.action,
+    /`chronicle auth list --help --log-format json`/
+  );
+  assert.match(run('help', 'auth list').stderr, / chronicle auth list --help\n/);
   // `help` is oclif's command, without --log-format; its unknown command reads like any other.
   const unknown = run('help', 'nope');
   assert.equal(unknown.status, 2);
   assert.match(unknown.stderr, /✗ Error: Unknown command "nope"/);
+  assert.equal(
+    JSON.parse(run('nope', '--help', '--log-format', 'json').stderr).error.code,
+    'unknown-command'
+  );
+  // A typo under a command that's also a topic gets the closest command.
+  const typo = run('plugins', 'instal');
+  assert.equal(typo.status, 2);
+  assert.match(typo.stderr, /`chronicle plugins install`/);
+  // `--nested-commands` lists every command, not just the top level.
+  const nested = success(run('help', '--nested-commands'));
+  assert.match(nested, /^ {2}config preset show /m);
+  assert.doesNotMatch(root, /^ {2}config preset show /m);
 });
 
 test('auth stores and removes synthetic credentials; missing token fails promptly', t => {
