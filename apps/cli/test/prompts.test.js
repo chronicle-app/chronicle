@@ -2,6 +2,10 @@ import assert from 'node:assert/strict';
 import { PassThrough, Writable } from 'node:stream';
 import { test } from 'node:test';
 
+// `node --test` at a terminal sets FORCE_COLOR; these tests read plain text.
+delete process.env.FORCE_COLOR;
+process.env.NO_COLOR = '1';
+
 const { confirm, select, multiSelect, input } = await import('../dist/output/prompts.js');
 
 const OPTIONS = [
