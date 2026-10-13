@@ -95,23 +95,34 @@ redacted.
 
 - `tokens({ stream, theme })`: the color roles for stdout or stderr, with
   color detection, `NO_COLOR`, and `--theme` handled once. `plainTokens` style
-  nothing.
+  nothing. `jsonColors(theme)`: the JSON loader's syntax colors.
 - `glyphs`: the glyph set.
 - Formatters: `count`, `duration`, `clock`, `plural`, `date`, `truncate`,
   `relativePath`.
 - Blocks, each returning strings cut to a width: `line`, `summary`, `hint`,
-  `guide`, `heading`, `list`, `caption`, `card`, `table`, and `progress` (the
-  live line).
+  `guide`, `heading`, `paragraph`, `definitions` (terms and their text, as
+  help lists flags and commands), `list`, `caption`, `card`, `table`, and
+  `progress` (the live line).
+- Help: every help screen (`src/help/render.ts`), drawn from these blocks by
+  the help class oclif loads (`src/help/Help.ts`).
+- Prompts (`prompts.ts`): `confirm`, `select`, `multiSelect`, and `input`,
+  drawn on stderr with the tokens and the picker glyphs, on `@inquirer/core`.
+  Esc or Ctrl+C cancels; a cancel clears the question, and an answer leaves one
+  line. Import them from `prompts.js` where a question is asked, not from the
+  index, so commands that never ask don't load them. Ask only at a terminal;
+  without one, say which flag to pass instead.
 - Sinks: `createSink`, `PrettySink`, `PlainSink`, and `render`, their shared
   look.
 
 ## The gallery
 
-`npm run gallery -w @chronicle.app/cli` prints every block and a fixed set of
-events through all three sinks, in every theme, at 40, 80, and 120 columns.
+`npm run gallery -w @chronicle.app/cli` prints every block, the help screens
+and the sources table, and a fixed set of events through all three sinks, in
+every theme and without color, at 40, 80, and 120 columns.
 Change a token or a block, run it, and see the change everywhere. The output
 test renders the same gallery and checks that nothing throws, no line exceeds
-its width, `plain` has no color, and every `json` line parses.
+its width but a command's, `plain` and colorless help have no color, and every
+`json` line parses.
 
 To watch the live view on a real source, slow it down: `--delay <ms>` waits
 before each extracted record, as in `chronicle extract shell --delay 50

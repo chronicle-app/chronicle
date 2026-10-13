@@ -1,19 +1,19 @@
 import { BaseCommand } from '../../../baseCommand.js';
 import { Args, Flags } from '@oclif/core';
-import { inkConfirm } from '../../../components/InkConfirm.js';
 import { ConfigManager } from '../../../config/index.js';
+import { canAsk } from '../../../output/index.js';
 
 export default class PresetDeleteCommand extends BaseCommand<typeof PresetDeleteCommand> {
-  static override description = 'Delete a configuration preset';
+  static override description = 'Delete a preset';
 
   static override examples = [
-    '<%= config.bin %> <%= command.id %> test',
-    '<%= config.bin %> <%= command.id %> test --force',
+    'chronicle config preset delete quick',
+    'chronicle config preset delete quick --force',
   ];
 
   static override args = {
     name: Args.string({
-      description: 'Name of the preset to delete',
+      description: "The preset's name",
       required: true,
     }),
   };
@@ -21,7 +21,7 @@ export default class PresetDeleteCommand extends BaseCommand<typeof PresetDelete
   static override flags = {
     force: Flags.boolean({
       char: 'f',
-      description: 'Skip confirmation prompt',
+      summary: 'Delete without asking',
     }),
   };
 
@@ -33,27 +33,37 @@ export default class PresetDeleteCommand extends BaseCommand<typeof PresetDelete
       const preset = await configManager.getPreset(args.name);
 
       if (!preset) {
-        this.fail(`Preset '${args.name}' not found`);
+        this.fail(`No preset named "${args.name}"`, {
+          code: 'unknown-preset',
+          hint: 'Run `chronicle config preset list` to see them.',
+        });
       }
 
       if (!flags.force) {
-        const result = await inkConfirm(`Delete preset '${args.name}'?`, { defaultValue: false });
+        // The question needs a terminal to answer it at.
+        if (!canAsk()) {
+          this.fail("Can't ask to confirm without a terminal", {
+            hint: `Run \`chronicle config preset delete ${args.name} --force\` to delete it without asking.`,
+          });
+        }
+        const { confirm } = await import('../../../output/prompts.js');
+        const result = await confirm(`Delete the preset ${args.name}?`, {
+          defaultValue: false,
+          theme: flags.theme,
+        });
 
         if (result.cancelled || !result.confirmed) {
-          this.log('Delete cancelled.');
+          this.logger.info('Delete cancelled');
           return;
         }
       }
 
-      const deleted = await configManager.deletePreset(args.name);
-
-      if (deleted) {
-        this.log(`Preset '${args.name}' deleted.`);
-      } else {
-        this.fail(`Failed to delete preset '${args.name}'`);
+      if (!(await configManager.deletePreset(args.name))) {
+        this.fail(`Couldn't delete the preset ${args.name}`);
       }
+      this.summary(`Deleted the preset ${args.name}`);
     } catch (error) {
-      this.failFrom(error, 'Failed to delete preset');
+      this.failFrom(error, "Couldn't delete the preset");
     }
   }
 }

@@ -14,7 +14,7 @@ import {
   YamlLoader,
   toCamelCase,
 } from '@chronicle.app/etl';
-import { getTheme } from '../theme.js';
+import { jsonColors } from '../output/index.js';
 import { PreviewLoader } from '../loaders/PreviewLoader.js';
 import { TableLoader } from '../loaders/TableLoader.js';
 
@@ -167,9 +167,8 @@ export class RunnerBuilder {
 
     // Special handling for JsonLoader to include theme and stdout mode
     if (LoaderClass === JsonLoader) {
-      const currentTheme = getTheme(this.flags.theme);
       const isStdoutMode = this.determineStdoutMode();
-      const loader = new LoaderClass(config, currentTheme.jsonChalk, isStdoutMode);
+      const loader = new LoaderClass(config, jsonColors(this.flags.theme), isStdoutMode);
       return loader;
     }
 

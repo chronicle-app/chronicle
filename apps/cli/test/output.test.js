@@ -7,8 +7,11 @@ test('the gallery renders every block and event within its width, in every sink 
   const { gallery, EVENTS } = await import('../dist/output/gallery.js');
   const sections = gallery();
   assert.ok(sections.length > 0);
-  for (const { title, width, format, lines } of sections) {
+  for (const { title, width, format, color, lines } of sections) {
     assert.ok(lines.length > 0, `${title} is empty`);
+    if (color === false) {
+      for (const line of lines) assert.doesNotMatch(line, ANSI, `${title} has color`);
+    }
     if (format === 'json') {
       const events = lines.map(line => JSON.parse(line));
       // Personal fields are redacted, a keyed flood aggregates, progress is a heartbeat.
@@ -53,8 +56,8 @@ test('the gallery renders every block and event within its width, in every sink 
     }
     for (const line of lines) {
       const visible = line.replaceAll(ANSI, '');
-      // A hint's command prints whole, on a line of its own: one split can't be copied.
-      const command = /^(\d\d:\d\d:\d\d )? {4,6}`?chronicle [^`]*`?[.?]?$/.test(visible);
+      // A command prints whole, on a line of its own: one split can't be copied.
+      const command = /^(\d\d:\d\d:\d\d )? {2,6}`?chronicle [^`]*`?[.?]?$/.test(visible);
       if (command) continue;
       assert.ok(visible.length <= width, `${title}: ${visible.length} > ${width}: ${visible}`);
     }
@@ -78,4 +81,17 @@ test('a group that goes quiet still gets its roll-up on time', async () => {
   assert.equal(lines.length, 2);
   assert.equal(lines[1].fields.suppressed, 3);
   sink.flush();
+});
+
+test('a card wraps its values when asked, cutting no word', async () => {
+  const { card, plainTokens } = await import('../dist/output/index.js');
+  const types = 'comments, issues, pull requests, releases, repositories, resolutions, stars';
+  // Cut by default, to the width.
+  const [cut] = card(undefined, [['types', types]], plainTokens, 40);
+  assert.equal(cut.length, 40);
+  // Wrapped, every word is there, each line under the value's column.
+  const wrapped = card(undefined, [['types', types]], plainTokens, 40, { wrap: true });
+  assert.ok(wrapped.length > 1);
+  assert.ok(wrapped.every(line => line.length <= 40));
+  assert.equal(wrapped.map(line => line.slice('types  '.length)).join(' '), types);
 });

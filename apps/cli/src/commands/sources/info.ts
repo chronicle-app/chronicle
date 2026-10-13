@@ -1,29 +1,23 @@
 import { Args } from '@oclif/core';
 import { BaseCommand } from '../../baseCommand.js';
+import { DELIVERY } from '../../help/render.js';
+import { card, definitions, heading, line, stdoutWidth, tokens } from '../../output/index.js';
 import { listSources } from '../../plugins/catalog.js';
-import { getTheme } from '../../theme.js';
-
-/** What each delivery asks of the person running it. */
-const NEEDS = {
-  export: 'export, needs --input',
-  api: 'live, needs auth',
-  local: 'live, reads in place',
-  direct: 'delivered by the app',
-} as const;
+import { PLATFORM_NAMES } from '../../utils/sourcesTable.js';
 
 export default class SourcesInfo extends BaseCommand<typeof SourcesInfo> {
-  static override description = 'Show a source: its strategies, record types, and how to run it';
+  static override description = "Show a source's strategies and record types, and how to run it";
 
   static override examples = ['chronicle sources info shell', 'chronicle sources info things-todo'];
 
   static override args = {
-    source: Args.string({ description: 'Source name (e.g. shell, imessage)', required: true }),
+    source: Args.string({ description: 'A source, like shell or imessage', required: true }),
   };
 
   async run(): Promise<void> {
     const { args } = await this.parse(SourcesInfo);
-    const theme = getTheme(this.flags.theme);
-    const label = (text: string) => theme.textDim(text.padEnd(11));
+    const t = tokens({ stream: 'stdout', theme: this.flags.theme });
+    const width = stdoutWidth();
 
     const listing = (await listSources()).find(s => s.source === args.source);
 
@@ -33,47 +27,60 @@ export default class SourcesInfo extends BaseCommand<typeof SourcesInfo> {
       });
     }
 
-    this.log(theme.textBold(args.source) + (listing.summary ? `  ${listing.summary}` : ''));
-    this.log('');
-    this.log(`  ${label('plugin:')} ${listing.package}`);
-    this.log(`  ${label('tier:')} ${listing.tier ?? 'not in catalog'}`);
-
     const types = [...new Set(listing.strategies.flatMap(strategy => strategy.recordTypes))];
+    const runsOn = listing.platforms.map(p => PLATFORM_NAMES[p] ?? p).join(', ');
     this.log(
-      `  ${label('strategies:')} ` +
-        listing.strategies
-          .map(
-            strategy =>
-              `${theme.text(strategy.name)} ${theme.textDim(`(${NEEDS[strategy.delivery]})`)}`
-          )
-          .join(theme.textDim(' · '))
+      line([[args.source, t.strong], [listing.summary ? `  ${listing.summary}` : '']], width)
     );
-    this.log(`  ${label('types:')} ${theme.textDim(types.join(', '))}`);
-    if (listing.platforms.length > 0) {
-      this.log(
-        `  ${label('runs on:')} ${listing.platforms.join(', ')}` +
-          (listing.supported ? '' : theme.warning(' (not this machine)'))
-      );
+    this.log('');
+    for (const entry of card(
+      undefined,
+      [
+        ['plugin', listing.installed ? listing.package : `${listing.package}, not installed`],
+        ['tier', listing.tier ?? 'not in catalog'],
+        ['types', types.join(', ')],
+        ...(runsOn
+          ? [
+              ['runs on', listing.supported ? runsOn : `${runsOn}, not this computer`] as [
+                string,
+                string,
+              ],
+            ]
+          : []),
+        ...(listing.requires.length > 0
+          ? [['needs', listing.requires.join(', ')] as [string, string]]
+          : []),
+      ],
+      t,
+      width,
+      { wrap: true }
+    )) {
+      this.log(entry);
     }
-    if (listing.requires.length > 0) {
-      this.log(`  ${label('needs:')} ${listing.requires.join(', ')}`);
+    this.log('');
+    this.log(heading('Strategies', t, width));
+    for (const entry of definitions(
+      listing.strategies.map(strategy => ({
+        term: [[strategy.name, t.command]],
+        text: `${DELIVERY[strategy.delivery] ?? strategy.delivery}.${strategy.default ? ' The default.' : ''}`,
+      })),
+      t,
+      width
+    )) {
+      this.log(entry);
     }
 
-    this.log('');
     if (!listing.installed) {
-      this.log(theme.textDim('Not installed. Install it with:'));
-      this.log(`  ${theme.text(`chronicle plugins install ${listing.plugin}`)}`);
+      this.hint(`Run \`chronicle plugins install ${listing.plugin}\` to install it.`);
       return;
     }
-    this.log(theme.textDim('Run it:'));
-    this.log(`  ${theme.text(`chronicle extract ${args.source}`)}  ${theme.textDim('→ stdout')}`);
     // Point at a strategy a bare run would not take.
     const alternate = listing.strategies.find(strategy => !strategy.default);
-    if (listing.strategies.length > 1 && alternate) {
-      this.log(
-        `  ${theme.text(`chronicle extract ${args.source} --strategy ${alternate.name}`)}  ` +
-          theme.textDim('→ a different strategy')
-      );
-    }
+    this.hint(
+      listing.strategies.length > 1 && alternate
+        ? `Run \`chronicle extract ${args.source}\` to extract it, or ` +
+            `\`chronicle extract ${args.source} --strategy ${alternate.name}\` for ${alternate.name}.`
+        : `Run \`chronicle extract ${args.source}\` to extract it.`
+    );
   }
 }

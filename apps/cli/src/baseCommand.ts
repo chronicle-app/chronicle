@@ -42,28 +42,29 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
     verbose: Flags.boolean({
       char: 'v',
       helpGroup: 'GLOBAL',
-      summary: 'Enable verbose output (debug level)',
+      summary: 'Show debug messages too',
     }),
     quiet: Flags.boolean({
       char: 'q',
       helpGroup: 'GLOBAL',
-      summary: 'Suppress non-essential output',
+      summary: 'Print only errors',
     }),
     preset: Flags.string({
       char: 'p',
-      description: 'Use named configuration preset(s), comma-separated',
+      summary: 'Presets to use, comma-separated',
       helpGroup: 'GLOBAL',
-      helpValue: 'name1,name2',
+      helpValue: '<name,...>',
     }),
     theme: Flags.string({
-      description: 'Color theme for output (default, minimal, high-contrast)',
+      summary: 'The color theme',
       helpGroup: 'GLOBAL',
       options: ['default', 'minimal', 'high-contrast'],
     }),
     'log-format': Flags.option({
       options: LOG_FORMATS,
       helpGroup: 'GLOBAL',
-      summary: 'How stderr reports: pretty on a terminal, else plain; json for supervisors',
+      summary:
+        'How messages print: pretty at a terminal, plain otherwise, json for another program',
     })(),
   };
 
@@ -123,6 +124,19 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
     });
     this.logger.flush();
     throw new Errors.ExitError(exitCode);
+  }
+
+  /**
+   * What to do next, on stderr under the output: a plain sentence with the
+   * command in it, and the step to take on a line of its own, if there is one.
+   */
+  protected hint(message: string, action?: string): void {
+    this.logger.emit({ level: 'info', kind: 'hint', message, ...(action && { hint: { action } }) });
+  }
+
+  /** What a command did, once it's done, on stderr: `Saved the preset quick`. */
+  protected summary(message: string): void {
+    this.logger.emit({ level: 'info', kind: 'summary', message });
   }
 
   /** The command that shows this command's help, for hints. */

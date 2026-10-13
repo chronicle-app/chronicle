@@ -1,7 +1,7 @@
 import { Command, Interfaces } from '@oclif/core';
 
 import { BaseCommand } from './baseCommand.js';
-import { inkInput } from './components/InkInput.js';
+import { canAsk, outputFlagsIn } from './output/index.js';
 import { PluginScanner } from './plugins/PluginScanner.js';
 import { FlagManager } from './utils/FlagManager.js';
 
@@ -56,7 +56,7 @@ export default abstract class ExtractCommand<T extends typeof Command> extends B
    * Prompt user for a missing required flag
    */
   private async promptForRequiredFlag(flagName: string): Promise<string | null> {
-    if (!process.stdin.isTTY) return null;
+    if (!canAsk()) return null;
     try {
       const ExtractCommandClass = this.constructor as typeof ExtractCommand;
       const { flags } = ExtractCommandClass;
@@ -73,14 +73,15 @@ export default abstract class ExtractCommand<T extends typeof Command> extends B
         `Missing required flag --${flagName}${flagDef.summary ? `: ${flagDef.summary}` : ''}`,
         requiredFlags ? { required: requiredFlags } : undefined
       );
-      this.logger.emit({
-        level: 'info',
-        kind: 'hint',
-        message: `--${flagName} is required`,
-        hint: { action: `Pass \`--${flagName}\` next time to skip this question.` },
-      });
+      this.hint(
+        `--${flagName} is required`,
+        `Pass \`--${flagName}\` next time to skip this question.`
+      );
 
-      const result = await inkInput(`Enter value for required flag --${flagName}:`, {
+      const { input } = await import('./output/prompts.js');
+      const result = await input(`Enter value for required flag --${flagName}:`, {
+        // The flags didn't parse, so the theme comes from argv.
+        theme: outputFlagsIn(this.argv).theme,
         validate(input: string) {
           if (!input.trim()) return `${flagName} is required`;
           return true;

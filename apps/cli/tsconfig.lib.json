@@ -4,12 +4,11 @@
     "rootDir": "src",
     "outDir": "dist",
     "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
-    "jsx": "react-jsx",
     "noUnusedLocals": false,
     "noImplicitOverride": false,
     "noImplicitReturns": false
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "include": ["src/**/*.ts"],
   "references": [
     {
       "path": "../../core/etl/tsconfig.lib.json"

@@ -82,3 +82,61 @@ export function tokens({ stream = 'stderr', theme = 'default', color }: TokenOpt
 
 /** Tokens that style nothing: for files, and for the plain sink. */
 export const plainTokens: Tokens = tokens({ color: false });
+
+/** What each part of JSON is drawn in, for the JSON loader at a terminal. */
+export interface JsonColors {
+  StringLiteral: chalk.Chalk;
+  NumberLiteral: chalk.Chalk;
+  BooleanLiteral: chalk.Chalk;
+  NullLiteral: chalk.Chalk;
+  StringKey: chalk.Chalk;
+  Whitespace: chalk.Chalk;
+  Brace: chalk.Chalk;
+  Bracket: chalk.Chalk;
+  Colon: chalk.Chalk;
+  Comma: chalk.Chalk;
+}
+
+/** JSON's syntax colors on stdout, in `theme`. */
+export function jsonColors(theme = 'default'): JsonColors {
+  const c = new chalk.Instance({ level: colorLevel('stdout') });
+  const punctuation = (style: chalk.Chalk) => ({
+    Brace: style,
+    Bracket: style,
+    Colon: style,
+    Comma: style,
+  });
+  switch (theme.toLowerCase()) {
+    case 'minimal':
+      return {
+        StringLiteral: c.white,
+        NumberLiteral: c.cyan,
+        BooleanLiteral: c.yellow,
+        NullLiteral: c.gray,
+        StringKey: c.white,
+        Whitespace: c.white,
+        ...punctuation(c.gray),
+      };
+    case 'high-contrast':
+    case 'highcontrast':
+      return {
+        StringLiteral: c.green,
+        NumberLiteral: c.cyan,
+        BooleanLiteral: c.magenta,
+        NullLiteral: c.gray,
+        StringKey: c.yellow,
+        Whitespace: c.white,
+        ...punctuation(c.white),
+      };
+    default:
+      return {
+        StringLiteral: c.green,
+        NumberLiteral: c.cyan,
+        BooleanLiteral: c.yellow,
+        NullLiteral: c.gray,
+        StringKey: c.blue,
+        Whitespace: c.white,
+        ...punctuation(c.gray),
+      };
+  }
+}

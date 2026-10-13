@@ -5,7 +5,7 @@ import { BaseCommand } from '../../baseCommand.js';
 import { findEntry, loadCatalog } from '../../plugins/catalog.js';
 import { addLocalPlugin } from '../../plugins/local.js';
 import { KINDS, type Kind, isPluginName, scaffold } from '../../plugins/scaffold.js';
-import { getTheme } from '../../theme.js';
+import { canAsk, tokens } from '../../output/index.js';
 
 export default class PluginsNew extends BaseCommand<typeof PluginsNew> {
   static override description =
@@ -17,21 +17,27 @@ export default class PluginsNew extends BaseCommand<typeof PluginsNew> {
   ];
 
   static override args = {
-    name: Args.string({ description: 'The plugin and source name, in kebab-case', required: true }),
+    name: Args.string({
+      description: 'The plugin and source name, in lowercase words joined by hyphens',
+      required: true,
+    }),
   };
 
   static override flags = {
     ...BaseCommand.baseFlags,
     from: Flags.string({
-      summary: 'How the data reaches you (asked when omitted)',
+      summary: "How the data reaches you. You're asked when it's left out.",
       options: Object.keys(KINDS),
     }),
-    dir: Flags.string({ summary: 'Where to create it (default: ./<name>)' }),
+    dir: Flags.string({
+      summary: 'The folder to create it in. The default is one named after it.',
+      helpValue: '<folder>',
+    }),
   };
 
   async run(): Promise<void> {
     const { args, flags } = await this.parse(PluginsNew);
-    const theme = getTheme(flags.theme);
+    const t = tokens({ stream: 'stdout', theme: flags.theme });
     const { name } = args;
 
     if (!isPluginName(name)) {
@@ -54,8 +60,7 @@ export default class PluginsNew extends BaseCommand<typeof PluginsNew> {
       }
     }
 
-    const interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY);
-    const kind = (flags.from ?? (await this.askKind(interactive))) as Kind;
+    const kind = (flags.from ?? (await this.askKind(flags.theme))) as Kind;
 
     for (const [file, contents] of Object.entries(
       scaffold({ name, kind, version: this.config.version })
@@ -69,23 +74,24 @@ export default class PluginsNew extends BaseCommand<typeof PluginsNew> {
       this.failFrom(error);
     }
 
-    this.log(`${theme.success('Created and added')} ${theme.textBold(name)} ${theme.textDim(dir)}`);
+    this.log(`${t.success('Created and added')} ${t.strong(name)} ${t.muted(dir)}`);
     this.log('');
     this.log(
-      `${theme.textDim('Next: follow')} ${path.join(dir, 'AGENTS.md')}${theme.textDim(
+      `${t.muted('Next: follow')} ${path.join(dir, 'AGENTS.md')}${t.muted(
         ', or point a coding agent at it.'
       )}`
     );
   }
 
-  private async askKind(interactive: boolean): Promise<string> {
-    if (!interactive) {
+  private async askKind(theme: string | undefined): Promise<string> {
+    if (!canAsk()) {
       this.fail(`Say how the data reaches you with --from (${Object.keys(KINDS).join(', ')}).`);
     }
-    const { inkSelect } = await import('../../components/InkSelect.js');
-    const { value, cancelled } = await inkSelect(
+    const { select } = await import('../../output/prompts.js');
+    const { value, cancelled } = await select(
       'How does the data reach you?',
-      Object.entries(KINDS).map(([value, { label }]) => ({ label, value }))
+      Object.entries(KINDS).map(([value, { label }]) => ({ label, value })),
+      { theme }
     );
     if (cancelled) this.exit(130);
     return value;

@@ -54,7 +54,7 @@ export class FlagManager {
       default: defaultValue,
       helpGroup: 'LOADING',
       options: Object.keys(loaderRegistry),
-      summary: 'The loader to use',
+      summary: 'How to write the records',
     });
   }
 
@@ -65,8 +65,8 @@ export class FlagManager {
       strategy: Flags.string({
         summary:
           strategies.length > 0
-            ? `How to read this source: ${strategies.join(', ')}`
-            : 'How to read this source',
+            ? `How to extract this source: ${strategies.join(', ')}`
+            : 'How to extract this source',
         helpValue: '<name>',
         helpGroup: 'EXTRACTION',
         options: strategies.length > 0 ? strategies : undefined,
@@ -87,7 +87,7 @@ export class FlagManager {
     flags.output = Flags.string({
       char: 'o',
       helpGroup: 'LOADING',
-      summary: 'Output file path (default: stdout)',
+      summary: 'A file to write the records to. The default is stdout.',
     });
 
     // Add generic headers flag (applies to csv, table loaders)
@@ -95,7 +95,7 @@ export class FlagManager {
       allowNo: true,
       default: true,
       helpGroup: 'LOADING',
-      summary: 'Show column headers in output (csv, table)',
+      summary: 'Print column headers (csv and table)',
     });
 
     // Collect all loader-specific flags, but prioritize ExtractCommand-defined ones.
@@ -123,8 +123,10 @@ export class FlagManager {
           const defaultValue = (zodType as any)._def.default;
           const helpGroup = `LOADING (--loader=${loaderName})`;
 
+          // Left out of help: they matter only with their loader.
           flags[flagName] = Flags.string({
             helpGroup,
+            hidden: true,
             summary: description,
             default: defaultValue,
           });
@@ -150,78 +152,81 @@ export class FlagManager {
         helpGroup: 'TRANSFORMATION',
         helpValue: '<field.subfield>',
         multiple: true,
-        summary: 'Pick only certain fields',
+        summary: 'Keep only these fields',
       }),
       flatten: Flags.boolean({
         helpGroup: 'TRANSFORMATION',
-        summary: 'Flatten objects',
+        summary: 'Flatten nested objects',
       }),
       sample: Flags.string({
         helpGroup: 'TRANSFORMATION',
-        summary: 'Sample records at given rate (e.g., 0.5 for 50%)',
+        summary: 'Keep this share of records, like 0.5 for half',
       }),
       'truncate-base64': Flags.boolean({
         helpGroup: 'TRANSFORMATION',
-        summary: 'Truncate base64 encoded strings to 100 characters for readability',
+        summary: 'Cut base64 strings to 100 characters',
         default: false,
       }),
       'download-attachments': Flags.boolean({
         helpGroup: 'TRANSFORMATION',
-        summary: 'Download media referenced by url and embed the bytes inline for ingest',
+        summary: 'Download linked media and embed it in the record',
         default: false,
       }),
       input: Flags.string({
         char: 'i',
         helpGroup: 'EXTRACTION',
-        summary: 'Input file or directory path',
+        summary: 'An input file or folder',
       }),
       limit: Flags.integer({
         char: 'l',
         default: DEFAULT_LIMIT,
         helpGroup: 'EXTRACTION',
+        helpValue: '<n>',
         async parse(input: string) {
           return Number.parseInt(input, 10);
         },
-        summary: 'Limit the number of records extracted. Use 0 for no limit.',
+        summary: 'The most records to extract. Use 0 for all.',
       }),
       preview: Flags.boolean({
         helpGroup: 'LOADING',
-        summary: 'Print the first few records as readable text (--loader preview --limit 5)',
+        summary: 'Print the first five records as readable text',
       }),
       raw: Flags.boolean({
         helpGroup: 'TRANSFORMATION',
-        summary: "Don't transform extracted data into Chronicle schema.",
+        summary: 'Print records as the source has them, not in the Chronicle schema',
       }),
       validate: Flags.boolean({
         allowNo: true,
         default: true,
         helpGroup: 'TRANSFORMATION',
-        summary: 'Validate transformed records against Chronicle schema',
+        summary: 'Check records against the Chronicle schema',
       }),
       since: dateFlag({
         char: 's',
         helpGroup: 'EXTRACTION',
-        summary: 'Extract records since this date',
+        helpValue: '<date>',
+        summary: 'Extract records from this date on, or this long ago, like 30d',
       }),
       stream: Flags.boolean({
         default: false,
-        description: 'Stream results instead of buffering until complete',
+        summary: 'Write each record as it comes, not all at the end',
         helpGroup: 'EXTRACTION',
       }),
       until: dateFlag({
         char: 'u',
         helpGroup: 'EXTRACTION',
-        summary: 'Extract records until this date',
+        helpValue: '<date>',
+        summary: 'Extract records up to this date',
       }),
       type: Flags.string({
         helpGroup: 'EXTRACTION',
-        summary: 'Record kinds to pull, comma-separated (default: every kind)',
-        helpValue: '<kind[,kind]>',
+        summary: 'Record types to extract, comma-separated',
+        helpValue: '<type,...>',
         char: 't',
       }),
       'list-types': Flags.boolean({
         helpGroup: 'EXTRACTION',
-        summary: 'List the record kinds and the strategies that carry them, then exit',
+        summary: 'List the record types and the strategies that have them',
         char: 'L',
       }),
       ...this.getAllLoaderFlags(),

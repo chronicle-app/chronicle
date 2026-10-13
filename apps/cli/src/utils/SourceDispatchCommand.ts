@@ -5,14 +5,8 @@ import { BaseCommand } from '../baseCommand.js';
 import { PluginScanner, type ExtractorMetadata } from '../plugins/PluginScanner.js';
 import { FlagManager } from './FlagManager.js';
 import { recordTypesHint, renderRecordTypes, renderSourceHelp } from './sourceHelp.js';
-import { getTheme } from '../theme.js';
-import { outputFlagsIn } from '../output/index.js';
+import { canAsk, outputFlagsIn } from '../output/index.js';
 
-// NOTE: nothing here may statically import `ink` (ExtractorSelector/InkSelect,
-// ExtractCommand). Importing ink resumes
-// process.stdin at load time, which would drain piped input before the
-// file/stdin (non-source) path reads it. Those are dynamic-imported below,
-// only on the dispatch path — which never touches stdin.
 const EXTRACT_BASE_FLAGS = FlagManager.getBaseFlags(BaseCommand.baseFlags);
 
 /**
@@ -41,7 +35,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
   protected readonly parsesFlagsForNonSource: boolean = true;
 
   static override args = {
-    source: Args.string({ description: 'Source name (e.g. shell, imessage)', required: false }),
+    source: Args.string({ description: 'A source, like shell or imessage', required: false }),
   };
 
   static override strict = false;
@@ -162,14 +156,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
         candidates,
         (this.constructor as any).id || 'extract'
       );
-      if (hint) {
-        this.logger.emit({
-          level: 'info',
-          kind: 'hint',
-          message: hint.message,
-          ...(hint.action && { hint: { action: hint.action } }),
-        });
-      }
+      if (hint) this.hint(hint.message, hint.action);
       this.exit(0);
     }
 
@@ -270,9 +257,9 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
       // (WhatsApp's Mac database) is not an export you handed it.
       input: metadata?.flags?.input?.setFromDefault ? undefined : parsed.input,
       hasCredentials: await this.hasStoredCredentials(positional),
-      // Interactive selection needs a TTY (Ink raw mode). In a pipe the
-      // selector throws with the strategies instead of crashing on raw mode.
-      interactive: process.stdin.isTTY,
+      // Asking needs a terminal. Without one the selector throws with the
+      // strategies instead of waiting for keys that never come.
+      interactive: canAsk(),
       theme: parsed.theme,
     });
 
@@ -323,11 +310,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     const order = kinds.length > 1 && !merged ? ', one kind after another' : '';
     this.logger.info(`Extracting ${kinds.join(', ')}${order}`);
     if (excluded.length > 0 && how !== 'named') {
-      this.logger.emit({
-        level: 'info',
-        kind: 'hint',
-        message: `Also available: ${excluded.join(', ')}. Use \`-t all\` to get everything.`,
-      });
+      this.hint(`Also available: ${excluded.join(', ')}. Use \`-t all\` to get everything.`);
     }
   }
 
@@ -434,21 +417,16 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     }
 
     const command = `chronicle plugins install ${listing.plugin}`;
-    // The prompt draws on stdout, so only offer it when records aren't piped.
-    if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    if (!canAsk()) {
       this.fail(`${source} isn't installed`, { hint: `Install it with \`${command}\`.` });
     }
-    const { inkConfirm } = await import('../components/InkConfirm.js');
-    const { confirmed } = await inkConfirm(
+    const { confirm } = await import('../output/prompts.js');
+    const { confirmed } = await confirm(
       `${source} needs the ${listing.package} plugin. Install it now?`,
       { defaultValue: true, theme: (this.flags as any)?.theme }
     );
     if (!confirmed) {
-      this.logger.emit({
-        level: 'info',
-        kind: 'hint',
-        message: `Not installed. Install it later with \`${command}\`.`,
-      });
+      this.hint(`Not installed. Install it later with \`${command}\`.`);
       this.exit(1);
     }
 
@@ -458,7 +436,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     } catch (error) {
       this.failFrom(error);
     }
-    this.logger.emit({ level: 'info', kind: 'summary', message: `Installed ${listing.package}` });
+    this.summary(`Installed ${listing.package}`);
     const verb = (this.constructor as any).id || 'extract';
     await this.config.runCommand(verb, this.argv);
   }

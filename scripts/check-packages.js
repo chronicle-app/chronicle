@@ -272,7 +272,10 @@ try {
     const { dependencies: cliDependencies } = JSON.parse(
       readFileSync(join(consumer, 'node_modules/@chronicle.app/cli/package.json'), 'utf8')
     );
-    for (const line of cli(['plugins']).trim().split('\n')) {
+    // A table: the heading and its rule, then a row per plugin.
+    const [heading, , ...rows] = cli(['plugins']).trim().split('\n');
+    assert.match(heading, /^plugin +version +from$/);
+    for (const line of rows) {
       const [name, , origin] = line.trim().split(/\s+/);
       assert.equal(origin, name in cliDependencies ? 'bundled' : 'beside-cli', line);
     }

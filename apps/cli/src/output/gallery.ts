@@ -1,5 +1,9 @@
 import { pathToFileURL } from 'node:url';
+import type { Command } from '@oclif/core';
 import type { OutputEvent } from '@chronicle.app/logging';
+import { commandHelp, rootHelp, sourceHelp, topicHelp } from '../help/render.js';
+import type { SourceListing } from '../plugins/catalog.js';
+import { sourcesTable } from '../utils/sourcesTable.js';
 import {
   caption,
   card,
@@ -12,7 +16,7 @@ import {
 } from './blocks.js';
 import { progress, type ProgressFields } from './live.js';
 import { createSink, LOG_FORMATS, type LogFormat } from './sinks.js';
-import { THEMES, tokens } from './tokens.js';
+import { THEMES, plainTokens, tokens, type Tokens } from './tokens.js';
 
 /**
  * Every block and a fixed set of events, through every sink, in every theme,
@@ -160,11 +164,161 @@ export const EVENTS: OutputEvent[] = [
   }),
 ];
 
+/** A command as oclif caches it, for its help screen. */
+const command = {
+  id: 'sources',
+  summary: 'List the sources and the record types each has',
+  aliases: [],
+  hidden: false,
+  hiddenAliases: [],
+  args: {},
+  flags: {
+    all: {
+      name: 'all',
+      type: 'boolean',
+      summary: 'Include legacy sources for services that no longer exist',
+      helpGroup: 'FILTER',
+    },
+    delivery: {
+      name: 'delivery',
+      type: 'option',
+      summary: 'Only sources that arrive this way',
+      options: ['export', 'api', 'local', 'direct'],
+      helpGroup: 'FILTER',
+    },
+    format: {
+      name: 'format',
+      type: 'option',
+      summary: 'How to print the list',
+      options: ['table', 'json', 'csv'],
+      default: 'table',
+      helpGroup: 'OUTPUT',
+    },
+    preset: {
+      name: 'preset',
+      char: 'p',
+      type: 'option',
+      summary: 'Presets to use, comma-separated',
+      helpValue: '<name,...>',
+      helpGroup: 'GLOBAL',
+    },
+    'log-format': {
+      name: 'log-format',
+      type: 'option',
+      summary:
+        'How messages print: pretty at a terminal, plain otherwise, json for another program',
+      options: ['pretty', 'plain', 'json'],
+      helpGroup: 'GLOBAL',
+    },
+  },
+  examples: [
+    'chronicle sources --all',
+    {
+      description: 'List the sources you can extract without signing in.',
+      command: 'chronicle sources --delivery local',
+    },
+  ],
+} as unknown as Command.Cached;
+
+const listing = (source: string, extra: Partial<SourceListing> = {}): SourceListing => ({
+  source,
+  plugin: source,
+  package: `@chronicle.app/${source}`,
+  tier: 'core',
+  summary: `${source} records, with a summary long enough to be cut at narrow widths`,
+  installed: true,
+  origin: 'bundled',
+  strategies: [{ name: 'api', delivery: 'api', recordTypes: ['stars'], default: true }],
+  platforms: [],
+  requires: [],
+  supported: true,
+  ...extra,
+});
+
+/** Every help screen, and the sources table, at `width` with `t`. */
+function help(t: Tokens, width: number): string[] {
+  return [
+    rootHelp(
+      {
+        version: '1.2.3',
+        summary: 'Extract your digital history into a shared vocabulary.',
+        commands: [
+          { name: 'auth', summary: 'Sign in to providers and manage stored credentials' },
+          { name: 'extract', summary: 'Extract records from a source as Chronicle JSON-LD' },
+          { name: 'autocomplete', summary: 'Set up tab completion for your shell' },
+        ],
+      },
+      t,
+      width
+    ),
+    topicHelp(
+      {
+        name: 'auth',
+        description: 'Sign in to providers and manage stored credentials',
+        commands: [
+          { name: 'auth list', summary: 'List the providers with stored credentials' },
+          { name: 'auth login', summary: 'Sign in to a provider in the browser' },
+        ],
+      },
+      t,
+      width
+    ),
+    commandHelp(
+      command,
+      { commands: [{ name: 'sources info', summary: 'Show a source' }] },
+      t,
+      width
+    ),
+    sourceHelp(
+      {
+        source: 'github',
+        verb: 'extract',
+        strategies: [
+          { name: 'api', delivery: 'api', default: true, recordTypes: ['stars', 'commits'] },
+          { name: 'archive', delivery: 'export', default: false, recordTypes: ['issues'] },
+        ],
+        flags: [{ name: 'username', type: 'option', summary: 'Whose activity to extract' }],
+        common: [
+          {
+            name: 'limit',
+            char: 'l',
+            type: 'option',
+            helpValue: '<n>',
+            summary: 'The most records to extract. Use 0 for all.',
+            default: 100,
+          },
+          {
+            name: 'loader',
+            type: 'option',
+            options: ['csv', 'json', 'preview', 'table', 'yaml'],
+            summary: 'How to write the records',
+            default: 'json',
+          },
+        ],
+        defaults: ['stars'],
+      },
+      t,
+      width
+    ),
+    ...sourcesTable(
+      [
+        listing('github'),
+        listing('imessage', { platforms: ['darwin'], supported: false }),
+        listing('moves-app', { tier: 'legacy', installed: false, origin: null }),
+      ],
+      t,
+      width
+    ),
+  ].flatMap(screen => screen.split('\n'));
+}
+
 export interface Section {
   title: string;
   /** The width the section was given; JSON lines don't have one. */
   width?: number;
   format?: LogFormat;
+  /** False when the section was drawn without color. */
+  color?: boolean;
   lines: string[];
 }
 
@@ -219,7 +373,14 @@ export function gallery(): Section[] {
   const sections: Section[] = [];
   for (const theme of THEMES) {
     for (const width of WIDTHS) {
-      sections.push({ title: `blocks · ${theme} · ${width}`, width, lines: blocks(theme, width) });
+      sections.push(
+        { title: `blocks · ${theme} · ${width}`, width, lines: blocks(theme, width) },
+        {
+          title: `help · ${theme} · ${width}`,
+          width,
+          lines: help(tokens({ theme, color: true }), width),
+        }
+      );
       for (const format of LOG_FORMATS) {
         let text = '';
         const sink = createSink({
@@ -242,6 +403,14 @@ export function gallery(): Section[] {
         });
       }
     }
+  }
+  for (const width of WIDTHS) {
+    sections.push({
+      title: `help · no color · ${width}`,
+      width,
+      color: false,
+      lines: help(plainTokens, width),
+    });
   }
   return sections;
 }

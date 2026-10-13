@@ -78,13 +78,16 @@ test('bundled sources are discoverable from an unrelated cwd; JSON has no diagno
     const defaults = strategies.filter(strategy => strategy.default);
     assert.ok(defaults.length <= 1, `${source} has ${defaults.length} default strategies`);
   }
-  // Legacy sources are listed only on request, and the table says so.
+  // Legacy sources are listed only on request, and a hint under the table says so.
   assert.ok(sources.every(x => x.tier !== 'legacy'));
-  assert.match(success(run('sources')), /Not showing \d+ legacy sources.*chronicle sources --all/);
+  const table = run('sources');
+  // A status column only where a source isn't ready to run, such as one for another OS.
+  assert.match(success(table), /^source +strategy +(status +)?description/);
+  assert.match(table.stderr, /Not showing \d+ legacy sources.*chronicle sources --all/);
   const legacy = all.filter(x => x.tier === 'legacy');
   assert.ok(legacy.length > 0);
-  assert.match(success(run('sources', 'info', legacy[0].source)), /tier: +legacy/);
-  assert.match(success(run('sources', '--all')), new RegExp(`${legacy[0].source} .*legacy`));
+  assert.match(success(run('sources', 'info', legacy[0].source)), /tier +legacy/);
+  assert.match(success(run('sources', '--all')), new RegExp(`^${legacy[0].source} .*legacy`, 'm'));
   // An unknown source is reported as one, even with a source's own flags.
   const unknown = run('extract', 'no-such-source', '--limit', '1');
   assert.notEqual(unknown.status, 0);
@@ -96,7 +99,7 @@ test('bundled sources are discoverable from an unrelated cwd; JSON has no diagno
   // asks for help too, and --list-types lists only the kinds.
   assert.equal(success(run('extract', 'help', 'shell')), help);
   assert.equal(success(run('extract', 'shell', 'help')), help);
-  assert.match(success(run('extract', 'help')), /chronicle extract <source> --help/);
+  assert.match(success(run('extract', 'help')), /chronicle extract <source>/);
   const listed = run('extract', 'shell', '--list-types');
   assert.equal(success(listed), 'commands  history\n');
   // With one kind there's nothing to pick, so no hint. With several, how to
@@ -290,18 +293,108 @@ test('transformation flags pick fields, sample records and truncate base64', t =
 test('global config and explicit flag precedence reach the dynamic dispatcher', t => {
   const { input, run } = fixture(t);
   success(run('config', 'set', 'limit', '1'));
+  assert.equal(success(run('config', 'get', 'limit')), '1\n');
   const args = ['extract', 'shell', '--input', input, '--raw'];
   assert.equal(JSON.parse(success(run(...args))).command, 'printf fixture');
   assert.equal((success(run(...args, '--limit', '0')).match(/"command"/g) || []).length, 2);
+  // Without a terminal to confirm at, a reset says to use --force instead of hanging or crashing.
+  const reset = run('config', 'reset');
+  assert.equal(reset.status, 2);
+  assert.match(reset.stderr, /chronicle config reset --force/);
+  success(run('config', 'reset', '--force'));
+  assert.notEqual(run('config', 'get', 'limit').status, 0);
+});
+
+test('every command has help, asked for either way, drawn by the help class', async t => {
+  const { env, run } = fixture(t);
+  const listed = JSON.parse(success(run('commands', '--format', 'json')));
+  const ask = args =>
+    new Promise(resolve => {
+      const child = spawn(process.execPath, [bin, ...args], { env, stdio: 'pipe' });
+      let stdout = '';
+      let stderr = '';
+      child.stdout.on('data', chunk => (stdout += chunk));
+      child.stderr.on('data', chunk => (stderr += chunk));
+      child.on('close', status => resolve({ status, stdout, stderr }));
+    });
+  // Multi-word commands as a shell passes them: each word its own argument.
+  const asked = listed
+    .map(({ command }) => command.split(' '))
+    .filter(words => words.length > 1)
+    .flatMap(words => [
+      [...words, '--help'],
+      ['help', ...words],
+    ]);
+  const results = await Promise.all(asked.map(ask));
+  for (const [i, { status, stdout, stderr }] of results.entries()) {
+    const args = asked[i].join(' ');
+    assert.equal(status, 0, `${args}: ${stderr}`);
+    const id = asked[i].filter(word => word !== 'help' && word !== '--help').join(' ');
+    // The usage line names the command; oclif's own help would say USAGE and $.
+    assert.match(stdout, new RegExp(`^Usage\\n  chronicle ${id}`, 'm'), args);
+    assert.doesNotMatch(stdout, /USAGE|\$ chronicle|--\w[\w-]*=</, args);
+  }
+  // Topics list their commands, and the root lists each command once.
+  assert.match(success(run('config', 'preset', '--help')), /config preset show/);
+  const root = success(run('--help'));
+  assert.equal(root.match(/^ {2}extract /gm)?.length, 1);
+  assert.doesNotMatch(root, /^ {2}e /m);
+  // `commands` lists them all the same way, oclif's in plain words.
+  const commands = success(run('commands'));
+  assert.match(commands, /^command +description\n/);
+  assert.match(commands, /^config preset show +Show a preset's flags$/m);
+  assert.match(commands, /^autocomplete +Set up tab completion for your shell$/m);
+  // Piped, no column is cut, however long.
+  assert.match(
+    commands,
+    /^auth set +Store an API key or token for a provider that doesn't use OAuth$/m
+  );
+  assert.doesNotMatch(commands, /^e /m);
+  // A whole command in one quoted argument gets it back with its words apart.
+  const quoted = run('auth list --help', '--log-format', 'json');
+  assert.equal(quoted.status, 2);
+  assert.match(quoted.stderr, /unknown-command.*chronicle auth list --help/);
+  // Asked for help, it's given back with --help kept, and the flags after it.
+  const quotedHelp = run('auth list', '--help', '--log-format', 'json');
+  assert.equal(quotedHelp.status, 2);
+  assert.match(
+    JSON.parse(quotedHelp.stderr).hint.action,
+    /`chronicle auth list --help --log-format json`/
+  );
+  assert.match(run('help', 'auth list').stderr, / chronicle auth list --help\n/);
+  // `help` is oclif's command, without --log-format; its unknown command reads like any other.
+  const unknown = run('help', 'nope');
+  assert.equal(unknown.status, 2);
+  assert.match(unknown.stderr, /✗ Error: Unknown command "nope"/);
+  assert.equal(
+    JSON.parse(run('nope', '--help', '--log-format', 'json').stderr).error.code,
+    'unknown-command'
+  );
+  // A typo under a command that's also a topic gets the closest command.
+  const typo = run('plugins', 'instal');
+  assert.equal(typo.status, 2);
+  assert.match(typo.stderr, /`chronicle plugins install`/);
+  // `--nested-commands` lists every command, not just the top level.
+  const nested = success(run('help', '--nested-commands'));
+  assert.match(nested, /^ {2}config preset show /m);
+  assert.doesNotMatch(root, /^ {2}config preset show /m);
 });
 
 test('auth stores and removes synthetic credentials; missing token fails promptly', t => {
   const { dir, run } = fixture(t);
   success(run('auth', 'set', 'fixture', '--token', 'synthetic-token'));
   assert.match(readFileSync(join(dir, 'config/credentials.json'), 'utf8'), /synthetic-token/);
-  assert.match(success(run('auth', 'status', 'fixture')), /Valid/);
+  assert.match(success(run('auth', 'status', 'fixture')), /status +valid/);
+  assert.match(success(run('auth', 'list')), /fixture +valid/);
   success(run('auth', 'remove', 'fixture'));
-  assert.match(success(run('auth', 'status', 'fixture')), /No credentials stored/);
+  // Nothing stored is the same error, with the same way forward, whatever asks.
+  for (const verb of ['status', 'remove']) {
+    const none = run('auth', verb, 'fixture', '--log-format', 'json');
+    assert.equal(none.status, 2, verb);
+    const error = JSON.parse(none.stderr.split('\n').find(line => line.includes('"error"')));
+    assert.equal(error.error.code, 'no-credentials', verb);
+    assert.match(error.hint.action, /chronicle auth list/, verb);
+  }
   const result = run('auth', 'set', 'missing');
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /--token/);
@@ -406,11 +499,12 @@ export class Fixture extends Extractor {
   success(run('plugins', 'install', './fixture-plugin'));
   // Reinstalling from the same path leaves its dependency entry unchanged.
   success(run('plugins', 'install', './fixture-plugin'));
-  assert.match(success(run('plugins')), /fixture-plugin 1\.0\.0 +installed/);
+  assert.match(success(run('plugins')), /fixture-plugin +1\.0\.0 +installed/);
   const [listing] = JSON.parse(success(run('sources', '--source', 'fixture', '--format', 'json')));
   assert.equal(listing.origin, 'installed');
   assert.equal(listing.tier, null);
-  assert.match(success(run('sources', '--source', 'fixture')), /not in catalog · fixture-plugin/);
+  assert.match(success(run('sources', 'info', 'fixture')), /plugin +fixture-plugin\n/);
+  assert.match(success(run('sources', 'info', 'fixture')), /tier +not in catalog/);
   assert.match(success(run('auth', 'login', '--list')), /fixture/);
   const extracted = run('extract', 'fixture', '--raw');
   assert.equal(JSON.parse(success(extracted)).name, 'installed fixture');
@@ -484,7 +578,7 @@ export class MyShell extends Extractor {
   assert.match(success(run('plugins')), /my-shell +local/);
   const [listing] = JSON.parse(success(run('sources', '--source', 'shell', '--format', 'json')));
   assert.equal(listing.origin, 'local');
-  assert.match(success(run('sources', '--source', 'shell')), /local · my-shell/);
+  assert.match(success(run('sources', 'info', 'shell')), /plugin +my-shell\n/);
 
   // A second local plugin for the source keeps the first one's extractors.
   writeFileSync(
@@ -547,7 +641,7 @@ test('plugins new scaffolds a plugin for the source kind that reads it and passe
   assert.match(success(run('plugins', 'new', 'my-rows', '--from', 'csv')), /AGENTS\.md/);
   const plugin = join(dir, 'my-rows');
   assert.match(readFileSync(join(plugin, 'AGENTS.md'), 'utf8'), /## Start here/);
-  assert.match(success(run('plugins')), /my-rows 0\.1\.0 +local/);
+  assert.match(success(run('plugins')), /my-rows +0\.1\.0 +local/);
 
   // Runs from its .ts source without a build, relaunching Node to strip types
   // where it doesn't by default.
@@ -611,6 +705,20 @@ test(
       success(run.with(env)('extract', 'google-reader', '--help')),
       /chronicle plugins install google-reader/
     );
+    assert.match(
+      success(run.with(env)('sources', 'info', 'google-reader')),
+      /plugin +@chronicle\.app\/google-reader, not installed/
+    );
+    // The table says which sources aren't installed, and with none listed that
+    // runs here, its hint names only a command that works.
+    assert.match(success(run.with(env)('sources', '--all')), /^google-reader .*not installed/m);
+    const alone = run.with(env)('sources', '--source', 'google-reader');
+    assert.match(alone.stderr, /chronicle sources info google-reader/);
+    assert.doesNotMatch(alone.stderr, /chronicle extract/);
+    // With no providers to list, `auth login --list` says so, as `auth list` does.
+    const providers = run.with(env)('auth', 'login', '--list');
+    assert.equal(providers.status, 0, providers.stderr);
+    assert.match(providers.stderr, /`chronicle plugins`/);
   }
 );
 
@@ -644,7 +752,12 @@ test('unsupported loader and missing input file fail without success output, eve
 test('preset selection and explicit values override global config', t => {
   const { input, run } = fixture(t);
   success(run('config', 'set', 'limit', '1'));
-  success(run('config', 'preset', 'create', 'all', '--limit', '0'));
+  success(run('config', 'preset', 'create', 'all', '--limit', '0', '-d', 'Every record'));
+  // `-d`, as help lists it, is the description.
+  assert.equal(
+    JSON.parse(success(run('config', 'preset', 'show', 'all', '--json'))).description,
+    'Every record'
+  );
   const args = ['extract', 'shell', '--input', input, '--raw', '--preset', 'all'];
   assert.equal((success(run(...args)).match(/"command"/g) || []).length, 2);
   assert.equal(JSON.parse(success(run(...args, '--limit', '1'))).command, 'printf fixture');
@@ -704,29 +817,6 @@ test('missing CSV input reports a normal command error instead of an unhandled s
   assert.equal(result.status, 4);
   assert.match(result.stderr, /No CSV file found/);
   assert.doesNotMatch(result.stderr, /Unhandled 'error' event/);
-});
-
-test('table columns fit their content, and grow columns share the width that is left', async () => {
-  const { columnWidths, truncate } = await import('../dist/components/Table.js');
-  const columns = [
-    { key: 'source', title: 'Source' },
-    { key: 'types', title: 'Types', grow: true, minWidth: 5 },
-    { key: 'description', title: 'Description', grow: true, minWidth: 8 },
-  ];
-  const data = [{ source: 'google-reader', types: 'a'.repeat(30), description: 'b'.repeat(40) }];
-
-  // Without a width, every column fits its content.
-  assert.deepEqual(columnWidths(columns, data), [13, 30, 40]);
-  // Too narrow for everything: grow columns get their minimum; the rest never shrink.
-  assert.deepEqual(columnWidths(columns, data, 20), [13, 5, 8]);
-  // The leftover is split evenly on top of each minimum…
-  assert.deepEqual(columnWidths(columns, data, 47), [13, 14, 16]);
-  // …and a column that fits its content passes its share on.
-  assert.deepEqual(columnWidths(columns, data, 200), [13, 30, 40]);
-  assert.deepEqual(columnWidths(columns, [{ ...data[0], types: 'abc' }], 47), [13, 5, 25]);
-
-  assert.equal(truncate('channels, connections', 10), 'channels,…');
-  assert.equal(truncate('calls', 10), 'calls');
 });
 
 test('a plugin fails with a typed error and exit code, and hints under the summary', async t => {

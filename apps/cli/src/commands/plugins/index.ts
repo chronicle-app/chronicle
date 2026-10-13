@@ -2,10 +2,10 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { BaseCommand } from '../../baseCommand.js';
 import { PluginScanner } from '../../plugins/PluginScanner.js';
-import { getTheme } from '../../theme.js';
+import { relativePath, stdoutWidth, table, tokens } from '../../output/index.js';
 
 export default class Plugins extends BaseCommand<typeof Plugins> {
-  static override description = 'List installed plugins, their versions, and where each was found';
+  static override description = 'List the installed plugins and where each one is';
 
   static override examples = [
     'chronicle plugins',
@@ -14,7 +14,6 @@ export default class Plugins extends BaseCommand<typeof Plugins> {
   ];
 
   async run(): Promise<void> {
-    const theme = getTheme(this.flags.theme);
     const plugins = await PluginScanner.findChroniclePlugins();
     const rows = await Promise.all(
       plugins.map(async p => {
@@ -24,11 +23,20 @@ export default class Plugins extends BaseCommand<typeof Plugins> {
       })
     );
     rows.sort((a, b) => a.name.localeCompare(b.name));
-    const width = Math.max(...rows.map(r => `${r.name} ${r.version}`.length));
-    for (const r of rows) {
-      const label = `${r.name} ${r.version}`.padEnd(width);
-      const where = r.origin === 'local' ? `local  ${r.file ?? r.path}` : r.origin;
-      this.log(`${theme.text(label)}  ${theme.textDim(where)}`);
-    }
+    const t = tokens({ stream: 'stdout', theme: this.flags.theme });
+    const { lines } = table(
+      {
+        headings: ['plugin', 'version', 'from'],
+        cells: rows.map(r => [
+          r.name,
+          r.version,
+          r.origin === 'local' ? `local, ${relativePath(r.file ?? r.path)}` : r.origin,
+        ]),
+        muted: [false, false, true],
+      },
+      t,
+      stdoutWidth()
+    );
+    for (const line of lines) this.log(line);
   }
 }

@@ -1,20 +1,17 @@
 import { BaseCommand } from '../../baseCommand.js';
 import { Flags } from '@oclif/core';
-import { inkConfirm } from '../../components/InkConfirm.js';
 import { ConfigManager } from '../../config/index.js';
+import { canAsk } from '../../output/index.js';
 
 export default class ConfigResetCommand extends BaseCommand<typeof ConfigResetCommand> {
-  static override description = 'Reset configuration to defaults';
+  static override description = 'Delete every flag default and preset';
 
-  static override examples = [
-    '<%= config.bin %> <%= command.id %>',
-    '<%= config.bin %> <%= command.id %> --force',
-  ];
+  static override examples = ['chronicle config reset', 'chronicle config reset --force'];
 
   static override flags = {
     force: Flags.boolean({
       char: 'f',
-      description: 'Skip confirmation prompt',
+      summary: 'Reset without asking',
     }),
   };
 
@@ -23,29 +20,34 @@ export default class ConfigResetCommand extends BaseCommand<typeof ConfigResetCo
     const configManager = new ConfigManager(this.config.configDir);
 
     try {
-      const configExists = await configManager.configExists();
-
-      if (!configExists) {
-        this.log('No configuration file exists.');
+      if (!(await configManager.configExists())) {
+        this.logger.info('Nothing to reset');
         return;
       }
 
       if (!flags.force) {
-        const result = await inkConfirm(
-          'This will delete all configuration and presets. Are you sure?',
-          { defaultValue: false }
+        // The question needs a terminal to answer it at.
+        if (!canAsk()) {
+          this.fail("Can't ask to confirm without a terminal", {
+            hint: 'Run `chronicle config reset --force` to reset without asking.',
+          });
+        }
+        const { confirm } = await import('../../output/prompts.js');
+        const result = await confirm(
+          'Delete every flag default and preset, and forget the plugins you added?',
+          { defaultValue: false, theme: flags.theme }
         );
 
         if (result.cancelled || !result.confirmed) {
-          this.log('Reset cancelled.');
+          this.logger.info('Reset cancelled');
           return;
         }
       }
 
       await configManager.resetConfig();
-      this.log('Configuration reset to defaults.');
+      this.summary('Reset the config');
     } catch (error) {
-      this.failFrom(error, 'Failed to reset configuration');
+      this.failFrom(error, "Couldn't reset the config");
     }
   }
 }

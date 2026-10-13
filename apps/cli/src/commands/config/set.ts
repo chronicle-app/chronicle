@@ -3,20 +3,17 @@ import { Args } from '@oclif/core';
 import { ConfigManager } from '../../config/index.js';
 
 export default class ConfigSetCommand extends BaseCommand<typeof ConfigSetCommand> {
-  static override description = 'Set a global configuration value';
+  static override description = "Set a flag's default for every command";
 
-  static override examples = [
-    '<%= config.bin %> <%= command.id %> log-level debug',
-    '<%= config.bin %> <%= command.id %> loader http',
-  ];
+  static override examples = ['chronicle config set limit 500', 'chronicle config set loader yaml'];
 
   static override args = {
     key: Args.string({
-      description: 'Configuration key to set',
+      description: 'The flag, like limit',
       required: true,
     }),
     value: Args.string({
-      description: 'Configuration value to set',
+      description: 'Its default',
       required: true,
     }),
   };
@@ -35,9 +32,9 @@ export default class ConfigSetCommand extends BaseCommand<typeof ConfigSetComman
       }
 
       await configManager.setGlobalValue(args.key, parsedValue);
-      this.log(`Set ${args.key} = ${JSON.stringify(parsedValue)}`);
+      this.summary(`Set the default for ${args.key} to ${JSON.stringify(parsedValue)}`);
     } catch (error) {
-      this.failFrom(error, 'Failed to set configuration');
+      this.failFrom(error, "Couldn't set the default");
     }
   }
 }

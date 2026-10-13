@@ -140,9 +140,13 @@ function codeSpans(text: string, t: Tokens, muted = true): string {
  * Text in lines of at most `width`, broken at spaces. A `code span` is never
  * broken or cut, since a command split across lines can't be copied: it gets
  * a line of its own, even one wider than `width`. Any other word longer than
- * the width is cut.
+ * the width is cut, unless `cut` is false.
  */
-export function wrap(text: string, width: number): string[] {
+export function wrap(
+  text: string,
+  width: number,
+  { cut = true }: { cut?: boolean } = {}
+): string[] {
   if (!Number.isFinite(width) || text.length <= width) return [text];
   const words = text.match(/`[^`]*`\S*|\S+/g) ?? [];
   const lines: string[] = [];
@@ -152,7 +156,7 @@ export function wrap(text: string, width: number): string[] {
       lines.push(current);
       current = '';
     }
-    const whole = word.startsWith('`') ? word : truncate(word, Math.max(1, width));
+    const whole = word.startsWith('`') || !cut ? word : truncate(word, Math.max(1, width));
     current = current ? `${current} ${word}` : whole;
   }
   if (current) lines.push(current);
@@ -187,6 +191,74 @@ export function guide(
   }
   return lines.join('\n');
 }
+
+/**
+ * Plain sentences wrapped to the width under an indent, read in full like a
+ * guide: not muted, commands whole and in the code style.
+ */
+export function paragraph(text: string, t: Tokens, width: number, indent = 0): string[] {
+  const pad = ' '.repeat(indent);
+  return wrap(text, width - indent).map(part => pad + codeSpans(part, t, false));
+}
+
+/** A term and what it means, for `definitions`. */
+export interface Definition {
+  /** What to type or look for, styled by the caller. */
+  term: Segment[];
+  /** Plain sentences; a line break starts a new line. */
+  text?: string;
+  /** A short fact after the text, muted: `default: 100`. */
+  note?: string;
+}
+
+/** The widest a term column gets before a long term takes a line of its own. */
+const TERM_MAX = 32;
+/** The narrowest text column; any narrower and the text goes under its term. */
+const TEXT_MIN = 24;
+
+/**
+ * Terms in a column and their text beside them, wrapped under one another:
+ * flags, commands, strategies. A term too wide for the column takes a line of
+ * its own with its text below; when the width leaves no room for a column,
+ * every text goes under its term.
+ *
+ *   -l, --limit <n>    The most records to extract. Use 0 for all.
+ *                      default: 100
+ */
+export function definitions(items: Definition[], t: Tokens, width: number, indent = 2): string[] {
+  const pad = ' '.repeat(indent);
+  // As wide as the widest term that fits, so one long term doesn't push every text over.
+  const column = Math.max(0, ...items.map(({ term }) => measure(term)).filter(w => w <= TERM_MAX));
+  const stacked = column === 0 || width - indent - column - GAP < TEXT_MIN;
+  const at = stacked ? indent + 4 : indent + column + GAP;
+  const lines: string[] = [];
+  for (const { term, text = '', note } of items) {
+    // Each line of the text wraps on its own.
+    const parts = text ? text.split('\n').flatMap(part => wrap(part, width - at)) : [];
+    if (note) {
+      const last = parts.at(-1);
+      if (last !== undefined && last.length + GAP + note.length <= width - at) {
+        parts[parts.length - 1] = `${last}${' '.repeat(GAP)}${NOTE}${note}`;
+      } else parts.push(`${NOTE}${note}`);
+    }
+    const body = parts.map(part => {
+      const [prose, muted] = part.split(NOTE);
+      return codeSpans(prose, t, false) + (muted === undefined ? '' : t.muted(muted));
+    });
+    const termWidth = measure(term);
+    if (!stacked && termWidth <= column && body.length > 0) {
+      lines.push(
+        `${pad}${line(term, width - indent)}${' '.repeat(column - termWidth + GAP)}${body[0]}`,
+        ...body.slice(1).map(part => ' '.repeat(at) + part)
+      );
+    } else {
+      lines.push(pad + line(term, width - indent), ...body.map(part => ' '.repeat(at) + part));
+    }
+  }
+  return lines;
+}
+
+const NOTE = '\u0001';
 
 /** Items one per line under a bullet. */
 export const list = (items: string[], t: Tokens, width: number) =>
@@ -225,38 +297,50 @@ export function caption(entries: [label: string, value: string][], t: Tokens, wi
   return lines;
 }
 
-/** One record's keys and values, a title above. */
+/**
+ * One record's keys and values, a title above. Each value is cut to the
+ * width, or with `wrap` continues on lines under itself, for a view whose
+ * point is the detail: words are never cut, and the terminal wraps one too
+ * long for the column.
+ */
 export function card(
   title: string | undefined,
   entries: [key: string, value: string][],
   t: Tokens,
-  width: number
+  width: number,
+  { wrap: wraps = false }: { wrap?: boolean } = {}
 ) {
   const keyWidth = Math.min(Math.max(0, ...entries.map(([key]) => key.length)), width);
+  const valueWidth = width - keyWidth - GAP;
   return [
     ...(title === undefined ? [] : [t.strong(truncate(title, width))]),
-    ...entries.map(([key, value]) => {
-      const valueWidth = width - keyWidth - GAP;
-      return valueWidth > 0
-        ? `${t.muted(truncate(key, keyWidth).padEnd(keyWidth))}${' '.repeat(GAP)}${truncate(value, valueWidth)}`
-        : t.muted(truncate(key, width));
+    ...entries.flatMap(([key, value]) => {
+      if (valueWidth <= 0) return [t.muted(truncate(key, width))];
+      const label = `${t.muted(truncate(key, keyWidth).padEnd(keyWidth))}${' '.repeat(GAP)}`;
+      if (!wraps) return [`${label}${truncate(value, valueWidth)}`];
+      const [first, ...rest] = wrap(value, valueWidth, { cut: false });
+      return [`${label}${first}`, ...rest.map(part => ' '.repeat(keyWidth + GAP) + part)];
     }),
   ];
 }
 
 const GAP = 2;
+/** The widest a column gets at a terminal, so one long column doesn't crowd the rest. */
 const MAX_WIDTH = 60;
 
 const join = (parts: string[]) => parts.join(' '.repeat(GAP)).trimEnd();
 
 /**
  * Column widths that fit `width`: the widest column gives way first, down to
- * its heading; columns that still don't fit are dropped from the right.
+ * its heading; columns that still don't fit are dropped from the right. With
+ * no width to fit (output to a pipe or file), every column is as wide as its
+ * widest cell, so nothing is cut.
  */
 function fit(headings: string[], cells: string[][], width: number) {
   const floors = headings.map(h => Math.max(h.length, 6));
+  const most = Number.isFinite(width) ? MAX_WIDTH : Number.POSITIVE_INFINITY;
   const widths = headings.map((h, i) =>
-    Math.min(MAX_WIDTH, Math.max(h.length, ...cells.map(row => row[i].length)))
+    Math.min(most, Math.max(h.length, ...cells.map(row => row[i].length)))
   );
   const total = () => widths.reduce((sum, w) => sum + w, 0) + GAP * (widths.length - 1);
   while (total() > width) {
