@@ -721,9 +721,9 @@ export interface Intangible extends Omit<Entity, '@type'> {
 export type IntangibleAndChildren =
   | Intangible
   | DefinedTermAndChildren
-  | PaymentAndChildren
   | PaymentCardAndChildren
-  | SelectorAndChildren;
+  | SelectorAndChildren
+  | TransactionAndChildren;
 
 const IntangibleProperties = {
   ...EntityProperties,
@@ -1700,30 +1700,6 @@ export const PayActionSchema: z.ZodType<PayAction> = z
   })
   .superRefine(requireNodeIdentity);
 
-// Payment, child of https://schema.chronicle.app/Intangible
-export interface Payment extends Omit<Intangible, '@type'> {
-  '@type': 'Payment';
-  amount?: number;
-  currency?: string;
-  recipient?: AgentAndChildren[];
-}
-
-export type PaymentAndChildren = Payment;
-
-const PaymentProperties = {
-  ...IntangibleProperties,
-  amount: z.lazy(() => z.number()).optional(),
-  currency: z.lazy(() => z.string()).optional(),
-  recipient: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
-};
-
-export const PaymentSchema: z.ZodType<Payment> = z
-  .object({
-    '@type': z.literal('Payment'),
-    ...PaymentProperties,
-  })
-  .superRefine(requireNodeIdentity);
-
 // PaymentCard, child of https://schema.chronicle.app/Intangible
 export interface PaymentCard extends Omit<Intangible, '@type'> {
   '@type': 'PaymentCard';
@@ -2246,6 +2222,30 @@ export const ThreadSchema: z.ZodType<Thread> = z
   })
   .superRefine(requireNodeIdentity);
 
+// Transaction, child of https://schema.chronicle.app/Intangible
+export interface Transaction extends Omit<Intangible, '@type'> {
+  '@type': 'Transaction';
+  amount?: number;
+  currency?: string;
+  recipient?: AgentAndChildren[];
+}
+
+export type TransactionAndChildren = Transaction;
+
+const TransactionProperties = {
+  ...IntangibleProperties,
+  amount: z.lazy(() => z.number()).optional(),
+  currency: z.lazy(() => z.string()).optional(),
+  recipient: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
+};
+
+export const TransactionSchema: z.ZodType<Transaction> = z
+  .object({
+    '@type': z.literal('Transaction'),
+    ...TransactionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // TravelAction, child of https://schema.chronicle.app/Action
 export interface TravelAction extends Omit<Action, '@type'> {
   '@type': 'TravelAction';
@@ -2374,6 +2374,8 @@ export const VenueAndChildrenSchema = VenueSchema;
 
 export const TravelActionAndChildrenSchema = TravelActionSchema;
 
+export const TransactionAndChildrenSchema = TransactionSchema;
+
 export const ThreadAndChildrenSchema = ThreadSchema;
 
 export const TenureAndChildrenSchema = TenureSchema;
@@ -2440,8 +2442,6 @@ export const PhotographActionAndChildrenSchema = PhotographActionSchema;
 export const PersonAndChildrenSchema = PersonSchema;
 
 export const PaymentCardAndChildrenSchema = PaymentCardSchema;
-
-export const PaymentAndChildrenSchema = PaymentSchema;
 
 export const PayActionAndChildrenSchema = PayActionSchema;
 
@@ -2722,13 +2722,13 @@ export const IntangibleAndChildrenSchema: z.ZodType<IntangibleAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('PaymentCard'),
-      ...PaymentCardProperties,
+      '@type': z.literal('Transaction'),
+      ...TransactionProperties,
     }),
 
     z.object({
-      '@type': z.literal('Payment'),
-      ...PaymentProperties,
+      '@type': z.literal('PaymentCard'),
+      ...PaymentCardProperties,
     }),
 
     z.object({
@@ -3518,13 +3518,13 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('PaymentCard'),
-      ...PaymentCardProperties,
+      '@type': z.literal('Transaction'),
+      ...TransactionProperties,
     }),
 
     z.object({
-      '@type': z.literal('Payment'),
-      ...PaymentProperties,
+      '@type': z.literal('PaymentCard'),
+      ...PaymentCardProperties,
     }),
 
     z.object({
@@ -4076,13 +4076,13 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('PaymentCard'),
-      ...PaymentCardProperties,
+      '@type': z.literal('Transaction'),
+      ...TransactionProperties,
     }),
 
     z.object({
-      '@type': z.literal('Payment'),
-      ...PaymentProperties,
+      '@type': z.literal('PaymentCard'),
+      ...PaymentCardProperties,
     }),
 
     z.object({

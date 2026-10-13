@@ -20,7 +20,7 @@ PayAction key(sourceId) {
     sourceId, name?, category[]?
     issuedBy: Organization key(name) { name }
   }
-  result: Payment key(sourceId) {
+  result: Transaction key(sourceId) {
     sourceId, amount, currency?
     recipient[]?: Organization key(name) { name }
   }

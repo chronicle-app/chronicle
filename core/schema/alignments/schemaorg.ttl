@@ -33,8 +33,8 @@ schemaorg: rdfs:label "schema.org";
 :FindAction doc:unlike schemaorg:FindAction;
   doc:note "A schemaorg:FindAction is finding something, which a search can lead to. Searching is a schemaorg:SearchAction." .
 :MoveAction doc:note "A :MoveAction can be a step through an information space, such as following a link from one web page to another. A schemaorg:MoveAction is relocating to a place, from its schemaorg:fromLocation to its schemaorg:toLocation." .
-:PayAction doc:note "How much was paid and to whom are on the :Payment that is its :result. A schemaorg:PayAction carries them itself, as its schemaorg:price and schemaorg:recipient." .
-:PaymentCard doc:note "One card, as the account it draws on. A schemaorg:PaymentCard is a way of paying, and can stand for every card of a kind." .
+:PayAction doc:note "How much was paid and to whom are on the :Transaction that is its :result. A schemaorg:PayAction carries them itself, as its schemaorg:price and schemaorg:recipient." .
+:PaymentCard doc:note "One card, as issued with its number. A schemaorg:PaymentCard is a way of paying, and can stand for every card of a kind." .
 :Project doc:unlike schemaorg:Project;
   doc:note "A schemaorg:Project is an enterprise, a kind of schemaorg:Organization." .
 :QuoteAction doc:unlike schemaorg:QuoteAction;
@@ -45,7 +45,7 @@ schemaorg: rdfs:label "schema.org";
 
 # Properties
 
-:amount doc:note "A number in the payment's :currency. schemaorg:amount can also be a schemaorg:MonetaryAmount, and what a schemaorg:PayAction paid is its schemaorg:price." .
+:amount doc:note "A positive number in the transaction's :currency. schemaorg:amount can also be a schemaorg:MonetaryAmount, and what a schemaorg:PayAction paid is its schemaorg:price." .
 :artist doc:unlike schemaorg:artist;
   doc:note "schemaorg:artist is the primary artist of a comic or a visual artwork. The artist of a recording or an album is its schemaorg:byArtist." .
 :attendee doc:note "Includes agents who declined or did not reply. A schemaorg:attendee is someone attending the event." .

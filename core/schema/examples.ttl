@@ -4061,10 +4061,10 @@ example:card-purchase
 You bought a coffee with a credit card, and within minutes the card's issuer
 told Wallet about it. The :PayAction is keyed by Wallet's ID for the
 transaction and dated to the second. You are the :agent, the card is the
-:instrument, and the :result is the :Payment, which carries the :amount, its
-:currency, and the café as its :recipient.
+:instrument, and the :result is the :Transaction, which carries the :amount,
+its :currency, and the café as its :recipient.
 
-The :PaymentCard is keyed by the card network's identifier for the account,
+The :PaymentCard is keyed by the card network's identifier for the card,
 which is the same on every device the card is added to, and is :issuedBy the
 bank. The café is an :Organization keyed by its name, which is all the issuer
 sends.
@@ -4098,7 +4098,7 @@ sends.
       ]
     ];
     :result [
-      a :Payment;
+      a :Transaction;
       doc:key ("@type" "source" "sourceId");
       :source "apple-wallet";
       :sourceId "7C1E9F2B-6A3D-4B58-9E0F-2D4C6B8A1E35";
@@ -4115,7 +4115,7 @@ sends.
 
 :TradeAction skos:example example:card-purchase .
 :PayAction skos:example example:card-purchase .
-:Payment skos:example example:card-purchase .
+:Transaction skos:example example:card-purchase .
 :PaymentCard skos:example example:card-purchase .
 :amount skos:example example:card-purchase .
 :currency skos:example example:card-purchase .

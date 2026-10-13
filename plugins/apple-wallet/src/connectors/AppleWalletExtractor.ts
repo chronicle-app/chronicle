@@ -46,7 +46,7 @@ export interface Card {
 }
 
 /** One transaction as its row gives it, named after the row's columns. */
-export interface Transaction {
+export interface WalletTransaction {
   /** Wallet's ID for the transaction. */
   identifier: string;
   /** The issuer's own ID for it. */
@@ -151,11 +151,11 @@ export class AppleWalletExtractor extends SqliteExtractor<typeof AppleWalletExtr
 
   /** Wallet's ID for the transaction. */
   override keyOf(record: Record): string | null {
-    return (record.data as Transaction).identifier ?? null;
+    return (record.data as WalletTransaction).identifier ?? null;
   }
 
   override occurredAt(record: Record): Date | undefined {
-    return new Date((record.data as Transaction).date);
+    return new Date((record.data as WalletTransaction).date);
   }
 
   private query(select: string): { sql: string; values: Array<number | string> } {
@@ -194,7 +194,7 @@ export class AppleWalletExtractor extends SqliteExtractor<typeof AppleWalletExtr
     }
   }
 
-  private transactionOf(row: TransactionRow): Transaction {
+  private transactionOf(row: TransactionRow): WalletTransaction {
     return {
       identifier: row.identifier,
       serviceIdentifier: row.serviceIdentifier ?? null,

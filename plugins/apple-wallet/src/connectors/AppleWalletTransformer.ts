@@ -4,17 +4,17 @@ import {
   Location,
   Organization,
   PayAction,
-  Payment,
   PaymentCard,
+  Transaction,
 } from '@chronicle.app/schema';
 import { buildICloudPersonSchema } from '@chronicle.app/icloud';
-import type { Card, Transaction } from './AppleWalletExtractor.js';
+import type { Card, WalletTransaction } from './AppleWalletExtractor.js';
 
 const SOURCE = 'apple-wallet';
 
 /**
  *   PayAction  agent: you   instrument: PaymentCard   location?
- *     result: Payment  amount, currency   recipient: Organization (the merchant)
+ *     result: Transaction  amount, currency   recipient: Organization (the merchant)
  *       PaymentCard  issuedBy: Organization (the issuer)
  */
 export default class AppleWalletTransformer extends ChronicleTransformer {
@@ -22,7 +22,7 @@ export default class AppleWalletTransformer extends ChronicleTransformer {
 
   async transform(record: Record): Promise<ActionAndChildren[]> {
     if (record.extraction.recordType !== 'transactions') return [];
-    const transaction = record.data as Transaction;
+    const transaction = record.data as WalletTransaction;
     // Without an iCloud account the payer can't be identified, so omit them.
     const payer = await buildICloudPersonSchema(record.context.account);
     const card = buildCard(transaction.card);
@@ -36,7 +36,7 @@ export default class AppleWalletTransformer extends ChronicleTransformer {
       timestamp: new Date(transaction.date),
       ...(payer && { agent: payer }),
       ...(card && { instrument: [card] }),
-      result: buildPayment(transaction),
+      result: buildTransaction(transaction),
       ...(location && { location }),
     };
     return [action];
@@ -44,10 +44,10 @@ export default class AppleWalletTransformer extends ChronicleTransformer {
 }
 
 /** The money that moved, keyed like the action, with the merchant as its recipient. */
-function buildPayment(transaction: Transaction): Payment {
+function buildTransaction(transaction: WalletTransaction): Transaction {
   const merchant = buildMerchant(transaction);
   return {
-    '@type': 'Payment',
+    '@type': 'Transaction',
     '@key': ['@type', 'source', 'sourceId'],
     source: SOURCE,
     sourceId: transaction.identifier,
@@ -61,15 +61,15 @@ function buildPayment(transaction: Transaction): Payment {
  * The merchant, keyed by its name: the issuer sends no merchant ID. The name
  * is the cleaned one when the issuer gives it, else the raw one.
  */
-function buildMerchant(transaction: Transaction): Organization | null {
+function buildMerchant(transaction: WalletTransaction): Organization | null {
   const name = transaction.merchantName?.trim() || transaction.merchantRawName?.trim();
   return name ? organization(name) : null;
 }
 
 /**
- * The card as its account, keyed by the card network's identifier for it,
- * which is the same on every device the card is added to, or by the pass's
- * own ID when the network gives none.
+ * The card as issued, keyed by the card network's identifier for it, which is
+ * the same on every device the card is added to, or by the pass's own ID when
+ * the network gives none. A card reissued with a new number is a new card.
  */
 function buildCard(card: Card | null): PaymentCard | null {
   if (!card) return null;
@@ -99,7 +99,7 @@ function organization(name: string): Organization {
  * for an Apple Pay transaction made on it, or the locality the issuer sends.
  * A device without a fix records 0, 0, which is no place on Earth.
  */
-function locationOf(transaction: Transaction): Location | null {
+function locationOf(transaction: WalletTransaction): Location | null {
   const { latitude, longitude, locality, administrativeArea } = transaction;
   const fix =
     latitude !== null &&

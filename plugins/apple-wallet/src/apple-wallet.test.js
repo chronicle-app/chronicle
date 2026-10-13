@@ -74,8 +74,8 @@ const payAction = (sourceId, timestamp, fields) => ({
   agent: me,
   ...fields,
 });
-const payment = (sourceId, fields) => ({
-  '@type': 'Payment',
+const transaction = (sourceId, fields) => ({
+  '@type': 'Transaction',
   '@key': key,
   source: 'apple-wallet',
   sourceId,
@@ -87,7 +87,7 @@ test('transactions become PayActions with their card and merchant, newest first'
   // The row without an identifier is left out.
   assert.deepEqual([...byId.keys()], ['TXN-ISSUER', 'TXN-TAP', 'TXN-BARE']);
 
-  // From the issuer: the card is keyed by its account identifier and named
+  // From the issuer: the card is keyed by the network's identifier and named
   // from its pass.json, with its default payment application's kind; the
   // amount has four decimal places in the store.
   assert.deepEqual(
@@ -104,7 +104,7 @@ test('transactions become PayActions with their card and merchant, newest first'
           issuedBy: organization('Example Bank'),
         },
       ],
-      result: payment('TXN-ISSUER', {
+      result: transaction('TXN-ISSUER', {
         amount: 69.93,
         currency: 'CAD',
         recipient: [organization('Example Café')],
@@ -127,7 +127,7 @@ test('transactions become PayActions with their card and merchant, newest first'
           issuedBy: organization('Example Express'),
         },
       ],
-      result: payment('TXN-TAP', {
+      result: transaction('TXN-TAP', {
         amount: 15.82,
         currency: 'CAD',
         recipient: [organization('EXAMPLE GROCER 1281')],
@@ -136,11 +136,11 @@ test('transactions become PayActions with their card and merchant, newest first'
     })
   );
 
-  // No card, merchant, currency, or fix: the payment keeps its amount.
+  // No card, merchant, currency, or fix: the transaction keeps its amount.
   assert.deepEqual(
     byId.get('TXN-BARE'),
     payAction('TXN-BARE', '2025-01-01T00:01:40.000Z', {
-      result: payment('TXN-BARE', { amount: 1 }),
+      result: transaction('TXN-BARE', { amount: 1 }),
     })
   );
 });
