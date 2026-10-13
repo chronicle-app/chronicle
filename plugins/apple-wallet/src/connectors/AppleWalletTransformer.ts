@@ -1,8 +1,9 @@
-import { ChronicleTransformer, Record } from '@chronicle.app/etl';
+import { ChronicleTransformer, Record, reference } from '@chronicle.app/etl';
 import {
   ActionAndChildren,
   FinancialAccount,
   Location,
+  MonetaryAmount,
   Organization,
   PayAction,
   PaymentCard,
@@ -17,10 +18,13 @@ const SOURCE = 'apple-wallet';
 
 /**
  *   PayAction  agent: you   instrument: PaymentCard   location?
- *     PaymentCard  issuedBy: Organization (the issuer)   holder: you
+ *     PaymentCard  issuedBy: Organization (the issuer)   holder: you, by key
  *       account: FinancialAccount (the card, as far as Wallet knows)
- *     result: Transaction  amount, currency   recipient: Organization (the merchant)
- *       posting: Posting  amount (negative)   account: the card's account
+ *     result: Transaction  amount: MonetaryAmount   recipient: Organization (the merchant)
+ *       posting: Posting  amount: MonetaryAmount (negative)   account: the card's account, by key
+ *
+ * A node that appears again carries only its identity (`reference`), and the
+ * fold merges it with the full node by its key.
  */
 export default class AppleWalletTransformer extends ChronicleTransformer {
   static override source = SOURCE;
@@ -64,8 +68,9 @@ function buildTransaction(
     '@key': ['@type', 'source', 'sourceId'],
     source: SOURCE,
     sourceId: transaction.identifier,
-    ...(transaction.amount !== null && { amount: transaction.amount }),
-    ...(transaction.currencyCode && { currency: transaction.currencyCode }),
+    ...(transaction.amount !== null && {
+      amount: money(transaction.amount, transaction.currencyCode),
+    }),
     ...(merchant && { recipient: [merchant] }),
     ...(posting && { posting: [posting] }),
   };
@@ -84,10 +89,14 @@ function buildPosting(transaction: WalletTransaction, account: FinancialAccount)
     '@key': ['@type', 'source', 'sourceId', 'account.sourceId'],
     source: SOURCE,
     sourceId: transaction.identifier,
-    amount: amount === 0 ? 0 : -amount,
-    ...(transaction.currencyCode && { currency: transaction.currencyCode }),
-    account,
+    amount: money(amount === 0 ? 0 : -amount, transaction.currencyCode),
+    account: reference(account),
   };
+}
+
+/** A sum of money, with its currency when Wallet gives one. */
+function money(value: number, currency: string | null): MonetaryAmount {
+  return { '@type': 'MonetaryAmount', value, ...(currency && { currency }) };
 }
 
 /**
@@ -103,6 +112,7 @@ function buildMerchant(transaction: WalletTransaction): Organization | null {
  * The card as issued, keyed by the card network's identifier for it, which is
  * the same on every device the card is added to, or by the pass's own ID when
  * the network gives none. A card reissued with a new number is a new card.
+ * Its last digits are another name Wallet shows it by.
  */
 function buildCard(card: Card | null, holder: Person | null): PaymentCard | null {
   if (!card) return null;
@@ -114,10 +124,10 @@ function buildCard(card: Card | null, holder: Person | null): PaymentCard | null
     source: SOURCE,
     sourceId,
     ...(card.description && { name: card.description }),
-    ...(card.accountSuffix && { lastDigits: card.accountSuffix }),
+    ...(card.accountSuffix && { alternateName: [card.accountSuffix] }),
     ...(card.paymentType && { category: [card.paymentType.toLowerCase()] }),
     ...(issuer && { issuedBy: organization(issuer) }),
-    ...(holder && { holder }),
+    ...(holder && { holder: [reference(holder)] }),
     account: buildAccount(card, sourceId, holder),
   };
 }
@@ -145,10 +155,10 @@ function buildAccount(card: Card, sourceId: string, holder: Person | null): Fina
     source: SOURCE,
     sourceId,
     ...(card.description && { name: card.description }),
-    ...(card.accountSuffix && { lastDigits: card.accountSuffix }),
+    ...(card.accountSuffix && { alternateName: [card.accountSuffix] }),
     ...(accountType && { accountType }),
     ...(issuer && { provider: organization(issuer) }),
-    ...(holder && { holder }),
+    ...(holder && { holder: [reference(holder)] }),
   };
 }
 

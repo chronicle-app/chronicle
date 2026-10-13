@@ -59,6 +59,13 @@ const me = {
   handle: 'you@example.com',
   sameAs: ['@me'],
 };
+// You, by key alone, as a node that appears again in one record is given.
+const meRef = { '@type': 'Person', '@key': key, source: 'icloud', sourceId: '1234567890' };
+const money = (value, currency) => ({
+  '@type': 'MonetaryAmount',
+  value,
+  ...(currency && { currency }),
+});
 const organization = name => ({
   '@type': 'Organization',
   '@key': ['@type', 'source', 'name'],
@@ -79,9 +86,13 @@ const posting = (sourceId, amount, currency, account) => ({
   '@key': ['@type', 'source', 'sourceId', 'account.sourceId'],
   source: 'apple-wallet',
   sourceId,
-  amount,
-  currency,
-  account,
+  amount: money(amount, currency),
+  account: {
+    '@type': 'FinancialAccount',
+    '@key': key,
+    source: 'apple-wallet',
+    sourceId: account.sourceId,
+  },
 });
 const visaAccount = {
   '@type': 'FinancialAccount',
@@ -89,19 +100,19 @@ const visaAccount = {
   source: 'apple-wallet',
   sourceId: 'V-0000000000000000000001',
   name: 'Example Rewards Visa',
-  lastDigits: '7959',
+  alternateName: ['7959'],
   accountType: 'liability',
   provider: organization('Example Bank'),
-  holder: me,
+  holder: [meRef],
 };
 const amexAccount = {
   '@type': 'FinancialAccount',
   '@key': key,
   source: 'apple-wallet',
   sourceId: 'FAPLAB0000000000000000000000000000000000002',
-  lastDigits: '1001',
+  alternateName: ['1001'],
   provider: organization('Example Express'),
-  holder: me,
+  holder: [meRef],
 };
 const transaction = (sourceId, fields) => ({
   '@type': 'Transaction',
@@ -117,9 +128,10 @@ test('transactions become PayActions with their card and merchant, newest first'
   assert.deepEqual([...byId.keys()], ['TXN-ISSUER', 'TXN-TAP', 'TXN-BARE']);
 
   // From the issuer: the card is keyed by the network's identifier and named
-  // from its pass.json, with its default payment application's kind, and its
-  // account is derived from it as a liability. The amount has four decimal
-  // places in the store, and the posting is its negative.
+  // from its pass.json, with its last digits as another name and its default
+  // payment application's kind, and its account is derived from it as a
+  // liability. The amount has four decimal places in the store, and the
+  // posting is its negative. You and the account appear again by key alone.
   assert.deepEqual(
     byId.get('TXN-ISSUER'),
     payAction('TXN-ISSUER', '2025-01-01T00:05:00.000Z', {
@@ -130,16 +142,15 @@ test('transactions become PayActions with their card and merchant, newest first'
           source: 'apple-wallet',
           sourceId: 'V-0000000000000000000001',
           name: 'Example Rewards Visa',
-          lastDigits: '7959',
+          alternateName: ['7959'],
           category: ['credit'],
           issuedBy: organization('Example Bank'),
-          holder: me,
+          holder: [meRef],
           account: visaAccount,
         },
       ],
       result: transaction('TXN-ISSUER', {
-        amount: 69.93,
-        currency: 'CAD',
+        amount: money(69.93, 'CAD'),
         recipient: [organization('Example Café')],
         posting: [posting('TXN-ISSUER', -69.93, 'CAD', visaAccount)],
       }),
@@ -159,15 +170,14 @@ test('transactions become PayActions with their card and merchant, newest first'
           '@key': key,
           source: 'apple-wallet',
           sourceId: 'FAPLAB0000000000000000000000000000000000002',
-          lastDigits: '1001',
+          alternateName: ['1001'],
           issuedBy: organization('Example Express'),
-          holder: me,
+          holder: [meRef],
           account: amexAccount,
         },
       ],
       result: transaction('TXN-TAP', {
-        amount: 15.82,
-        currency: 'CAD',
+        amount: money(15.82, 'CAD'),
         recipient: [organization('EXAMPLE GROCER 1281')],
         posting: [posting('TXN-TAP', -15.82, 'CAD', amexAccount)],
       }),
@@ -180,7 +190,7 @@ test('transactions become PayActions with their card and merchant, newest first'
   assert.deepEqual(
     byId.get('TXN-BARE'),
     payAction('TXN-BARE', '2025-01-01T00:01:40.000Z', {
-      result: transaction('TXN-BARE', { amount: 1 }),
+      result: transaction('TXN-BARE', { amount: money(1, null) }),
     })
   );
 });
