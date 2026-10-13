@@ -39,6 +39,7 @@ export {
   createSink,
   sinkFor,
   stdoutWidth,
+  canAsk,
   outputFlagsIn,
   defaultLogFormat,
   PrettySink,

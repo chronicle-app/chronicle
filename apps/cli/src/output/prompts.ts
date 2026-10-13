@@ -8,14 +8,16 @@ import {
   useState,
   type KeypressEvent,
 } from '@inquirer/core';
+import { EXIT_CODES } from '@chronicle.app/logging';
 import { glyphs } from './glyphs.js';
+import { canAsk } from './sinks.js';
 import { tokens, type Tokens } from './tokens.js';
 
 /**
  * Questions asked at a terminal: `confirm`, `select`, `multiSelect`, and
  * `input`. Each draws on stderr, so stdout stays for records, and reads keys
- * only while it's asking. Esc or Ctrl+C cancels. Callers check for a terminal
- * first and, without one, say which flag to pass instead.
+ * only while it's asking. Esc, Ctrl+C, or Ctrl+D cancels. Callers check
+ * `canAsk()` first and, without a terminal, say which flag to pass instead.
  */
 
 export interface SelectOption {
@@ -39,6 +41,19 @@ const isUp = (key: KeypressEvent) => key.name === 'up' || (key.name === 'k' && !
 const isDown = (key: KeypressEvent) => key.name === 'down' || (key.name === 'j' && !key.ctrl);
 
 /**
+ * Ctrl+D on an empty line closes readline, and inquirer then leaves the
+ * question unanswered, so the process would exit mid-await. Answer it as a
+ * cancel instead. Closing clears this effect before the listener runs, but a
+ * listener removed during an emit still runs.
+ */
+function useCancelOnClose(cancel: () => void) {
+  useEffect(rl => {
+    rl.on('close', cancel);
+    return () => rl.removeListener('close', cancel);
+  }, []);
+}
+
+/**
  * Run a prompt on stderr. It clears itself when done, and an answer leaves
  * `answered`'s lines in its place; a cancel leaves nothing. Ctrl+C is a
  * cancel, not an error.
@@ -54,6 +69,13 @@ async function ask<Value extends { cancelled: boolean }>(
   answered?: (value: Value) => string
 ): Promise<Value> {
   const output = terminal.output ?? process.stderr;
+  // A caller that forgot to check would wait on a pipe for keys that never come.
+  if (!terminal.input && !canAsk()) {
+    throw Object.assign(new Error("Can't ask a question without a terminal"), {
+      code: 'no-terminal',
+      exitCode: EXIT_CODES.usage,
+    });
+  }
   let value: Value;
   try {
     value = await run({ input: terminal.input, output, clearPromptOnDone: true });
@@ -88,9 +110,12 @@ const confirmPrompt = createPrompt<
     setFinished(true);
     done(result);
   };
+  useCancelOnClose(() => done({ confirmed: false, cancelled: true }));
 
-  useKeypress(key => {
+  useKeypress((key, rl) => {
     if (finished) return;
+    // Readline keeps each key typed as a line; this one has none.
+    rl.clearLine(0);
     if (isEnterKey(key)) return finish({ confirmed: yes, cancelled: false });
     if (isEscape(key)) return finish({ confirmed: false, cancelled: true });
     switch (key.name) {
@@ -155,9 +180,11 @@ const selectPrompt = createPrompt<
     setFinished(true);
     done(result);
   };
+  useCancelOnClose(() => done({ value: '', cancelled: true }));
 
-  useKeypress(key => {
+  useKeypress((key, rl) => {
     if (finished) return;
+    rl.clearLine(0);
     if (isUp(key)) setCursor(cursor > 0 ? cursor - 1 : options.length - 1);
     else if (isDown(key)) setCursor(cursor < options.length - 1 ? cursor + 1 : 0);
     else if (isEnterKey(key)) finish({ value: options[cursor].value, cancelled: false });
@@ -226,9 +253,11 @@ const multiSelectPrompt = createPrompt<
     setFinished(true);
     done(result);
   };
+  useCancelOnClose(() => done({ values: [], cancelled: true }));
 
-  useKeypress(key => {
+  useKeypress((key, rl) => {
     if (finished) return;
+    rl.clearLine(0);
     if (isUp(key)) setCursor(cursor > 0 ? cursor - 1 : options.length - 1);
     else if (isDown(key)) setCursor(cursor < options.length - 1 ? cursor + 1 : 0);
     else if (isSpaceKey(key)) {
@@ -301,6 +330,7 @@ const inputPrompt = createPrompt<
     setFinished(true);
     done(result);
   };
+  useCancelOnClose(() => done({ value: '', cancelled: true }));
 
   // The default is typed in for you, to keep or edit.
   useEffect(rl => {

@@ -37,10 +37,6 @@ export default class AuthRemove extends BaseCommand<typeof AuthRemove> {
     } catch (error) {
       this.failFrom(error, `Couldn't remove the credentials for ${provider}`);
     }
-    this.logger.emit({
-      level: 'info',
-      kind: 'summary',
-      message: `Removed the credentials for ${provider}`,
-    });
+    this.summary(`Removed the credentials for ${provider}`);
   }
 }

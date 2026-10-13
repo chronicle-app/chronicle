@@ -12,6 +12,7 @@ const OPTIONS = [
 
 const DOWN = '\u001B[B';
 const CTRL_C = '\u0003';
+const CTRL_D = '\u0004';
 
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -19,9 +20,11 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 function typing(...keys) {
   const input = new PassThrough();
   let drawn = '';
+  const writes = [];
   const output = new Writable({
     write(chunk, _encoding, callback) {
       drawn += chunk;
+      writes.push(String(chunk));
       callback();
     },
   });
@@ -36,7 +39,7 @@ function typing(...keys) {
       await pause(5);
     }
   })();
-  return { terminal: { input, output }, drawn: () => drawn };
+  return { terminal: { input, output }, drawn: () => drawn, writes: () => writes };
 }
 
 test('confirm takes y or n, then Enter, and leaves the answer', async () => {
@@ -81,6 +84,43 @@ test('Ctrl+C cancels a question and leaves nothing of it', async () => {
   // The question clears itself and shows the cursor again; no answer follows.
   assert.match(drawn(), /\u001B\[\?25h$/);
 });
+
+test('Ctrl+D cancels any question, as Esc does', async () => {
+  // Ctrl+D closes the input; unanswered, the question would leave the CLI's
+  // top-level await pending and Node would exit 13.
+  assert.deepEqual(await confirm('Go ahead?', typing(CTRL_D)), {
+    confirmed: false,
+    cancelled: true,
+  });
+  assert.deepEqual(await select('Which?', OPTIONS, typing('j', CTRL_D)), {
+    value: '',
+    cancelled: true,
+  });
+  assert.deepEqual(await multiSelect('Which?', OPTIONS, typing(' ', CTRL_D)), {
+    values: [],
+    cancelled: true,
+  });
+  assert.deepEqual(await input('Your name?', typing(CTRL_D)), { value: '', cancelled: true });
+});
+
+test('keys pressed at a list are not kept as typed text, so redraws stay in place', async () => {
+  // Inquirer places the cursor after the text typed so far. Kept, a
+  // terminal's width of j's would move every redraw onto the wrong line.
+  const { terminal, writes } = typing(...Array.from({ length: 99 }, () => 'j'), '\r');
+  await select('Which?', OPTIONS, { terminal });
+  const frames = writes().filter(write => write.includes('Which?'));
+  // The first option highlighted again after 3 presses and after 99, drawn the same.
+  assert.equal(frames.length, 100);
+  assert.equal(frames[99], frames[3]);
+});
+
+test(
+  'a question without a terminal fails instead of waiting for keys',
+  { skip: process.stdin.isTTY && process.stderr.isTTY && 'run at a terminal' },
+  async () => {
+    await assert.rejects(confirm('Go ahead?'), { code: 'no-terminal' });
+  }
+);
 
 test('input asks again until the answer is valid', async () => {
   const { terminal, drawn } = typing('\r', 'A', 'd', 'a', '\r');

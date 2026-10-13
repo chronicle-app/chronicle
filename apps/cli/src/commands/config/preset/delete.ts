@@ -1,6 +1,7 @@
 import { BaseCommand } from '../../../baseCommand.js';
 import { Args, Flags } from '@oclif/core';
 import { ConfigManager } from '../../../config/index.js';
+import { canAsk } from '../../../output/index.js';
 
 export default class PresetDeleteCommand extends BaseCommand<typeof PresetDeleteCommand> {
   static override description = 'Delete a preset';
@@ -40,13 +41,16 @@ export default class PresetDeleteCommand extends BaseCommand<typeof PresetDelete
 
       if (!flags.force) {
         // The question needs a terminal to answer it at.
-        if (!process.stdin.isTTY) {
+        if (!canAsk()) {
           this.fail("Can't ask to confirm without a terminal", {
             hint: `Run \`chronicle config preset delete ${args.name} --force\` to delete it without asking.`,
           });
         }
         const { confirm } = await import('../../../output/prompts.js');
-        const result = await confirm(`Delete the preset ${args.name}?`, { defaultValue: false });
+        const result = await confirm(`Delete the preset ${args.name}?`, {
+          defaultValue: false,
+          theme: flags.theme,
+        });
 
         if (result.cancelled || !result.confirmed) {
           this.logger.info('Delete cancelled');
@@ -57,11 +61,7 @@ export default class PresetDeleteCommand extends BaseCommand<typeof PresetDelete
       if (!(await configManager.deletePreset(args.name))) {
         this.fail(`Couldn't delete the preset ${args.name}`);
       }
-      this.logger.emit({
-        level: 'info',
-        kind: 'summary',
-        message: `Deleted the preset ${args.name}`,
-      });
+      this.summary(`Deleted the preset ${args.name}`);
     } catch (error) {
       this.failFrom(error, "Couldn't delete the preset");
     }

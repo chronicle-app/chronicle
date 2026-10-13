@@ -126,9 +126,17 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
     throw new Errors.ExitError(exitCode);
   }
 
-  /** What to do next, on stderr under the output: a plain sentence with the command in it. */
-  protected hint(message: string): void {
-    this.logger.emit({ level: 'info', kind: 'hint', message });
+  /**
+   * What to do next, on stderr under the output: a plain sentence with the
+   * command in it, and the step to take on a line of its own, if there is one.
+   */
+  protected hint(message: string, action?: string): void {
+    this.logger.emit({ level: 'info', kind: 'hint', message, ...(action && { hint: { action } }) });
+  }
+
+  /** What a command did, once it's done, on stderr: `Saved the preset quick`. */
+  protected summary(message: string): void {
+    this.logger.emit({ level: 'info', kind: 'summary', message });
   }
 
   /** The command that shows this command's help, for hints. */

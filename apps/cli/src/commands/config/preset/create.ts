@@ -100,11 +100,9 @@ export default class PresetCreateCommand extends BaseCommand<typeof PresetCreate
         flags: presetFlags,
       });
 
-      this.logger.emit({
-        level: 'info',
-        kind: 'summary',
-        message: `${existing ? 'Updated' : 'Saved'} the preset ${presetName} with ${typedFlags(presetFlags)}`,
-      });
+      this.summary(
+        `${existing ? 'Updated' : 'Saved'} the preset ${presetName} with ${typedFlags(presetFlags)}`
+      );
     } catch (error) {
       this.failFrom(error, "Couldn't save the preset");
     }

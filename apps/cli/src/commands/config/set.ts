@@ -32,11 +32,7 @@ export default class ConfigSetCommand extends BaseCommand<typeof ConfigSetComman
       }
 
       await configManager.setGlobalValue(args.key, parsedValue);
-      this.logger.emit({
-        level: 'info',
-        kind: 'summary',
-        message: `Set the default for ${args.key} to ${JSON.stringify(parsedValue)}`,
-      });
+      this.summary(`Set the default for ${args.key} to ${JSON.stringify(parsedValue)}`);
     } catch (error) {
       this.failFrom(error, "Couldn't set the default");
     }

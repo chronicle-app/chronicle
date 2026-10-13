@@ -147,6 +147,12 @@ export const stdoutWidth = () =>
   process.stdout.isTTY ? (process.stdout.columns || 80) - 1 : Number.POSITIVE_INFINITY;
 
 /**
+ * Whether a question can be asked here: prompts read keys from stdin and draw
+ * on stderr, so both have to be a terminal. stdout can be piped.
+ */
+export const canAsk = () => Boolean(process.stdin.isTTY && process.stderr.isTTY);
+
+/**
  * For a person at a terminal: color, the time of day at the right edge of
  * notices and errors, and a live progress line redrawn in place while a run
  * goes.

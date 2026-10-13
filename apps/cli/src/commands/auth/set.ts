@@ -67,11 +67,9 @@ export default class AuthSet extends BaseCommand<typeof AuthSet> {
       ...(username && { username }),
     });
 
-    this.logger.emit({
-      level: 'info',
-      kind: 'summary',
-      message: `Stored the credentials for ${provider}${username ? `, with username ${username}` : ''}`,
-    });
+    this.summary(
+      `Stored the credentials for ${provider}${username ? `, with username ${username}` : ''}`
+    );
   }
 
   // Read the token from an interactive prompt without echoing it, so it never

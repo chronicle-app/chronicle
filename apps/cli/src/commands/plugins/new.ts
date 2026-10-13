@@ -5,7 +5,7 @@ import { BaseCommand } from '../../baseCommand.js';
 import { findEntry, loadCatalog } from '../../plugins/catalog.js';
 import { addLocalPlugin } from '../../plugins/local.js';
 import { KINDS, type Kind, isPluginName, scaffold } from '../../plugins/scaffold.js';
-import { tokens } from '../../output/index.js';
+import { canAsk, tokens } from '../../output/index.js';
 
 export default class PluginsNew extends BaseCommand<typeof PluginsNew> {
   static override description =
@@ -60,8 +60,7 @@ export default class PluginsNew extends BaseCommand<typeof PluginsNew> {
       }
     }
 
-    const interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY);
-    const kind = (flags.from ?? (await this.askKind(interactive))) as Kind;
+    const kind = (flags.from ?? (await this.askKind(flags.theme))) as Kind;
 
     for (const [file, contents] of Object.entries(
       scaffold({ name, kind, version: this.config.version })
@@ -84,14 +83,15 @@ export default class PluginsNew extends BaseCommand<typeof PluginsNew> {
     );
   }
 
-  private async askKind(interactive: boolean): Promise<string> {
-    if (!interactive) {
+  private async askKind(theme: string | undefined): Promise<string> {
+    if (!canAsk()) {
       this.fail(`Say how the data reaches you with --from (${Object.keys(KINDS).join(', ')}).`);
     }
     const { select } = await import('../../output/prompts.js');
     const { value, cancelled } = await select(
       'How does the data reach you?',
-      Object.entries(KINDS).map(([value, { label }]) => ({ label, value }))
+      Object.entries(KINDS).map(([value, { label }]) => ({ label, value })),
+      { theme }
     );
     if (cancelled) this.exit(130);
     return value;
