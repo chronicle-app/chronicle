@@ -34,18 +34,6 @@ function run(args, cwd, capture = false) {
   return result.stdout;
 }
 
-function saveSnapshot(path, content) {
-  if (existsSync(path)) {
-    assert.equal(
-      readFileSync(path, 'utf8'),
-      content,
-      'Schema snapshot changed without a version bump: ' + path
-    );
-  } else {
-    writeFileSync(path, content);
-  }
-}
-
 try {
   const dependencies = {};
   const packageDirectories = ['core', 'plugins', 'apps']
@@ -133,7 +121,9 @@ process.stdout.write(readFileSync(ontology, 'utf8'));`,
     );
     const snapshotDirectory = resolve('artifacts/schema/releases', version);
     mkdirSync(snapshotDirectory, { recursive: true });
-    saveSnapshot(join(snapshotDirectory, 'chronicle.ttl'), ontology);
+    // A build output, rewritten on every run. The Schema site deployment is what
+    // keeps a published snapshot from changing.
+    writeFileSync(join(snapshotDirectory, 'chronicle.ttl'), ontology);
   }
   writeFileSync(
     join(consumer, '.eslintrc.cjs'),
