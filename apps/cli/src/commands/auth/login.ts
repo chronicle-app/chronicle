@@ -73,10 +73,11 @@ export default class AuthLogin extends BaseCommand<typeof AuthLogin> {
 
     if (flags.list) {
       const providers = await OAuthCommand.listProviders(this.config);
+      // Nothing to list isn't a failure, as with `auth list`.
       if (providers.length === 0) {
-        this.fail('No providers to sign in to', {
-          hint: 'Run `chronicle plugins` to see the installed plugins.',
-        });
+        this.logger.info('No providers to sign in to');
+        this.hint('Run `chronicle plugins` to see the installed plugins.');
+        return;
       }
       const t = tokens({ stream: 'stdout', theme: flags.theme });
       const rows = [...providers].sort().map(provider => {

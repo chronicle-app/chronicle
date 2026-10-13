@@ -49,6 +49,11 @@ export default class PresetCreateCommand extends BaseCommand<typeof PresetCreate
       // Process argv to capture all --flag=value or --flag value pairs
       for (let i = 1; i < this.argv.length; i++) {
         const arg = this.argv[i];
+        // `-d`, short for --description, is the only short flag.
+        if (arg === '-d') {
+          description = this.argv[++i];
+          continue;
+        }
         if (typeof arg === 'string' && arg.startsWith('--')) {
           let flagName: string;
           let flagValue: any;

@@ -715,6 +715,10 @@ test(
     const alone = run.with(env)('sources', '--source', 'google-reader');
     assert.match(alone.stderr, /chronicle sources info google-reader/);
     assert.doesNotMatch(alone.stderr, /chronicle extract/);
+    // With no providers to list, `auth login --list` says so, as `auth list` does.
+    const providers = run.with(env)('auth', 'login', '--list');
+    assert.equal(providers.status, 0, providers.stderr);
+    assert.match(providers.stderr, /`chronicle plugins`/);
   }
 );
 
@@ -748,7 +752,12 @@ test('unsupported loader and missing input file fail without success output, eve
 test('preset selection and explicit values override global config', t => {
   const { input, run } = fixture(t);
   success(run('config', 'set', 'limit', '1'));
-  success(run('config', 'preset', 'create', 'all', '--limit', '0'));
+  success(run('config', 'preset', 'create', 'all', '--limit', '0', '-d', 'Every record'));
+  // `-d`, as help lists it, is the description.
+  assert.equal(
+    JSON.parse(success(run('config', 'preset', 'show', 'all', '--json'))).description,
+    'Every record'
+  );
   const args = ['extract', 'shell', '--input', input, '--raw', '--preset', 'all'];
   assert.equal((success(run(...args)).match(/"command"/g) || []).length, 2);
   assert.equal(JSON.parse(success(run(...args, '--limit', '1'))).command, 'printf fixture');
