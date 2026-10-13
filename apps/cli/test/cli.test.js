@@ -81,12 +81,13 @@ test('bundled sources are discoverable from an unrelated cwd; JSON has no diagno
   // Legacy sources are listed only on request, and a hint under the table says so.
   assert.ok(sources.every(x => x.tier !== 'legacy'));
   const table = run('sources');
-  assert.match(success(table), /^source +strategy +description/);
+  // A status column only where a source isn't ready to run, such as one for another OS.
+  assert.match(success(table), /^source +strategy +(status +)?description/);
   assert.match(table.stderr, /Not showing \d+ legacy sources.*chronicle sources --all/);
   const legacy = all.filter(x => x.tier === 'legacy');
   assert.ok(legacy.length > 0);
   assert.match(success(run('sources', 'info', legacy[0].source)), /tier +legacy/);
-  assert.match(success(run('sources', '--all')), new RegExp(`^${legacy[0].source} `, 'm'));
+  assert.match(success(run('sources', '--all')), new RegExp(`^${legacy[0].source} .*legacy`, 'm'));
   // An unknown source is reported as one, even with a source's own flags.
   const unknown = run('extract', 'no-such-source', '--limit', '1');
   assert.notEqual(unknown.status, 0);
@@ -343,6 +344,11 @@ test('every command has help, asked for either way, drawn by the help class', as
   assert.match(commands, /^command +description\n/);
   assert.match(commands, /^config preset show +Show a preset's flags$/m);
   assert.match(commands, /^autocomplete +Set up tab completion for your shell$/m);
+  // Piped, no column is cut, however long.
+  assert.match(
+    commands,
+    /^auth set +Store an API key or token for a provider that doesn't use OAuth$/m
+  );
   assert.doesNotMatch(commands, /^e /m);
   // A whole command in one quoted argument gets it back with its words apart.
   const quoted = run('auth list --help', '--log-format', 'json');
@@ -703,6 +709,12 @@ test(
       success(run.with(env)('sources', 'info', 'google-reader')),
       /plugin +@chronicle\.app\/google-reader, not installed/
     );
+    // The table says which sources aren't installed, and with none listed that
+    // runs here, its hint names only a command that works.
+    assert.match(success(run.with(env)('sources', '--all')), /^google-reader .*not installed/m);
+    const alone = run.with(env)('sources', '--source', 'google-reader');
+    assert.match(alone.stderr, /chronicle sources info google-reader/);
+    assert.doesNotMatch(alone.stderr, /chronicle extract/);
   }
 );
 

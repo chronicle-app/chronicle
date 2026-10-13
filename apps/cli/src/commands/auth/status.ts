@@ -59,7 +59,7 @@ export default class AuthStatus extends BaseCommand<typeof AuthStatus> {
       fields.push(['refresh token', credentials.refreshToken ? 'yes' : 'no']);
 
       if (i > 0) this.log('');
-      for (const line of card(provider, fields, t, stdoutWidth())) this.log(line);
+      for (const line of card(provider, fields, t, stdoutWidth(), { wrap: true })) this.log(line);
     }
   }
 }

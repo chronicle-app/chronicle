@@ -82,3 +82,16 @@ test('a group that goes quiet still gets its roll-up on time', async () => {
   assert.equal(lines[1].fields.suppressed, 3);
   sink.flush();
 });
+
+test('a card wraps its values when asked, cutting no word', async () => {
+  const { card, plainTokens } = await import('../dist/output/index.js');
+  const types = 'comments, issues, pull requests, releases, repositories, resolutions, stars';
+  // Cut by default, to the width.
+  const [cut] = card(undefined, [['types', types]], plainTokens, 40);
+  assert.equal(cut.length, 40);
+  // Wrapped, every word is there, each line under the value's column.
+  const wrapped = card(undefined, [['types', types]], plainTokens, 40, { wrap: true });
+  assert.ok(wrapped.length > 1);
+  assert.ok(wrapped.every(line => line.length <= 40));
+  assert.equal(wrapped.map(line => line.slice('types  '.length)).join(' '), types);
+});

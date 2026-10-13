@@ -52,7 +52,8 @@ export default class SourcesInfo extends BaseCommand<typeof SourcesInfo> {
           : []),
       ],
       t,
-      width
+      width,
+      { wrap: true }
     )) {
       this.log(entry);
     }

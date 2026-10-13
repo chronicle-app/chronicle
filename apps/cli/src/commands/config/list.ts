@@ -39,7 +39,9 @@ export default class ConfigListCommand extends BaseCommand<typeof ConfigListComm
     this.log(heading('Flag defaults', t, width));
     if (defaults.length === 0) this.log(none);
     const entries = defaults.map(([key, value]) => [key, valueText(value)] as [string, string]);
-    for (const line of card(undefined, entries, t, width - 2)) this.log(`  ${line}`);
+    for (const line of card(undefined, entries, t, width - 2, { wrap: true })) {
+      this.log(`  ${line}`);
+    }
     this.log('');
     this.log(heading('Presets', t, width));
     if (Object.keys(presets).length === 0) this.log(none);

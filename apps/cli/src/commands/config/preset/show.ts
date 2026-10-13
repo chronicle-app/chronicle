@@ -57,7 +57,7 @@ export default class PresetShowCommand extends BaseCommand<typeof PresetShowComm
         ? [['modified', date(new Date(preset.modified))] as [string, string]]
         : []),
     ];
-    for (const line of card(preset.name, entries, t, stdoutWidth())) this.log(line);
+    for (const line of card(preset.name, entries, t, stdoutWidth(), { wrap: true })) this.log(line);
     this.hint(
       `Use it with \`--preset ${preset.name}\`, as in \`chronicle extract shell --preset ${preset.name}\`.`
     );

@@ -110,11 +110,14 @@ export default class Sources extends BaseCommand<typeof Sources> {
     const t = tokens({ stream: 'stdout', theme: this.flags.theme });
     for (const line of sourcesTable(sources, t, stdoutWidth())) this.log(line);
     // A source that runs here, for an example that works as printed: shell when it's listed.
+    // When none listed runs here, only `sources info` works for any of them.
     const runs = sources.filter(s => s.installed && s.supported);
-    const example = runs.find(s => s.source === 'shell') ?? runs[0] ?? sources[0];
+    const example = runs.find(s => s.source === 'shell') ?? runs[0];
     this.hint(
-      `Run \`chronicle sources info ${example.source}\` to see a source, or ` +
-        `\`chronicle extract ${example.source}\` to extract it.`
+      example
+        ? `Run \`chronicle sources info ${example.source}\` to see a source, or ` +
+            `\`chronicle extract ${example.source}\` to extract it.`
+        : `Run \`chronicle sources info ${sources[0].source}\` to see a source and what it needs.`
     );
   }
 
