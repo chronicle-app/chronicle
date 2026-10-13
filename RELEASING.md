@@ -71,7 +71,9 @@ To publish from a local checkout instead, such as before trusted publishers exis
 authenticate with npm and run `npm run release` from a clean `main`. It runs the
 same checks, publishes every version not already on the registry, and creates the
 release with `gh`. npm asks for two-factor authentication. Rerun it to continue
-after an interrupted publish.
+after an interrupted publish. It doesn't deploy the schema site, so run the Schema
+site workflow by hand once it finishes (`gh workflow run schema-site.yml --ref main`).
+Until then, a new vocabulary version has no snapshot on the site.
 
 After publishing, verify the released versions by installing them in an isolated
 consumer, for example `npx @chronicle.app/cli@latest sources` in an empty directory.
@@ -117,16 +119,17 @@ publish npm packages, or deploy the website.
 The snapshot is the ontology alone, so an unchanged vocabulary produces
 identical snapshots across software releases. The documentation site also
 carries guides and examples, which change between vocabulary versions; build it
-with `npm run schema:docs:build`. Preparation refuses to
-overwrite differing local snapshots at an existing version. The deployment
-compares its snapshots with the published ones, since a fresh checkout cannot
-detect changes to artifacts stored elsewhere. Never overwrite a published
-snapshot.
+with `npm run schema:docs:build`. The local copy under `artifacts/` is a build
+output that preparation rewrites on every run. The deployment compares its
+snapshots with the published ones, since only it can see what was published.
+Never overwrite a published snapshot.
 
 Because the site serves `main`, a vocabulary change is public as soon as it
 merges, before the npm package that carries it is published. Keep vocabulary
 work on branches, and raise `owl:versionInfo` with any change to
-`chronicle.ttl`; `npm run schema:check` fails otherwise.
+`chronicle.ttl` after a release. While the vocabulary is in flux, no check
+enforces this. Before a release, run `npm run version:check -w @chronicle.app/schema`,
+which compares the ontology with the latest release tag.
 
 The deployment needs the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`
 repository secrets. If the live site cannot be reached, run the Schema site

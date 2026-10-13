@@ -156,8 +156,10 @@ documentation under the same release path. Published snapshots must never be
 overwritten or removed by later deployments. The unversioned `/chronicle.ttl`
 and term pages serve `main`, so `main` holds only vocabulary that is ready to
 publish: work on new terms in a branch until it is ready. Any change to
-`chronicle.ttl` after a release must raise `owl:versionInfo`;
-`npm run schema:check` enforces this against the latest release tag. See [Preparing a release](../../RELEASING.md) for the
+`chronicle.ttl` after a release must raise `owl:versionInfo`. While the
+vocabulary is in flux, `npm run schema:check` doesn't check this, so run
+`npm run version:check` before a release to compare against the latest release
+tag. See [Preparing a release](../../RELEASING.md) for the
 release procedure.
 
 The vocabulary is intentionally small. Add terms only when a plugin needs them;
