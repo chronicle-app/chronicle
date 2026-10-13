@@ -27,6 +27,9 @@ function fixture(t) {
     CHRONICLE_CACHE_DIR: join(dir, 'cache'),
     CHRONICLE_SKIP_NEW_VERSION_CHECK: '1',
     NO_COLOR: '1',
+    // `node --test` at a terminal sets FORCE_COLOR, and Node warns on stderr
+    // when it's set alongside NO_COLOR.
+    FORCE_COLOR: undefined,
     // Keep oclif from wrapping error messages, so assertions don't depend on path length.
     OCLIF_COLUMNS: '1000',
   };
