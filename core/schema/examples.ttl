@@ -4066,8 +4066,12 @@ its :currency, and the café as its :recipient.
 
 The :PaymentCard is keyed by the card network's identifier for the card,
 which is the same on every device the card is added to, and is :issuedBy the
-bank. The café is an :Organization keyed by its name, which is all the issuer
-sends.
+bank. Wallet has no number for the account the card draws on, so the
+:FinancialAccount is keyed like the card and named as the card is. The
+:Transaction's one :posting is that account's side of the purchase, negative
+because a purchase adds to what a credit card owes. The café's side is not
+known. The café is an :Organization keyed by its name, which is all the
+issuer sends.
 """;
   rdf:value [
     a :PayAction;
@@ -4089,12 +4093,44 @@ sends.
       :source "apple-wallet";
       :sourceId "V-0000000000000000000001";
       :name "Example Rewards Visa";
+      :lastDigits "4242";
       :category "credit";
       :issuedBy [
         a :Organization;
         doc:key ("@type" "source" "name");
         :source "apple-wallet";
         :name "Example Bank"
+      ];
+      :holder [
+        a :Person;
+        doc:key ("@type" "source" "sourceId");
+        :source "icloud";
+        :sourceId "1234567890";
+        :handle "sam@example.com";
+        :sameAs "@me"
+      ];
+      :account [
+        a :FinancialAccount;
+        doc:key ("@type" "source" "sourceId");
+        :source "apple-wallet";
+        :sourceId "V-0000000000000000000001";
+        :name "Example Rewards Visa";
+        :lastDigits "4242";
+        :accountType "liability";
+        :provider [
+          a :Organization;
+          doc:key ("@type" "source" "name");
+          :source "apple-wallet";
+          :name "Example Bank"
+        ];
+        :holder [
+          a :Person;
+          doc:key ("@type" "source" "sourceId");
+          :source "icloud";
+          :sourceId "1234567890";
+          :handle "sam@example.com";
+          :sameAs "@me"
+        ]
       ]
     ];
     :result [
@@ -4109,6 +4145,20 @@ sends.
         doc:key ("@type" "source" "name");
         :source "apple-wallet";
         :name "Example Café"
+      ];
+      :posting [
+        a :Posting;
+        doc:key ("@type" "source" "sourceId" "account.sourceId");
+        :source "apple-wallet";
+        :sourceId "7C1E9F2B-6A3D-4B58-9E0F-2D4C6B8A1E35";
+        :amount -4.75;
+        :currency "CAD";
+        :account [
+          a :FinancialAccount;
+          doc:key ("@type" "source" "sourceId");
+          :source "apple-wallet";
+          :sourceId "V-0000000000000000000001"
+        ]
       ]
     ]
   ] .
@@ -4121,3 +4171,11 @@ sends.
 :currency skos:example example:card-purchase .
 :issuedBy skos:example example:card-purchase .
 :recipient skos:example example:card-purchase .
+:FinancialAccount skos:example example:card-purchase .
+:Posting skos:example example:card-purchase .
+:posting skos:example example:card-purchase .
+:account skos:example example:card-purchase .
+:accountType skos:example example:card-purchase .
+:provider skos:example example:card-purchase .
+:holder skos:example example:card-purchase .
+:lastDigits skos:example example:card-purchase .

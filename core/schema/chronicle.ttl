@@ -882,21 +882,21 @@
   rdfs:subClassOf :TradeAction;
   skos:closeMatch schemaorg:PayAction .
 :Transaction a owl:Class;
-  rdfs:comment "A movement of money, recorded as one entry, such as a card purchase, a transfer between accounts, or a trade. It is the :result of the action that moved the money, such as a :PayAction, which gives when it happened and who paid. Its :amount and :currency give how much moved, and its :recipient is who received it.";
+  rdfs:comment "A movement of money, recorded as one entry, such as a card purchase, a transfer between accounts, or a trade. It is the :result of the action that moved the money, such as a :PayAction, which gives when it happened and who paid. Its :amount and :currency give how much moved, and its :recipient is who received it. Each account it changed is a :posting.";
   rdfs:subClassOf :Intangible .
 :PaymentCard a owl:Class;
-  rdfs:comment "A numbered card that payments draw on, such as a credit card or a debit card. It is the card as issued, so a card reissued with a new number is a new :PaymentCard, while the account behind it continues. The same card added to several devices is one :PaymentCard. It is the :instrument of a :PayAction. Its :issuedBy is the bank or company that issued it, and its :category is its kind, such as `credit` or `debit`.";
+  rdfs:comment "A numbered card that payments draw on, such as a credit card or a debit card. It is the card as issued, so a card reissued with a new number is a new :PaymentCard, while the account behind it continues. The same card added to several devices is one :PaymentCard. It is the :instrument of a :PayAction. Its :account is the account it draws on, its :issuedBy is the bank or company that issued it, its :holder is whose it is, and its :lastDigits tell it from other cards. Its :category is its kind, such as `credit` or `debit`.";
   rdfs:subClassOf :Intangible;
   skos:closeMatch schemaorg:PaymentCard .
 :amount a owl:DatatypeProperty;
-  rdfs:comment "How much money the transaction moved, as a positive number in its :currency, such as `69.93`. The action that produced the transaction says who paid and who was paid.";
-  rdfs:domain :Transaction;
+  rdfs:comment "How much money moved, as a number in its :currency. On a :Transaction, it is the whole amount and is positive, such as `69.93`. The action that produced the transaction says who paid and who was paid. On a :Posting, it is the change to the posting's account and is signed. A positive amount increases an asset or an expense account, and a negative one increases a liability, an income, or an equity account, so a purchase paid with a card is negative on the card's account.";
+  rdfs:domain [ a owl:Class; owl:unionOf ( :Transaction :Posting ) ];
   rdfs:range :Number;
   skos:closeMatch schemaorg:amount .
 [] a sh:PropertyShape; sh:path :amount; sh:targetSubjectsOf :amount; sh:maxCount 1 .
 :currency a owl:DatatypeProperty;
-  rdfs:comment "The currency of the transaction's :amount, as its ISO 4217 code, such as `CAD` or `USD`. Not allowed: a symbol (`$`) or a name (`dollars`).";
-  rdfs:domain :Transaction;
+  rdfs:comment "The currency of the :amount, as its ISO 4217 code, such as `CAD` or `USD`. Not allowed: a symbol (`$`) or a name (`dollars`).";
+  rdfs:domain [ a owl:Class; owl:unionOf ( :Transaction :Posting ) ];
   rdfs:range :Text;
   skos:closeMatch schemaorg:currency .
 [] a sh:PropertyShape; sh:path :currency; sh:targetSubjectsOf :currency; sh:maxCount 1 .
@@ -906,3 +906,39 @@
   rdfs:range :Organization;
   skos:closeMatch schemaorg:issuedBy .
 [] a sh:PropertyShape; sh:path :issuedBy; sh:targetSubjectsOf :issuedBy; sh:maxCount 1 .
+:FinancialAccount a owl:Class;
+  rdfs:comment "An account that money is counted in, as one line of a chart of accounts. It is a real account held with an institution, such as a bank account or a credit card account, or a nominal one that classifies money, such as an expense or income category. Its :accountType says which of the five kinds it is. The account above it in the chart is what it :isPartOf. A real account has a :provider, and its :holder is whose it is.";
+  rdfs:subClassOf :Intangible .
+:Posting a owl:Class;
+  rdfs:comment "One account's side of a :Transaction: the change the transaction made to that account. Its :account is the account, and its :amount is the change. A transaction whose postings sum to zero is complete.";
+  rdfs:subClassOf :Intangible .
+:posting a owl:ObjectProperty;
+  rdfs:comment "A posting of the transaction, one for each account it changed that is known.";
+  rdfs:domain :Transaction;
+  rdfs:range :Posting .
+:account a owl:ObjectProperty;
+  rdfs:comment "The account the posting changed, or the account the card draws on.";
+  rdfs:domain [ a owl:Class; owl:unionOf ( :Posting :PaymentCard ) ];
+  rdfs:range :FinancialAccount .
+[] a sh:PropertyShape; sh:path :account; sh:targetSubjectsOf :account; sh:maxCount 1 .
+:accountType a owl:DatatypeProperty;
+  rdfs:comment "The kind of account, one of `asset`, `liability`, `equity`, `income`, or `expense`. Not allowed: another kind (`credit-card`) or another case (`Asset`).";
+  rdfs:domain :FinancialAccount;
+  rdfs:range :Text .
+[] a sh:PropertyShape; sh:path :accountType; sh:targetSubjectsOf :accountType; sh:maxCount 1 .
+:provider a owl:ObjectProperty;
+  rdfs:comment "The institution that holds the account, such as a bank or a card company.";
+  rdfs:domain :FinancialAccount;
+  rdfs:range :Organization;
+  skos:closeMatch schemaorg:provider .
+[] a sh:PropertyShape; sh:path :provider; sh:targetSubjectsOf :provider; sh:maxCount 1 .
+:holder a owl:ObjectProperty;
+  rdfs:comment "The agent the account or card belongs to.";
+  rdfs:domain [ a owl:Class; owl:unionOf ( :FinancialAccount :PaymentCard ) ];
+  rdfs:range :Agent .
+[] a sh:PropertyShape; sh:path :holder; sh:targetSubjectsOf :holder; sh:maxCount 1 .
+:lastDigits a owl:DatatypeProperty;
+  rdfs:comment "The last digits of the card or account number, as shown to tell one from another, such as `1001`.";
+  rdfs:domain [ a owl:Class; owl:unionOf ( :PaymentCard :FinancialAccount ) ];
+  rdfs:range :Text .
+[] a sh:PropertyShape; sh:path :lastDigits; sh:targetSubjectsOf :lastDigits; sh:maxCount 1 .

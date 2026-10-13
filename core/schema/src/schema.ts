@@ -721,7 +721,9 @@ export interface Intangible extends Omit<Entity, '@type'> {
 export type IntangibleAndChildren =
   | Intangible
   | DefinedTermAndChildren
+  | FinancialAccountAndChildren
   | PaymentCardAndChildren
+  | PostingAndChildren
   | SelectorAndChildren
   | TransactionAndChildren;
 
@@ -1197,6 +1199,32 @@ export const ExperienceActionSchema: z.ZodType<ExperienceAction> = z
   .object({
     '@type': z.literal('ExperienceAction'),
     ...ExperienceActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// FinancialAccount, child of https://schema.chronicle.app/Intangible
+export interface FinancialAccount extends Omit<Intangible, '@type'> {
+  '@type': 'FinancialAccount';
+  accountType?: string;
+  holder?: AgentAndChildren;
+  lastDigits?: string;
+  provider?: OrganizationAndChildren;
+}
+
+export type FinancialAccountAndChildren = FinancialAccount;
+
+const FinancialAccountProperties = {
+  ...IntangibleProperties,
+  accountType: z.lazy(() => z.string()).optional(),
+  holder: z.lazy(() => AgentAndChildrenSchema).optional(),
+  lastDigits: z.lazy(() => z.string()).optional(),
+  provider: z.lazy(() => OrganizationAndChildrenSchema).optional(),
+};
+
+export const FinancialAccountSchema: z.ZodType<FinancialAccount> = z
+  .object({
+    '@type': z.literal('FinancialAccount'),
+    ...FinancialAccountProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -1703,14 +1731,20 @@ export const PayActionSchema: z.ZodType<PayAction> = z
 // PaymentCard, child of https://schema.chronicle.app/Intangible
 export interface PaymentCard extends Omit<Intangible, '@type'> {
   '@type': 'PaymentCard';
+  account?: FinancialAccountAndChildren;
+  holder?: AgentAndChildren;
   issuedBy?: OrganizationAndChildren;
+  lastDigits?: string;
 }
 
 export type PaymentCardAndChildren = PaymentCard;
 
 const PaymentCardProperties = {
   ...IntangibleProperties,
+  account: z.lazy(() => FinancialAccountAndChildrenSchema).optional(),
+  holder: z.lazy(() => AgentAndChildrenSchema).optional(),
   issuedBy: z.lazy(() => OrganizationAndChildrenSchema).optional(),
+  lastDigits: z.lazy(() => z.string()).optional(),
 };
 
 export const PaymentCardSchema: z.ZodType<PaymentCard> = z
@@ -1829,6 +1863,30 @@ export const PostSchema: z.ZodType<Post> = z
   .object({
     '@type': z.literal('Post'),
     ...PostProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Posting, child of https://schema.chronicle.app/Intangible
+export interface Posting extends Omit<Intangible, '@type'> {
+  '@type': 'Posting';
+  account?: FinancialAccountAndChildren;
+  amount?: number;
+  currency?: string;
+}
+
+export type PostingAndChildren = Posting;
+
+const PostingProperties = {
+  ...IntangibleProperties,
+  account: z.lazy(() => FinancialAccountAndChildrenSchema).optional(),
+  amount: z.lazy(() => z.number()).optional(),
+  currency: z.lazy(() => z.string()).optional(),
+};
+
+export const PostingSchema: z.ZodType<Posting> = z
+  .object({
+    '@type': z.literal('Posting'),
+    ...PostingProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -2227,6 +2285,7 @@ export interface Transaction extends Omit<Intangible, '@type'> {
   '@type': 'Transaction';
   amount?: number;
   currency?: string;
+  posting?: PostingAndChildren[];
   recipient?: AgentAndChildren[];
 }
 
@@ -2236,6 +2295,7 @@ const TransactionProperties = {
   ...IntangibleProperties,
   amount: z.lazy(() => z.number()).optional(),
   currency: z.lazy(() => z.string()).optional(),
+  posting: z.lazy(() => z.array(PostingAndChildrenSchema)).optional(),
   recipient: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
 };
 
@@ -2418,6 +2478,8 @@ export const ProjectAndChildrenSchema = ProjectSchema;
 
 export const ProductModelAndChildrenSchema = ProductModelSchema;
 
+export const PostingAndChildrenSchema = PostingSchema;
+
 export const PostAndChildrenSchema = PostSchema;
 
 export const PodcastEpisodeAndChildrenSchema = PodcastEpisodeSchema;
@@ -2564,6 +2626,8 @@ export const ImageObjectAndChildrenSchema = ImageObjectSchema;
 export const FollowActionAndChildrenSchema = FollowActionSchema;
 
 export const FindActionAndChildrenSchema = FindActionSchema;
+
+export const FinancialAccountAndChildrenSchema = FinancialAccountSchema;
 
 export const ExperienceActionAndChildrenSchema: z.ZodType<ExperienceActionAndChildren> = z
   .discriminatedUnion('@type', [
@@ -2727,8 +2791,18 @@ export const IntangibleAndChildrenSchema: z.ZodType<IntangibleAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('Posting'),
+      ...PostingProperties,
+    }),
+
+    z.object({
       '@type': z.literal('PaymentCard'),
       ...PaymentCardProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('FinancialAccount'),
+      ...FinancialAccountProperties,
     }),
 
     z.object({
@@ -3523,8 +3597,18 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('Posting'),
+      ...PostingProperties,
+    }),
+
+    z.object({
       '@type': z.literal('PaymentCard'),
       ...PaymentCardProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('FinancialAccount'),
+      ...FinancialAccountProperties,
     }),
 
     z.object({
@@ -4081,8 +4165,18 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('Posting'),
+      ...PostingProperties,
+    }),
+
+    z.object({
       '@type': z.literal('PaymentCard'),
       ...PaymentCardProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('FinancialAccount'),
+      ...FinancialAccountProperties,
     }),
 
     z.object({

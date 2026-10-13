@@ -56,6 +56,7 @@ schemaorg: rdfs:label "schema.org";
 :issuedBy doc:note "The issuer of a :PaymentCard. schemaorg:issuedBy is the issuer of a schemaorg:Permit or a schemaorg:Ticket." .
 :mimeType doc:note "A MIME type. schemaorg:encodingFormat can also be the URL of a page that defines the format." .
 :performer doc:note "A schemaorg:performer is someone who performed at a schemaorg:Event." .
+:provider doc:note "The institution that holds a :FinancialAccount. schemaorg:provider is whoever provides a service or a product." .
 :sameAs doc:note "Links two references to one entity: another entity, or a text reference such as `@me`. schemaorg:sameAs is the URL of a page that identifies the item, such as its Wikipedia article." .
 :source doc:unlike schemaorg:source;
   doc:note "schemaorg:source is the source or cause of an event." .

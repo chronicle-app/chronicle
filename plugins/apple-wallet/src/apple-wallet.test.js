@@ -74,6 +74,35 @@ const payAction = (sourceId, timestamp, fields) => ({
   agent: me,
   ...fields,
 });
+const posting = (sourceId, amount, currency, account) => ({
+  '@type': 'Posting',
+  '@key': ['@type', 'source', 'sourceId', 'account.sourceId'],
+  source: 'apple-wallet',
+  sourceId,
+  amount,
+  currency,
+  account,
+});
+const visaAccount = {
+  '@type': 'FinancialAccount',
+  '@key': key,
+  source: 'apple-wallet',
+  sourceId: 'V-0000000000000000000001',
+  name: 'Example Rewards Visa',
+  lastDigits: '7959',
+  accountType: 'liability',
+  provider: organization('Example Bank'),
+  holder: me,
+};
+const amexAccount = {
+  '@type': 'FinancialAccount',
+  '@key': key,
+  source: 'apple-wallet',
+  sourceId: 'FAPLAB0000000000000000000000000000000000002',
+  lastDigits: '1001',
+  provider: organization('Example Express'),
+  holder: me,
+};
 const transaction = (sourceId, fields) => ({
   '@type': 'Transaction',
   '@key': key,
@@ -88,8 +117,9 @@ test('transactions become PayActions with their card and merchant, newest first'
   assert.deepEqual([...byId.keys()], ['TXN-ISSUER', 'TXN-TAP', 'TXN-BARE']);
 
   // From the issuer: the card is keyed by the network's identifier and named
-  // from its pass.json, with its default payment application's kind; the
-  // amount has four decimal places in the store.
+  // from its pass.json, with its default payment application's kind, and its
+  // account is derived from it as a liability. The amount has four decimal
+  // places in the store, and the posting is its negative.
   assert.deepEqual(
     byId.get('TXN-ISSUER'),
     payAction('TXN-ISSUER', '2025-01-01T00:05:00.000Z', {
@@ -100,21 +130,26 @@ test('transactions become PayActions with their card and merchant, newest first'
           source: 'apple-wallet',
           sourceId: 'V-0000000000000000000001',
           name: 'Example Rewards Visa',
+          lastDigits: '7959',
           category: ['credit'],
           issuedBy: organization('Example Bank'),
+          holder: me,
+          account: visaAccount,
         },
       ],
       result: transaction('TXN-ISSUER', {
         amount: 69.93,
         currency: 'CAD',
         recipient: [organization('Example Café')],
+        posting: [posting('TXN-ISSUER', -69.93, 'CAD', visaAccount)],
       }),
     })
   );
 
   // Made on this device: the card is found through its payment application
-  // and has no pass.json; the merchant falls back to the raw name; the
-  // location has the fix and the locality.
+  // and has no pass.json, so neither it nor its account has a name or kind;
+  // the merchant falls back to the raw name; the location has the fix and
+  // the locality.
   assert.deepEqual(
     byId.get('TXN-TAP'),
     payAction('TXN-TAP', '2025-01-01T00:03:20.000Z', {
@@ -124,19 +159,24 @@ test('transactions become PayActions with their card and merchant, newest first'
           '@key': key,
           source: 'apple-wallet',
           sourceId: 'FAPLAB0000000000000000000000000000000000002',
+          lastDigits: '1001',
           issuedBy: organization('Example Express'),
+          holder: me,
+          account: amexAccount,
         },
       ],
       result: transaction('TXN-TAP', {
         amount: 15.82,
         currency: 'CAD',
         recipient: [organization('EXAMPLE GROCER 1281')],
+        posting: [posting('TXN-TAP', -15.82, 'CAD', amexAccount)],
       }),
       location: { '@type': 'Location', latitude: 43.65, longitude: -79.38, address: 'Toronto, ON' },
     })
   );
 
-  // No card, merchant, currency, or fix: the transaction keeps its amount.
+  // No card, merchant, currency, or fix: the transaction keeps its amount and
+  // has no posting, since no account is known.
   assert.deepEqual(
     byId.get('TXN-BARE'),
     payAction('TXN-BARE', '2025-01-01T00:01:40.000Z', {

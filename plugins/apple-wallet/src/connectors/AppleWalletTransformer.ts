@@ -1,10 +1,13 @@
 import { ChronicleTransformer, Record } from '@chronicle.app/etl';
 import {
   ActionAndChildren,
+  FinancialAccount,
   Location,
   Organization,
   PayAction,
   PaymentCard,
+  Person,
+  Posting,
   Transaction,
 } from '@chronicle.app/schema';
 import { buildICloudPersonSchema } from '@chronicle.app/icloud';
@@ -14,8 +17,10 @@ const SOURCE = 'apple-wallet';
 
 /**
  *   PayAction  agent: you   instrument: PaymentCard   location?
+ *     PaymentCard  issuedBy: Organization (the issuer)   holder: you
+ *       account: FinancialAccount (the card, as far as Wallet knows)
  *     result: Transaction  amount, currency   recipient: Organization (the merchant)
- *       PaymentCard  issuedBy: Organization (the issuer)
+ *       posting: Posting  amount (negative)   account: the card's account
  */
 export default class AppleWalletTransformer extends ChronicleTransformer {
   static override source = SOURCE;
@@ -25,7 +30,7 @@ export default class AppleWalletTransformer extends ChronicleTransformer {
     const transaction = record.data as WalletTransaction;
     // Without an iCloud account the payer can't be identified, so omit them.
     const payer = await buildICloudPersonSchema(record.context.account);
-    const card = buildCard(transaction.card);
+    const card = buildCard(transaction.card, payer);
     const location = locationOf(transaction);
 
     const action: PayAction = {
@@ -36,16 +41,24 @@ export default class AppleWalletTransformer extends ChronicleTransformer {
       timestamp: new Date(transaction.date),
       ...(payer && { agent: payer }),
       ...(card && { instrument: [card] }),
-      result: buildTransaction(transaction),
+      result: buildTransaction(transaction, card?.account ?? null),
       ...(location && { location }),
     };
     return [action];
   }
 }
 
-/** The money that moved, keyed like the action, with the merchant as its recipient. */
-function buildTransaction(transaction: WalletTransaction): Transaction {
+/**
+ * The money that moved, keyed like the action, with the merchant as its
+ * recipient and the card account's side as its one posting.
+ */
+function buildTransaction(
+  transaction: WalletTransaction,
+  account: FinancialAccount | null
+): Transaction {
   const merchant = buildMerchant(transaction);
+  const posting =
+    account && transaction.amount !== null ? buildPosting(transaction, account) : null;
   return {
     '@type': 'Transaction',
     '@key': ['@type', 'source', 'sourceId'],
@@ -54,6 +67,26 @@ function buildTransaction(transaction: WalletTransaction): Transaction {
     ...(transaction.amount !== null && { amount: transaction.amount }),
     ...(transaction.currencyCode && { currency: transaction.currencyCode }),
     ...(merchant && { recipient: [merchant] }),
+    ...(posting && { posting: [posting] }),
+  };
+}
+
+/**
+ * The card account's side of the purchase, keyed by the transaction and the
+ * account. A purchase is negative on the account that paid, whichever kind
+ * it is: it adds to what a credit card owes, and takes from what a debit
+ * card holds.
+ */
+function buildPosting(transaction: WalletTransaction, account: FinancialAccount): Posting {
+  const amount = transaction.amount!;
+  return {
+    '@type': 'Posting',
+    '@key': ['@type', 'source', 'sourceId', 'account.sourceId'],
+    source: SOURCE,
+    sourceId: transaction.identifier,
+    amount: amount === 0 ? 0 : -amount,
+    ...(transaction.currencyCode && { currency: transaction.currencyCode }),
+    account,
   };
 }
 
@@ -71,17 +104,51 @@ function buildMerchant(transaction: WalletTransaction): Organization | null {
  * the same on every device the card is added to, or by the pass's own ID when
  * the network gives none. A card reissued with a new number is a new card.
  */
-function buildCard(card: Card | null): PaymentCard | null {
+function buildCard(card: Card | null, holder: Person | null): PaymentCard | null {
   if (!card) return null;
   const issuer = card.organizationName?.trim();
+  const sourceId = card.accountIdentifier ?? card.uniqueId;
   return {
     '@type': 'PaymentCard',
     '@key': ['@type', 'source', 'sourceId'],
     source: SOURCE,
-    sourceId: card.accountIdentifier ?? card.uniqueId,
+    sourceId,
     ...(card.description && { name: card.description }),
+    ...(card.accountSuffix && { lastDigits: card.accountSuffix }),
     ...(card.paymentType && { category: [card.paymentType.toLowerCase()] }),
     ...(issuer && { issuedBy: organization(issuer) }),
+    ...(holder && { holder }),
+    account: buildAccount(card, sourceId, holder),
+  };
+}
+
+// A credit card owes, so its account is a liability. A debit or prepaid card
+// holds, so its account is an asset.
+const ACCOUNT_TYPES: { [paymentType: string]: string } = {
+  credit: 'liability',
+  debit: 'asset',
+  prepaid: 'asset',
+};
+
+/**
+ * The account the card draws on, as far as Wallet can tell: the card itself.
+ * Wallet has no account number, so the account is keyed like the card and
+ * named as the card is, and a card reissued with a new number splits it until
+ * a ledger names the account.
+ */
+function buildAccount(card: Card, sourceId: string, holder: Person | null): FinancialAccount {
+  const issuer = card.organizationName?.trim();
+  const accountType = card.paymentType && ACCOUNT_TYPES[card.paymentType.toLowerCase()];
+  return {
+    '@type': 'FinancialAccount',
+    '@key': ['@type', 'source', 'sourceId'],
+    source: SOURCE,
+    sourceId,
+    ...(card.description && { name: card.description }),
+    ...(card.accountSuffix && { lastDigits: card.accountSuffix }),
+    ...(accountType && { accountType }),
+    ...(issuer && { provider: organization(issuer) }),
+    ...(holder && { holder }),
   };
 }
 
