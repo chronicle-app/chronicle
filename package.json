@@ -25,7 +25,7 @@
     "tools/*"
   ],
   "scripts": {
-    "build": "tsc -b",
+    "build": "node scripts/prune-dist.js && tsc -b",
     "lint": "eslint scripts .eslintrc.cjs prettier.config.cjs && npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "node --test scripts/*.test.js && npm run test --workspaces --if-present",
