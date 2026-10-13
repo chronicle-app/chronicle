@@ -4054,3 +4054,70 @@ one.
 :transcript skos:example example:voice-memo .
 :ProductModel skos:example example:voice-memo .
 :OperatingSystem skos:example example:voice-memo .
+
+example:card-purchase
+  rdfs:label "A card purchase";
+  rdfs:comment """
+You bought a coffee with a credit card, and within minutes the card's issuer
+told Wallet about it. The :PayAction is keyed by Wallet's ID for the
+transaction and dated to the second. You are the :agent, the card is the
+:instrument, and the :result is the :Payment, which carries the :amount, its
+:currency, and the café as its :recipient.
+
+The :PaymentCard is keyed by the card network's identifier for the account,
+which is the same on every device the card is added to, and is :issuedBy the
+bank. The café is an :Organization keyed by its name, which is all the issuer
+sends.
+""";
+  rdf:value [
+    a :PayAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "apple-wallet";
+    :sourceId "7C1E9F2B-6A3D-4B58-9E0F-2D4C6B8A1E35";
+    :timestamp "2026-05-09T13:41:07.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "icloud";
+      :sourceId "1234567890";
+      :handle "sam@example.com";
+      :sameAs "@me"
+    ];
+    :instrument [
+      a :PaymentCard;
+      doc:key ("@type" "source" "sourceId");
+      :source "apple-wallet";
+      :sourceId "V-0000000000000000000001";
+      :name "Example Rewards Visa";
+      :category "credit";
+      :issuedBy [
+        a :Organization;
+        doc:key ("@type" "source" "name");
+        :source "apple-wallet";
+        :name "Example Bank"
+      ]
+    ];
+    :result [
+      a :Payment;
+      doc:key ("@type" "source" "sourceId");
+      :source "apple-wallet";
+      :sourceId "7C1E9F2B-6A3D-4B58-9E0F-2D4C6B8A1E35";
+      :amount 4.75;
+      :currency "CAD";
+      :recipient [
+        a :Organization;
+        doc:key ("@type" "source" "name");
+        :source "apple-wallet";
+        :name "Example Café"
+      ]
+    ]
+  ] .
+
+:TradeAction skos:example example:card-purchase .
+:PayAction skos:example example:card-purchase .
+:Payment skos:example example:card-purchase .
+:PaymentCard skos:example example:card-purchase .
+:amount skos:example example:card-purchase .
+:currency skos:example example:card-purchase .
+:issuedBy skos:example example:card-purchase .
+:recipient skos:example example:card-purchase .

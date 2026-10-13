@@ -14,7 +14,7 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 : a owl:Ontology;
-  owl:versionInfo "0.3.0" .
+  owl:versionInfo "0.4.0" .
 
 # Annotations on properties, for tools rather than records.
 :abstract a owl:AnnotationProperty .
@@ -209,9 +209,9 @@
   rdfs:subClassOf :MediaObject;
   rdfs:comment "A document file, such as a PDF, a text file, or a document attachment." .
 :recipient a owl:ObjectProperty;
-  rdfs:comment "An agent the message or call was directed to, such as each other participant in a group conversation.";
+  rdfs:comment "An agent the message, call, or payment was directed to, such as each other participant in a group conversation or the merchant that was paid.";
   rdfs:subPropertyOf :involvement;
-  rdfs:domain [ a owl:Class; owl:unionOf ( :Message :CallSession ) ];
+  rdfs:domain [ a owl:Class; owl:unionOf ( :Message :CallSession :Payment ) ];
   rdfs:range :Agent;
   skos:exactMatch schemaorg:recipient .
 :contains a owl:ObjectProperty;
@@ -872,3 +872,37 @@
   skos:exactMatch schemaorg:isBasedOn;
   rdfs:domain :CreativeWork;
   rdfs:range :CreativeWork .
+
+:TradeAction a owl:Class;
+  rdfs:comment "The agent exchanged something of value with another agent, such as by buying, selling, or paying. The subclasses name the kind of exchange.";
+  rdfs:subClassOf :Action;
+  skos:broadMatch schemaorg:TradeAction .
+:PayAction a owl:Class;
+  rdfs:comment "The agent paid money to another agent, such as for a purchase with a card. Its :result is the :Payment, which gives how much was paid and to whom.";
+  rdfs:subClassOf :TradeAction;
+  skos:closeMatch schemaorg:PayAction .
+:Payment a owl:Class;
+  rdfs:comment "A sum of money that moved from the agent to the :recipient, such as a card purchase. It is the :result of a :PayAction, which gives when it was paid. Its :amount and :currency give how much.";
+  rdfs:subClassOf :Intangible .
+:PaymentCard a owl:Class;
+  rdfs:comment "A card that payments draw on, such as a credit card or a debit card. It is the card's account rather than one piece of plastic, so a card added to several devices is one :PaymentCard. It is the :instrument of a :PayAction. Its :issuedBy is the bank or company that issued it, and its :category is its kind, such as `credit` or `debit`.";
+  rdfs:subClassOf :Intangible;
+  skos:closeMatch schemaorg:PaymentCard .
+:amount a owl:DatatypeProperty;
+  rdfs:comment "How much money the payment moved, as a number in its :currency, such as `69.93`.";
+  rdfs:domain :Payment;
+  rdfs:range :Number;
+  skos:closeMatch schemaorg:amount .
+[] a sh:PropertyShape; sh:path :amount; sh:targetSubjectsOf :amount; sh:maxCount 1 .
+:currency a owl:DatatypeProperty;
+  rdfs:comment "The currency of the payment's :amount, as its ISO 4217 code, such as `CAD` or `USD`. Not allowed: a symbol (`$`) or a name (`dollars`).";
+  rdfs:domain :Payment;
+  rdfs:range :Text;
+  skos:closeMatch schemaorg:currency .
+[] a sh:PropertyShape; sh:path :currency; sh:targetSubjectsOf :currency; sh:maxCount 1 .
+:issuedBy a owl:ObjectProperty;
+  rdfs:comment "The organization that issued the card, such as a bank.";
+  rdfs:domain :PaymentCard;
+  rdfs:range :Organization;
+  skos:closeMatch schemaorg:issuedBy .
+[] a sh:PropertyShape; sh:path :issuedBy; sh:targetSubjectsOf :issuedBy; sh:maxCount 1 .
