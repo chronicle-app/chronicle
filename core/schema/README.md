@@ -141,12 +141,13 @@ Release notes map software versions to vocabulary versions.
 The package exports `@chronicle.app/schema/chronicle.ttl`; the former
 `@chronicle.app/schema/schema.ttl` export remains an alias for compatibility.
 
-Use patch releases for description corrections that preserve meaning, minor
-releases for compatible vocabulary additions, and major releases for removed
-terms, changed meanings, or incompatible constraints. These compatibility rules
-also apply during `0.x`. Keep term identifiers such as
-`https://schema.chronicle.app/Task` stable; introduce a new term and deprecate the
-old one when its concept changes fundamentally.
+Use patch releases for description corrections that preserve meaning and minor
+releases for anything else. Until 1.0, a minor release can rename or remove
+terms, change what they mean, or add constraints, so data that validates against
+one minor version may not validate against the next. From 1.0, those changes need
+a major release. Term identifiers such as `https://schema.chronicle.app/Task` are
+unversioned, so don't reuse one for a different concept. Give that concept a new
+term.
 
 Snapshot paths use the vocabulary version, not the npm package version.
 The publication convention is
@@ -159,9 +160,8 @@ publish: work on new terms in a branch until it is ready. Any change to
 `npm run schema:check` enforces this against the latest release tag. See [Preparing a release](../../RELEASING.md) for the
 release procedure.
 
-The vocabulary is intentionally small. Add terms only when a plugin needs them,
-keeping existing term identifiers and meanings stable; regenerate and add
-focused tests alongside each addition.
+The vocabulary is intentionally small. Add terms only when a plugin needs them;
+regenerate and add focused tests alongside each addition.
 
 Node.js 22.13+. MIT covers the ontology, generator, generated code, and docs;
 see [LICENSE](LICENSE).
