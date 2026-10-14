@@ -24,7 +24,7 @@ PayAction key(sourceId) {
     sourceId
     amount: MonetaryAmount { value, currency? }
     recipient[]?: Agent key(name) { name }
-    hasPart[]?: FinancialAccountEntry key(sourceId, inAccount[*].sourceId) {
+    hasPart[]?: FinancialPosting key(sourceId, inAccount[*].sourceId) {
       sourceId
       amount: MonetaryAmount { value*, currency }
       inAccount[]: FinancialAccount key(sourceId) { sourceId }

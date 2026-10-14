@@ -731,7 +731,7 @@ export type IntangibleAndChildren =
   | Intangible
   | DefinedTermAndChildren
   | FinancialAccountAndChildren
-  | FinancialAccountEntryAndChildren
+  | FinancialPostingAndChildren
   | FinancialTransactionAndChildren
   | PaymentCardAndChildren
   | SelectorAndChildren;
@@ -1231,23 +1231,23 @@ export const FinancialAccountSchema: z.ZodType<FinancialAccount> = z
   })
   .superRefine(requireNodeIdentity);
 
-// FinancialAccountEntry, child of https://schema.chronicle.app/Intangible
-export interface FinancialAccountEntry extends Omit<Intangible, '@type'> {
-  '@type': 'FinancialAccountEntry';
+// FinancialPosting, child of https://schema.chronicle.app/Intangible
+export interface FinancialPosting extends Omit<Intangible, '@type'> {
+  '@type': 'FinancialPosting';
   amount?: MonetaryAmountAndChildren;
 }
 
-export type FinancialAccountEntryAndChildren = FinancialAccountEntry;
+export type FinancialPostingAndChildren = FinancialPosting;
 
-const FinancialAccountEntryProperties = {
+const FinancialPostingProperties = {
   ...IntangibleProperties,
   amount: z.lazy(() => MonetaryAmountAndChildrenSchema).optional(),
 };
 
-export const FinancialAccountEntrySchema: z.ZodType<FinancialAccountEntry> = z
+export const FinancialPostingSchema: z.ZodType<FinancialPosting> = z
   .object({
-    '@type': z.literal('FinancialAccountEntry'),
-    ...FinancialAccountEntryProperties,
+    '@type': z.literal('FinancialPosting'),
+    ...FinancialPostingProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -2640,7 +2640,7 @@ export const FindActionAndChildrenSchema = FindActionSchema;
 
 export const FinancialTransactionAndChildrenSchema = FinancialTransactionSchema;
 
-export const FinancialAccountEntryAndChildrenSchema = FinancialAccountEntrySchema;
+export const FinancialPostingAndChildrenSchema = FinancialPostingSchema;
 
 export const FinancialAccountAndChildrenSchema = FinancialAccountSchema;
 
@@ -2811,8 +2811,8 @@ export const IntangibleAndChildrenSchema: z.ZodType<IntangibleAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('FinancialAccountEntry'),
-      ...FinancialAccountEntryProperties,
+      '@type': z.literal('FinancialPosting'),
+      ...FinancialPostingProperties,
     }),
 
     z.object({
@@ -3617,8 +3617,8 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('FinancialAccountEntry'),
-      ...FinancialAccountEntryProperties,
+      '@type': z.literal('FinancialPosting'),
+      ...FinancialPostingProperties,
     }),
 
     z.object({
@@ -4185,8 +4185,8 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('FinancialAccountEntry'),
-      ...FinancialAccountEntryProperties,
+      '@type': z.literal('FinancialPosting'),
+      ...FinancialPostingProperties,
     }),
 
     z.object({

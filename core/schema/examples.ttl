@@ -4070,14 +4070,14 @@ The :PaymentCard is keyed by the card network's identifier for the card,
 which is the same on every device the card is added to, and is named after
 the card's product. The :FinancialAccount it is :inAccount is keyed by the
 bank's own identifier for the account, which outlives the card number, and
-is named after the bank, as a chart of accounts names it. The transaction's one :FinancialAccountEntry, given
+is named after the bank, as a chart of accounts names it. The transaction's one :FinancialPosting, given
 under `hasPart`, the inverse of :isPartOf, is that account's side of the
 purchase, negative because a purchase adds to what a credit card owes. The
 café's side is not known.
 
 A node that appears again in one record needs only its identity. The
 account is given in full under the card and by its key alone under the
-entry.
+posting.
 """;
   rdf:value [
     a :PayAction;
@@ -4127,7 +4127,7 @@ entry.
         :name "Example Café"
       ];
       :hasPart [
-        a :FinancialAccountEntry;
+        a :FinancialPosting;
         doc:key ("@type" "source" "sourceId" "inAccount[*].sourceId");
         :source "apple-wallet";
         :sourceId "7C1E9F2B-6A3D-4B58-9E0F-2D4C6B8A1E35";
@@ -4149,7 +4149,7 @@ entry.
 :TradeAction skos:example example:card-purchase .
 :PayAction skos:example example:card-purchase .
 :FinancialTransaction skos:example example:card-purchase .
-:FinancialAccountEntry skos:example example:card-purchase .
+:FinancialPosting skos:example example:card-purchase .
 :FinancialAccount skos:example example:card-purchase .
 :PaymentCard skos:example example:card-purchase .
 :MonetaryAmount skos:example example:card-purchase .

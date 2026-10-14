@@ -1,6 +1,6 @@
 import { ChronicleTransformer, Record, reference } from '@chronicle.app/etl';
 import {
-  FinancialAccountEntry,
+  FinancialPosting,
   ActionAndChildren,
   Agent,
   FinancialAccount,
@@ -19,7 +19,7 @@ const SOURCE = 'apple-wallet';
  *   PayAction  agent: you   instrument: PaymentCard   location?
  *     PaymentCard (the product)  inAccount: FinancialAccount (the issuer; by its account id, else the card's)
  *     result: FinancialTransaction  amount: MonetaryAmount   recipient: Agent (the merchant)
- *       hasPart: FinancialAccountEntry  amount: MonetaryAmount (negative)   inAccount: the account, by key
+ *       hasPart: FinancialPosting  amount: MonetaryAmount (negative)   inAccount: the account, by key
  *
  * A node that appears again carries only its identity (`reference`), and the
  * fold merges it with the full node by its key.
@@ -53,14 +53,15 @@ export default class AppleWalletTransformer extends ChronicleTransformer {
 
 /**
  * The money that moved, keyed like the action, with the merchant as its
- * recipient and the card account's side as its one entry.
+ * recipient and the card account's side as its one posting.
  */
 function buildTransaction(
   transaction: WalletTransaction,
   account: FinancialAccount | null
 ): FinancialTransaction {
   const merchant = buildMerchant(transaction);
-  const entry = account && transaction.amount !== null ? buildEntry(transaction, account) : null;
+  const posting =
+    account && transaction.amount !== null ? buildPosting(transaction, account) : null;
   return {
     '@type': 'FinancialTransaction',
     '@key': ['@type', 'source', 'sourceId'],
@@ -70,7 +71,7 @@ function buildTransaction(
       amount: money(transaction.amount, transaction.currencyCode),
     }),
     ...(merchant && { recipient: [merchant] }),
-    ...(entry && { hasPart: [entry] }),
+    ...(posting && { hasPart: [posting] }),
   };
 }
 
@@ -80,13 +81,10 @@ function buildTransaction(
  * negative on the account that paid, whichever kind it is: it adds to what a
  * credit card owes, and takes from what a debit card holds.
  */
-function buildEntry(
-  transaction: WalletTransaction,
-  account: FinancialAccount
-): FinancialAccountEntry {
+function buildPosting(transaction: WalletTransaction, account: FinancialAccount): FinancialPosting {
   const amount = transaction.amount!;
   return {
-    '@type': 'FinancialAccountEntry',
+    '@type': 'FinancialPosting',
     '@key': ['@type', 'source', 'sourceId', 'inAccount[*].sourceId'],
     source: SOURCE,
     sourceId: transaction.identifier,

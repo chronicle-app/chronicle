@@ -77,8 +77,8 @@ const accountRef = account => ({
   source: 'apple-wallet',
   sourceId: account.sourceId,
 });
-const entry = (sourceId, amount, currency, account) => ({
-  '@type': 'FinancialAccountEntry',
+const posting = (sourceId, amount, currency, account) => ({
+  '@type': 'FinancialPosting',
   '@key': ['@type', 'source', 'sourceId', 'inAccount[*].sourceId'],
   source: 'apple-wallet',
   sourceId,
@@ -129,7 +129,7 @@ test('transactions become PayActions with their card, account, and merchant, new
   // from its pass.json, with its last digits as another name and its default
   // payment application's kind, and its account, keyed by the issuer's
   // identifier for it, is a liability. The amount has four decimal places in the store, and the
-  // account entry is its negative. You and the account appear again by key.
+  // account's posting is its negative. You and the account appear again by key.
   assert.deepEqual(
     byId.get('TXN-ISSUER'),
     payAction('TXN-ISSUER', '2025-01-01T00:05:00.000Z', {
@@ -148,7 +148,7 @@ test('transactions become PayActions with their card, account, and merchant, new
       result: transaction('TXN-ISSUER', {
         amount: money(69.93, 'CAD'),
         recipient: [merchant('Example Café')],
-        hasPart: [entry('TXN-ISSUER', -69.93, 'CAD', visaAccount)],
+        hasPart: [posting('TXN-ISSUER', -69.93, 'CAD', visaAccount)],
       }),
     })
   );
@@ -173,14 +173,14 @@ test('transactions become PayActions with their card, account, and merchant, new
       result: transaction('TXN-TAP', {
         amount: money(15.82, 'CAD'),
         recipient: [merchant('EXAMPLE GROCER 1281')],
-        hasPart: [entry('TXN-TAP', -15.82, 'CAD', amexAccount)],
+        hasPart: [posting('TXN-TAP', -15.82, 'CAD', amexAccount)],
       }),
       location: { '@type': 'Location', latitude: 43.65, longitude: -79.38, address: 'Toronto, ON' },
     })
   );
 
   // No card, merchant, currency, or fix: the transaction keeps its amount and
-  // has no entry, since no account is known.
+  // has no posting, since no account is known.
   assert.deepEqual(
     byId.get('TXN-BARE'),
     payAction('TXN-BARE', '2025-01-01T00:01:40.000Z', {

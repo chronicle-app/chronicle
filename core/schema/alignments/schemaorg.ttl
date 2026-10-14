@@ -46,7 +46,7 @@ schemaorg: rdfs:label "schema.org";
 
 # Properties
 
-:amount doc:note "On a :FinancialAccountEntry, the :value is signed. schemaorg:amount can also be a plain number, and what a schemaorg:PayAction paid is its schemaorg:price." .
+:amount doc:note "On a :FinancialPosting, the :value is signed. schemaorg:amount can also be a plain number, and what a schemaorg:PayAction paid is its schemaorg:price." .
 :artist doc:unlike schemaorg:artist;
   doc:note "schemaorg:artist is the primary artist of a comic or a visual artwork. The artist of a recording or an album is its schemaorg:byArtist." .
 :attendee doc:note "Includes agents who declined or did not reply. A schemaorg:attendee is someone attending the event." .
