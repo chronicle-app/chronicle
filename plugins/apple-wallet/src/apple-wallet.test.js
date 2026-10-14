@@ -154,7 +154,7 @@ test('transactions become PayActions with their card, account, and merchant, new
   );
 
   // Made on this device: the card is found through its payment application
-  // and has no pass.json, so neither it nor its account has a name or kind;
+  // and has no pass.json, so it has no name and its account no kind;
   // the merchant falls back to the raw name; the location has the fix and
   // the locality.
   assert.deepEqual(
