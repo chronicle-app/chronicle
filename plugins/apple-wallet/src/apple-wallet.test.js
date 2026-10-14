@@ -93,16 +93,18 @@ const entry = (sourceId, amount, currency, account) => ({
   amount: money(amount, currency),
   inAccount: [accountRef(account)],
 });
+// Keyed by the issuer's identifier for the account, which outlives the card.
 const visaAccount = {
   '@type': 'FinancialAccount',
   '@key': key,
   source: 'apple-wallet',
-  sourceId: 'V-0000000000000000000001',
+  sourceId: 'ACCOUNT-VISA-1',
   name: 'Example Rewards Visa',
   accountType: 'liability',
   provider: organization('Example Bank'),
   member: [meRef],
 };
+// No identifier from the issuer, so the account is keyed like the card.
 const amexAccount = {
   '@type': 'FinancialAccount',
   '@key': key,
@@ -135,8 +137,8 @@ test('transactions become PayActions with their card, account, and merchant, new
 
   // From the issuer: the card is keyed by the network's identifier and named
   // from its pass.json, with its last digits as another name and its default
-  // payment application's kind, and its account is derived from it as a
-  // liability. The amount has four decimal places in the store, and the
+  // payment application's kind, and its account, keyed by the issuer's
+  // identifier for it, is a liability. The amount has four decimal places in the store, and the
   // account entry is its negative. You and the account appear again by key.
   assert.deepEqual(
     byId.get('TXN-ISSUER'),

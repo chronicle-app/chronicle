@@ -17,9 +17,11 @@ export const account = {
  * cards and four transactions:
  *
  * - CARD-VISA has its own transaction source, which its issuer writes to,
- *   and a pass.json with the card's name and kind.
+ *   the issuer's identifier for its account, and a pass.json with the
+ *   card's name and kind.
  * - CARD-AMEX is reached only through a payment application's source, as
- *   an Apple Pay transaction made on this device is, and has no pass.json.
+ *   an Apple Pay transaction made on this device is, has no pass.json, and
+ *   no account identifier from its issuer.
  * - TXN-ISSUER, the newest, is on CARD-VISA from the issuer: an amount, a
  *   merchant, and no location.
  * - TXN-TAP is on CARD-AMEX with a location fix, a locality, a merchant
@@ -33,7 +35,8 @@ export function writeWalletFixture(dir) {
   const db = new DatabaseSync(input);
   db.exec(`
     CREATE TABLE pass (pid INTEGER PRIMARY KEY, unique_id TEXT NOT NULL, organization_name TEXT,
-      primary_account_identifier TEXT, primary_account_suffix TEXT, transaction_source_pid INTEGER);
+      primary_account_identifier TEXT, primary_account_suffix TEXT, transaction_source_pid INTEGER,
+      e TEXT, supports_fpan_notifications INTEGER, supports_dpan_notifications INTEGER);
     CREATE TABLE transaction_source (pid INTEGER PRIMARY KEY, identifier TEXT, type INTEGER);
     CREATE TABLE payment_application (pid INTEGER PRIMARY KEY, transaction_source_pid INTEGER,
       pass_pid INTEGER);
@@ -49,9 +52,10 @@ export function writeWalletFixture(dir) {
       (-4232114809929004489, 'SOURCE-VISA', 0),
       (7802450396861492821, 'SOURCE-AMEX-DEVICE', 0);
     INSERT INTO pass VALUES
-      (1, 'CARD-VISA', 'Example Bank', 'V-0000000000000000000001', '7959', -4232114809929004489),
+      (1, 'CARD-VISA', 'Example Bank', 'V-0000000000000000000001', '7959', -4232114809929004489,
+        'ACCOUNT-VISA-1', 1, 1),
       (2, 'CARD-AMEX', 'Example Express', 'FAPLAB0000000000000000000000000000000000002', '1001',
-        NULL);
+        NULL, NULL, 0, 1);
     INSERT INTO payment_application VALUES (10, 7802450396861492821, 2);
     INSERT INTO payment_transaction VALUES
       (101, -4232114809929004489, 'TXN-ISSUER', '171066550093', ${JAN_1 + 300}, 699300, 'CAD',
@@ -76,6 +80,7 @@ export function writeWalletFixture(dir) {
       description: 'Example Rewards Visa',
       cardType: 'Payment',
       primaryAccountSuffix: '7959',
+      partnerAccountIdentifier: 'ACCOUNT-VISA-1',
       paymentApplications: [
         { applicationDescription: 'Visa', paymentType: 'Debit', defaultPaymentApplication: false },
         { applicationDescription: 'Visa', paymentType: 'Credit', defaultPaymentApplication: true },

@@ -19,7 +19,7 @@ const SOURCE = 'apple-wallet';
 
 /**
  *   PayAction  agent: you   instrument: PaymentCard   location?
- *     PaymentCard  inAccount: FinancialAccount (the card, as far as Wallet knows)
+ *     PaymentCard  inAccount: FinancialAccount (by the issuer's account id, else the card's)
  *       FinancialAccount  provider: Organization (the issuer)   member: you, by key
  *     result: FinancialTransaction  amount: MonetaryAmount   recipient: Agent (the merchant)
  *       hasPart: AccountEntry  amount: MonetaryAmount (negative)   inAccount: the account, by key
@@ -114,7 +114,7 @@ function buildMerchant(transaction: WalletTransaction): Agent | null {
 
 /** The card network's identifier for the card, or the pass's own ID when the network gives none. */
 function cardIdOf(card: Card): string {
-  return card.accountIdentifier ?? card.uniqueId;
+  return card.cardIdentifier ?? card.uniqueId;
 }
 
 /**
@@ -144,11 +144,12 @@ const ACCOUNT_TYPES: { [paymentType: string]: string } = {
 };
 
 /**
- * The account the card draws on, as far as Wallet can tell: the card itself.
- * Wallet has no account number, so the account is keyed like the card and
- * named after the card's product, and a card reissued with a new number splits
- * it until a ledger names the account. The card number's last digits stay on
- * the card: a reissue changes them while the account continues.
+ * The account the card draws on, keyed by the issuer's identifier for it when
+ * the issuer gives one, which outlives the card number. Otherwise the account
+ * is the card as far as Wallet can tell: keyed like the card, and split by a
+ * reissue with a new number until a ledger names the account. Either way it is
+ * named after the card's product. The card number's last digits stay on the
+ * card: a reissue changes them while the account continues.
  */
 function buildAccount(card: Card, holder: Person | null): FinancialAccount {
   const issuer = card.organizationName?.trim();
@@ -157,7 +158,7 @@ function buildAccount(card: Card, holder: Person | null): FinancialAccount {
     '@type': 'FinancialAccount',
     '@key': ['@type', 'source', 'sourceId'],
     source: SOURCE,
-    sourceId: cardIdOf(card),
+    sourceId: card.issuerAccountIdentifier ?? cardIdOf(card),
     ...(card.description && { name: card.description }),
     ...(accountType && { accountType }),
     ...(issuer && { provider: organization(issuer) }),

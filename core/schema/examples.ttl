@@ -4067,10 +4067,10 @@ transaction and dated to the second. You are the :agent, the card is the
 descriptor can name a company, a branch, or a person.
 
 The :PaymentCard is keyed by the card network's identifier for the card,
-which is the same on every device the card is added to. Wallet has no number
-for the account the card draws on, so the :FinancialAccount it is :inAccount
-is keyed like the card and named as the card is, with the bank as its
-:provider and you as its :member. The transaction's one :AccountEntry, given
+which is the same on every device the card is added to. The
+:FinancialAccount it is :inAccount is keyed by the bank's own identifier for
+the account, which outlives the card number, and is named after the card's
+product, with the bank as its :provider and you as its :member. The transaction's one :AccountEntry, given
 under `hasPart`, the inverse of :isPartOf, is that account's side of the
 purchase, negative because a purchase adds to what a credit card owes. The
 café's side is not known.
@@ -4105,7 +4105,7 @@ and the account in full under the card and by its key alone under the entry.
         a :FinancialAccount;
         doc:key ("@type" "source" "sourceId");
         :source "apple-wallet";
-        :sourceId "V-0000000000000000000001";
+        :sourceId "8d2f0c4a1b7e9f3c5a6d4e2b1c9f8a7d6e5b4c3a2f1e0d9c8b7a6f5e4d3c2b1a";
         :name "Example Rewards Visa";
         :accountType "liability";
         :provider [
@@ -4152,7 +4152,7 @@ and the account in full under the card and by its key alone under the entry.
           a :FinancialAccount;
           doc:key ("@type" "source" "sourceId");
           :source "apple-wallet";
-          :sourceId "V-0000000000000000000001"
+          :sourceId "8d2f0c4a1b7e9f3c5a6d4e2b1c9f8a7d6e5b4c3a2f1e0d9c8b7a6f5e4d3c2b1a"
         ]
       ]
     ]

@@ -31,10 +31,15 @@ export interface Card {
   /** Wallet's ID for the pass, which names its folder under `Cards`. */
   uniqueId: string;
   /**
-   * The card network's identifier for the card account, the same on every
+   * The card network's identifier for the card number, the same on every
    * device the card is added to.
    */
-  accountIdentifier: string | null;
+  cardIdentifier: string | null;
+  /**
+   * The issuer's identifier for the account behind the card, when the issuer
+   * gives one. It outlives the card number.
+   */
+  issuerAccountIdentifier: string | null;
   /** The last digits of the card number. */
   accountSuffix: string | null;
   /** The issuer, such as `Example Bank`. */
@@ -43,6 +48,11 @@ export interface Card {
   description: string | null;
   /** `Credit`, `Debit`, or `Prepaid`, from `pass.json`. */
   paymentType: string | null;
+  /**
+   * Whether the issuer pushes every transaction on the account to Wallet,
+   * rather than only Apple Pay transactions made with this device.
+   */
+  accountNotifications: boolean;
 }
 
 /** One transaction as its row gives it, named after the row's columns. */
@@ -96,14 +106,17 @@ interface TransactionRow {
 interface CardRow {
   sourcePid: string;
   uniqueId: string;
-  accountIdentifier: string | null;
+  cardIdentifier: string | null;
+  issuerAccountIdentifier: string | null;
   accountSuffix: string | null;
   organizationName: string | null;
+  accountNotifications: number | null;
 }
 
 interface PassDetails {
   description: string | null;
   paymentType: string | null;
+  partnerAccountIdentifier: string | null;
 }
 
 /**
@@ -226,12 +239,13 @@ export class AppleWalletExtractor extends SqliteExtractor<typeof AppleWalletExtr
     const rows = allRows<CardRow>(
       this.db!.prepare(`
         SELECT CAST(transaction_source_pid AS TEXT) AS sourcePid, unique_id AS uniqueId,
-               primary_account_identifier AS accountIdentifier,
-               primary_account_suffix AS accountSuffix, organization_name AS organizationName
+               primary_account_identifier AS cardIdentifier, e AS issuerAccountIdentifier,
+               primary_account_suffix AS accountSuffix, organization_name AS organizationName,
+               supports_fpan_notifications AS accountNotifications
         FROM pass WHERE transaction_source_pid IS NOT NULL
         UNION
         SELECT CAST(a.transaction_source_pid AS TEXT), p.unique_id, p.primary_account_identifier,
-               p.primary_account_suffix, p.organization_name
+               p.e, p.primary_account_suffix, p.organization_name, p.supports_fpan_notifications
         FROM payment_application a JOIN pass p ON p.pid = a.pass_pid
         WHERE a.transaction_source_pid IS NOT NULL`)
     );
@@ -245,18 +259,24 @@ export class AppleWalletExtractor extends SqliteExtractor<typeof AppleWalletExtr
       }
       cards.set(row.sourcePid, {
         uniqueId: row.uniqueId,
-        accountIdentifier: row.accountIdentifier ?? null,
+        cardIdentifier: row.cardIdentifier ?? null,
+        // pass.json names it; the store keeps it in an unnamed column (`e` on macOS 27).
+        issuerAccountIdentifier:
+          pass.partnerAccountIdentifier ?? row.issuerAccountIdentifier ?? null,
         accountSuffix: row.accountSuffix ?? null,
         organizationName: row.organizationName ?? null,
-        ...pass,
+        description: pass.description,
+        paymentType: pass.paymentType,
+        accountNotifications: row.accountNotifications === 1,
       });
     }
     return cards;
   }
 
   /**
-   * The card's name and kind from its `pass.json` in the `Cards` folder
-   * beside the store. A copied store has none, and the card goes without.
+   * The card's name and kind, and the issuer's identifier for its account,
+   * from its `pass.json` in the `Cards` folder beside the store. A copied
+   * store has none, and the card goes without.
    */
   private async readPass(uniqueId: string): Promise<PassDetails> {
     const path = join(dirname(this.config.input), 'Cards', `${uniqueId}.pkpass`, 'pass.json');
@@ -269,10 +289,12 @@ export class AppleWalletExtractor extends SqliteExtractor<typeof AppleWalletExtr
       return {
         description: typeof pass.description === 'string' ? pass.description : null,
         paymentType: typeof application?.paymentType === 'string' ? application.paymentType : null,
+        partnerAccountIdentifier:
+          typeof pass.partnerAccountIdentifier === 'string' ? pass.partnerAccountIdentifier : null,
       };
     } catch (error) {
       this.logger.verboseInfo(`Can't read a card's pass.json: ${(error as Error).message}`);
-      return { description: null, paymentType: null };
+      return { description: null, paymentType: null, partnerAccountIdentifier: null };
     }
   }
 
