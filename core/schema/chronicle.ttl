@@ -281,7 +281,7 @@
   rdfs:range :Realm .
 [] a sh:PropertyShape; sh:path :inRealm; sh:targetSubjectsOf :inRealm; sh:maxCount 1 .
 :inAccount a owl:ObjectProperty;
-  rdfs:comment "The account that holds the entity. For an account with a service, it is the agent whose account it is, as that service knows them, such as the owner of an email account a message was delivered to. For a :FinancialAccount, it is the account itself, such as the one an :AccountEntry is on or a :PaymentCard draws on. An entity held in several accounts is :inAccount each. Identifiers an account issues are unique within it.";
+  rdfs:comment "The account that holds the entity. For an account with a service, it is the agent whose account it is, as that service knows them, such as the owner of an email account a message was delivered to. For a :FinancialAccount, it is the account itself, such as the one an :FinancialAccountEntry is on or a :PaymentCard draws on. An entity held in several accounts is :inAccount each. Identifiers an account issues are unique within it.";
   rdfs:domain :Entity;
   rdfs:range [ a owl:Class; owl:unionOf ( :Agent :FinancialAccount ) ] .
 
@@ -886,7 +886,7 @@
   rdfs:subClassOf :TradeAction;
   skos:closeMatch schemaorg:PayAction .
 :FinancialTransaction a owl:Class;
-  rdfs:comment "A movement of money, recorded as one entry, such as a card purchase, a transfer between accounts, or a trade. It is the :result of the action that moved the money, such as a :PayAction, which gives when it happened and who paid. Its :amount gives how much moved, and its :recipient is who received it. Each account it changed is an :AccountEntry that is :isPartOf it.";
+  rdfs:comment "A movement of money, recorded as one entry, such as a card purchase, a transfer between accounts, or a trade. It is the :result of the action that moved the money, such as a :PayAction, which gives when it happened and who paid. Its :amount gives how much moved, and its :recipient is who received it. Each account it changed is an :FinancialAccountEntry that is :isPartOf it.";
   rdfs:subClassOf :Intangible .
 :PaymentCard a owl:Class;
   rdfs:comment "A numbered card that payments draw on, such as a credit card or a debit card. It is the card as issued, so a card reissued with a new number is a new :PaymentCard, while the account behind it continues. The same card added to several devices is one :PaymentCard. It is the :instrument of a :PayAction, and the account it draws on is its :inAccount. Its :category is its kind, such as `credit` or `debit`.";
@@ -909,19 +909,19 @@
   skos:closeMatch schemaorg:currency .
 [] a sh:PropertyShape; sh:path :currency; sh:targetSubjectsOf :currency; sh:maxCount 1 .
 :amount a owl:ObjectProperty;
-  rdfs:comment "How much money moved. On a :FinancialTransaction, it is the whole amount, and its :value is positive. The action that produced the transaction says who paid and who was paid. On an :AccountEntry, it is the change to the entry's account, and its :value is signed. A positive value increases an asset or an expense account, and a negative one increases a liability, an income, or an equity account, so a purchase paid with a card is negative on the card's account.";
-  rdfs:domain [ a owl:Class; owl:unionOf ( :FinancialTransaction :AccountEntry ) ];
+  rdfs:comment "How much money moved. On a :FinancialTransaction, it is the whole amount, and its :value is positive. The action that produced the transaction says who paid and who was paid. On a :FinancialAccountEntry, it is the change to the entry's account, and its :value is signed. A positive value increases an asset or an expense account, and a negative one increases a liability, an income, or an equity account, so a purchase paid with a card is negative on the card's account.";
+  rdfs:domain [ a owl:Class; owl:unionOf ( :FinancialTransaction :FinancialAccountEntry ) ];
   rdfs:range :MonetaryAmount;
   skos:closeMatch schemaorg:amount .
 [] a sh:PropertyShape; sh:path :amount; sh:targetSubjectsOf :amount; sh:maxCount 1 .
 :FinancialAccount a owl:Class;
-  rdfs:comment "An account that money is counted in, as one line of a chart of accounts. It is a real account held with an institution, such as a bank account or a credit card account, or a nominal one that classifies money, such as an expense or income category. Its :accountType says which of the five kinds it is. The account above it in the chart is what it :isPartOf.";
+  rdfs:comment "An account that money is counted in, as one line of a chart of accounts. It is a real account held with an institution, such as a bank account or a credit card account, or a nominal one that classifies money, such as an expense or income category. Its :financialAccountType says which of the five kinds it is. The account above it in the chart is what it :isPartOf.";
   rdfs:subClassOf :Intangible .
-:AccountEntry a owl:Class;
-  rdfs:comment "An entry on an account: the change a :FinancialTransaction made to that account. It is :isPartOf the transaction, its :inAccount is the account, and its :amount is the change. A transaction whose entries sum to zero is complete.";
+:FinancialAccountEntry a owl:Class;
+  rdfs:comment "An entry on a :FinancialAccount: the change a :FinancialTransaction made to that account. It is :isPartOf the transaction, its :inAccount is the account, and its :amount is the change. A transaction whose entries sum to zero is complete.";
   rdfs:subClassOf :Intangible .
-:accountType a owl:DatatypeProperty;
-  rdfs:comment "The kind of account, one of `asset`, `liability`, `equity`, `income`, or `expense`. Not allowed: another kind (`credit-card`) or another case (`Asset`).";
+:financialAccountType a owl:DatatypeProperty;
+  rdfs:comment "The kind of :FinancialAccount, one of `asset`, `liability`, `equity`, `income`, or `expense`. Not allowed: another kind (`credit-card`) or another case (`Asset`).";
   rdfs:domain :FinancialAccount;
   rdfs:range :Text .
-[] a sh:PropertyShape; sh:path :accountType; sh:targetSubjectsOf :accountType; sh:maxCount 1 .
+[] a sh:PropertyShape; sh:path :financialAccountType; sh:targetSubjectsOf :financialAccountType; sh:maxCount 1 .

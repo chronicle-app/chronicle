@@ -1,6 +1,6 @@
 import { ChronicleTransformer, Record, reference } from '@chronicle.app/etl';
 import {
-  AccountEntry,
+  FinancialAccountEntry,
   ActionAndChildren,
   Agent,
   FinancialAccount,
@@ -19,7 +19,7 @@ const SOURCE = 'apple-wallet';
  *   PayAction  agent: you   instrument: PaymentCard   location?
  *     PaymentCard (the product)  inAccount: FinancialAccount (the issuer; by its account id, else the card's)
  *     result: FinancialTransaction  amount: MonetaryAmount   recipient: Agent (the merchant)
- *       hasPart: AccountEntry  amount: MonetaryAmount (negative)   inAccount: the account, by key
+ *       hasPart: FinancialAccountEntry  amount: MonetaryAmount (negative)   inAccount: the account, by key
  *
  * A node that appears again carries only its identity (`reference`), and the
  * fold merges it with the full node by its key.
@@ -80,10 +80,13 @@ function buildTransaction(
  * negative on the account that paid, whichever kind it is: it adds to what a
  * credit card owes, and takes from what a debit card holds.
  */
-function buildEntry(transaction: WalletTransaction, account: FinancialAccount): AccountEntry {
+function buildEntry(
+  transaction: WalletTransaction,
+  account: FinancialAccount
+): FinancialAccountEntry {
   const amount = transaction.amount!;
   return {
-    '@type': 'AccountEntry',
+    '@type': 'FinancialAccountEntry',
     '@key': ['@type', 'source', 'sourceId', 'inAccount[*].sourceId'],
     source: SOURCE,
     sourceId: transaction.identifier,
@@ -151,14 +154,14 @@ const ACCOUNT_TYPES: { [paymentType: string]: string } = {
  */
 function buildAccount(card: Card): FinancialAccount {
   const issuer = card.organizationName?.trim();
-  const accountType = card.paymentType && ACCOUNT_TYPES[card.paymentType.toLowerCase()];
+  const financialAccountType = card.paymentType && ACCOUNT_TYPES[card.paymentType.toLowerCase()];
   return {
     '@type': 'FinancialAccount',
     '@key': ['@type', 'source', 'sourceId'],
     source: SOURCE,
     sourceId: card.issuerAccountIdentifier ?? cardIdOf(card),
     ...(issuer && { name: issuer }),
-    ...(accountType && { accountType }),
+    ...(financialAccountType && { financialAccountType }),
   };
 }
 

@@ -78,7 +78,7 @@ const accountRef = account => ({
   sourceId: account.sourceId,
 });
 const entry = (sourceId, amount, currency, account) => ({
-  '@type': 'AccountEntry',
+  '@type': 'FinancialAccountEntry',
   '@key': ['@type', 'source', 'sourceId', 'inAccount[*].sourceId'],
   source: 'apple-wallet',
   sourceId,
@@ -93,7 +93,7 @@ const visaAccount = {
   source: 'apple-wallet',
   sourceId: 'ACCOUNT-VISA-1',
   name: 'Example Bank',
-  accountType: 'liability',
+  financialAccountType: 'liability',
 };
 // No identifier from the issuer, so the account is keyed like the card.
 const amexAccount = {
