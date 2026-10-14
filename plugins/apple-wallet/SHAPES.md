@@ -19,7 +19,7 @@ PayAction key(sourceId) {
   instrument[]?: PaymentCard key(sourceId) {
     sourceId, name?, alternateName[], category[]?
     inAccount[]: FinancialAccount key(sourceId) {
-      sourceId, name?, alternateName[], accountType?*
+      sourceId, name?, accountType?*
       provider: Organization key(name) { name }
       member[]: Person key(sourceId) { sourceId }
     }

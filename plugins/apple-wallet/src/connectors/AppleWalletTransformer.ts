@@ -146,8 +146,9 @@ const ACCOUNT_TYPES: { [paymentType: string]: string } = {
 /**
  * The account the card draws on, as far as Wallet can tell: the card itself.
  * Wallet has no account number, so the account is keyed like the card and
- * named as the card is, and a card reissued with a new number splits it until
- * a ledger names the account.
+ * named after the card's product, and a card reissued with a new number splits
+ * it until a ledger names the account. The card number's last digits stay on
+ * the card: a reissue changes them while the account continues.
  */
 function buildAccount(card: Card, holder: Person | null): FinancialAccount {
   const issuer = card.organizationName?.trim();
@@ -158,7 +159,6 @@ function buildAccount(card: Card, holder: Person | null): FinancialAccount {
     source: SOURCE,
     sourceId: cardIdOf(card),
     ...(card.description && { name: card.description }),
-    ...(card.accountSuffix && { alternateName: [card.accountSuffix] }),
     ...(accountType && { accountType }),
     ...(issuer && { provider: organization(issuer) }),
     ...(holder && { member: [reference(holder)] }),

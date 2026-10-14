@@ -99,7 +99,6 @@ const visaAccount = {
   source: 'apple-wallet',
   sourceId: 'V-0000000000000000000001',
   name: 'Example Rewards Visa',
-  alternateName: ['7959'],
   accountType: 'liability',
   provider: organization('Example Bank'),
   member: [meRef],
@@ -109,7 +108,6 @@ const amexAccount = {
   '@key': key,
   source: 'apple-wallet',
   sourceId: 'FAPLAB0000000000000000000000000000000000002',
-  alternateName: ['1001'],
   provider: organization('Example Express'),
   member: [meRef],
 };

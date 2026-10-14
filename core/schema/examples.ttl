@@ -4107,7 +4107,6 @@ and the account in full under the card and by its key alone under the entry.
         :source "apple-wallet";
         :sourceId "V-0000000000000000000001";
         :name "Example Rewards Visa";
-        :alternateName "4242";
         :accountType "liability";
         :provider [
           a :Organization;
