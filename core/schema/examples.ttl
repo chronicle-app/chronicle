@@ -4061,21 +4061,23 @@ example:card-purchase
 You bought a coffee with a credit card, and within minutes the card's issuer
 told Wallet about it. The :PayAction is keyed by Wallet's ID for the
 transaction and dated to the second. You are the :agent, the card is the
-:instrument, and the :result is the :Transaction, which carries the :amount,
-a :MonetaryAmount, and the café as its :recipient.
+:instrument, and the :result is the :FinancialTransaction, which carries the
+:amount, a :MonetaryAmount, and the café as its :recipient. The café is an
+:Agent keyed by its name, which is all the issuer sends, since a billing
+descriptor can name a company, a branch, or a person.
 
 The :PaymentCard is keyed by the card network's identifier for the card,
-which is the same on every device the card is added to, and is :issuedBy the
-bank. Wallet has no number for the account the card draws on, so the
-:FinancialAccount is keyed like the card and named as the card is. The
-:Transaction's one :posting is that account's side of the purchase, negative
-because a purchase adds to what a credit card owes. The café's side is not
-known. The café is an :Organization keyed by its name, which is all the
-issuer sends.
+which is the same on every device the card is added to. Wallet has no number
+for the account the card draws on, so the :FinancialAccount it is :inAccount
+is keyed like the card and named as the card is, with the bank as its
+:provider and you as its :member. The transaction's one :AccountEntry, given
+under `hasPart`, the inverse of :isPartOf, is that account's side of the
+purchase, negative because a purchase adds to what a credit card owes. The
+café's side is not known.
 
 A node that appears again in one record needs only its identity. You are
-given in full as the :agent and by your key alone as each :holder, and the
-account in full under the card and by its key alone under the :posting.
+given in full as the :agent and by your key alone as the account's :member,
+and the account in full under the card and by its key alone under the entry.
 """;
   rdf:value [
     a :PayAction;
@@ -4099,19 +4101,7 @@ account in full under the card and by its key alone under the :posting.
       :name "Example Rewards Visa";
       :alternateName "4242";
       :category "credit";
-      :issuedBy [
-        a :Organization;
-        doc:key ("@type" "source" "name");
-        :source "apple-wallet";
-        :name "Example Bank"
-      ];
-      :holder [
-        a :Person;
-        doc:key ("@type" "source" "sourceId");
-        :source "icloud";
-        :sourceId "1234567890"
-      ];
-      :account [
+      :inAccount [
         a :FinancialAccount;
         doc:key ("@type" "source" "sourceId");
         :source "apple-wallet";
@@ -4125,7 +4115,7 @@ account in full under the card and by its key alone under the :posting.
           :source "apple-wallet";
           :name "Example Bank"
         ];
-        :holder [
+        :member [
           a :Person;
           doc:key ("@type" "source" "sourceId");
           :source "icloud";
@@ -4134,7 +4124,7 @@ account in full under the card and by its key alone under the :posting.
       ]
     ];
     :result [
-      a :Transaction;
+      a :FinancialTransaction;
       doc:key ("@type" "source" "sourceId");
       :source "apple-wallet";
       :sourceId "7C1E9F2B-6A3D-4B58-9E0F-2D4C6B8A1E35";
@@ -4144,14 +4134,14 @@ account in full under the card and by its key alone under the :posting.
         :currency "CAD"
       ];
       :recipient [
-        a :Organization;
-        doc:key ("@type" "source" "name");
+        a :Agent;
+        doc:key ("source" "name");
         :source "apple-wallet";
         :name "Example Café"
       ];
-      :posting [
-        a :Posting;
-        doc:key ("@type" "source" "sourceId" "account.sourceId");
+      :hasPart [
+        a :AccountEntry;
+        doc:key ("@type" "source" "sourceId" "inAccount[*].sourceId");
         :source "apple-wallet";
         :sourceId "7C1E9F2B-6A3D-4B58-9E0F-2D4C6B8A1E35";
         :amount [
@@ -4159,7 +4149,7 @@ account in full under the card and by its key alone under the :posting.
           :value -4.75;
           :currency "CAD"
         ];
-        :account [
+        :inAccount [
           a :FinancialAccount;
           doc:key ("@type" "source" "sourceId");
           :source "apple-wallet";
@@ -4171,18 +4161,17 @@ account in full under the card and by its key alone under the :posting.
 
 :TradeAction skos:example example:card-purchase .
 :PayAction skos:example example:card-purchase .
-:Transaction skos:example example:card-purchase .
-:PaymentCard skos:example example:card-purchase .
-:amount skos:example example:card-purchase .
-:currency skos:example example:card-purchase .
-:issuedBy skos:example example:card-purchase .
-:recipient skos:example example:card-purchase .
+:FinancialTransaction skos:example example:card-purchase .
+:AccountEntry skos:example example:card-purchase .
 :FinancialAccount skos:example example:card-purchase .
-:Posting skos:example example:card-purchase .
-:posting skos:example example:card-purchase .
-:account skos:example example:card-purchase .
+:PaymentCard skos:example example:card-purchase .
+:MonetaryAmount skos:example example:card-purchase .
+:amount skos:example example:card-purchase .
+:value skos:example example:card-purchase .
+:currency skos:example example:card-purchase .
 :accountType skos:example example:card-purchase .
 :provider skos:example example:card-purchase .
-:holder skos:example example:card-purchase .
-:MonetaryAmount skos:example example:card-purchase .
-:value skos:example example:card-purchase .
+:inAccount skos:example example:card-purchase .
+:member skos:example example:card-purchase .
+:isPartOf skos:example example:card-purchase .
+:recipient skos:example example:card-purchase .

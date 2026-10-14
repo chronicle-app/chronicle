@@ -18,22 +18,20 @@ PayAction key(sourceId) {
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
   instrument[]?: PaymentCard key(sourceId) {
     sourceId, name?, alternateName[], category[]?
-    issuedBy: Organization key(name) { name }
-    holder[]: Person key(sourceId) { sourceId }
-    account: FinancialAccount key(sourceId) {
+    inAccount[]: FinancialAccount key(sourceId) {
       sourceId, name?, alternateName[], accountType?*
       provider: Organization key(name) { name }
-      holder[]: Person key(sourceId) { sourceId }
+      member[]: Person key(sourceId) { sourceId }
     }
   }
-  result: Transaction key(sourceId) {
+  result: FinancialTransaction key(sourceId) {
     sourceId
     amount: MonetaryAmount { value, currency? }
-    recipient[]?: Organization key(name) { name }
-    posting[]?: Posting key(sourceId, account.sourceId) {
+    recipient[]?: Agent key(name) { name }
+    hasPart[]?: AccountEntry key(sourceId, inAccount[*].sourceId) {
       sourceId
       amount: MonetaryAmount { value*, currency }
-      account: FinancialAccount key(sourceId) { sourceId }
+      inAccount[]: FinancialAccount key(sourceId) { sourceId }
     }
   }
   location?: Location { latitude, longitude, address }

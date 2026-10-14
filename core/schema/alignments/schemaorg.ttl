@@ -34,7 +34,7 @@ schemaorg: rdfs:label "schema.org";
   doc:note "A schemaorg:FindAction is finding something, which a search can lead to. Searching is a schemaorg:SearchAction." .
 :MoveAction doc:note "A :MoveAction can be a step through an information space, such as following a link from one web page to another. A schemaorg:MoveAction is relocating to a place, from its schemaorg:fromLocation to its schemaorg:toLocation." .
 :MonetaryAmount doc:note "One sum. A schemaorg:MonetaryAmount can also be a range, from its schemaorg:minValue to its schemaorg:maxValue." .
-:PayAction doc:note "How much was paid and to whom are on the :Transaction that is its :result. A schemaorg:PayAction carries them itself, as its schemaorg:price and schemaorg:recipient." .
+:PayAction doc:note "How much was paid and to whom are on the :FinancialTransaction that is its :result. A schemaorg:PayAction carries them itself, as its schemaorg:price and schemaorg:recipient." .
 :PaymentCard doc:note "One card, as issued with its number. A schemaorg:PaymentCard is a way of paying, and can stand for every card of a kind." .
 :Project doc:unlike schemaorg:Project;
   doc:note "A schemaorg:Project is an enterprise, a kind of schemaorg:Organization." .
@@ -46,7 +46,7 @@ schemaorg: rdfs:label "schema.org";
 
 # Properties
 
-:amount doc:note "On a :Posting, the :value is signed. schemaorg:amount can also be a plain number, and what a schemaorg:PayAction paid is its schemaorg:price." .
+:amount doc:note "On an :AccountEntry, the :value is signed. schemaorg:amount can also be a plain number, and what a schemaorg:PayAction paid is its schemaorg:price." .
 :artist doc:unlike schemaorg:artist;
   doc:note "schemaorg:artist is the primary artist of a comic or a visual artwork. The artist of a recording or an album is its schemaorg:byArtist." .
 :attendee doc:note "Includes agents who declined or did not reply. A schemaorg:attendee is someone attending the event." .
@@ -54,7 +54,8 @@ schemaorg: rdfs:label "schema.org";
 :currency doc:note "An ISO 4217 code. schemaorg:currency also takes a cryptocurrency ticker, and the currency of a schemaorg:PayAction is its schemaorg:priceCurrency." .
 :distance doc:note "A number of meters, on the :Journey. schemaorg:distance is on the schemaorg:TravelAction and includes a unit, such as `5 km`." .
 :height doc:note "A number of pixels. schemaorg:height can also be a distance with a unit, such as `5 cm`." .
-:issuedBy doc:note "The issuer of a :PaymentCard. schemaorg:issuedBy is the issuer of a schemaorg:Permit or a schemaorg:Ticket." .
+:isPartOf doc:note "A record can also give the parts of a whole under the inverse name `hasPart`, which schema.org has as schemaorg:hasPart." .
+:member doc:note "Includes the holders of a :FinancialAccount. A schemaorg:member belongs to an organization or a program." .
 :mimeType doc:note "A MIME type. schemaorg:encodingFormat can also be the URL of a page that defines the format." .
 :performer doc:note "A schemaorg:performer is someone who performed at a schemaorg:Event." .
 :provider doc:note "The institution that holds a :FinancialAccount. schemaorg:provider is whoever provides a service or a product." .

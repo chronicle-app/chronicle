@@ -1,15 +1,16 @@
 import { ChronicleTransformer, Record, reference } from '@chronicle.app/etl';
 import {
+  AccountEntry,
   ActionAndChildren,
+  Agent,
   FinancialAccount,
+  FinancialTransaction,
   Location,
   MonetaryAmount,
   Organization,
   PayAction,
   PaymentCard,
   Person,
-  Posting,
-  Transaction,
 } from '@chronicle.app/schema';
 import { buildICloudPersonSchema } from '@chronicle.app/icloud';
 import type { Card, WalletTransaction } from './AppleWalletExtractor.js';
@@ -18,10 +19,10 @@ const SOURCE = 'apple-wallet';
 
 /**
  *   PayAction  agent: you   instrument: PaymentCard   location?
- *     PaymentCard  issuedBy: Organization (the issuer)   holder: you, by key
- *       account: FinancialAccount (the card, as far as Wallet knows)
- *     result: Transaction  amount: MonetaryAmount   recipient: Organization (the merchant)
- *       posting: Posting  amount: MonetaryAmount (negative)   account: the card's account, by key
+ *     PaymentCard  inAccount: FinancialAccount (the card, as far as Wallet knows)
+ *       FinancialAccount  provider: Organization (the issuer)   member: you, by key
+ *     result: FinancialTransaction  amount: MonetaryAmount   recipient: Agent (the merchant)
+ *       hasPart: AccountEntry  amount: MonetaryAmount (negative)   inAccount: the account, by key
  *
  * A node that appears again carries only its identity (`reference`), and the
  * fold merges it with the full node by its key.
@@ -34,7 +35,8 @@ export default class AppleWalletTransformer extends ChronicleTransformer {
     const transaction = record.data as WalletTransaction;
     // Without an iCloud account the payer can't be identified, so omit them.
     const payer = await buildICloudPersonSchema(record.context.account);
-    const card = buildCard(transaction.card, payer);
+    const account = transaction.card ? buildAccount(transaction.card, payer) : null;
+    const card = transaction.card && account ? buildCard(transaction.card, account) : null;
     const location = locationOf(transaction);
 
     const action: PayAction = {
@@ -45,7 +47,7 @@ export default class AppleWalletTransformer extends ChronicleTransformer {
       timestamp: new Date(transaction.date),
       ...(payer && { agent: payer }),
       ...(card && { instrument: [card] }),
-      result: buildTransaction(transaction, card?.account ?? null),
+      result: buildTransaction(transaction, account),
       ...(location && { location }),
     };
     return [action];
@@ -54,17 +56,16 @@ export default class AppleWalletTransformer extends ChronicleTransformer {
 
 /**
  * The money that moved, keyed like the action, with the merchant as its
- * recipient and the card account's side as its one posting.
+ * recipient and the card account's side as its one entry.
  */
 function buildTransaction(
   transaction: WalletTransaction,
   account: FinancialAccount | null
-): Transaction {
+): FinancialTransaction {
   const merchant = buildMerchant(transaction);
-  const posting =
-    account && transaction.amount !== null ? buildPosting(transaction, account) : null;
+  const entry = account && transaction.amount !== null ? buildEntry(transaction, account) : null;
   return {
-    '@type': 'Transaction',
+    '@type': 'FinancialTransaction',
     '@key': ['@type', 'source', 'sourceId'],
     source: SOURCE,
     sourceId: transaction.identifier,
@@ -72,25 +73,25 @@ function buildTransaction(
       amount: money(transaction.amount, transaction.currencyCode),
     }),
     ...(merchant && { recipient: [merchant] }),
-    ...(posting && { posting: [posting] }),
+    ...(entry && { hasPart: [entry] }),
   };
 }
 
 /**
  * The card account's side of the purchase, keyed by the transaction and the
- * account. A purchase is negative on the account that paid, whichever kind
- * it is: it adds to what a credit card owes, and takes from what a debit
- * card holds.
+ * account, and given under `hasPart`, the inverse of `isPartOf`. A purchase is
+ * negative on the account that paid, whichever kind it is: it adds to what a
+ * credit card owes, and takes from what a debit card holds.
  */
-function buildPosting(transaction: WalletTransaction, account: FinancialAccount): Posting {
+function buildEntry(transaction: WalletTransaction, account: FinancialAccount): AccountEntry {
   const amount = transaction.amount!;
   return {
-    '@type': 'Posting',
-    '@key': ['@type', 'source', 'sourceId', 'account.sourceId'],
+    '@type': 'AccountEntry',
+    '@key': ['@type', 'source', 'sourceId', 'inAccount[*].sourceId'],
     source: SOURCE,
     sourceId: transaction.identifier,
     amount: money(amount === 0 ? 0 : -amount, transaction.currencyCode),
-    account: reference(account),
+    inAccount: [reference(account)],
   };
 }
 
@@ -100,35 +101,37 @@ function money(value: number, currency: string | null): MonetaryAmount {
 }
 
 /**
- * The merchant, keyed by its name: the issuer sends no merchant ID. The name
- * is the cleaned one when the issuer gives it, else the raw one.
+ * The merchant as the issuer names it. A billing descriptor can name a
+ * company, a branch, a processor, or a person, so it is an Agent keyed by its
+ * name alone, which a source that knows the kind can refine. The name is the
+ * cleaned one when Wallet has it, else the raw one.
  */
-function buildMerchant(transaction: WalletTransaction): Organization | null {
+function buildMerchant(transaction: WalletTransaction): Agent | null {
   const name = transaction.merchantName?.trim() || transaction.merchantRawName?.trim();
-  return name ? organization(name) : null;
+  if (!name) return null;
+  return { '@type': 'Agent', '@key': ['source', 'name'], source: SOURCE, name };
+}
+
+/** The card network's identifier for the card, or the pass's own ID when the network gives none. */
+function cardIdOf(card: Card): string {
+  return card.accountIdentifier ?? card.uniqueId;
 }
 
 /**
  * The card as issued, keyed by the card network's identifier for it, which is
- * the same on every device the card is added to, or by the pass's own ID when
- * the network gives none. A card reissued with a new number is a new card.
- * Its last digits are another name Wallet shows it by.
+ * the same on every device the card is added to. A card reissued with a new
+ * number is a new card. Its last digits are another name Wallet shows it by.
  */
-function buildCard(card: Card | null, holder: Person | null): PaymentCard | null {
-  if (!card) return null;
-  const issuer = card.organizationName?.trim();
-  const sourceId = card.accountIdentifier ?? card.uniqueId;
+function buildCard(card: Card, account: FinancialAccount): PaymentCard {
   return {
     '@type': 'PaymentCard',
     '@key': ['@type', 'source', 'sourceId'],
     source: SOURCE,
-    sourceId,
+    sourceId: cardIdOf(card),
     ...(card.description && { name: card.description }),
     ...(card.accountSuffix && { alternateName: [card.accountSuffix] }),
     ...(card.paymentType && { category: [card.paymentType.toLowerCase()] }),
-    ...(issuer && { issuedBy: organization(issuer) }),
-    ...(holder && { holder: [reference(holder)] }),
-    account: buildAccount(card, sourceId, holder),
+    inAccount: [account],
   };
 }
 
@@ -146,19 +149,19 @@ const ACCOUNT_TYPES: { [paymentType: string]: string } = {
  * named as the card is, and a card reissued with a new number splits it until
  * a ledger names the account.
  */
-function buildAccount(card: Card, sourceId: string, holder: Person | null): FinancialAccount {
+function buildAccount(card: Card, holder: Person | null): FinancialAccount {
   const issuer = card.organizationName?.trim();
   const accountType = card.paymentType && ACCOUNT_TYPES[card.paymentType.toLowerCase()];
   return {
     '@type': 'FinancialAccount',
     '@key': ['@type', 'source', 'sourceId'],
     source: SOURCE,
-    sourceId,
+    sourceId: cardIdOf(card),
     ...(card.description && { name: card.description }),
     ...(card.accountSuffix && { alternateName: [card.accountSuffix] }),
     ...(accountType && { accountType }),
     ...(issuer && { provider: organization(issuer) }),
-    ...(holder && { holder: [reference(holder)] }),
+    ...(holder && { member: [reference(holder)] }),
   };
 }
 

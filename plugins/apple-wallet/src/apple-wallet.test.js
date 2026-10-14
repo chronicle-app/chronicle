@@ -72,27 +72,26 @@ const organization = name => ({
   source: 'apple-wallet',
   name,
 });
-const payAction = (sourceId, timestamp, fields) => ({
-  '@type': 'PayAction',
+// The merchant: a billing descriptor, keyed by name with its kind left open.
+const merchant = name => ({
+  '@type': 'Agent',
+  '@key': ['source', 'name'],
+  source: 'apple-wallet',
+  name,
+});
+const accountRef = account => ({
+  '@type': 'FinancialAccount',
   '@key': key,
   source: 'apple-wallet',
-  sourceId,
-  timestamp: new Date(timestamp),
-  agent: me,
-  ...fields,
+  sourceId: account.sourceId,
 });
-const posting = (sourceId, amount, currency, account) => ({
-  '@type': 'Posting',
-  '@key': ['@type', 'source', 'sourceId', 'account.sourceId'],
+const entry = (sourceId, amount, currency, account) => ({
+  '@type': 'AccountEntry',
+  '@key': ['@type', 'source', 'sourceId', 'inAccount[*].sourceId'],
   source: 'apple-wallet',
   sourceId,
   amount: money(amount, currency),
-  account: {
-    '@type': 'FinancialAccount',
-    '@key': key,
-    source: 'apple-wallet',
-    sourceId: account.sourceId,
-  },
+  inAccount: [accountRef(account)],
 });
 const visaAccount = {
   '@type': 'FinancialAccount',
@@ -103,7 +102,7 @@ const visaAccount = {
   alternateName: ['7959'],
   accountType: 'liability',
   provider: organization('Example Bank'),
-  holder: [meRef],
+  member: [meRef],
 };
 const amexAccount = {
   '@type': 'FinancialAccount',
@@ -112,17 +111,26 @@ const amexAccount = {
   sourceId: 'FAPLAB0000000000000000000000000000000000002',
   alternateName: ['1001'],
   provider: organization('Example Express'),
-  holder: [meRef],
+  member: [meRef],
 };
+const payAction = (sourceId, timestamp, fields) => ({
+  '@type': 'PayAction',
+  '@key': key,
+  source: 'apple-wallet',
+  sourceId,
+  timestamp: new Date(timestamp),
+  agent: me,
+  ...fields,
+});
 const transaction = (sourceId, fields) => ({
-  '@type': 'Transaction',
+  '@type': 'FinancialTransaction',
   '@key': key,
   source: 'apple-wallet',
   sourceId,
   ...fields,
 });
 
-test('transactions become PayActions with their card and merchant, newest first', async t => {
+test('transactions become PayActions with their card, account, and merchant, newest first', async t => {
   const byId = await actions(tempDir(t));
   // The row without an identifier is left out.
   assert.deepEqual([...byId.keys()], ['TXN-ISSUER', 'TXN-TAP', 'TXN-BARE']);
@@ -131,7 +139,7 @@ test('transactions become PayActions with their card and merchant, newest first'
   // from its pass.json, with its last digits as another name and its default
   // payment application's kind, and its account is derived from it as a
   // liability. The amount has four decimal places in the store, and the
-  // posting is its negative. You and the account appear again by key alone.
+  // account entry is its negative. You and the account appear again by key.
   assert.deepEqual(
     byId.get('TXN-ISSUER'),
     payAction('TXN-ISSUER', '2025-01-01T00:05:00.000Z', {
@@ -144,15 +152,13 @@ test('transactions become PayActions with their card and merchant, newest first'
           name: 'Example Rewards Visa',
           alternateName: ['7959'],
           category: ['credit'],
-          issuedBy: organization('Example Bank'),
-          holder: [meRef],
-          account: visaAccount,
+          inAccount: [visaAccount],
         },
       ],
       result: transaction('TXN-ISSUER', {
         amount: money(69.93, 'CAD'),
-        recipient: [organization('Example Café')],
-        posting: [posting('TXN-ISSUER', -69.93, 'CAD', visaAccount)],
+        recipient: [merchant('Example Café')],
+        hasPart: [entry('TXN-ISSUER', -69.93, 'CAD', visaAccount)],
       }),
     })
   );
@@ -171,22 +177,20 @@ test('transactions become PayActions with their card and merchant, newest first'
           source: 'apple-wallet',
           sourceId: 'FAPLAB0000000000000000000000000000000000002',
           alternateName: ['1001'],
-          issuedBy: organization('Example Express'),
-          holder: [meRef],
-          account: amexAccount,
+          inAccount: [amexAccount],
         },
       ],
       result: transaction('TXN-TAP', {
         amount: money(15.82, 'CAD'),
-        recipient: [organization('EXAMPLE GROCER 1281')],
-        posting: [posting('TXN-TAP', -15.82, 'CAD', amexAccount)],
+        recipient: [merchant('EXAMPLE GROCER 1281')],
+        hasPart: [entry('TXN-TAP', -15.82, 'CAD', amexAccount)],
       }),
       location: { '@type': 'Location', latitude: 43.65, longitude: -79.38, address: 'Toronto, ON' },
     })
   );
 
   // No card, merchant, currency, or fix: the transaction keeps its amount and
-  // has no posting, since no account is known.
+  // has no entry, since no account is known.
   assert.deepEqual(
     byId.get('TXN-BARE'),
     payAction('TXN-BARE', '2025-01-01T00:01:40.000Z', {

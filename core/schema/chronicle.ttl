@@ -16,9 +16,12 @@
 : a owl:Ontology;
   owl:versionInfo "0.4.0" .
 
-# Annotations on properties, for tools rather than records.
+# Annotations on properties, for tools rather than records. :inverseName on
+# a property names its inverse: a record can give the relation under either
+# name, and only the forward edge is stored.
 :abstract a owl:AnnotationProperty .
 :propagatesEncounter a owl:AnnotationProperty .
+:inverseName a owl:AnnotationProperty .
 
 :Base a owl:Class;
   rdfs:comment "Anything a source describes, either an :Entity or an :Action. Each one has an identity, so other records can refer to it.";
@@ -147,7 +150,8 @@
   rdfs:range :Text .
 [] a sh:PropertyShape; sh:path :handle; sh:targetSubjectsOf :handle; sh:maxCount 1 .
 :isPartOf a owl:ObjectProperty;
-  rdfs:comment "A whole that the entity is part of, such as a task's project or the page an excerpt comes from.";
+  rdfs:comment "A whole that the entity is part of, such as a task's project, the page an excerpt comes from, or the transaction an account entry belongs to. Seen from the whole, its parts are its `hasPart` values.";
+  :inverseName "hasPart";
   rdfs:domain :Entity;
   rdfs:range :Entity;
   skos:exactMatch schemaorg:isPartOf .
@@ -211,7 +215,7 @@
 :recipient a owl:ObjectProperty;
   rdfs:comment "An agent the message, call, or transaction was directed to, such as each other participant in a group conversation or the merchant that was paid.";
   rdfs:subPropertyOf :involvement;
-  rdfs:domain [ a owl:Class; owl:unionOf ( :Message :CallSession :Transaction ) ];
+  rdfs:domain [ a owl:Class; owl:unionOf ( :Message :CallSession :FinancialTransaction ) ];
   rdfs:range :Agent;
   skos:exactMatch schemaorg:recipient .
 :contains a owl:ObjectProperty;
@@ -277,9 +281,9 @@
   rdfs:range :Realm .
 [] a sh:PropertyShape; sh:path :inRealm; sh:targetSubjectsOf :inRealm; sh:maxCount 1 .
 :inAccount a owl:ObjectProperty;
-  rdfs:comment "The agent whose account holds the entity, as that account's service knows them, such as the owner of an email account a message was delivered to. An entity held in several accounts is :inAccount each. Identifiers an account issues are unique within it.";
+  rdfs:comment "The account that holds the entity. For an account with a service, it is the agent whose account it is, as that service knows them, such as the owner of an email account a message was delivered to. For a :FinancialAccount, it is the account itself, such as the one an :AccountEntry is on or a :PaymentCard draws on. An entity held in several accounts is :inAccount each. Identifiers an account issues are unique within it.";
   rdfs:domain :Entity;
-  rdfs:range :Agent .
+  rdfs:range [ a owl:Class; owl:unionOf ( :Agent :FinancialAccount ) ] .
 
 :ConsumeAction a owl:Class;
   rdfs:comment "The agent took in the :object, such as by reading, watching, listening to, eating, or drinking it. The subclasses name how. A :ConsumeAction of no subclass records consumption in progress with no known start.";
@@ -405,9 +409,9 @@
   rdfs:subClassOf :Agent;
   skos:exactMatch schemaorg:Organization .
 :member a owl:ObjectProperty;
-  rdfs:comment "An agent that belongs to the organization or channel, such as a member of a band, a company, or a group chat.";
+  rdfs:comment "An agent that belongs to the organization or channel, or holds the account, such as a member of a band, a company, or a group chat, or each holder of a joint account.";
   rdfs:subPropertyOf :involvement;
-  rdfs:domain [ a owl:Class; owl:unionOf ( :Channel :Organization ) ];
+  rdfs:domain [ a owl:Class; owl:unionOf ( :Channel :Organization :FinancialAccount ) ];
   rdfs:range [ a owl:Class; owl:unionOf ( :Agent :Person ) ];
   skos:exactMatch schemaorg:member .
 :inReplyTo a owl:ObjectProperty;
@@ -878,14 +882,14 @@
   rdfs:subClassOf :Action;
   skos:broadMatch schemaorg:TradeAction .
 :PayAction a owl:Class;
-  rdfs:comment "The agent paid money to another agent, such as for a purchase with a card. Its :result is the :Transaction, which gives how much was paid and to whom.";
+  rdfs:comment "The agent paid money to another agent, such as for a purchase with a card. Its :result is the :FinancialTransaction, which gives how much was paid and to whom.";
   rdfs:subClassOf :TradeAction;
   skos:closeMatch schemaorg:PayAction .
-:Transaction a owl:Class;
-  rdfs:comment "A movement of money, recorded as one entry, such as a card purchase, a transfer between accounts, or a trade. It is the :result of the action that moved the money, such as a :PayAction, which gives when it happened and who paid. Its :amount and :currency give how much moved, and its :recipient is who received it. Each account it changed is a :posting.";
+:FinancialTransaction a owl:Class;
+  rdfs:comment "A movement of money, recorded as one entry, such as a card purchase, a transfer between accounts, or a trade. It is the :result of the action that moved the money, such as a :PayAction, which gives when it happened and who paid. Its :amount gives how much moved, and its :recipient is who received it. Each account it changed is an :AccountEntry that is :isPartOf it.";
   rdfs:subClassOf :Intangible .
 :PaymentCard a owl:Class;
-  rdfs:comment "A numbered card that payments draw on, such as a credit card or a debit card. It is the card as issued, so a card reissued with a new number is a new :PaymentCard, while the account behind it continues. The same card added to several devices is one :PaymentCard. It is the :instrument of a :PayAction. Its :account is the account it draws on, its :issuedBy is the bank or company that issued it, and its :holder is whose it is. Its :category is its kind, such as `credit` or `debit`.";
+  rdfs:comment "A numbered card that payments draw on, such as a credit card or a debit card. It is the card as issued, so a card reissued with a new number is a new :PaymentCard, while the account behind it continues. The same card added to several devices is one :PaymentCard. It is the :instrument of a :PayAction, and the account it draws on is its :inAccount. Its :category is its kind, such as `credit` or `debit`.";
   rdfs:subClassOf :Intangible;
   skos:closeMatch schemaorg:PaymentCard .
 :MonetaryAmount a owl:Class;
@@ -905,32 +909,17 @@
   skos:closeMatch schemaorg:currency .
 [] a sh:PropertyShape; sh:path :currency; sh:targetSubjectsOf :currency; sh:maxCount 1 .
 :amount a owl:ObjectProperty;
-  rdfs:comment "How much money moved. On a :Transaction, it is the whole amount, and its :value is positive. The action that produced the transaction says who paid and who was paid. On a :Posting, it is the change to the posting's account, and its :value is signed. A positive value increases an asset or an expense account, and a negative one increases a liability, an income, or an equity account, so a purchase paid with a card is negative on the card's account.";
-  rdfs:domain [ a owl:Class; owl:unionOf ( :Transaction :Posting ) ];
+  rdfs:comment "How much money moved. On a :FinancialTransaction, it is the whole amount, and its :value is positive. The action that produced the transaction says who paid and who was paid. On an :AccountEntry, it is the change to the entry's account, and its :value is signed. A positive value increases an asset or an expense account, and a negative one increases a liability, an income, or an equity account, so a purchase paid with a card is negative on the card's account.";
+  rdfs:domain [ a owl:Class; owl:unionOf ( :FinancialTransaction :AccountEntry ) ];
   rdfs:range :MonetaryAmount;
   skos:closeMatch schemaorg:amount .
 [] a sh:PropertyShape; sh:path :amount; sh:targetSubjectsOf :amount; sh:maxCount 1 .
-:issuedBy a owl:ObjectProperty;
-  rdfs:comment "The organization that issued the card, such as a bank.";
-  rdfs:domain :PaymentCard;
-  rdfs:range :Organization;
-  skos:closeMatch schemaorg:issuedBy .
-[] a sh:PropertyShape; sh:path :issuedBy; sh:targetSubjectsOf :issuedBy; sh:maxCount 1 .
 :FinancialAccount a owl:Class;
-  rdfs:comment "An account that money is counted in, as one line of a chart of accounts. It is a real account held with an institution, such as a bank account or a credit card account, or a nominal one that classifies money, such as an expense or income category. Its :accountType says which of the five kinds it is. The account above it in the chart is what it :isPartOf. A real account has a :provider, and its :holder is whose it is.";
+  rdfs:comment "An account that money is counted in, as one line of a chart of accounts. It is a real account held with an institution, such as a bank account or a credit card account, or a nominal one that classifies money, such as an expense or income category. Its :accountType says which of the five kinds it is. The account above it in the chart is what it :isPartOf. A real account has a :provider, and its holders are its :member values.";
   rdfs:subClassOf :Intangible .
-:Posting a owl:Class;
-  rdfs:comment "One account's side of a :Transaction: the change the transaction made to that account. Its :account is the account, and its :amount is the change. A transaction whose postings sum to zero is complete.";
+:AccountEntry a owl:Class;
+  rdfs:comment "An entry on an account: the change a :FinancialTransaction made to that account. It is :isPartOf the transaction, its :inAccount is the account, and its :amount is the change. A transaction whose entries sum to zero is complete.";
   rdfs:subClassOf :Intangible .
-:posting a owl:ObjectProperty;
-  rdfs:comment "A posting of the transaction, one for each account it changed that is known.";
-  rdfs:domain :Transaction;
-  rdfs:range :Posting .
-:account a owl:ObjectProperty;
-  rdfs:comment "The account the posting changed, or the account the card draws on.";
-  rdfs:domain [ a owl:Class; owl:unionOf ( :Posting :PaymentCard ) ];
-  rdfs:range :FinancialAccount .
-[] a sh:PropertyShape; sh:path :account; sh:targetSubjectsOf :account; sh:maxCount 1 .
 :accountType a owl:DatatypeProperty;
   rdfs:comment "The kind of account, one of `asset`, `liability`, `equity`, `income`, or `expense`. Not allowed: another kind (`credit-card`) or another case (`Asset`).";
   rdfs:domain :FinancialAccount;
@@ -942,7 +931,3 @@
   rdfs:range :Organization;
   skos:closeMatch schemaorg:provider .
 [] a sh:PropertyShape; sh:path :provider; sh:targetSubjectsOf :provider; sh:maxCount 1 .
-:holder a owl:ObjectProperty;
-  rdfs:comment "An agent the account or card belongs to, such as each holder of a joint account.";
-  rdfs:domain [ a owl:Class; owl:unionOf ( :FinancialAccount :PaymentCard ) ];
-  rdfs:range :Agent .
