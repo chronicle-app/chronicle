@@ -4054,3 +4054,151 @@ one.
 :transcript skos:example example:voice-memo .
 :ProductModel skos:example example:voice-memo .
 :OperatingSystem skos:example example:voice-memo .
+
+example:heart-rate
+  rdfs:label "A heart rate reading";
+  rdfs:comment """
+Your watch took your heart rate. The :MeasureAction happened at its
+:timestamp, and the value measured is a property of what was measured: your
+:heartRate. You are both the :agent and the :object. The action is keyed by
+what the reading says: its type, the device, its start and end, and its value.
+
+The action's :instrument is the watch, a :Device keyed by the name you gave it
+as its :handle, with its :model and :category. Beside it are the kind of device,
+a :ProductModel keyed by its Wikidata ID, and the :OperatingSystem release it
+ran.
+""";
+  rdf:value [
+    a :MeasureAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "apple-health";
+    :sourceId "HeartRate|Sam’s Apple Watch|2026-05-09T13:02:10.000Z|2026-05-09T13:02:10.000Z|72";
+    :timestamp "2026-05-09T13:02:10.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "icloud";
+      :sourceId "1234567890";
+      :handle "you@example.com";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "icloud";
+      :sourceId "1234567890";
+      :handle "you@example.com";
+      :sameAs "@me";
+      :heartRate 72
+    ];
+    :instrument [
+      a :Device;
+      doc:key ("@type" "source" "handle");
+      :source "apple-health";
+      :handle "Sam’s Apple Watch";
+      :name "Sam’s Apple Watch";
+      :model "Watch7,1";
+      :category "watch"
+    ], [
+      a :ProductModel;
+      doc:key ("source" "sourceId");
+      :source "wikidata";
+      :sourceId "Q18010946";
+      :name "Apple Watch";
+      :url "https://www.wikidata.org/wiki/Q18010946"
+    ], [
+      a :OperatingSystem;
+      doc:key ("@type" "source" "handle");
+      :source "apple-health";
+      :handle "watchOS 26.4"
+    ]
+  ] .
+
+:MeasureAction skos:example example:heart-rate .
+:heartRate skos:example example:heart-rate .
+:Device skos:example example:heart-rate .
+
+example:night-of-sleep
+  rdfs:label "A night's sleep";
+  rdfs:comment """
+Your watch tracked a night's sleep. The :SleepAction spans the night from
+:startTime to :endTime, and its :result is the :SleepSession. Both are keyed by
+the device and the night's start and end. Each stage of the night is its own
+:Session that :isPartOf this one.
+""";
+  rdf:value [
+    a :SleepAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "apple-health";
+    :sourceId "Sam’s Apple Watch|2026-05-09T03:12:00.000Z|2026-05-09T10:41:00.000Z";
+    :startTime "2026-05-09T03:12:00.000Z"^^xsd:dateTime;
+    :endTime "2026-05-09T10:41:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "icloud";
+      :sourceId "1234567890";
+      :handle "you@example.com";
+      :sameAs "@me"
+    ];
+    :instrument [
+      a :Device;
+      doc:key ("@type" "source" "handle");
+      :source "apple-health";
+      :handle "Sam’s Apple Watch";
+      :name "Sam’s Apple Watch";
+      :model "Watch7,1";
+      :category "watch"
+    ];
+    :result [
+      a :SleepSession;
+      doc:key ("@type" "source" "sourceId");
+      :source "apple-health";
+      :sourceId "Sam’s Apple Watch|2026-05-09T03:12:00.000Z|2026-05-09T10:41:00.000Z"
+    ]
+  ] .
+
+:SleepAction skos:example example:night-of-sleep .
+:SleepSession skos:example example:night-of-sleep, example:sleep-stage .
+
+example:sleep-stage
+  rdfs:label "A stage of sleep";
+  rdfs:comment """
+One stage of a night's sleep, here deep sleep. An :ExperienceAction spans the
+stage from :startTime to :endTime, and its :result is a :Session whose
+:category is the stage. The session :isPartOf the night's :SleepSession. The
+action and the session are keyed by what the stage says: the device, its start
+and end, and the stage.
+""";
+  rdf:value [
+    a :ExperienceAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "apple-health";
+    :sourceId "SleepAnalysis|Sam’s Apple Watch|2026-05-09T04:20:30.000Z|2026-05-09T04:51:00.000Z|deep";
+    :startTime "2026-05-09T04:20:30.000Z"^^xsd:dateTime;
+    :endTime "2026-05-09T04:51:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "icloud";
+      :sourceId "1234567890";
+      :handle "you@example.com";
+      :sameAs "@me"
+    ];
+    :result [
+      a :Session;
+      doc:key ("@type" "source" "sourceId");
+      :source "apple-health";
+      :sourceId "SleepAnalysis|Sam’s Apple Watch|2026-05-09T04:20:30.000Z|2026-05-09T04:51:00.000Z|deep";
+      :category "deep";
+      :isPartOf [
+        a :SleepSession;
+        doc:key ("@type" "source" "sourceId");
+        :source "apple-health";
+        :sourceId "Sam’s Apple Watch|2026-05-09T03:12:00.000Z|2026-05-09T10:41:00.000Z"
+      ]
+    ]
+  ] .
+
+:ExperienceAction skos:example example:sleep-stage .
+:Session skos:example example:sleep-stage .
