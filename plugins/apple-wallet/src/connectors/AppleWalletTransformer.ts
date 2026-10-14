@@ -7,10 +7,8 @@ import {
   FinancialTransaction,
   Location,
   MonetaryAmount,
-  Organization,
   PayAction,
   PaymentCard,
-  Person,
 } from '@chronicle.app/schema';
 import { buildICloudPersonSchema } from '@chronicle.app/icloud';
 import type { Card, WalletTransaction } from './AppleWalletExtractor.js';
@@ -19,8 +17,7 @@ const SOURCE = 'apple-wallet';
 
 /**
  *   PayAction  agent: you   instrument: PaymentCard   location?
- *     PaymentCard  inAccount: FinancialAccount (by the issuer's account id, else the card's)
- *       FinancialAccount  provider: Organization (the issuer)   member: you, by key
+ *     PaymentCard (the product)  inAccount: FinancialAccount (the issuer; by its account id, else the card's)
  *     result: FinancialTransaction  amount: MonetaryAmount   recipient: Agent (the merchant)
  *       hasPart: AccountEntry  amount: MonetaryAmount (negative)   inAccount: the account, by key
  *
@@ -35,7 +32,7 @@ export default class AppleWalletTransformer extends ChronicleTransformer {
     const transaction = record.data as WalletTransaction;
     // Without an iCloud account the payer can't be identified, so omit them.
     const payer = await buildICloudPersonSchema(record.context.account);
-    const account = transaction.card ? buildAccount(transaction.card, payer) : null;
+    const account = transaction.card ? buildAccount(transaction.card) : null;
     const card = transaction.card && account ? buildCard(transaction.card, account) : null;
     const location = locationOf(transaction);
 
@@ -147,11 +144,12 @@ const ACCOUNT_TYPES: { [paymentType: string]: string } = {
  * The account the card draws on, keyed by the issuer's identifier for it when
  * the issuer gives one, which outlives the card number. Otherwise the account
  * is the card as far as Wallet can tell: keyed like the card, and split by a
- * reissue with a new number until a ledger names the account. Either way it is
- * named after the card's product. The card number's last digits stay on the
- * card: a reissue changes them while the account continues.
+ * reissue with a new number until a ledger names the account. It is named
+ * after the issuer, as a chart of accounts names it, while the card is named
+ * after the product. The card number's last digits stay on the card: a reissue
+ * changes them while the account continues.
  */
-function buildAccount(card: Card, holder: Person | null): FinancialAccount {
+function buildAccount(card: Card): FinancialAccount {
   const issuer = card.organizationName?.trim();
   const accountType = card.paymentType && ACCOUNT_TYPES[card.paymentType.toLowerCase()];
   return {
@@ -159,19 +157,8 @@ function buildAccount(card: Card, holder: Person | null): FinancialAccount {
     '@key': ['@type', 'source', 'sourceId'],
     source: SOURCE,
     sourceId: card.issuerAccountIdentifier ?? cardIdOf(card),
-    ...(card.description && { name: card.description }),
+    ...(issuer && { name: issuer }),
     ...(accountType && { accountType }),
-    ...(issuer && { provider: organization(issuer) }),
-    ...(holder && { member: [reference(holder)] }),
-  };
-}
-
-function organization(name: string): Organization {
-  return {
-    '@type': 'Organization',
-    '@key': ['@type', 'source', 'name'],
-    source: SOURCE,
-    name,
   };
 }
 

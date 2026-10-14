@@ -409,9 +409,9 @@
   rdfs:subClassOf :Agent;
   skos:exactMatch schemaorg:Organization .
 :member a owl:ObjectProperty;
-  rdfs:comment "An agent that belongs to the organization or channel, or holds the account, such as a member of a band, a company, or a group chat, or each holder of a joint account.";
+  rdfs:comment "An agent that belongs to the organization or channel, such as a member of a band, a company, or a group chat.";
   rdfs:subPropertyOf :involvement;
-  rdfs:domain [ a owl:Class; owl:unionOf ( :Channel :Organization :FinancialAccount ) ];
+  rdfs:domain [ a owl:Class; owl:unionOf ( :Channel :Organization ) ];
   rdfs:range [ a owl:Class; owl:unionOf ( :Agent :Person ) ];
   skos:exactMatch schemaorg:member .
 :inReplyTo a owl:ObjectProperty;
@@ -915,7 +915,7 @@
   skos:closeMatch schemaorg:amount .
 [] a sh:PropertyShape; sh:path :amount; sh:targetSubjectsOf :amount; sh:maxCount 1 .
 :FinancialAccount a owl:Class;
-  rdfs:comment "An account that money is counted in, as one line of a chart of accounts. It is a real account held with an institution, such as a bank account or a credit card account, or a nominal one that classifies money, such as an expense or income category. Its :accountType says which of the five kinds it is. The account above it in the chart is what it :isPartOf. A real account has a :provider, and its holders are its :member values.";
+  rdfs:comment "An account that money is counted in, as one line of a chart of accounts. It is a real account held with an institution, such as a bank account or a credit card account, or a nominal one that classifies money, such as an expense or income category. Its :accountType says which of the five kinds it is. The account above it in the chart is what it :isPartOf.";
   rdfs:subClassOf :Intangible .
 :AccountEntry a owl:Class;
   rdfs:comment "An entry on an account: the change a :FinancialTransaction made to that account. It is :isPartOf the transaction, its :inAccount is the account, and its :amount is the change. A transaction whose entries sum to zero is complete.";
@@ -925,9 +925,3 @@
   rdfs:domain :FinancialAccount;
   rdfs:range :Text .
 [] a sh:PropertyShape; sh:path :accountType; sh:targetSubjectsOf :accountType; sh:maxCount 1 .
-:provider a owl:ObjectProperty;
-  rdfs:comment "The institution that holds the account, such as a bank or a card company.";
-  rdfs:domain :FinancialAccount;
-  rdfs:range :Organization;
-  skos:closeMatch schemaorg:provider .
-[] a sh:PropertyShape; sh:path :provider; sh:targetSubjectsOf :provider; sh:maxCount 1 .

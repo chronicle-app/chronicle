@@ -4067,17 +4067,17 @@ transaction and dated to the second. You are the :agent, the card is the
 descriptor can name a company, a branch, or a person.
 
 The :PaymentCard is keyed by the card network's identifier for the card,
-which is the same on every device the card is added to. The
-:FinancialAccount it is :inAccount is keyed by the bank's own identifier for
-the account, which outlives the card number, and is named after the card's
-product, with the bank as its :provider and you as its :member. The transaction's one :AccountEntry, given
+which is the same on every device the card is added to, and is named after
+the card's product. The :FinancialAccount it is :inAccount is keyed by the
+bank's own identifier for the account, which outlives the card number, and
+is named after the bank, as a chart of accounts names it. The transaction's one :AccountEntry, given
 under `hasPart`, the inverse of :isPartOf, is that account's side of the
 purchase, negative because a purchase adds to what a credit card owes. The
 café's side is not known.
 
-A node that appears again in one record needs only its identity. You are
-given in full as the :agent and by your key alone as the account's :member,
-and the account in full under the card and by its key alone under the entry.
+A node that appears again in one record needs only its identity. The
+account is given in full under the card and by its key alone under the
+entry.
 """;
   rdf:value [
     a :PayAction;
@@ -4106,20 +4106,8 @@ and the account in full under the card and by its key alone under the entry.
         doc:key ("@type" "source" "sourceId");
         :source "apple-wallet";
         :sourceId "8d2f0c4a1b7e9f3c5a6d4e2b1c9f8a7d6e5b4c3a2f1e0d9c8b7a6f5e4d3c2b1a";
-        :name "Example Rewards Visa";
-        :accountType "liability";
-        :provider [
-          a :Organization;
-          doc:key ("@type" "source" "name");
-          :source "apple-wallet";
-          :name "Example Bank"
-        ];
-        :member [
-          a :Person;
-          doc:key ("@type" "source" "sourceId");
-          :source "icloud";
-          :sourceId "1234567890"
-        ]
+        :name "Example Bank";
+        :accountType "liability"
       ]
     ];
     :result [
@@ -4169,8 +4157,6 @@ and the account in full under the card and by its key alone under the entry.
 :value skos:example example:card-purchase .
 :currency skos:example example:card-purchase .
 :accountType skos:example example:card-purchase .
-:provider skos:example example:card-purchase .
 :inAccount skos:example example:card-purchase .
-:member skos:example example:card-purchase .
 :isPartOf skos:example example:card-purchase .
 :recipient skos:example example:card-purchase .

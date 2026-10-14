@@ -1235,8 +1235,6 @@ export const ExperienceActionSchema: z.ZodType<ExperienceAction> = z
 export interface FinancialAccount extends Omit<Intangible, '@type'> {
   '@type': 'FinancialAccount';
   accountType?: string;
-  member?: (AgentAndChildren | PersonAndChildren)[];
-  provider?: OrganizationAndChildren;
 }
 
 export type FinancialAccountAndChildren = FinancialAccount;
@@ -1244,10 +1242,6 @@ export type FinancialAccountAndChildren = FinancialAccount;
 const FinancialAccountProperties = {
   ...IntangibleProperties,
   accountType: z.lazy(() => z.string()).optional(),
-  member: z
-    .lazy(() => z.array(z.union([AgentAndChildrenSchema, PersonAndChildrenSchema])))
-    .optional(),
-  provider: z.lazy(() => OrganizationAndChildrenSchema).optional(),
 };
 
 export const FinancialAccountSchema: z.ZodType<FinancialAccount> = z

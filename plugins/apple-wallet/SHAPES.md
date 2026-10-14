@@ -18,11 +18,7 @@ PayAction key(sourceId) {
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
   instrument[]?: PaymentCard key(sourceId) {
     sourceId, name?, alternateName[], category[]?
-    inAccount[]: FinancialAccount key(sourceId) {
-      sourceId, name?, accountType?*
-      provider: Organization key(name) { name }
-      member[]: Person key(sourceId) { sourceId }
-    }
+    inAccount[]: FinancialAccount key(sourceId) { sourceId, name, accountType?* }
   }
   result: FinancialTransaction key(sourceId) {
     sourceId

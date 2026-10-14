@@ -59,18 +59,10 @@ const me = {
   handle: 'you@example.com',
   sameAs: ['@me'],
 };
-// You, by key alone, as a node that appears again in one record is given.
-const meRef = { '@type': 'Person', '@key': key, source: 'icloud', sourceId: '1234567890' };
 const money = (value, currency) => ({
   '@type': 'MonetaryAmount',
   value,
   ...(currency && { currency }),
-});
-const organization = name => ({
-  '@type': 'Organization',
-  '@key': ['@type', 'source', 'name'],
-  source: 'apple-wallet',
-  name,
 });
 // The merchant: a billing descriptor, keyed by name with its kind left open.
 const merchant = name => ({
@@ -93,16 +85,15 @@ const entry = (sourceId, amount, currency, account) => ({
   amount: money(amount, currency),
   inAccount: [accountRef(account)],
 });
-// Keyed by the issuer's identifier for the account, which outlives the card.
+// Keyed by the issuer's identifier for the account, which outlives the card,
+// and named after the issuer, as a chart of accounts names it.
 const visaAccount = {
   '@type': 'FinancialAccount',
   '@key': key,
   source: 'apple-wallet',
   sourceId: 'ACCOUNT-VISA-1',
-  name: 'Example Rewards Visa',
+  name: 'Example Bank',
   accountType: 'liability',
-  provider: organization('Example Bank'),
-  member: [meRef],
 };
 // No identifier from the issuer, so the account is keyed like the card.
 const amexAccount = {
@@ -110,8 +101,7 @@ const amexAccount = {
   '@key': key,
   source: 'apple-wallet',
   sourceId: 'FAPLAB0000000000000000000000000000000000002',
-  provider: organization('Example Express'),
-  member: [meRef],
+  name: 'Example Express',
 };
 const payAction = (sourceId, timestamp, fields) => ({
   '@type': 'PayAction',
