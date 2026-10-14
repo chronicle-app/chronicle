@@ -77,4 +77,6 @@ export {
   type Shapes,
 } from './shapes.js';
 export { ArchiveExtractor } from './archive/ArchiveExtractor.js';
+export { openExport, type ExportFiles } from './archive/exportFiles.js';
+export { writeZip } from './archive/writeZip.js';
 export { SystemInfo } from './system/SystemInfo.js';
