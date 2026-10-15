@@ -4,7 +4,9 @@
 # Each example has an rdfs:label (title), an rdfs:comment (explanation, where
 # :term links to the reference), and one rdf:value: a sample record written as
 # nested blank nodes. doc:key lists the record's identity fields; it becomes
-# @key in Chronicle JSON. Terms link to an example with skos:example, and the
+# @key in Chronicle JSON. A field is a path, or a name with a value written
+# [ doc:name "startTime"; doc:value "…" ], which becomes { key, value }. Terms
+# link to an example with skos:example, and the
 # ontology itself (:) links the examples featured on the home page.
 #
 # All people, accounts, machines, content, and identifiers are illustrative.
@@ -4061,7 +4063,8 @@ example:heart-rate
 Your watch took your heart rate. The :MeasureAction happened at its
 :timestamp, and the value measured is a property of what was measured: your
 :heartRate. You are both the :agent and the :object. The action is keyed by
-what the reading says: its type, the device, its start and end, and its value.
+what the reading says: when it was taken, the names of its instruments, and the
+value measured, by its property.
 
 The action's :instrument is the watch, a :Device keyed by the name you gave it
 as its :handle, with its :model and :category. Beside it are the kind of device,
@@ -4070,9 +4073,8 @@ ran.
 """;
   rdf:value [
     a :MeasureAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "timestamp" "instrument[*].handle" "object.heartRate");
     :source "apple-health";
-    :sourceId "HeartRate|Sam’s Apple Watch|2026-05-09T13:02:10.000Z|2026-05-09T13:02:10.000Z|72";
     :timestamp "2026-05-09T13:02:10.000Z"^^xsd:dateTime;
     :agent [
       a :Person;
@@ -4122,15 +4124,18 @@ example:night-of-sleep
   rdfs:label "A night's sleep";
   rdfs:comment """
 Your watch tracked a night's sleep. The :SleepAction spans the night from
-:startTime to :endTime, and its :result is the :SleepSession. Both are keyed by
-the device and the night's start and end. Each stage of the night is its own
-:Session that :isPartOf this one.
+:startTime to :endTime, and its :result is the :SleepSession. Each stage of the
+night is its own :Session that :isPartOf this one.
+
+The action is keyed by its start and end and the name of the device. The
+session has no times of its own, and each stage's record refers to it from the
+stage's own action, so its key holds the same three as values rather than as
+paths.
 """;
   rdf:value [
     a :SleepAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "startTime" "endTime" "instrument[*].handle");
     :source "apple-health";
-    :sourceId "Sam’s Apple Watch|2026-05-09T03:12:00.000Z|2026-05-09T10:41:00.000Z";
     :startTime "2026-05-09T03:12:00.000Z"^^xsd:dateTime;
     :endTime "2026-05-09T10:41:00.000Z"^^xsd:dateTime;
     :agent [
@@ -4152,9 +4157,14 @@ the device and the night's start and end. Each stage of the night is its own
     ];
     :result [
       a :SleepSession;
-      doc:key ("@type" "source" "sourceId");
-      :source "apple-health";
-      :sourceId "Sam’s Apple Watch|2026-05-09T03:12:00.000Z|2026-05-09T10:41:00.000Z"
+      doc:key (
+        "@type"
+        "source"
+        [ doc:name "instrument"; doc:value "Sam’s Apple Watch" ]
+        [ doc:name "startTime"; doc:value "2026-05-09T03:12:00.000Z" ]
+        [ doc:name "endTime"; doc:value "2026-05-09T10:41:00.000Z" ]
+      );
+      :source "apple-health"
     ]
   ] .
 
@@ -4167,14 +4177,14 @@ example:sleep-stage
 One stage of a night's sleep, here deep sleep. An :ExperienceAction spans the
 stage from :startTime to :endTime, and its :result is a :Session whose
 :category is the stage. The session :isPartOf the night's :SleepSession. The
-action and the session are keyed by what the stage says: the device, its start
-and end, and the stage.
+action and the session are keyed by what the stage says: its start and end,
+the device, and the stage. The session reads the times and the device from its
+action, with paths that start at `action`.
 """;
   rdf:value [
     a :ExperienceAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "startTime" "endTime" "instrument[*].handle" "result.category");
     :source "apple-health";
-    :sourceId "SleepAnalysis|Sam’s Apple Watch|2026-05-09T04:20:30.000Z|2026-05-09T04:51:00.000Z|deep";
     :startTime "2026-05-09T04:20:30.000Z"^^xsd:dateTime;
     :endTime "2026-05-09T04:51:00.000Z"^^xsd:dateTime;
     :agent [
@@ -4185,17 +4195,28 @@ and end, and the stage.
       :handle "you@example.com";
       :sameAs "@me"
     ];
+    :instrument [
+      a :Device;
+      doc:key ("@type" "source" "handle");
+      :source "apple-health";
+      :handle "Sam’s Apple Watch";
+      :name "Sam’s Apple Watch"
+    ];
     :result [
       a :Session;
-      doc:key ("@type" "source" "sourceId");
+      doc:key ("@type" "source" "category" "action.startTime" "action.endTime" "action.instrument[*].handle");
       :source "apple-health";
-      :sourceId "SleepAnalysis|Sam’s Apple Watch|2026-05-09T04:20:30.000Z|2026-05-09T04:51:00.000Z|deep";
       :category "deep";
       :isPartOf [
         a :SleepSession;
-        doc:key ("@type" "source" "sourceId");
-        :source "apple-health";
-        :sourceId "Sam’s Apple Watch|2026-05-09T03:12:00.000Z|2026-05-09T10:41:00.000Z"
+        doc:key (
+          "@type"
+          "source"
+          [ doc:name "instrument"; doc:value "Sam’s Apple Watch" ]
+          [ doc:name "startTime"; doc:value "2026-05-09T03:12:00.000Z" ]
+          [ doc:name "endTime"; doc:value "2026-05-09T10:41:00.000Z" ]
+        );
+        :source "apple-health"
       ]
     ]
   ] .

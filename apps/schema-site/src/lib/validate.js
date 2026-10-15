@@ -85,7 +85,9 @@ export function sourcePath(path, { jsonld = false, graph = false } = {}) {
       ? typeof source[index + 1] === 'number'
         ? ['doc:key', '@list']
         : ['doc:key']
-      : [part]
+      : source[index - 2] === '@key' && (part === 'key' || part === 'value')
+        ? [part === 'key' ? 'doc:name' : 'doc:value']
+        : [part]
   );
 }
 

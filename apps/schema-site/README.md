@@ -18,9 +18,10 @@ The site is generated and not committed. It is built from these sources:
 - [examples.ttl](../../core/schema/examples.ttl): example records. Each has an
   `rdfs:label` title, an `rdfs:comment` explanation, and a sample record under
   `rdf:value`, written as nested blank nodes. `doc:key` lists identity fields and
-  becomes `@key` in Chronicle JSON. Link an example from the terms it shows with
-  `skos:example`. Keep examples synthetic: made-up people, accounts, and
-  identifiers.
+  becomes `@key` in Chronicle JSON. A field is a path, or a name with a value,
+  `[ doc:name "startTime"; doc:value "…" ]`, which becomes `{ key, value }`.
+  Link an example from the terms it shows with `skos:example`. Keep examples
+  synthetic: made-up people, accounts, and identifiers.
 - [guides/](guides): Markdown guides, ordered by filename. Link to the reference
   with `example:<id>`, `class:<Name>`, or `property:<name>`, and to other guides
   by filename; `:Term` in text links to that term.

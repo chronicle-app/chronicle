@@ -45,6 +45,43 @@ async function transformAll(records) {
   return out;
 }
 
+// A node's key as the ledger reads it: each key field with its values. A path
+// can step through lists (`[*]`) or start at the action the node is part of
+// (`action.`); a computed entry is a name and a value.
+function keyOf(node, action = node) {
+  return node['@key'].map(field => {
+    if (typeof field !== 'string') return [field.key, [field.value]];
+    const [from, path] = field.startsWith('action.') ? [action, field.slice(7)] : [node, field];
+    let values = [from];
+    for (const name of path.replace('[*]', '').split('.')) {
+      values = values.flatMap(value => value?.[name] ?? []);
+    }
+    return [field, values];
+  });
+}
+
+// Every node in an action, with the action it's part of.
+function* nodesOf(action) {
+  const visit = function* (node) {
+    yield node;
+    for (const value of Object.values(node).flat()) {
+      if (value && typeof value === 'object' && value['@type']) yield* visit(value);
+    }
+  };
+  yield* visit(action);
+}
+
+// Every key field of every node names something the node, or its action, has.
+function assertKeyed(actions) {
+  for (const action of actions) {
+    for (const node of nodesOf(action)) {
+      for (const [field, values] of keyOf(node, action)) {
+        assert.ok(values.length > 0, `${node['@type']} has no ${field}`);
+      }
+    }
+  }
+}
+
 // An instrument as [type, key]: a device by its name, a kind of device by its
 // Wikidata ID, an OS release, or an app.
 const instruments = action =>
@@ -64,20 +101,21 @@ test('heart readings become MeasureActions on you, keyed by what they say', asyn
       action.timestamp ?? `${action.startTime}/${action.endTime}`,
       action.object,
     ]),
+    // Newest first. Readings that start together keep the export's order.
     [
       // A winter reading carries the export's offset, and the instant is still right.
+      ['2025-02-01T13:00:00.000Z/2025-02-01T13:05:00.000Z', { heartRate: 64.5 }],
+      // The inconclusive ECG says nothing about the rhythm, so only one is here.
+      ['2025-01-20T17:04:55.000Z', { heartRhythm: 'Sinus Rhythm' }],
+      ['2025-01-15T22:35:00.000Z', { heartRateRecovery: 31 }],
       ['2025-01-15T12:00:00.000Z', { heartRate: 72 }],
       ['2025-01-15T12:00:00.000Z', { heartRate: 72 }],
       ['2025-01-15T12:00:00.000Z', { heartRate: 74 }],
-      ['2025-02-01T13:00:00.000Z/2025-02-01T13:05:00.000Z', { heartRate: 64.5 }],
-      ['2024-06-01T14:00:00.000Z', { heartRate: 80 }],
-      ['2024-12-01T11:00:00.000Z', { heartRate: 61 }],
+      ['2025-01-15T07:00:00.000Z/2025-01-15T07:01:00.000Z', { heartRateVariability: 48.25 }],
       ['2025-01-15T04:00:00.000Z/2025-01-16T03:59:00.000Z', { restingHeartRate: 58 }],
       ['2025-01-15T04:00:00.000Z/2025-01-16T03:59:00.000Z', { walkingHeartRate: 97 }],
-      ['2025-01-15T07:00:00.000Z/2025-01-15T07:01:00.000Z', { heartRateVariability: 48.25 }],
-      ['2025-01-15T22:35:00.000Z', { heartRateRecovery: 31 }],
-      // The inconclusive ECG says nothing about the rhythm, so only one is here.
-      ['2025-01-20T17:04:55.000Z', { heartRhythm: 'Sinus Rhythm' }],
+      ['2024-12-01T11:00:00.000Z', { heartRate: 61 }],
+      ['2024-06-01T14:00:00.000Z', { heartRate: 80 }],
     ].map(([time, values]) => [
       time,
       {
@@ -95,32 +133,50 @@ test('heart readings become MeasureActions on you, keyed by what they say', asyn
   for (const action of actions) {
     assert.equal(action['@type'], 'MeasureAction');
     assert.equal(action.agent.sourceId, account.dsid);
+    assert.equal(action.sourceId, undefined);
   }
+  assertKeyed(actions);
 
-  // An exact duplicate has the same key. A different value at the same instant doesn't.
-  const [first, duplicate, other] = actions;
-  assert.equal(first.sourceId, duplicate.sourceId);
-  assert.notEqual(first.sourceId, other.sourceId);
-  assert.equal(
-    first.sourceId,
-    `HeartRate|${WATCH}|2025-01-15T12:00:00.000Z|2025-01-15T12:00:00.000Z|72`
-  );
+  // A reading is keyed by when it was taken, by what, and what it measured. An
+  // exact duplicate has the same key. A different value at the same instant doesn't.
+  const [, ecg, , first, duplicate, other] = actions;
+  assert.deepEqual(keyOf(first), [
+    ['@type', ['MeasureAction']],
+    ['source', ['apple-health']],
+    ['timestamp', ['2025-01-15T12:00:00.000Z']],
+    ['instrument[*].handle', [WATCH, 'watchOS 9.2']],
+    ['object.heartRate', [72]],
+  ]);
+  assert.deepEqual(keyOf(first), keyOf(duplicate));
+  assert.notDeepEqual(keyOf(first), keyOf(other));
+  assert.deepEqual(keyOf(actions[7]).slice(2), [
+    ['startTime', ['2025-01-15T04:00:00.000Z']],
+    ['endTime', ['2025-01-16T03:59:00.000Z']],
+    ['instrument[*].handle', [WATCH]],
+    ['object.restingHeartRate', [58]],
+  ]);
+  assert.notDeepEqual(keyOf(actions[7]), keyOf(actions[8]));
+  // An ECG names no source.
+  assert.deepEqual(keyOf(ecg).slice(2), [
+    ['timestamp', ['2025-01-20T17:04:55.000Z']],
+    ['object.heartRhythm', ['Sinus Rhythm']],
+  ]);
 
   // The same watch under two addresses is one device. Each release is named
   // where the sample names it. A sample that doesn't describe its device
   // takes the device from the rest of the export, without a release.
   assert.deepEqual(instruments(first), device(WATCH, 'watchOS 9.2'));
   assert.deepEqual(instruments(other), device(WATCH, 'watchOS 9.2'));
-  assert.deepEqual(instruments(actions[3]), device(WATCH, 'watchOS 10.2'));
-  assert.deepEqual(instruments(actions[6]), device(WATCH));
+  assert.deepEqual(instruments(actions[0]), device(WATCH, 'watchOS 10.2'));
+  assert.deepEqual(instruments(actions[7]), device(WATCH));
   const watch = first.instrument[0];
   assert.equal(watch.model, 'Watch7,1');
   assert.deepEqual(watch.category, ['watch']);
   // An app is named by its name. The watch's earlier name is another device.
-  assert.deepEqual(instruments(actions[4]), [['SoftwareApplication', 'Pulse Pal']]);
-  assert.deepEqual(instruments(actions[5]), device(OLD_WATCH, 'watchOS 9.1'));
+  assert.deepEqual(instruments(actions[10]), [['SoftwareApplication', 'Pulse Pal']]);
+  assert.deepEqual(instruments(actions[9]), device(OLD_WATCH, 'watchOS 9.1'));
   // An ECG names the watch's hardware but not the watch.
-  assert.deepEqual(instruments(actions[10]), [['ProductModel', 'Q18010946']]);
+  assert.deepEqual(instruments(ecg), [['ProductModel', 'Q18010946']]);
 });
 
 test('vitals convert to their units, and a blood pressure is one reading with both values', async t => {
@@ -128,18 +184,21 @@ test('vitals convert to their units, and a blood pressure is one reading with bo
   const actions = await transformAll(records);
   const values = actions.map(({ object }) => valuesOf(object));
   assert.deepEqual(values, [
-    { respiratoryRate: 15.5 },
+    { systolicBloodPressure: 118, diastolicBloodPressure: 76 },
     { oxygenSaturation: 0.97 },
+    { respiratoryRate: 15.5 },
     // 96.8 °F
     { sleepingWristTemperature: 36 },
-    { systolicBloodPressure: 118, diastolicBloodPressure: 76 },
   ]);
-  const pressure = actions[3];
+  assertKeyed(actions);
+  const pressure = actions[0];
   assert.equal(pressure.timestamp, '2025-01-15T15:58:00.000Z');
-  assert.equal(
-    pressure.sourceId,
-    'BloodPressure|Health|2025-01-15T15:58:00.000Z|2025-01-15T15:58:00.000Z|118/76'
-  );
+  assert.deepEqual(keyOf(pressure).slice(2), [
+    ['timestamp', ['2025-01-15T15:58:00.000Z']],
+    ['instrument[*].handle', ['Health']],
+    ['object.systolicBloodPressure', [118]],
+    ['object.diastolicBloodPressure', [76]],
+  ]);
   assert.deepEqual(instruments(pressure), [['SoftwareApplication', 'Health']]);
 
   // A sample in a unit there's no conversion for is left out, and the run says so.
@@ -153,31 +212,45 @@ test('sleep is grouped into periods per source, each with its stages', async t =
   const actions = await transformAll(records);
   const nights = actions.filter(action => action['@type'] === 'SleepAction');
 
-  // The phone and the watch each have their own night, and the nap is its own period.
+  // Newest first. The phone and the watch each have their own night, and the
+  // nap is its own period.
   assert.deepEqual(
     nights.map(night => [night.instrument[0].handle, night.startTime, night.endTime]),
     [
-      ['Sleep Cycle', '2016-03-02T03:30:00.000Z', '2016-03-02T10:45:00.000Z'],
-      [PHONE, '2025-01-15T02:45:00.000Z', '2025-01-15T11:00:00.000Z'],
-      [WATCH, '2025-01-15T03:05:00.000Z', '2025-01-15T10:50:00.000Z'],
       [WATCH, '2025-01-15T18:00:00.000Z', '2025-01-15T18:30:00.000Z'],
+      [WATCH, '2025-01-15T03:05:00.000Z', '2025-01-15T10:50:00.000Z'],
+      [PHONE, '2025-01-15T02:45:00.000Z', '2025-01-15T11:00:00.000Z'],
+      ['Sleep Cycle', '2016-03-02T03:30:00.000Z', '2016-03-02T10:45:00.000Z'],
     ]
   );
-  assert.deepEqual(instruments(nights[0]), [['SoftwareApplication', 'Sleep Cycle']]);
+  assert.deepEqual(instruments(nights[3]), [['SoftwareApplication', 'Sleep Cycle']]);
   assert.deepEqual(
-    instruments(nights[1]).map(([type]) => type),
+    instruments(nights[2]).map(([type]) => type),
     ['Device', 'ProductModel']
   );
+  assertKeyed(actions);
+  assert.ok(actions.every(action => action.sourceId === undefined));
 
-  const night = nights[2];
+  // A night is keyed by its source and its times, and so is the session it was.
+  const night = nights[1];
   assert.equal(night.result['@type'], 'SleepSession');
-  assert.equal(night.sourceId, `${WATCH}|2025-01-15T03:05:00.000Z|2025-01-15T10:50:00.000Z`);
+  assert.deepEqual(keyOf(night).slice(2), [
+    ['startTime', ['2025-01-15T03:05:00.000Z']],
+    ['endTime', ['2025-01-15T10:50:00.000Z']],
+    ['instrument[*].handle', [WATCH]],
+  ]);
+  assert.deepEqual(keyOf(night.result).slice(2), [
+    ['instrument', [WATCH]],
+    ['startTime', ['2025-01-15T03:05:00.000Z']],
+    ['endTime', ['2025-01-15T10:50:00.000Z']],
+  ]);
 
-  // The night's stages, each a Session that is part of the night. `in bed`
-  // and a stage over the same span are two stages.
+  // The night's stages, each a Session that is part of the night, which keeps
+  // its key there. `in bed` and a stage over the same span are two stages.
+  const sameNight = node => JSON.stringify(keyOf(node)) === JSON.stringify(keyOf(night.result));
   const stages = actions
     .filter(action => action['@type'] === 'ExperienceAction')
-    .filter(action => action.result.isPartOf[0].sourceId === night.sourceId);
+    .filter(action => sameNight(action.result.isPartOf[0]));
   assert.deepEqual(
     stages.map(stage => [stage.result.category[0], stage.startTime, stage.endTime]),
     [
@@ -192,12 +265,26 @@ test('sleep is grouped into periods per source, each with its stages', async t =
   for (const stage of stages) {
     assert.equal(stage.result['@type'], 'Session');
     assert.equal(stage.result.isPartOf[0]['@type'], 'SleepSession');
-    assert.equal(stage.sourceId, stage.result.sourceId);
   }
-  assert.equal(new Set(stages.map(stage => stage.sourceId)).size, stages.length);
+  // A stage is keyed by its source, its times, and the stage, and so is its session.
+  const deep = stages.find(stage => stage.result.category[0] === 'deep');
+  assert.deepEqual(keyOf(deep).slice(2), [
+    ['startTime', ['2025-01-15T04:10:00.000Z']],
+    ['endTime', ['2025-01-15T04:40:00.000Z']],
+    ['instrument[*].handle', [WATCH]],
+    ['result.category', ['deep']],
+  ]);
+  assert.deepEqual(keyOf(deep.result, deep).slice(2), [
+    ['category', ['deep']],
+    ['action.startTime', ['2025-01-15T04:10:00.000Z']],
+    ['action.endTime', ['2025-01-15T04:40:00.000Z']],
+    ['action.instrument[*].handle', [WATCH]],
+  ]);
+  const stageKeys = stages.map(stage => JSON.stringify(keyOf(stage)));
+  assert.equal(new Set(stageKeys).size, stages.length);
 });
 
-test('since, until, and limit pick readings by when they started', async t => {
+test('since, until, and limit pick the newest readings by when they started', async t => {
   const input = fixture(t);
   const window = {
     since: new Date('2025-01-15T12:00:00Z'),
@@ -207,8 +294,8 @@ test('since, until, and limit pick readings by when they started', async t => {
     const { records } = await extract(AppleHealthHeartExtractor, { input, ...config });
     return records.map(record => Object.values(record.data.values)[0]);
   };
-  assert.deepEqual(await values(window), [72, 72, 74, 31, 'Sinus Rhythm']);
-  assert.deepEqual(await values({ ...window, limit: 2 }), [72, 72]);
+  assert.deepEqual(await values(window), ['Sinus Rhythm', 31, 72, 72, 74]);
+  assert.deepEqual(await values({ ...window, limit: 2 }), ['Sinus Rhythm', 31]);
 
   const { records } = await extract(AppleHealthSleepExtractor, {
     input,
@@ -246,7 +333,7 @@ test('the export reads the same zipped as unzipped, however it is passed', async
     zipped.map(record => record.data),
     unzipped.map(record => record.data)
   );
-  assert.equal(unzipped.at(-1).data.type, 'Electrocardiogram');
+  assert.ok(unzipped.some(record => record.data.type === 'Electrocardiogram'));
 
   for (const input of [folder, dirname(folder), join(folder, 'export.xml'), zip, downloads]) {
     const { records } = await extract(AppleHealthVitalsExtractor, { input, limit: 1 });

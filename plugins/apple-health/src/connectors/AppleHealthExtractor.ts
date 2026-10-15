@@ -1,7 +1,7 @@
 import { Extractor, Record } from '@chronicle.app/etl';
 import { getICloudAccount } from '@chronicle.app/icloud';
 import { z } from 'zod';
-import type { HealthDevice } from '../device.js';
+import { type HealthDevice, parseDevice } from '../device.js';
 import {
   type HealthExport,
   type HealthSample,
@@ -10,14 +10,15 @@ import {
   shortType,
   sourceDevices,
 } from '../health.js';
-import { convert, type Reading, type ReadingType } from '../readings.js';
+import { convert, type ReadingType } from '../readings.js';
 import AppleHealthTransformer from './AppleHealthTransformer.js';
 
 /**
  * The export the Health app makes from Profile → Export All Health Data,
  * zipped or not. It holds everything Health keeps, from every device and app
  * that writes to it, in one large `export.xml`. Each kind reads the file on
- * its own, as it streams past.
+ * its own, as it streams past. The file keeps no useful order, so a kind
+ * gathers what it reads and gives it newest first.
  */
 export default abstract class AppleHealthExtractor extends Extractor<typeof AppleHealthExtractor> {
   static override source = 'apple-health';
@@ -25,6 +26,7 @@ export default abstract class AppleHealthExtractor extends Extractor<typeof Appl
   static override strategy = 'archive';
   static override default = true;
   static override defaultTransformer = AppleHealthTransformer;
+  static override newestFirst = true;
 
   static override schema = Extractor.schema.extend({
     input: z
@@ -46,6 +48,12 @@ export default abstract class AppleHealthExtractor extends Extractor<typeof Appl
   protected health!: HealthExport;
   protected devices = new Map<string, HealthDevice>();
   private account: unknown = null;
+  // Each device description parsed once. The same device's descriptions differ only by an address.
+  private parsed = new Map<string, HealthDevice | null>();
+  // What many readings have in common, such as their type and source, or their
+  // values, as one object each. A kind holds all it finds until it can sort it,
+  // and a large export has hundreds of thousands of readings.
+  private shared = new Map<string, object>();
   // Samples left out because their unit has no conversion, by type and unit.
   private unconverted = new Map<string, number>();
 
@@ -64,28 +72,51 @@ export default abstract class AppleHealthExtractor extends Extractor<typeof Appl
   }
 
   async *extract(): AsyncGenerator<Record> {
+    const found: Found[] = [];
+    for await (const item of this.read()) {
+      if (this.inRange(item.start)) found.push(item);
+    }
+    // Newest first by when each started, then by when it ended. Ties keep the
+    // order they were read in.
+    found.sort((a, b) => b.start - a.start || b.end - a.end);
     let count = 0;
-    for await (const record of this.records()) {
+    for (const { by, start, end, ...rest } of found) {
       if (this.shouldStopExtracting(count)) break;
-      yield record;
+      const [from, to] = [new Date(start).toISOString(), new Date(end).toISOString()];
+      yield this.recordOf({ ...by, start: from, end: to, ...rest });
       count++;
     }
     this.hintUnconverted();
   }
 
-  protected abstract records(): AsyncGenerator<Record>;
+  override occurredAt(record: Record): Date | undefined {
+    return new Date((record.data as { start: string }).start);
+  }
+
+  /** What this kind finds in the export, in the order it's read. */
+  protected abstract read(): AsyncGenerator<Found>;
 
   /** A record of this extractor's kind, carrying whose export it is. */
-  protected recordOf(data: unknown): Record {
+  private recordOf(data: unknown): Record {
     const recordType = (this.constructor as typeof AppleHealthExtractor).recordTypes[0];
     return this.createRecord(data, { recordType, account: this.account });
   }
 
-  protected inRange(start: string): boolean {
-    const date = new Date(start);
-    if (this.config.since && date < this.config.since) return false;
-    if (this.config.until && date > this.config.until) return false;
+  private inRange(start: number): boolean {
+    if (this.config.since && start < this.config.since.getTime()) return false;
+    if (this.config.until && start > this.config.until.getTime()) return false;
     return true;
+  }
+
+  /**
+   * One object for every value like this one. It's a copy, since the parser's
+   * strings are slices of the text it read and would keep that in memory.
+   */
+  protected share<T extends object>(value: T): T {
+    const key = JSON.stringify(value);
+    let copy = this.shared.get(key);
+    if (!copy) this.shared.set(key, (copy = JSON.parse(key) as object));
+    return copy as T;
   }
 
   /**
@@ -100,32 +131,46 @@ export default abstract class AppleHealthExtractor extends Extractor<typeof Appl
     return { sourceName: sample.sourceName, app: device === null, device };
   }
 
+  /** The device a sample describes, if it describes one. */
+  protected deviceOf(description: string | undefined): HealthDevice | null {
+    if (!description) return null;
+    const known = description.replace(/^<<HKDevice: 0x[0-9a-f]+>/, '');
+    if (!this.parsed.has(known)) this.parsed.set(known, parseDevice(description));
+    return this.parsed.get(known)!;
+  }
+
   /** A sample's value as a reading, or null when its unit has no conversion. */
   protected readingOf(
     sample: HealthSample,
     readingType: ReadingType,
     own: HealthDevice | null
-  ): Reading | null {
+  ): Found | null {
     const value = convert(readingType, sample.value, sample.unit);
     if (value === null) {
       const label = `${shortType(sample.type)} in ${sample.unit ?? 'no unit'}`;
       this.unconverted.set(label, (this.unconverted.get(label) ?? 0) + 1);
       return null;
     }
-    return { ...this.measuredBy(sample, own), values: { [readingType.property]: value } };
+    return {
+      ...this.measuredBy(sample, own),
+      values: this.share({ [readingType.property]: value }),
+    };
   }
 
   /** Everything about a reading but its values: what, when, and by what. */
   protected measuredBy(
     sample: Omit<HealthSample, 'unit' | 'value'>,
     own: HealthDevice | null
-  ): Omit<Reading, 'values'> {
+  ): Found {
+    const timeZone = sample.metadata.HKTimeZone;
     return {
-      type: shortType(sample.type),
-      ...this.sourceOf(sample, own),
-      start: instant(sample.startDate).toISOString(),
-      end: instant(sample.endDate).toISOString(),
-      ...(sample.metadata.HKTimeZone && { timeZone: sample.metadata.HKTimeZone }),
+      by: this.share({
+        type: shortType(sample.type),
+        ...this.sourceOf(sample, own),
+        ...(timeZone && { timeZone }),
+      }),
+      start: instant(sample.startDate).getTime(),
+      end: instant(sample.endDate).getTime(),
     };
   }
 
@@ -138,4 +183,17 @@ export default abstract class AppleHealthExtractor extends Extractor<typeof Appl
       action: 'Their unit isn’t one Chronicle converts yet. Report it so it can be added.',
     });
   }
+}
+
+/**
+ * What a kind finds, a reading or a period of sleep, as it waits to be sorted:
+ * when it started and ended, in milliseconds, and what it has in common with
+ * others like it (`by`), shared among them. Its record holds all of it, with
+ * the times as instants.
+ */
+export interface Found {
+  by: object;
+  start: number;
+  end: number;
+  [field: string]: unknown;
 }

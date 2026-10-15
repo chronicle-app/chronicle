@@ -11,7 +11,7 @@ import {
   SleepSession,
 } from '@chronicle.app/schema';
 import { type HealthDevice, lineOfHardware, productLine } from '../device.js';
-import { type Reading, readingKey } from '../readings.js';
+import type { Reading } from '../readings.js';
 import type { SleepPeriod } from '../sleep.js';
 
 const SOURCE = 'apple-health';
@@ -24,6 +24,9 @@ interface Measurer {
 }
 
 /**
+ * The export gives nothing an ID, so each record is keyed by what it says:
+ * when, by what, and what was measured or slept.
+ *
  *   heart, vitals: MeasureAction  agent: you   object: you { heartRate, … }
  *                    timestamp, or startTime and endTime for a value over a period
  *                    instrument: Device (the name it goes by in Health)
@@ -56,14 +59,22 @@ export default class AppleHealthTransformer extends ChronicleTransformer {
 
 function measure(reading: Reading, you: Person): MeasureAction {
   const instrument = instrumentOf(reading);
+  const when =
+    reading.start === reading.end
+      ? { timestamp: reading.start }
+      : { startTime: reading.start, endTime: reading.end };
   return {
     '@type': 'MeasureAction',
-    '@key': ['@type', 'source', 'sourceId'],
+    // An ECG names no source, only the kind of device.
+    '@key': [
+      '@type',
+      'source',
+      ...Object.keys(when),
+      ...(reading.sourceName ? ['instrument[*].handle'] : []),
+      ...Object.keys(reading.values).map(property => `object.${property}`),
+    ],
     source: SOURCE,
-    sourceId: readingKey(reading),
-    ...(reading.start === reading.end
-      ? { timestamp: reading.start }
-      : { startTime: reading.start, endTime: reading.end }),
+    ...when,
     agent: you,
     object: { ...you, ...reading.values } as Person,
     ...(instrument.length > 0 && { instrument }),
@@ -72,18 +83,24 @@ function measure(reading: Reading, you: Person): MeasureAction {
 
 function sleep(period: SleepPeriod & Measurer, you: Person): ActionAndChildren[] {
   const instrument = instrumentOf(period);
+  // The night is part of each stage's record too, where the action is the
+  // stage's, so its key holds the night's own times and source as values.
   const night: SleepSession = {
     '@type': 'SleepSession',
-    '@key': ['@type', 'source', 'sourceId'],
+    '@key': [
+      '@type',
+      'source',
+      { key: 'instrument', value: period.sourceName },
+      { key: 'startTime', value: period.start },
+      { key: 'endTime', value: period.end },
+    ],
     source: SOURCE,
-    sourceId: [period.sourceName, period.start, period.end].join('|'),
   };
   const actions: ActionAndChildren[] = [
     {
       '@type': 'SleepAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      '@key': ['@type', 'source', 'startTime', 'endTime', 'instrument[*].handle'],
       source: SOURCE,
-      sourceId: night.sourceId,
       startTime: period.start,
       endTime: period.end,
       agent: you,
@@ -92,21 +109,32 @@ function sleep(period: SleepPeriod & Measurer, you: Person): ActionAndChildren[]
     } satisfies SleepAction,
   ];
   for (const { stage, start, end } of period.stages) {
-    const sourceId = ['SleepAnalysis', period.sourceName, start, end, stage].join('|');
     actions.push({
       '@type': 'ExperienceAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      '@key': [
+        '@type',
+        'source',
+        'startTime',
+        'endTime',
+        'instrument[*].handle',
+        'result.category',
+      ],
       source: SOURCE,
-      sourceId,
       startTime: start,
       endTime: end,
       agent: you,
       ...(instrument.length > 0 && { instrument }),
       result: {
         '@type': 'Session',
-        '@key': ['@type', 'source', 'sourceId'],
+        '@key': [
+          '@type',
+          'source',
+          'category',
+          'action.startTime',
+          'action.endTime',
+          'action.instrument[*].handle',
+        ],
         source: SOURCE,
-        sourceId,
         category: [stage],
         isPartOf: [{ ...night }],
       },

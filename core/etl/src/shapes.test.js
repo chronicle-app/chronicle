@@ -51,6 +51,15 @@ test('each record type is a tree of the nodes it becomes, with their keys', () =
   );
 });
 
+test('a key entry with a value of its own shows as its name', () => {
+  const span = {
+    '@type': 'Session',
+    '@key': ['@type', 'source', { key: 'startTime', value: 'x' }],
+  };
+  const tree = sketch([sample({ id: 903 }, [publish(903, { ...span, source: 'example' })])]);
+  assert.ok(tree.includes('object: Session key(startTime=…) {  }\n'), tree);
+});
+
 test('a further action a record becomes is its own node', () => {
   const tree = sketch([
     sample({ id: 1, title: 'Rye' }, [publish(1, post(1, { name: 'Rye' })), like('1')]),

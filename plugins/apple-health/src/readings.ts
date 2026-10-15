@@ -92,9 +92,3 @@ export function convert(
 // The ECG classifications that name a rhythm. Others, such as `Inconclusive`
 // or `Poor Recording`, say the recording couldn't tell.
 export const RHYTHMS = new Set(['Sinus Rhythm', 'Atrial Fibrillation']);
-
-/** The reading's key: its type, source, start, end, and values. */
-export function readingKey(reading: Reading): string {
-  const values = Object.values(reading.values).join('/');
-  return [reading.type, reading.sourceName ?? '', reading.start, reading.end, values].join('|');
-}

@@ -47,6 +47,28 @@ A key field can be a path into a nested record. In [an assistant's reply](exampl
 
 A :Realm is a bounded domain, such as a computer or a workspace. Entities located in one use :inRealm, and agents that belong to one use :memberOf. The shell example keys the user account by its username and by `memberOf[*].handle`, the handle of each realm it belongs to.
 
+A path that starts with `action` reads from the action the record is part of. In [a stage of sleep](example:sleep-stage), the stage's :Session has no times of its own, so its key takes them from its action:
+
+```json
+"@key": ["@type", "source", "category", "action.startTime", "action.endTime", "action.instrument[*].handle"]
+```
+
+## Keys with values
+
+A key field can also be a name with a value, for a record that's identified by something no path reaches. In [a night of sleep](example:night-of-sleep), each stage's record refers to the night's :SleepSession from the stage's own action, where `action.startTime` would be the stage's. So the night's key holds the night's device and times as values:
+
+```json
+"@key": [
+  "@type",
+  "source",
+  { "key": "instrument", "value": "Sam’s Apple Watch" },
+  { "key": "startTime", "value": "2026-05-09T03:12:00.000Z" },
+  { "key": "endTime", "value": "2026-05-09T10:41:00.000Z" }
+]
+```
+
+Use a value only when no path will do. Like a path, it comes from the source, never from an identifier you make up.
+
 ## sameAs
 
 :sameAs states that two references are the same entity.

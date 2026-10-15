@@ -13,10 +13,10 @@ converted from the record. Every node also has `source`.
 ## heart
 
 ```ts
-MeasureAction key(sourceId) {
-  sourceId, timestamp?, startTime?, endTime?
+MeasureAction key(startTime, endTime, instrument[*].handle, object.heartRate) / key(timestamp, object.heartRhythm) / key(timestamp, instrument[*].handle, object.heartRateRecovery) / key(timestamp, instrument[*].handle, object.heartRate) / key(startTime, endTime, instrument[*].handle, object.heartRateVariability) / key(startTime, endTime, instrument[*].handle, object.restingHeartRate) / key(startTime, endTime, instrument[*].handle, object.walkingHeartRate) {
+  startTime?, endTime?, timestamp?
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
-  object: Person key(sourceId) { sourceId, handle, sameAs[], heartRate?, restingHeartRate?, walkingHeartRate?, heartRateVariability?, heartRateRecovery?, heartRhythm? }
+  object: Person key(sourceId) { sourceId, handle, sameAs[], heartRate?, heartRhythm?, heartRateRecovery?, heartRateVariability?, restingHeartRate?, walkingHeartRate? }
   instrument[]: Device | ProductModel | OperatingSystem | SoftwareApplication key(handle) / key(sourceId) { handle?, name?*, model?, category[]?, sourceId?, url? }
 }
 ```
@@ -24,20 +24,20 @@ MeasureAction key(sourceId) {
 ## sleep
 
 ```ts
-SleepAction key(sourceId) {
-  sourceId, startTime, endTime
+SleepAction key(startTime, endTime, instrument[*].handle) {
+  startTime, endTime
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
-  instrument[]: SoftwareApplication | Device | ProductModel key(handle) / key(sourceId) { handle?, name, model?, category[]?*, sourceId?*, url?* }
-  result: SleepSession key(sourceId) { sourceId }
+  instrument[]: Device | ProductModel | SoftwareApplication key(handle) / key(sourceId) { handle?, name, model?, category[]?*, sourceId?*, url?* }
+  result: SleepSession key(instrument=…, startTime=…, endTime=…) {  }
 }
 // Every record also becomes:
-ExperienceAction key(sourceId) {
-  sourceId, startTime, endTime
+ExperienceAction key(startTime, endTime, instrument[*].handle, result.category) {
+  startTime, endTime
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
-  instrument[]: SoftwareApplication | Device | ProductModel key(handle) / key(sourceId) { handle?, name, model?, category[]?*, sourceId?*, url?* }
-  result: Session key(sourceId) {
-    sourceId, category[]
-    isPartOf[]: SleepSession key(sourceId) { sourceId }
+  instrument[]: Device | ProductModel | SoftwareApplication key(handle) / key(sourceId) { handle?, name, model?, category[]?*, sourceId?*, url?* }
+  result: Session key(category, action.startTime, action.endTime, action.instrument[*].handle) {
+    category[]
+    isPartOf[]: SleepSession key(instrument=…, startTime=…, endTime=…) {  }
   }
 }
 ```
@@ -45,10 +45,10 @@ ExperienceAction key(sourceId) {
 ## vitals
 
 ```ts
-MeasureAction key(sourceId) {
-  sourceId, startTime?, endTime?, timestamp?
+MeasureAction key(timestamp, instrument[*].handle, object.systolicBloodPressure, object.diastolicBloodPressure) / key(timestamp, instrument[*].handle, object.oxygenSaturation) / key(startTime, endTime, instrument[*].handle, object.respiratoryRate) / key(startTime, endTime, instrument[*].handle, object.sleepingWristTemperature) {
+  timestamp?, startTime?, endTime?
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
-  object: Person key(sourceId) { sourceId, handle, sameAs[], respiratoryRate?, oxygenSaturation?, sleepingWristTemperature?, systolicBloodPressure?, diastolicBloodPressure? }
-  instrument[]: Device | ProductModel | OperatingSystem | SoftwareApplication key(handle) / key(sourceId) { handle?, name?, model?, category[]?, sourceId?, url? }
+  object: Person key(sourceId) { sourceId, handle, sameAs[], systolicBloodPressure?, diastolicBloodPressure?, oxygenSaturation?, respiratoryRate?, sleepingWristTemperature? }
+  instrument[]: SoftwareApplication | Device | ProductModel | OperatingSystem key(handle) / key(sourceId) { handle?, name?, model?, category[]?, sourceId?, url? }
 }
 ```

@@ -1,8 +1,6 @@
-import { Record } from '@chronicle.app/etl';
-import { parseDevice } from '../device.js';
 import { readExport } from '../health.js';
-import { BLOOD_PRESSURE, BLOOD_PRESSURE_PARTS, type Reading, VITALS } from '../readings.js';
-import AppleHealthExtractor from './AppleHealthExtractor.js';
+import { BLOOD_PRESSURE, BLOOD_PRESSURE_PARTS, VITALS } from '../readings.js';
+import AppleHealthExtractor, { type Found } from './AppleHealthExtractor.js';
 
 const TYPES = new Set(Object.keys(VITALS));
 const CORRELATIONS = new Set([BLOOD_PRESSURE]);
@@ -19,13 +17,13 @@ export default class AppleHealthVitalsExtractor extends AppleHealthExtractor {
 
   static override recordTypes = ['vitals'];
 
-  protected async *records(): AsyncGenerator<Record> {
+  protected async *read(): AsyncGenerator<Found> {
     const wanted = { records: TYPES, correlations: CORRELATIONS };
     for await (const element of readExport(this.health, wanted)) {
       if (element.kind === 'record') {
         const { sample } = element;
-        const reading = this.readingOf(sample, VITALS[sample.type], parseDevice(sample.device));
-        if (reading && this.inRange(reading.start)) yield this.recordOf(reading);
+        const reading = this.readingOf(sample, VITALS[sample.type], this.deviceOf(sample.device));
+        if (reading) yield reading;
         continue;
       }
       const { correlation } = element;
@@ -35,11 +33,10 @@ export default class AppleHealthVitalsExtractor extends AppleHealthExtractor {
         return part ? [this.readingOf(sample, part, null)] : [];
       });
       if (parts.length === 0 || parts.includes(null)) continue;
-      const reading: Reading = {
-        ...this.measuredBy(correlation, parseDevice(correlation.device)),
-        values: Object.assign({}, ...parts.map(part => part!.values)),
+      yield {
+        ...this.measuredBy(correlation, this.deviceOf(correlation.device)),
+        values: this.share(Object.assign({}, ...parts.map(part => part!.values))),
       };
-      if (this.inRange(reading.start)) yield this.recordOf(reading);
     }
   }
 }
