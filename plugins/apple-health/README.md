@@ -9,12 +9,12 @@ In the Health app on your iPhone, tap your picture, then Export All Health Data.
 ```sh
 chronicle extract apple-health --input ~/Downloads/export.zip
 chronicle extract apple-health sleep --input ~/Downloads/export.zip --since 2024-01-01
-chronicle extract apple-health --input ~/Downloads/export.zip --limit 0 --stream --output health.json
+chronicle extract apple-health -t all --input ~/Downloads/export.zip --limit 0 --stream --output health.json
 ```
 
 `--input` also takes the `apple_health_export` folder it unzips to, a folder that holds either, or `export.xml`. A zip is read in place, never unpacked to disk.
 
-There are three kinds, all read by default:
+There are three kinds. Apple Health declares no default kinds: a bare `chronicle extract apple-health` asks which, and outside a terminal says to name them or pass `-t all`.
 
 - `heart`: heart rate, resting heart rate, walking heart rate, heart rate variability, heart rate recovery, and the rhythm each ECG found
 - `sleep`: nights and naps, with their sleep stages

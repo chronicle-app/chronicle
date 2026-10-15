@@ -24,7 +24,6 @@ export default abstract class AppleHealthExtractor extends Extractor<typeof Appl
   static override source = 'apple-health';
   static override delivery = 'export' as const;
   static override strategy = 'archive';
-  static override default = true;
   static override defaultTransformer = AppleHealthTransformer;
   static override newestFirst = true;
 
