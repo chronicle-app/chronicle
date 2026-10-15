@@ -45,37 +45,33 @@ async function transformAll(records) {
   return out;
 }
 
-// A node's key as the ledger reads it: each key field with its values. A path
-// can step through lists (`[*]`) or start at the action the node is part of
-// (`action.`); a computed entry is a name and a value.
-function keyOf(node, action = node) {
+// A node's key as a store reads it: each key field, a path, with its values. A
+// path can step through lists (`[*]`) and back along an edge: a node under an
+// action's `result` is `resultOf` that action.
+function keyOf(node, parent) {
+  const from = parent?.result === node ? { resultOf: [parent], ...node } : node;
   return node['@key'].map(field => {
-    if (typeof field !== 'string') return [field.key, [field.value]];
-    const [from, path] = field.startsWith('action.') ? [action, field.slice(7)] : [node, field];
     let values = [from];
-    for (const name of path.replace('[*]', '').split('.')) {
+    for (const name of field.replace('[*]', '').split('.')) {
       values = values.flatMap(value => value?.[name] ?? []);
     }
     return [field, values];
   });
 }
 
-// Every node in an action, with the action it's part of.
-function* nodesOf(action) {
-  const visit = function* (node) {
-    yield node;
-    for (const value of Object.values(node).flat()) {
-      if (value && typeof value === 'object' && value['@type']) yield* visit(value);
-    }
-  };
-  yield* visit(action);
+// Every node in an action, with the node it's under.
+function* nodesOf(node, parent) {
+  yield [node, parent];
+  for (const value of Object.values(node).flat()) {
+    if (value && typeof value === 'object' && value['@type']) yield* nodesOf(value, node);
+  }
 }
 
-// Every key field of every node names something the node, or its action, has.
+// Every key field of every node names something the node has.
 function assertKeyed(actions) {
   for (const action of actions) {
-    for (const node of nodesOf(action)) {
-      for (const [field, values] of keyOf(node, action)) {
+    for (const [node, parent] of nodesOf(action)) {
+      for (const [field, values] of keyOf(node, parent)) {
         assert.ok(values.length > 0, `${node['@type']} has no ${field}`);
       }
     }
@@ -231,7 +227,8 @@ test('sleep is grouped into periods per source, each with its stages', async t =
   assertKeyed(actions);
   assert.ok(actions.every(action => action.sourceId === undefined));
 
-  // A night is keyed by its source and its times, and so is the session it was.
+  // A night is keyed by its source and its times, and its session by the
+  // night it's the result of.
   const night = nights[1];
   assert.equal(night.result['@type'], 'SleepSession');
   assert.deepEqual(keyOf(night).slice(2), [
@@ -239,15 +236,17 @@ test('sleep is grouped into periods per source, each with its stages', async t =
     ['endTime', ['2025-01-15T10:50:00.000Z']],
     ['instrument[*].handle', [WATCH]],
   ]);
-  assert.deepEqual(keyOf(night.result).slice(2), [
-    ['instrument', [WATCH]],
-    ['startTime', ['2025-01-15T03:05:00.000Z']],
-    ['endTime', ['2025-01-15T10:50:00.000Z']],
+  assert.deepEqual(keyOf(night.result, night).slice(2), [
+    ['resultOf.startTime', ['2025-01-15T03:05:00.000Z']],
+    ['resultOf.endTime', ['2025-01-15T10:50:00.000Z']],
+    ['resultOf.instrument[*].handle', [WATCH]],
   ]);
 
-  // The night's stages, each a Session that is part of the night, which keeps
-  // its key there. `in bed` and a stage over the same span are two stages.
-  const sameNight = node => JSON.stringify(keyOf(node)) === JSON.stringify(keyOf(night.result));
+  // The night's stages, each a Session that is part of the night. There the
+  // night says what it's the result of, so its key is the same. `in bed` and a
+  // stage over the same span are two stages.
+  const sameNight = node =>
+    JSON.stringify(keyOf(node)) === JSON.stringify(keyOf(night.result, night));
   const stages = actions
     .filter(action => action['@type'] === 'ExperienceAction')
     .filter(action => sameNight(action.result.isPartOf[0]));
@@ -276,9 +275,9 @@ test('sleep is grouped into periods per source, each with its stages', async t =
   ]);
   assert.deepEqual(keyOf(deep.result, deep).slice(2), [
     ['category', ['deep']],
-    ['action.startTime', ['2025-01-15T04:10:00.000Z']],
-    ['action.endTime', ['2025-01-15T04:40:00.000Z']],
-    ['action.instrument[*].handle', [WATCH]],
+    ['resultOf.startTime', ['2025-01-15T04:10:00.000Z']],
+    ['resultOf.endTime', ['2025-01-15T04:40:00.000Z']],
+    ['resultOf.instrument[*].handle', [WATCH]],
   ]);
   const stageKeys = stages.map(stage => JSON.stringify(keyOf(stage)));
   assert.equal(new Set(stageKeys).size, stages.length);

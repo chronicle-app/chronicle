@@ -28,16 +28,21 @@ SleepAction key(startTime, endTime, instrument[*].handle) {
   startTime, endTime
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
   instrument[]: Device | ProductModel | SoftwareApplication key(handle) / key(sourceId) { handle?, name, model?, category[]?*, sourceId?*, url?* }
-  result: SleepSession key(instrument=…, startTime=…, endTime=…) {  }
+  result: SleepSession key(resultOf.startTime, resultOf.endTime, resultOf.instrument[*].handle) {  }
 }
 // Every record also becomes:
 ExperienceAction key(startTime, endTime, instrument[*].handle, result.category) {
   startTime, endTime
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
   instrument[]: Device | ProductModel | SoftwareApplication key(handle) / key(sourceId) { handle?, name, model?, category[]?*, sourceId?*, url?* }
-  result: Session key(category, action.startTime, action.endTime, action.instrument[*].handle) {
+  result: Session key(category, resultOf.startTime, resultOf.endTime, resultOf.instrument[*].handle) {
     category[]
-    isPartOf[]: SleepSession key(instrument=…, startTime=…, endTime=…) {  }
+    isPartOf[]: SleepSession key(resultOf.startTime, resultOf.endTime, resultOf.instrument[*].handle) {
+      resultOf[]: SleepAction key(startTime, endTime, instrument[*].handle) {
+        startTime, endTime
+        instrument[]: Device | ProductModel | SoftwareApplication key(handle) / key(sourceId) { handle?, sourceId?* }
+      }
+    }
   }
 }
 ```

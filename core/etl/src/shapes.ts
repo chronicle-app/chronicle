@@ -289,7 +289,7 @@ function addNode(
     nodes.set(path, shape);
   }
   shape.types.add(String(node['@type'] ?? 'object'));
-  if (Array.isArray(node['@key'])) shape.keys.add(keyLabel(node['@key'] as KeyField[]));
+  if (Array.isArray(node['@key'])) shape.keys.add(keyLabel(node['@key'] as string[]));
   shape.count++;
 
   for (const [name, value] of Object.entries(node)) {
@@ -313,17 +313,12 @@ function addNode(
   }
 }
 
-/** A key field: a path into the node, or a name with a value the key holds (`name=…`). */
-type KeyField = string | { key: string; value: string };
-
 /**
  * A key without the `@type` and `source` nearly every key starts with; a key
  * without `source` is shared across sources, which matters, so it says so.
  */
-function keyLabel(key: KeyField[]): string {
-  const fields = key
-    .map(field => (typeof field === 'string' ? field : `${field.key}=…`))
-    .filter(field => field !== '@type' && field !== 'source');
+function keyLabel(key: string[]): string {
+  const fields = key.filter(field => field !== '@type' && field !== 'source');
   if (!key.includes('source')) fields.push('any source');
   return `key(${fields.join(', ') || '@type'})`;
 }

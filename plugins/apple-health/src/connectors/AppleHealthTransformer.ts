@@ -1,4 +1,4 @@
-import { ChronicleTransformer, Record, selfAgent } from '@chronicle.app/etl';
+import { ChronicleTransformer, Record, reference, selfAgent } from '@chronicle.app/etl';
 import { buildICloudPersonSchema } from '@chronicle.app/icloud';
 import {
   ActionAndChildren,
@@ -36,7 +36,8 @@ interface Measurer {
  *   sleep: SleepAction  agent: you   startTime, endTime
  *            result: SleepSession
  *          ExperienceAction for each stage   startTime, endTime
- *            result: Session  category: the stage   isPartOf: the SleepSession
+ *            result: Session  category: the stage
+ *                    isPartOf: the SleepSession  resultOf: the SleepAction
  */
 export default class AppleHealthTransformer extends ChronicleTransformer {
   static override source = SOURCE;
@@ -81,33 +82,30 @@ function measure(reading: Reading, you: Person): MeasureAction {
   };
 }
 
+/** A session has no times of its own, so it's keyed by the action it's the result of. */
+const SESSION_KEY = ['resultOf.startTime', 'resultOf.endTime', 'resultOf.instrument[*].handle'];
+
 function sleep(period: SleepPeriod & Measurer, you: Person): ActionAndChildren[] {
   const instrument = instrumentOf(period);
-  // The night is part of each stage's record too, where the action is the
-  // stage's, so its key holds the night's own times and source as values.
   const night: SleepSession = {
     '@type': 'SleepSession',
-    '@key': [
-      '@type',
-      'source',
-      { key: 'instrument', value: period.sourceName },
-      { key: 'startTime', value: period.start },
-      { key: 'endTime', value: period.end },
-    ],
+    '@key': ['@type', 'source', ...SESSION_KEY],
     source: SOURCE,
   };
-  const actions: ActionAndChildren[] = [
-    {
-      '@type': 'SleepAction',
-      '@key': ['@type', 'source', 'startTime', 'endTime', 'instrument[*].handle'],
-      source: SOURCE,
-      startTime: period.start,
-      endTime: period.end,
-      agent: you,
-      ...(instrument.length > 0 && { instrument }),
-      result: night,
-    } satisfies SleepAction,
-  ];
+  const slept: SleepAction = {
+    '@type': 'SleepAction',
+    '@key': ['@type', 'source', 'startTime', 'endTime', 'instrument[*].handle'],
+    source: SOURCE,
+    startTime: period.start,
+    endTime: period.end,
+    agent: you,
+    ...(instrument.length > 0 && { instrument }),
+    result: night,
+  };
+  const actions: ActionAndChildren[] = [slept];
+  // Each stage is part of the night. Under a stage the night isn't its
+  // action's result, so it says which action it's the result of.
+  const partOf: SleepSession = { ...night, resultOf: [reference(slept)] };
   for (const { stage, start, end } of period.stages) {
     actions.push({
       '@type': 'ExperienceAction',
@@ -126,17 +124,10 @@ function sleep(period: SleepPeriod & Measurer, you: Person): ActionAndChildren[]
       ...(instrument.length > 0 && { instrument }),
       result: {
         '@type': 'Session',
-        '@key': [
-          '@type',
-          'source',
-          'category',
-          'action.startTime',
-          'action.endTime',
-          'action.instrument[*].handle',
-        ],
+        '@key': ['@type', 'source', 'category', ...SESSION_KEY],
         source: SOURCE,
         category: [stage],
-        isPartOf: [{ ...night }],
+        isPartOf: [partOf],
       },
     } satisfies ExperienceAction);
   }

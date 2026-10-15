@@ -19,6 +19,7 @@ const DateTimeSchema = z.union([
 /** Inverse property name → the forward property it reverses. */
 export const INVERSE_PROPERTIES: Record<string, string> = {
   hasPart: 'isPartOf',
+  resultOf: 'result',
 };
 
 function requireNodeIdentity(
@@ -92,6 +93,7 @@ export interface Entity extends Omit<Base, '@type'> {
   tags?: string[];
   url?: string;
   hasPart?: EntityAndChildren[];
+  resultOf?: ActionAndChildren[];
 }
 
 export type EntityAndChildren =
@@ -133,6 +135,7 @@ const EntityProperties = {
   tags: z.lazy(() => z.array(z.string())).optional(),
   url: z.lazy(() => z.string().url()).optional(),
   hasPart: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
+  resultOf: z.lazy(() => z.array(ActionAndChildrenSchema)).optional(),
 };
 
 export const EntitySchema: z.ZodType<Entity> = z

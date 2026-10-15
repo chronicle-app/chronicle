@@ -314,7 +314,8 @@
   skos:exactMatch schemaorg:endTime .
 [] a sh:PropertyShape; sh:path :endTime; sh:targetSubjectsOf :endTime; sh:maxCount 1 .
 :result a owl:ObjectProperty;
-  rdfs:comment "What the action produced, such as a work or a session.";
+  rdfs:comment "What the action produced, such as a work or a session. Seen from what it produced, the action is its `resultOf` value.";
+  :inverseName "resultOf";
   rdfs:domain :Action;
   rdfs:range :Entity;
   skos:exactMatch schemaorg:result .

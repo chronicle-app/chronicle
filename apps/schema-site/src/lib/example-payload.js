@@ -5,9 +5,6 @@ const DOC = 'https://schema.chronicle.app/docs/';
 const RDF = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#';
 const XSD = 'http://www.w3.org/2001/XMLSchema#';
 
-const text = term => term?.termType === 'Literal' && term.datatype.value === XSD + 'string';
-const plain = value => (value && typeof value === 'object' ? value['@value'] : value);
-
 function literal(term) {
   if (term.language) return { '@value': term.value, '@language': term.language };
   if (term.datatype.value === XSD + 'string') return term.value;
@@ -58,9 +55,7 @@ export async function serializeExample(store, roots, statements) {
   const identifier = node =>
     node.termType === 'BlankNode' ? `_:${labels.get(node.id)}` : node.value;
 
-  // doc:key is an RDF list of key fields: paths, such as ("@type" "source"
-  // "sourceId"), or a name with a value, [ doc:name "startTime"; doc:value "…" ],
-  // which becomes { key, value }.
+  // doc:key is an RDF list of key field paths, such as ("@type" "source" "sourceId").
   function keyFields(head) {
     const fields = [];
     const seen = new Set();
@@ -72,26 +67,19 @@ export async function serializeExample(store, roots, statements) {
       const triples = nodes.get(head.id) ?? [];
       const item = triples.filter(q => q.predicate.value === RDF + 'first');
       const rest = triples.filter(q => q.predicate.value === RDF + 'rest');
-      if (triples.length !== 2 || item.length !== 1 || rest.length !== 1) {
-        throw new Error('doc:key must be an unshared, acyclic RDF list');
+      if (
+        triples.length !== 2 ||
+        item.length !== 1 ||
+        rest.length !== 1 ||
+        item[0].object.datatype?.value !== XSD + 'string'
+      ) {
+        throw new Error('doc:key must list plain string field paths');
       }
-      fields.push(keyField(item[0].object));
+      fields.push(item[0].object.value);
       head = rest[0].object;
     }
     if (fields.length === 0) throw new Error('doc:key cannot be empty');
     return fields;
-  }
-  function keyField(term) {
-    if (text(term)) return term.value;
-    const triples = term.termType === 'BlankNode' ? (nodes.get(term.id) ?? []) : [];
-    const name = triples.find(q => q.predicate.value === DOC + 'name')?.object;
-    const value = triples.find(q => q.predicate.value === DOC + 'value')?.object;
-    if (triples.length !== 2 || !text(name) || !text(value)) {
-      throw new Error(
-        'doc:key must list field paths, or a doc:name with a doc:value, as plain strings'
-      );
-    }
-    return { key: name.value, value: value.value };
   }
 
   const emitted = new Set();
@@ -118,11 +106,7 @@ export async function serializeExample(store, roots, statements) {
     for (const [predicate, terms] of groups) {
       if (predicate === DOC + 'key') {
         if (terms.length !== 1) throw new Error('An example node can have only one doc:key');
-        result['doc:key'] = {
-          '@list': keyFields(terms[0]).map(field =>
-            typeof field === 'string' ? field : { 'doc:name': field.key, 'doc:value': field.value }
-          ),
-        };
+        result['doc:key'] = { '@list': keyFields(terms[0]) };
         continue;
       }
       const { max } = cardinalityOf(store, predicate);
@@ -180,17 +164,9 @@ export function toChronicle(value) {
     Object.entries(value)
       .filter(([key]) => key !== '@context')
       .map(([key, item]) =>
-        key === 'doc:key'
-          ? ['@key', item['@list'].map(field => keyEntry(field))]
-          : [key, toChronicle(item)]
+        key === 'doc:key' ? ['@key', item['@list']] : [key, toChronicle(item)]
       )
   );
-}
-
-/** A doc:key field in Chronicle JSON: a path as it is, and a name with a value as { key, value }. */
-function keyEntry(field) {
-  if (!field || typeof field !== 'object') return field;
-  return { key: plain(field['doc:name']), value: plain(field['doc:value']) };
 }
 
 /**
@@ -226,11 +202,7 @@ function toTurtle(roots, { nodes, compact, keyFields, hasKeys }) {
         return pad + 'a ' + objects.map(object => term(object)).join(', ');
       if (predicate === DOC + 'key') {
         return `${pad}doc:key (${keyFields(objects[0])
-          .map(field =>
-            typeof field === 'string'
-              ? JSON.stringify(field)
-              : `[ doc:name ${JSON.stringify(field.key)}; doc:value ${JSON.stringify(field.value)} ]`
-          )
+          .map(field => JSON.stringify(field))
           .join(' ')})`;
       }
       const values = objects.map(object =>

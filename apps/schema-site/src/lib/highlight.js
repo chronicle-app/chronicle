@@ -35,15 +35,14 @@ export function jsonHtml(value, indent = 0, key = null) {
 export function turtleHtml(text) {
   let html = '';
   let cursor = 0;
-  const pattern =
-    /"(?:\\.|[^"\\])*"|@prefix[^\n]*|(?<![\w:]):[A-Za-z][A-Za-z0-9]*|\bdoc:(?:key|name|value)\b/g;
+  const pattern = /"(?:\\.|[^"\\])*"|@prefix[^\n]*|(?<![\w:]):[A-Za-z][A-Za-z0-9]*|\bdoc:key\b/g;
   for (const match of text.matchAll(pattern)) {
     const token = match[0];
     html += escape(text.slice(cursor, match.index));
     if (token.startsWith('"')) html += `<span class="json-string">${escape(token)}</span>`;
     else if (token.startsWith('@prefix'))
       html += `<span class="ttl-prefix">${escape(token)}</span>`;
-    else if (token.startsWith('doc:')) html += `<span class="ttl-doc">${token}</span>`;
+    else if (token === 'doc:key') html += `<span class="ttl-doc">${token}</span>`;
     else {
       const name = token.slice(1);
       const target = classes.has(name)
