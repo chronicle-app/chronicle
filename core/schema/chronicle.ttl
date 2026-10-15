@@ -18,7 +18,7 @@
 
 # Annotations on properties, for tools rather than records. :inverseName on
 # a property names its inverse: a record can give the relation under either
-# name, and only the forward edge is stored.
+# name, and a store keeps only the forward property.
 :abstract a owl:AnnotationProperty .
 :propagatesEncounter a owl:AnnotationProperty .
 :inverseName a owl:AnnotationProperty .
@@ -878,7 +878,7 @@
   rdfs:range :CreativeWork .
 
 :TradeAction a owl:Class;
-  rdfs:comment "The agent exchanged something of value with another agent, such as by buying, selling, or paying. The subclasses name the kind of exchange.";
+  rdfs:comment "The agent exchanged something of value with another agent, such as by buying, selling, or paying.";
   rdfs:subClassOf :Action;
   skos:broadMatch schemaorg:TradeAction .
 :PayAction a owl:Class;
@@ -886,7 +886,7 @@
   rdfs:subClassOf :TradeAction;
   skos:closeMatch schemaorg:PayAction .
 :FinancialTransaction a owl:Class;
-  rdfs:comment "A movement of money, recorded as one entry, such as a card purchase, a transfer between accounts, or a trade. It is the :result of the action that moved the money, such as a :PayAction, which gives when it happened and who paid. Its :amount gives how much moved, and its :recipient is who received it. Each account it changed is a :FinancialPosting that is :isPartOf it.";
+  rdfs:comment "A movement of money, such as a card purchase, a transfer between accounts, or a trade. It is the :result of the action that moved the money, such as a :PayAction, which gives when it happened and who paid. Its :amount gives how much moved, and its :recipient is who received it. Its change to each account is a :FinancialPosting that is :isPartOf it.";
   rdfs:subClassOf :Intangible .
 :PaymentCard a owl:Class;
   rdfs:comment "A numbered card that payments draw on, such as a credit card or a debit card. It is the card as issued, so a card reissued with a new number is a new :PaymentCard, while the account behind it continues. The same card added to several devices is one :PaymentCard. It is the :instrument of a :PayAction, and the account it draws on is its :inAccount. Its :category is its kind, such as `credit` or `debit`.";
@@ -909,7 +909,7 @@
   skos:closeMatch schemaorg:currency .
 [] a sh:PropertyShape; sh:path :currency; sh:targetSubjectsOf :currency; sh:maxCount 1 .
 :amount a owl:ObjectProperty;
-  rdfs:comment "How much money moved. On a :FinancialTransaction, it is the whole amount, and its :value is positive. The action that produced the transaction says who paid and who was paid. On a :FinancialPosting, it is the change to the posting's account, and its :value is signed: negative where the money came from, positive where it went. A positive value increases an asset or an expense account, and a negative one increases a liability, an income, or an equity account, so a purchase paid with a card is negative on the card's account.";
+  rdfs:comment "How much money moved. On a :FinancialTransaction, it is the whole amount, and its :value is positive. The action that produced the transaction says who paid and who was paid. On a :FinancialPosting, it is the change to the posting's account, and its :value is signed. It is negative where the money came from and positive where it went. A positive value increases an asset or an expense account, and a negative one increases a liability, an income, or an equity account, so a purchase paid with a card is negative on the card's account.";
   rdfs:domain [ a owl:Class; owl:unionOf ( :FinancialTransaction :FinancialPosting ) ];
   rdfs:range :MonetaryAmount;
   skos:closeMatch schemaorg:amount .
@@ -918,10 +918,10 @@
   rdfs:comment "An account that money is counted in, as one line of a chart of accounts. It is a real account held with an institution, such as a bank account or a credit card account, or a nominal one that classifies money, such as an expense or income category. Its :financialAccountType says which of the five kinds it is. The account above it in the chart is what it :isPartOf.";
   rdfs:subClassOf :Intangible .
 :FinancialPosting a owl:Class;
-  rdfs:comment "A posting to a :FinancialAccount: the change a :FinancialTransaction made to that account, which is one side of it. It is :isPartOf the transaction, its :inAccount is the account, and its :amount is the change, negative where the money came from and positive where it went. A transaction whose postings sum to zero is complete.";
+  rdfs:comment "One side of a :FinancialTransaction: the change it made to one :FinancialAccount. It is :isPartOf the transaction, its :inAccount is the account, and its :amount is the change. A negative amount is where the money came from, and a positive one is where it went. A transaction whose postings sum to zero is complete.";
   rdfs:subClassOf :Intangible .
 :financialAccountType a owl:DatatypeProperty;
-  rdfs:comment "The kind of :FinancialAccount, one of `asset`, `liability`, `equity`, `income`, or `expense`. Not allowed: another kind (`credit-card`) or another case (`Asset`).";
+  rdfs:comment "The kind of :FinancialAccount, one of `asset`, `liability`, `equity`, `income`, or `expense`. An asset is money held, a liability is money owed, income is where money comes from, expense is where it goes, and equity is what is left when liabilities are taken from assets. Not allowed: another kind (`credit-card`) or another case (`Asset`).";
   rdfs:domain :FinancialAccount;
   rdfs:range :Text .
 [] a sh:PropertyShape; sh:path :financialAccountType; sh:targetSubjectsOf :financialAccountType; sh:maxCount 1 .
