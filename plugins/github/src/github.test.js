@@ -39,7 +39,7 @@ async function extract(Extractor, config = {}) {
 
 const source = 'github';
 const key = ['@type', 'source', 'sourceId'];
-const repositoryKey = ['@type', 'source', 'creator.sourceId', 'name'];
+const repositoryKey = ['@type', 'source', 'creator.handle', 'handle'];
 const date = iso => new Date(iso);
 
 const sam = {
@@ -67,6 +67,7 @@ const bakery = {
   '@type': 'Repository',
   '@key': repositoryKey,
   source,
+  handle: 'bakery',
   url: 'https://github.com/sam/bakery',
   name: 'bakery',
   description: 'Bread recipes',
@@ -79,6 +80,7 @@ const trails = {
   '@type': 'Repository',
   '@key': repositoryKey,
   source,
+  handle: 'trails',
   url: 'https://github.com/trailco/trails',
   name: 'trails',
   creator: [agent(ACTORS.trailco)],
@@ -89,7 +91,7 @@ const repositories = { R_bakery: bakery, R_trails: trails };
 /** An issue is a Task; `body` only where the issue itself is the record. */
 /** A commit named by its hash alone, shared across sources. */
 const revision = oid => ({ '@type': 'Revision', '@key': ['@type', 'sourceId'], sourceId: oid });
-const threadKey = ['@type', 'source', 'isPartOf.creator.sourceId', 'isPartOf.name', 'handle'];
+const threadKey = ['@type', 'source', 'isPartOf.creator.handle', 'isPartOf.handle', 'handle'];
 const task = (t, { withBody = false } = {}) => ({
   '@type': 'Task',
   '@key': threadKey,
