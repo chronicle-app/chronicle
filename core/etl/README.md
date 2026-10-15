@@ -145,7 +145,9 @@ extractor that knows when the source observed a record passes it to
 Every record goes through normal identity handling.
 
 Media object builders, source-owner identity, and phone normalization helpers
-support iMessage and iCloud enrichment. Attachments remain references; this
+support iMessage and iCloud enrichment. `reference(node)` is a node's identity
+alone, its `@type`, `@key`, and the fields its key names, for a node that
+appears again in one payload. Attachments remain references; this
 package does not copy their bytes. Attachment downloading, CLI flag helpers,
 and additional presentation transforms are not included.
 

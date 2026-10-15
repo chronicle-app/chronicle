@@ -241,8 +241,11 @@ export interface Shapes {
   recordTypes: Map<string, RecordTypeShape>;
 }
 
-/** Fields every node carries for identity and bookkeeping, not as content. */
-const BOOKKEEPING = new Set(['@type', '@key', '@assertedAt']);
+/**
+ * Fields every node carries for identity and bookkeeping, not as content,
+ * such as the completeness marker a snapshot source puts on every node.
+ */
+const BOOKKEEPING = new Set(['@type', '@key', '@assertedAt', '@asserts']);
 
 /** Summarize what each record type's records became, and from what. */
 export function shapesOf(samples: ShapeSample[]): Shapes {

@@ -41,6 +41,7 @@ export {
   type Sink,
 } from '@chronicle.app/logging';
 export * from './selfAgent.js';
+export { reference } from './reference.js';
 export * from './phone.js';
 export * from './isrc.js';
 export * from './media.js';

@@ -118,6 +118,7 @@ export async function loadSchema({ ontology, examples, alignments = [] }) {
       domain: domainOf(store, subject).map(term => localName(term)),
       range: rangeOf(store, subject).map(term => localName(term)),
       ...cardinalityOf(store, subject),
+      inverseName: first(subject, NAMESPACE + 'inverseName'),
       examples: await examplesOf(subject),
     };
     for (const term of [...property.domain, ...property.range]) {

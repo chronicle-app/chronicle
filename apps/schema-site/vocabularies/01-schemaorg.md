@@ -27,10 +27,11 @@ Most Chronicle classes sit under the same parents as the schema.org classes they
 - **Where each record came from.** Every record has a :source and a :sourceId, and a key built from the source's own identifiers, so the same thing gets the same identity each time it is read.
 - **What happened in one person's history.** Chronicle has actions that schema.org does not, such as :CompleteAction, :ExecuteAction, :MessageAction, :PublishAction, and :VisitAction. It also has periods of life, such as a :Tenure or a :DeviceSession.
 - **Stricter values.** Each property lists the types its values can have and whether it takes one value or a list, and records that break either rule are rejected. A :DateTime can be a date known only to the year, or an uncertain one.
+- **A ledger.** Money that moved is a :FinancialTransaction, with a :FinancialPosting for each :FinancialAccount it changed, so an archive can keep accounts the way a bookkeeper does. schema.org describes money as commerce: a schemaorg:MoneyTransfer is the act of moving it, a schemaorg:Invoice is a bill, and a schemaorg:BankAccount is a product a bank offers. None of them records one movement of money or the accounts it changed.
 
 ## What Chronicle leaves out
 
-Most of schema.org. Chronicle adds a term only when a source needs it, so it has no terms for commerce, such as offers and prices, or for the many kinds of web pages and organizations that schema.org describes.
+Most of schema.org. Chronicle adds a term only when a source needs it, so it has no terms for selling, such as offers and prices, or for the many kinds of web pages and organizations that schema.org describes.
 
 ## Translating a record
 

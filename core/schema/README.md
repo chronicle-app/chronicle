@@ -115,6 +115,10 @@ typing; use validators at runtime to enforce identity requirements.
 - A datatype is an `rdfs:Datatype` defined over XSD. Each accepts the plain
   strings that Chronicle JSON becomes in JSON-LD as well as typed values, such
   as an `xsd:dateTime` for an instant.
+- A property can name its inverse with `:inverseName`, such as `hasPart` on
+  `:isPartOf`. A record can give the relation under either name, so a whole
+  can list its parts, and only the forward edge is stored. The generated
+  `INVERSE_PROPERTIES` maps each inverse name to its forward property.
 - A SHACL property shape after a property holds its record rules. `sh:maxCount 1`
   makes it take one value. A shape with `sh:targetClass` and `sh:minCount 1`
   makes it required on that class.
