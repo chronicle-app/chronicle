@@ -35,6 +35,9 @@ const toc = [
     <div><dt>Expected type</dt><dd><ExpectedType range={property.range} /></dd></div>
     <div><dt>Values</dt><dd>{property.max === 1 ? 'At most one value' : 'A list of values'}</dd></div>
     <div><dt>Required</dt><dd>{property.min > 0 ? 'Yes' : 'No'}</dd></div>
+    {property.inverseName && (
+      <div><dt>Inverse</dt><dd><code>{property.inverseName}</code> gives the relation from the other side. A record can use either name; only this property is stored.</dd></div>
+    )}
   </dl>
   {property.alignments.length > 0 && <Alignments alignments={property.alignments} />}
   <ExamplesSection examples={property.examples} />

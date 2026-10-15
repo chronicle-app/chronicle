@@ -134,6 +134,9 @@
       "path": "plugins/apple-health/tsconfig.lib.json"
     },
     {
+      "path": "plugins/apple-wallet/tsconfig.lib.json"
+    },
+    {
       "path": "core/auth/tsconfig.lib.json"
     },
     {

@@ -53,6 +53,7 @@ other source by name, for example `chronicle plugins install lastfm`, or let
 | Phone and FaceTime calls (Apple Call History)                         | [apple-call-history](plugins/apple-call-history/README.md) | app-db (local)                  |
 | Apple Health heart readings, sleep, and vitals                        | [apple-health](plugins/apple-health/README.md)             | archive (export)                |
 | Voice Memos recordings and their transcripts                          | [apple-voice-memos](plugins/apple-voice-memos/README.md)   | app-db (local)                  |
+| Card transactions from Apple Wallet                                   | [apple-wallet](plugins/apple-wallet/README.md)             | app-db (local)                  |
 | Arc Timeline visits and trips                                         | [arc-timeline](plugins/arc-timeline/README.md)             | icloud-backup (local)           |
 | Are.na channels, blocks, comments, and follows                        | [arena](plugins/arena/README.md)                           | api                             |
 | Bluesky follows, followers, and likes                                 | [bluesky](plugins/bluesky/README.md)                       | api                             |

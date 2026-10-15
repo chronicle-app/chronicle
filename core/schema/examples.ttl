@@ -4223,3 +4223,109 @@ action, with paths that start at `action`.
 
 :ExperienceAction skos:example example:sleep-stage .
 :Session skos:example example:sleep-stage .
+
+example:card-purchase
+  rdfs:label "A card purchase";
+  rdfs:comment """
+You bought a coffee with a credit card, and within minutes the card's issuer
+told Wallet about it. The :PayAction is keyed by Wallet's ID for the
+transaction and dated to the second. You are the :agent, the card is the
+:instrument, and the :result is the :FinancialTransaction, which carries the
+:amount, a :MonetaryAmount, and the café as its :recipient. The café is an
+:Agent keyed by its name, which is all the issuer sends, since a billing
+descriptor can name a company, a branch, or a person.
+
+The :PaymentCard is keyed by the card network's identifier for the card,
+which is the same on every device the card is added to, and is named after
+the card's product. The :FinancialAccount it is :inAccount is keyed by the
+bank's own identifier for the account, which outlives the card number, and
+is named after the bank, as a chart of accounts names it. The transaction's one :FinancialPosting, given
+under `hasPart`, the inverse of :isPartOf, is that account's side of the
+purchase, negative because a purchase adds to what a credit card owes. The
+café's side is not known.
+
+A node that appears again in one record needs only its identity. The
+account is given in full under the card and by its key alone under the
+posting.
+""";
+  rdf:value [
+    a :PayAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "apple-wallet";
+    :sourceId "7C1E9F2B-6A3D-4B58-9E0F-2D4C6B8A1E35";
+    :timestamp "2026-05-09T13:41:07.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "icloud";
+      :sourceId "1234567890";
+      :handle "sam@example.com";
+      :sameAs "@me"
+    ];
+    :instrument [
+      a :PaymentCard;
+      doc:key ("@type" "source" "sourceId");
+      :source "apple-wallet";
+      :sourceId "V-0000000000000000000001";
+      :name "Example Rewards Visa";
+      :alternateName "4242";
+      :category "credit";
+      :inAccount [
+        a :FinancialAccount;
+        doc:key ("@type" "source" "sourceId");
+        :source "apple-wallet";
+        :sourceId "8d2f0c4a1b7e9f3c5a6d4e2b1c9f8a7d6e5b4c3a2f1e0d9c8b7a6f5e4d3c2b1a";
+        :name "Example Bank";
+        :financialAccountType "liability"
+      ]
+    ];
+    :result [
+      a :FinancialTransaction;
+      doc:key ("@type" "source" "sourceId");
+      :source "apple-wallet";
+      :sourceId "7C1E9F2B-6A3D-4B58-9E0F-2D4C6B8A1E35";
+      :amount [
+        a :MonetaryAmount;
+        :value 4.75;
+        :currency "CAD"
+      ];
+      :recipient [
+        a :Agent;
+        doc:key ("source" "name");
+        :source "apple-wallet";
+        :name "Example Café"
+      ];
+      :hasPart [
+        a :FinancialPosting;
+        doc:key ("@type" "source" "sourceId" "inAccount[*].sourceId");
+        :source "apple-wallet";
+        :sourceId "7C1E9F2B-6A3D-4B58-9E0F-2D4C6B8A1E35";
+        :amount [
+          a :MonetaryAmount;
+          :value -4.75;
+          :currency "CAD"
+        ];
+        :inAccount [
+          a :FinancialAccount;
+          doc:key ("@type" "source" "sourceId");
+          :source "apple-wallet";
+          :sourceId "8d2f0c4a1b7e9f3c5a6d4e2b1c9f8a7d6e5b4c3a2f1e0d9c8b7a6f5e4d3c2b1a"
+        ]
+      ]
+    ]
+  ] .
+
+:TradeAction skos:example example:card-purchase .
+:PayAction skos:example example:card-purchase .
+:FinancialTransaction skos:example example:card-purchase .
+:FinancialPosting skos:example example:card-purchase .
+:FinancialAccount skos:example example:card-purchase .
+:PaymentCard skos:example example:card-purchase .
+:MonetaryAmount skos:example example:card-purchase .
+:amount skos:example example:card-purchase .
+:value skos:example example:card-purchase .
+:currency skos:example example:card-purchase .
+:financialAccountType skos:example example:card-purchase .
+:inAccount skos:example example:card-purchase .
+:isPartOf skos:example example:card-purchase .
+:recipient skos:example example:card-purchase .

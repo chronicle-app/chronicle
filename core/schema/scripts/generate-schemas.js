@@ -57,6 +57,16 @@ const getSeeAlso = (store, id) => {
   return seeAlso[0]?.object?.value;
 };
 
+// :inverseName names a property's inverse. A record can give the relation
+// under either name; the generator types the inverse on the forward range, and
+// INVERSE_PROPERTIES tells a store which forward edge to keep.
+const getInverseName = (store, propertyId) =>
+  store.getQuads(
+    namedNode(propertyId),
+    namedNode('https://schema.chronicle.app/inverseName'),
+    null
+  )[0]?.object?.value;
+
 const extractSchemaInfo = store => {
   const classesRaw = declaredClasses(store).map(classTerm => {
     const classId = classTerm.value;
@@ -88,9 +98,30 @@ const extractSchemaInfo = store => {
         range: rangeOf(store, propertyId),
         isRequired: min >= 1,
         isMany: max !== 1,
+        inverseName: getInverseName(store, propertyId),
       };
     })
     .filter(p => p.range.length > 0);
+
+  // An inverse is authored on the forward property's range, takes many values,
+  // and reaches back to the forward property's domain.
+  const names = new Set(properties.map(p => p.shortName));
+  const inverses = properties
+    .filter(p => p.inverseName)
+    .map(p => {
+      if (names.has(p.inverseName)) {
+        throw new Error(`${p.propertyId}: inverse name ${p.inverseName} is already a property`);
+      }
+      return {
+        propertyId: null,
+        shortName: p.inverseName,
+        inverseOf: p.shortName,
+        domain: p.range,
+        range: p.domain,
+        isRequired: false,
+        isMany: true,
+      };
+    });
 
   const knownTerms = new Set([
     ...classes.map(c => c.classId),
@@ -102,7 +133,7 @@ const extractSchemaInfo = store => {
     }
   }
 
-  return { classes, properties };
+  return { classes, properties, inverses };
 };
 
 const sortClassesTopologically = classes => {
@@ -125,7 +156,7 @@ const sortClassesTopologically = classes => {
   return sorted;
 };
 
-const writeSchemaFile = (classes, properties, version) =>
+const writeSchemaFile = (classes, properties, inverses, version) =>
   new Promise((resolve, reject) => {
     const schemaFile = fs.createWriteStream(outputFilePath, {
       flags: 'w',
@@ -148,6 +179,16 @@ const writeSchemaFile = (classes, properties, version) =>
         ']);\n\n'
     );
 
+    // The forward edge a store keeps for each inverse name a record can use.
+    schemaFile.write('/** Inverse property name → the forward property it reverses. */\n');
+    schemaFile.write('export const INVERSE_PROPERTIES: Record<string, string> = {\n');
+    for (const inverse of inverses) {
+      schemaFile.write(
+        `  ${JSON.stringify(inverse.shortName)}: ${JSON.stringify(inverse.inverseOf)},\n`
+      );
+    }
+    schemaFile.write('};\n\n');
+
     // Identity comes from the source, expressed as @key or @id, including nested nodes.
     schemaFile.write(
       'function requireNodeIdentity(\n' +
@@ -168,6 +209,8 @@ const writeSchemaFile = (classes, properties, version) =>
     // A class carries the `@key`/`@id` identity refinement iff it descends from
     // Base — every entity and action node. Value nodes descend from
     // StructuredValue instead and are content-interned, so they stay exempt.
+    // Inverses are typed beside the declared properties on the classes they apply to.
+    const authored = [...properties, ...inverses];
     const classById = new Map(classes.map(c => [c.classId, c]));
     const BASE_CLASS_ID = 'https://schema.chronicle.app/Base';
     const descendsFromBase = (classId, seen = new Set()) => {
@@ -187,7 +230,7 @@ const writeSchemaFile = (classes, properties, version) =>
         const parentShortName = parent.split('/').pop();
         return `Omit<${parentShortName}, "@type">`;
       });
-      const proprtyStr = properties
+      const proprtyStr = authored
         .filter(p => p.domain.includes(classId))
         .map(property => {
           const { shortName, range, isMany } = property;
@@ -233,7 +276,7 @@ ${shortName === 'Base' ? '"@key"?: KeyField[];\n"@id"?: string;\n"@asserts"?: st
 
       schemaFile.write(typeStr);
 
-      const attributes = properties
+      const attributes = authored
         .filter(p => p.domain.includes(classId))
         .map(property => {
           const { shortName, range, isMany, isRequired } = property;
@@ -360,10 +403,10 @@ const main = async () => {
 
   store.addQuads(quadsArray);
 
-  const { classes, properties } = extractSchemaInfo(store);
+  const { classes, properties, inverses } = extractSchemaInfo(store);
 
   fs.mkdirSync(dirname(outputFilePath), { recursive: true });
-  await writeSchemaFile(classes, properties, schemaVersion(ttlData));
+  await writeSchemaFile(classes, properties, inverses, schemaVersion(ttlData));
   const formatted = await prettier.format(fs.readFileSync(outputFilePath, 'utf8'), {
     ...prettierConfig,
     parser: 'typescript',

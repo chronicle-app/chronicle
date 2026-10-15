@@ -19,6 +19,12 @@
       "summary": "Voice Memos recordings and their transcripts"
     },
     {
+      "name": "apple-wallet",
+      "package": "@chronicle.app/apple-wallet",
+      "tier": "official",
+      "summary": "Card transactions from Apple Wallet"
+    },
+    {
       "name": "arc-timeline",
       "package": "@chronicle.app/arc-timeline",
       "tier": "official",
