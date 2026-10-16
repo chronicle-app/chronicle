@@ -134,6 +134,9 @@
       "path": "plugins/apple-wallet/tsconfig.lib.json"
     },
     {
+      "path": "plugins/apple-podcasts/tsconfig.lib.json"
+    },
+    {
       "path": "core/auth/tsconfig.lib.json"
     },
     {

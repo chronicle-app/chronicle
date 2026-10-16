@@ -7,6 +7,12 @@
       "summary": "Phone and FaceTime calls (Apple Call History)"
     },
     {
+      "name": "apple-podcasts",
+      "package": "@chronicle.app/apple-podcasts",
+      "tier": "official",
+      "summary": "Podcast listens and subscriptions from Apple Podcasts"
+    },
+    {
       "name": "apple-voice-memos",
       "package": "@chronicle.app/apple-voice-memos",
       "tier": "official",
