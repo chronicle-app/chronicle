@@ -6,8 +6,8 @@ Your Photos library on a Mac: each photo and video, who is in it, what's in it, 
 
 ```sh
 chronicle extract apple-photos
-chronicle extract apple-photos -t all
-chronicle extract apple-photos -t activity --since 2026-01-01
+chronicle extract apple-photos activity --since 2026-01-01
+chronicle extract apple-photos photos activity favorites shared-with-you
 chronicle extract apple-photos --input "/path/to/Photos Library.photoslibrary"
 ```
 
