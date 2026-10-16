@@ -18,7 +18,9 @@
 
 # Annotations on properties, for tools rather than records. :inverseName on
 # a property names its inverse: a record can give the relation under either
-# name, and a store keeps only the forward property.
+# name, and a store keeps only the forward property. :assertedBy and
+# :retractedBy on a standing relation name the actions that start and end it,
+# and :runPredicate names the relation as those actions' history.
 #
 # :metric on a number property says what form its values take, and so how
 # its values over a time combine. A "gauge" is a level or a rate, such as a
@@ -33,6 +35,9 @@
 :metric a owl:AnnotationProperty .
 :unit a owl:AnnotationProperty .
 :inverseName a owl:AnnotationProperty .
+:assertedBy a owl:AnnotationProperty .
+:retractedBy a owl:AnnotationProperty .
+:runPredicate a owl:AnnotationProperty .
 
 :Base a owl:Class;
   rdfs:comment "Anything a source describes, either an :Entity or an :Action. Each one has an identity, so other records can refer to it.";
@@ -232,9 +237,9 @@
   rdfs:subClassOf :MediaObject;
   rdfs:comment "A document file, such as a PDF, a text file, or a document attachment." .
 :recipient a owl:ObjectProperty;
-  rdfs:comment "An agent the message, call, or transaction was directed to, such as each other participant in a group conversation or the merchant that was paid.";
+  rdfs:comment "An agent the message, call, transaction, or share was directed to, such as each other participant in a group conversation, the merchant that was paid, or the person a photo was shared with.";
   rdfs:subPropertyOf :involvement;
-  rdfs:domain [ a owl:Class; owl:unionOf ( :Message :CallSession :FinancialTransaction ) ];
+  rdfs:domain [ a owl:Class; owl:unionOf ( :Message :CallSession :FinancialTransaction :ShareAction ) ];
   rdfs:range :Agent;
   skos:exactMatch schemaorg:recipient .
 :contains a owl:ObjectProperty;
@@ -486,6 +491,10 @@
 :CallAction a owl:Class;
   rdfs:comment "The agent made a phone or video call. Its :result is the :CallSession.";
   rdfs:subClassOf :CommunicateAction .
+:ShareAction a owl:Class;
+  rdfs:comment "The agent shared the :object with others, such as by sending a photo in a conversation. Its :recipient is who it was shared with, when that is known.";
+  rdfs:subClassOf :CommunicateAction;
+  skos:exactMatch schemaorg:ShareAction .
 :Session a owl:Class;
   rdfs:comment "A period of one person's activity or experience, such as a night's sleep, a logged block of work, a trip across town, or their time on a call. The action that records it gives when it actually happened. Others who took part have sessions of their own. Something they shared, such as a concert or a meeting, is an :Event that each session :isPartOf. Its :scheduledStart and :scheduledEnd give a planned period.";
   rdfs:subClassOf :Entity .
@@ -631,10 +640,24 @@
   rdfs:comment "The agent took a photograph. Its :result is the :ImageObject.";
   rdfs:subClassOf :CreateAction;
   skos:exactMatch schemaorg:PhotographAction .
+:ScreenshotAction a owl:Class;
+  rdfs:comment "The agent captured what a screen showed, such as a web page or an app. Its :result is the :ImageObject. The image is a :snapshotOf the resource it shows, and the :object can name the page it was captured from.";
+  rdfs:subClassOf :CreateAction .
 :LikeAction a owl:Class;
   rdfs:comment "The agent liked the :object.";
   rdfs:subClassOf :ReactAction;
   skos:broadMatch schemaorg:LikeAction .
+:UnlikeAction a owl:Class;
+  rdfs:comment "The agent withdrew a like of the :object, such as by removing a favorite.";
+  rdfs:subClassOf :ReactAction .
+:likes a owl:ObjectProperty;
+  rdfs:comment "An entity the agent likes. A :LikeAction adds an entity to the agent's likes, and an :UnlikeAction removes it. A source can also give the agent's likes directly.";
+  rdfs:subPropertyOf :relation;
+  :assertedBy :LikeAction;
+  :retractedBy :UnlikeAction;
+  :runPredicate :liked;
+  rdfs:domain :Agent;
+  rdfs:range :Entity .
 :ReactAction a owl:Class;
   rdfs:comment "The agent took a stance on the :object with no content, such as a like. A reaction with content, such as an emoji or a comment, is a :RespondAction.";
   rdfs:subClassOf :AssessAction;
@@ -994,11 +1017,21 @@
   rdfs:range :Text;
   skos:closeMatch schemaorg:keywords .
 :caption a owl:DatatypeProperty;
-  rdfs:comment "A caption or description of the image.";
-  rdfs:domain :ImageObject;
+  rdfs:comment "A caption or description of the image or video, written by a person.";
+  rdfs:domain [ a owl:Class; owl:unionOf ( :ImageObject :VideoObject ) ];
   rdfs:range :Text;
   skos:exactMatch schemaorg:caption .
 [] a sh:PropertyShape; sh:path :caption; sh:targetSubjectsOf :caption; sh:maxCount 1 .
+:aiDescription a owl:DatatypeProperty;
+  rdfs:comment "A description of the image or video that an AI model wrote, such as `A dog running on a beach`. A description a person wrote is its :caption.";
+  rdfs:domain [ a owl:Class; owl:unionOf ( :ImageObject :VideoObject ) ];
+  rdfs:range :Text .
+[] a sh:PropertyShape; sh:path :aiDescription; sh:targetSubjectsOf :aiDescription; sh:maxCount 1 .
+:depicts a owl:ObjectProperty;
+  rdfs:comment "A person who appears in the image or video.";
+  rdfs:subPropertyOf :relation;
+  rdfs:domain [ a owl:Class; owl:unionOf ( :ImageObject :VideoObject ) ];
+  rdfs:range :Person .
 :SoftwareSourceCode a owl:Class;
   rdfs:comment "Source code as a work, such as a snippet, a script, or a program's code.";
   rdfs:subClassOf :CreativeWork;

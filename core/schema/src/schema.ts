@@ -375,6 +375,7 @@ export const AddActionSchema: z.ZodType<AddAction> = z
 // Agent, child of https://schema.chronicle.app/Entity
 export interface Agent extends Omit<Entity, '@type'> {
   '@type': 'Agent';
+  likes?: EntityAndChildren[];
   memberOf?: EntityAndChildren[];
 }
 
@@ -383,6 +384,7 @@ export type AgentAndChildren =
 
 const AgentProperties = {
   ...EntityProperties,
+  likes: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
   memberOf: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
 };
 
@@ -404,7 +406,8 @@ export type CreateActionAndChildren =
   | PhotographActionAndChildren
   | PublishActionAndChildren
   | QuoteActionAndChildren
-  | RecordActionAndChildren;
+  | RecordActionAndChildren
+  | ScreenshotActionAndChildren;
 
 const CreateActionProperties = {
   ...ActionProperties,
@@ -645,7 +648,7 @@ export interface CommunicateAction extends Omit<InteractAction, '@type'> {
 }
 
 export type CommunicateActionAndChildren =
-  CommunicateAction | CallActionAndChildren | CheckInActionAndChildren;
+  CommunicateAction | CallActionAndChildren | CheckInActionAndChildren | ShareActionAndChildren;
 
 const CommunicateActionProperties = {
   ...InteractActionProperties,
@@ -1346,7 +1349,9 @@ export const FollowActionSchema: z.ZodType<FollowAction> = z
 // ImageObject, child of https://schema.chronicle.app/MediaObject
 export interface ImageObject extends Omit<MediaObject, '@type'> {
   '@type': 'ImageObject';
+  aiDescription?: string;
   caption?: string;
+  depicts?: PersonAndChildren[];
   height?: number;
   width?: number;
 }
@@ -1355,7 +1360,9 @@ export type ImageObjectAndChildren = ImageObject;
 
 const ImageObjectProperties = {
   ...MediaObjectProperties,
+  aiDescription: z.lazy(() => z.string()).optional(),
   caption: z.lazy(() => z.string()).optional(),
+  depicts: z.lazy(() => z.array(PersonAndChildrenSchema)).optional(),
   height: z.lazy(() => z.number()).optional(),
   width: z.lazy(() => z.number()).optional(),
 };
@@ -1432,7 +1439,7 @@ export interface ReactAction extends Omit<AssessAction, '@type'> {
   '@type': 'ReactAction';
 }
 
-export type ReactActionAndChildren = ReactAction | LikeActionAndChildren;
+export type ReactActionAndChildren = ReactAction | LikeActionAndChildren | UnlikeActionAndChildren;
 
 const ReactActionProperties = {
   ...AssessActionProperties,
@@ -2300,6 +2307,44 @@ export const RevisionSchema: z.ZodType<Revision> = z
   })
   .superRefine(requireNodeIdentity);
 
+// ScreenshotAction, child of https://schema.chronicle.app/CreateAction
+export interface ScreenshotAction extends Omit<CreateAction, '@type'> {
+  '@type': 'ScreenshotAction';
+}
+
+export type ScreenshotActionAndChildren = ScreenshotAction;
+
+const ScreenshotActionProperties = {
+  ...CreateActionProperties,
+};
+
+export const ScreenshotActionSchema: z.ZodType<ScreenshotAction> = z
+  .object({
+    '@type': z.literal('ScreenshotAction'),
+    ...ScreenshotActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// ShareAction, child of https://schema.chronicle.app/CommunicateAction
+export interface ShareAction extends Omit<CommunicateAction, '@type'> {
+  '@type': 'ShareAction';
+  recipient?: AgentAndChildren[];
+}
+
+export type ShareActionAndChildren = ShareAction;
+
+const ShareActionProperties = {
+  ...CommunicateActionProperties,
+  recipient: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
+};
+
+export const ShareActionSchema: z.ZodType<ShareAction> = z
+  .object({
+    '@type': z.literal('ShareAction'),
+    ...ShareActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // SleepAction, child of https://schema.chronicle.app/ExperienceAction
 export interface SleepAction extends Omit<ExperienceAction, '@type'> {
   '@type': 'SleepAction';
@@ -2502,6 +2547,24 @@ export const TravelActionSchema: z.ZodType<TravelAction> = z
   })
   .superRefine(requireNodeIdentity);
 
+// UnlikeAction, child of https://schema.chronicle.app/ReactAction
+export interface UnlikeAction extends Omit<ReactAction, '@type'> {
+  '@type': 'UnlikeAction';
+}
+
+export type UnlikeActionAndChildren = UnlikeAction;
+
+const UnlikeActionProperties = {
+  ...ReactActionProperties,
+};
+
+export const UnlikeActionSchema: z.ZodType<UnlikeAction> = z
+  .object({
+    '@type': z.literal('UnlikeAction'),
+    ...UnlikeActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // Venue, child of https://schema.chronicle.app/Place
 export interface Venue extends Omit<Place, '@type'> {
   '@type': 'Venue';
@@ -2523,6 +2586,9 @@ export const VenueSchema: z.ZodType<Venue> = z
 // VideoObject, child of https://schema.chronicle.app/MediaObject
 export interface VideoObject extends Omit<MediaObject, '@type'> {
   '@type': 'VideoObject';
+  aiDescription?: string;
+  caption?: string;
+  depicts?: PersonAndChildren[];
   duration?: string;
   height?: number;
   transcript?: string;
@@ -2533,6 +2599,9 @@ export type VideoObjectAndChildren = VideoObject;
 
 const VideoObjectProperties = {
   ...MediaObjectProperties,
+  aiDescription: z.lazy(() => z.string()).optional(),
+  caption: z.lazy(() => z.string()).optional(),
+  depicts: z.lazy(() => z.array(PersonAndChildrenSchema)).optional(),
   duration: z.lazy(() => z.string()).optional(),
   height: z.lazy(() => z.number()).optional(),
   transcript: z.lazy(() => z.string()).optional(),
@@ -2610,6 +2679,8 @@ export const VideoObjectAndChildrenSchema = VideoObjectSchema;
 
 export const VenueAndChildrenSchema = VenueSchema;
 
+export const UnlikeActionAndChildrenSchema = UnlikeActionSchema;
+
 export const TravelActionAndChildrenSchema = TravelActionSchema;
 
 export const ThreadAndChildrenSchema = ThreadSchema;
@@ -2631,6 +2702,10 @@ export const SleepStageAndChildrenSchema = SleepStageSchema;
 export const SleepSessionAndChildrenSchema = SleepSessionSchema;
 
 export const SleepActionAndChildrenSchema = SleepActionSchema;
+
+export const ShareActionAndChildrenSchema = ShareActionSchema;
+
+export const ScreenshotActionAndChildrenSchema = ScreenshotActionSchema;
 
 export const RevisionAndChildrenSchema = RevisionSchema;
 
@@ -2800,6 +2875,11 @@ export const ReactActionAndChildrenSchema: z.ZodType<ReactActionAndChildren> = z
     z.object({
       '@type': z.literal('ReactAction'),
       ...ReactActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('UnlikeAction'),
+      ...UnlikeActionProperties,
     }),
 
     z.object({
@@ -3100,6 +3180,11 @@ export const CommunicateActionAndChildrenSchema: z.ZodType<CommunicateActionAndC
     }),
 
     z.object({
+      '@type': z.literal('ShareAction'),
+      ...ShareActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('CheckInAction'),
       ...CheckInActionProperties,
     }),
@@ -3125,6 +3210,11 @@ export const InteractActionAndChildrenSchema: z.ZodType<InteractActionAndChildre
     z.object({
       '@type': z.literal('CommunicateAction'),
       ...CommunicateActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ShareAction'),
+      ...ShareActionProperties,
     }),
 
     z.object({
@@ -3233,6 +3323,11 @@ export const AssessActionAndChildrenSchema: z.ZodType<AssessActionAndChildren> =
     }),
 
     z.object({
+      '@type': z.literal('UnlikeAction'),
+      ...UnlikeActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('LikeAction'),
       ...LikeActionProperties,
     }),
@@ -3247,6 +3342,11 @@ export const CreateActionAndChildrenSchema: z.ZodType<CreateActionAndChildren> =
     z.object({
       '@type': z.literal('CreateAction'),
       ...CreateActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ScreenshotAction'),
+      ...ScreenshotActionProperties,
     }),
 
     z.object({
@@ -3478,6 +3578,11 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('ShareAction'),
+      ...ShareActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('CheckInAction'),
       ...CheckInActionProperties,
     }),
@@ -3513,6 +3618,11 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('UnlikeAction'),
+      ...UnlikeActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('LikeAction'),
       ...LikeActionProperties,
     }),
@@ -3520,6 +3630,11 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     z.object({
       '@type': z.literal('CreateAction'),
       ...CreateActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ScreenshotAction'),
+      ...ScreenshotActionProperties,
     }),
 
     z.object({
@@ -4272,6 +4387,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('ShareAction'),
+      ...ShareActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('CheckInAction'),
       ...CheckInActionProperties,
     }),
@@ -4307,6 +4427,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('UnlikeAction'),
+      ...UnlikeActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('LikeAction'),
       ...LikeActionProperties,
     }),
@@ -4314,6 +4439,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('CreateAction'),
       ...CreateActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ScreenshotAction'),
+      ...ScreenshotActionProperties,
     }),
 
     z.object({
