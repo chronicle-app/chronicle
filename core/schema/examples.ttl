@@ -1980,7 +1980,7 @@ in (:workingDirectory), the :Project it counted toward (:isPartOf), and the
 window title as its :name.
 
 The device is keyed by Timing's ID for it, with its hardware address linked
-through :sameAs. Its kind is :category data and its make is :model. The
+through :sameAs. Its :model is Apple's identifier for its hardware. The
 directory is keyed by its path within the machine it lives on (:inRealm), the
 same :Realm the device runs in.
 """;
@@ -2010,7 +2010,6 @@ same :Realm the device runs in.
       :source "timing-app";
       :sourceId "1234567890123456789";
       :name "pat-mbp";
-      :category "computer";
       :model "Mac15,3";
       :sameAs [
         a :Device;

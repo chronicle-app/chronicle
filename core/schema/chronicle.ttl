@@ -798,10 +798,10 @@
   rdfs:comment "A period of using a device, such as a block of time with one app in focus. It is the :result of an :ExecuteAction, which gives its start and end. Its :subject is the resource in focus, and it :isPartOf a project. When no resource is in focus, its :name is the window's title.";
   rdfs:subClassOf :Session .
 :PhysicalObject a owl:Class;
-  rdfs:comment "A physical object the subject owns or uses, such as a device, a vehicle, or a musical instrument. Its :category is its kind, such as `computer` or `car`, and its :model is its make and model. The subclasses name the roles an object plays in actions, such as :Device.";
+  rdfs:comment "A physical object the subject owns or uses, such as a device, a vehicle, or a musical instrument. Its :model is its make and model. The subclasses name the roles an object plays in actions, such as :Device.";
   rdfs:subClassOf :Entity .
 :Device a owl:Class;
-  rdfs:comment "A physical computing device the subject runs software on, such as a computer, a phone, a tablet, or a watch. It is the :instrument of the actions done with it, such as an :ExecuteAction or a :MeasureAction. It names a role, not a kind, so its :category says what kind of device it is. It is :inRealm the logical machine, which can outlive the hardware.";
+  rdfs:comment "A physical computing device the subject runs software on, such as a computer, a phone, a tablet, or a watch. It is the :instrument of the actions done with it, such as an :ExecuteAction or a :MeasureAction. It names a role, not a kind, so its :model says what kind of device it is. It is :inRealm the logical machine, which can outlive the hardware.";
   rdfs:subClassOf :PhysicalObject .
 :ProductModel a owl:Class;
   rdfs:comment "A kind of product, such as a line of phones or one model of camera, rather than one particular product. One particular computing device is a :Device.";
@@ -821,7 +821,7 @@
   rdfs:domain :Session;
   rdfs:range :Entity .
 :model a owl:DatatypeProperty;
-  rdfs:comment "The make and model of the object, such as `Mac17,9` or `iPhone15,2`. It is not the object's :name or its :category.";
+  rdfs:comment "The make and model of the object, such as `Mac17,9` or `iPhone15,2`. It is not the object's :name.";
   rdfs:domain :PhysicalObject;
   rdfs:range :Text;
   skos:exactMatch schemaorg:model .
