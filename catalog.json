@@ -19,6 +19,12 @@
       "summary": "Apple Notes, and who wrote what when"
     },
     {
+      "name": "apple-photos",
+      "package": "@chronicle.app/apple-photos",
+      "tier": "official",
+      "summary": "Photos library: photos, people, favorites, and Shared with You"
+    },
+    {
       "name": "apple-podcasts",
       "package": "@chronicle.app/apple-podcasts",
       "tier": "official",
