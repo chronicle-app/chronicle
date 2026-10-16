@@ -1,6 +1,8 @@
-# @chronicle.app/icloud
+# @chronicle.app/apple
 
-Local macOS iCloud account and AddressBook lookup. Account lookup reads MobileMeAccounts with `plutil` and falls back to `defaults`. Newer macOS versions leave those preferences empty, so it then reads the Apple Account from the system Accounts database (`~/Library/Accounts/Accounts4.sqlite`) with read-only `node:sqlite`, decoding its keyed-archive properties with `plutil`. Commands use argument arrays and never shell interpolation. No login/auth flow or network request is involved. Other platforms return no account.
+Apple data on a Mac, for plugins that read Apple apps: the Apple Account signed in, AddressBook contacts, and binary property lists. It was `@chronicle.app/icloud` before 0.5.0.
+
+Account lookup reads MobileMeAccounts with `plutil` and falls back to `defaults`. Newer macOS versions leave those preferences empty, so it then reads the Apple Account from the system Accounts database (`~/Library/Accounts/Accounts4.sqlite`) with read-only `node:sqlite`, decoding its keyed-archive properties with `plutil`. Commands use argument arrays and never shell interpolation. No login/auth flow or network request is involved. Other platforms return no account.
 
 `getICloudAccount()` selects the logged-in account, or the first account, and returns `null` when there is none.
 
@@ -9,3 +11,5 @@ Local macOS iCloud account and AddressBook lookup. Account lookup reads MobileMe
 Contact lookup lazily reads the local AddressBook and all account source databases through read-only `node:sqlite`. Lookups support case-insensitive email, normalized phone, and unambiguous name. Permission failures or unavailable databases leave enrichment absent; extraction can continue. Results are cached for the process lifetime.
 
 `ContactCache([databasePaths])` and account lookup options support isolated fixtures. Tests do not access the host account or contacts. macOS database schemas and permissions can vary; live-device verification remains separate from fixture coverage.
+
+`parseBinaryPlist(bytes)` reads a binary property list (`bplist00`): arrays, sets, dictionaries, strings, numbers, dates, data, and `Uid` references into an NSKeyedArchiver archive's `$objects`, which it leaves for the caller to follow. Apple apps store preferences this way, and Core Data stores transformable attributes and CloudKit records this way.

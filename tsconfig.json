@@ -107,7 +107,7 @@
       "path": "plugins/arena/tsconfig.lib.json"
     },
     {
-      "path": "core/icloud/tsconfig.lib.json"
+      "path": "core/apple/tsconfig.lib.json"
     },
     {
       "path": "core/email/tsconfig.lib.json"

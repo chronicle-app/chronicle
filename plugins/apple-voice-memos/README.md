@@ -50,7 +50,7 @@ Recordings come out newest first, and `--since` and `--until` bound when each on
 
 **The words spoken are the recording's `transcript`.** Voice Memos transcribes recordings itself, from iOS 18 on. The text is the recording's `transcript`, plain text with no timings, not its `body`, since it's a machine's reading of what was said rather than text anyone wrote. It's Voice Memos' own transcript: when Voice Memos makes a new one, such as after a trim, it takes the old one's place. A transcript from another speech recognizer belongs to that source's own record of the recording, so it never replaces Apple's. A recording Voice Memos heard no speech in has an empty transcript, or only spaces, which is left out. The extracted record keeps when each word was spoken and the transcript's locale, which have no Chronicle terms yet.
 
-**The agent is your iCloud account,** whose library this is, from `@chronicle.app/icloud`. It's omitted when no account can be read. An explicit `account` object (or null) describes a copied library without a host account lookup.
+**The agent is your iCloud account,** whose library this is, from `@chronicle.app/apple`. It's omitted when no account can be read. An explicit `account` object (or null) describes a copied library without a host account lookup.
 
 **The files are read in the plugin.** A transcript is JSON inside the audio file: a `.m4a` keeps it in its audio track's `tsrp` box, and a `.qta` in its track's QuickTime metadata under `com.apple.VoiceMemos.tsrp`. `mp4.ts` reads only the movie header, not the audio. The transcript lists its text in runs, each with when it was spoken; the extracted record keeps the runs and the locale. A file or transcript that doesn't read is logged and left out; the recording is kept.
 

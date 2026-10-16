@@ -12,7 +12,7 @@ import {
   AgentAndChildren,
   Person,
 } from '@chronicle.app/schema';
-import { lookupContact, buildICloudPersonSchema, type Contact } from '@chronicle.app/icloud';
+import { lookupContact, buildICloudPersonSchema, type Contact } from '@chronicle.app/apple';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 

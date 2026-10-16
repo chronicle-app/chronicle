@@ -7,7 +7,7 @@ import {
   CallSession,
   Channel,
 } from '@chronicle.app/schema';
-import { buildICloudPersonSchema, lookupContact, type Contact } from '@chronicle.app/icloud';
+import { buildICloudPersonSchema, lookupContact, type Contact } from '@chronicle.app/apple';
 
 // The call UUID is issued by Apple's phone/call subsystem and shared with Timing's
 // relay (see the timing-app plugin), so both key on it here and fold.

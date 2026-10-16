@@ -1,6 +1,6 @@
 import { ChronicleTransformer, Record } from '@chronicle.app/etl';
 import { ActionAndChildren, Entity, ViewAction } from '@chronicle.app/schema';
-import { buildICloudPersonSchema } from '@chronicle.app/icloud';
+import { buildICloudPersonSchema } from '@chronicle.app/apple';
 
 export default class SafariTransformer extends ChronicleTransformer {
   async transform(record: Record): Promise<ActionAndChildren[]> {

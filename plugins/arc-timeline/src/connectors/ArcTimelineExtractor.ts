@@ -1,5 +1,5 @@
 import { Extractor, Record } from '@chronicle.app/etl';
-import { buildICloudPersonSchema } from '@chronicle.app/icloud';
+import { buildICloudPersonSchema } from '@chronicle.app/apple';
 import { AgentAndChildren } from '@chronicle.app/schema';
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';

@@ -5,7 +5,7 @@ import {
   timeRangeConditions,
   APPLE_EPOCH_OFFSET_SECONDS,
 } from '@chronicle.app/etl-sqlite';
-import { getICloudAccount } from '@chronicle.app/icloud';
+import { getICloudAccount } from '@chronicle.app/apple';
 import ImessageTransformer from './ImessageTransformer.js';
 import { z } from 'zod';
 
