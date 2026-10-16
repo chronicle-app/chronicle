@@ -22,6 +22,20 @@ export const INVERSE_PROPERTIES: Record<string, string> = {
   resultOf: 'result',
 };
 
+/** Metric property name → the form its values take and the unit they are in. */
+export const METRIC_PROPERTIES: Record<string, { metric: 'gauge' | 'sum'; unit: string }> = {
+  diastolicBloodPressure: { metric: 'gauge', unit: 'mm[Hg]' },
+  heartRate: { metric: 'gauge', unit: '/min' },
+  heartRateRecovery: { metric: 'gauge', unit: '/min' },
+  heartRateVariability: { metric: 'gauge', unit: 'ms' },
+  oxygenSaturation: { metric: 'gauge', unit: '1' },
+  respiratoryRate: { metric: 'gauge', unit: '/min' },
+  restingHeartRate: { metric: 'gauge', unit: '/min' },
+  sleepingWristTemperature: { metric: 'gauge', unit: 'Cel' },
+  systolicBloodPressure: { metric: 'gauge', unit: 'mm[Hg]' },
+  walkingHeartRate: { metric: 'gauge', unit: '/min' },
+};
+
 function requireNodeIdentity(
   node: { '@key'?: unknown; '@id'?: unknown },
   ctx: z.RefinementCtx

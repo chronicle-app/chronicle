@@ -19,9 +19,19 @@
 # Annotations on properties, for tools rather than records. :inverseName on
 # a property names its inverse: a record can give the relation under either
 # name, and a store keeps only the forward property.
+#
+# :metric on a number property says what form its values take, and so how
+# its values over a time combine. A "gauge" is a level or a rate, such as a
+# heart rate, and combines as a mean, minimum, or maximum. A "sum" is an
+# amount, such as a number of steps, and adds up. Each value is for its
+# action's time: its :timestamp, or its :startTime to its :endTime. A
+# metric's :unit is the one unit all its values are in, as a UCUM code such
+# as `/min`, so values from any source can be compared. Values of two
+# properties can't be, even in the same unit.
 :abstract a owl:AnnotationProperty .
 :propagatesEncounter a owl:AnnotationProperty .
 :metric a owl:AnnotationProperty .
+:unit a owl:AnnotationProperty .
 :inverseName a owl:AnnotationProperty .
 
 :Base a owl:Class;
@@ -496,31 +506,36 @@
   rdfs:comment "The agent took a measurement of the :object, such as a person's heart rate or weight. Each value measured is a property of the :object, such as its :heartRate. A value measured over a period, such as a daily resting heart rate, has a :startTime and :endTime.";
   rdfs:subClassOf :Action .
 :heartRate a owl:DatatypeProperty;
-  :metric true;
+  :metric "gauge";
+  :unit "/min";
   rdfs:comment "The heart rate, in beats per minute.";
   rdfs:domain :Person;
   rdfs:range :Number .
 [] a sh:PropertyShape; sh:path :heartRate; sh:targetSubjectsOf :heartRate; sh:maxCount 1 .
 :restingHeartRate a owl:DatatypeProperty;
-  :metric true;
+  :metric "gauge";
+  :unit "/min";
   rdfs:comment "The heart rate at rest, in beats per minute.";
   rdfs:domain :Person;
   rdfs:range :Number .
 [] a sh:PropertyShape; sh:path :restingHeartRate; sh:targetSubjectsOf :restingHeartRate; sh:maxCount 1 .
 :walkingHeartRate a owl:DatatypeProperty;
-  :metric true;
+  :metric "gauge";
+  :unit "/min";
   rdfs:comment "The average heart rate while walking, in beats per minute.";
   rdfs:domain :Person;
   rdfs:range :Number .
 [] a sh:PropertyShape; sh:path :walkingHeartRate; sh:targetSubjectsOf :walkingHeartRate; sh:maxCount 1 .
 :heartRateVariability a owl:DatatypeProperty;
-  :metric true;
+  :metric "gauge";
+  :unit "ms";
   rdfs:comment "The variation in time between heartbeats, in milliseconds. It is the standard deviation of the intervals between beats.";
   rdfs:domain :Person;
   rdfs:range :Number .
 [] a sh:PropertyShape; sh:path :heartRateVariability; sh:targetSubjectsOf :heartRateVariability; sh:maxCount 1 .
 :heartRateRecovery a owl:DatatypeProperty;
-  :metric true;
+  :metric "gauge";
+  :unit "/min";
   rdfs:comment "How far the heart rate fell in the minute after exercise, in beats per minute.";
   rdfs:domain :Person;
   rdfs:range :Number .
@@ -531,31 +546,36 @@
   rdfs:range :Text .
 [] a sh:PropertyShape; sh:path :heartRhythm; sh:targetSubjectsOf :heartRhythm; sh:maxCount 1 .
 :respiratoryRate a owl:DatatypeProperty;
-  :metric true;
+  :metric "gauge";
+  :unit "/min";
   rdfs:comment "The breathing rate, in breaths per minute.";
   rdfs:domain :Person;
   rdfs:range :Number .
 [] a sh:PropertyShape; sh:path :respiratoryRate; sh:targetSubjectsOf :respiratoryRate; sh:maxCount 1 .
 :oxygenSaturation a owl:DatatypeProperty;
-  :metric true;
+  :metric "gauge";
+  :unit "1";
   rdfs:comment "The fraction of hemoglobin in the blood that carries oxygen, from `0` to `1`, such as `0.97`.";
   rdfs:domain :Person;
   rdfs:range :Number .
 [] a sh:PropertyShape; sh:path :oxygenSaturation; sh:targetSubjectsOf :oxygenSaturation; sh:maxCount 1 .
 :sleepingWristTemperature a owl:DatatypeProperty;
-  :metric true;
+  :metric "gauge";
+  :unit "Cel";
   rdfs:comment "The skin temperature at the wrist during sleep, in degrees Celsius.";
   rdfs:domain :Person;
   rdfs:range :Number .
 [] a sh:PropertyShape; sh:path :sleepingWristTemperature; sh:targetSubjectsOf :sleepingWristTemperature; sh:maxCount 1 .
 :systolicBloodPressure a owl:DatatypeProperty;
-  :metric true;
+  :metric "gauge";
+  :unit "mm[Hg]";
   rdfs:comment "The blood pressure while the heart beats, in millimeters of mercury.";
   rdfs:domain :Person;
   rdfs:range :Number .
 [] a sh:PropertyShape; sh:path :systolicBloodPressure; sh:targetSubjectsOf :systolicBloodPressure; sh:maxCount 1 .
 :diastolicBloodPressure a owl:DatatypeProperty;
-  :metric true;
+  :metric "gauge";
+  :unit "mm[Hg]";
   rdfs:comment "The blood pressure between heartbeats, in millimeters of mercury.";
   rdfs:domain :Person;
   rdfs:range :Number .

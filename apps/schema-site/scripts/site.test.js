@@ -62,6 +62,10 @@ test('the built site has a page for every term and no broken links', async () =>
     for (const name of schema.properties.keys()) {
       assert.ok(existsSync(join(output, 'properties', `${name}.html`)), name);
     }
+    // A metric's page says the form its values take and their unit.
+    const heartRate = readFileSync(join(output, 'properties', 'heartRate.html'), 'utf8');
+    assert.match(heartRate, /<dt[^>]*>Metric<\/dt>\s*<dd[^>]*>A gauge/);
+    assert.match(heartRate, /<dt[^>]*>Unit<\/dt>\s*<dd[^>]*><code[^>]*>\/min<\/code>/);
     const pages = readdirSync(output, { recursive: true }).filter(file => file.endsWith('.html'));
     for (const page of pages) {
       const html = readFileSync(join(output, page), 'utf8');

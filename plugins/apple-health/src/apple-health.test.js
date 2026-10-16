@@ -4,12 +4,14 @@ import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { test } from 'node:test';
 import { writeZip } from '@chronicle.app/etl';
+import { METRIC_PROPERTIES } from '@chronicle.app/schema';
 import {
   AppleHealthHeartExtractor,
   AppleHealthSleepExtractor,
   AppleHealthTransformer,
   AppleHealthVitalsExtractor,
 } from '../dist/index.js';
+import { BLOOD_PRESSURE_PARTS, HEART, VITALS } from '../dist/readings.js';
 import { OLD_WATCH, PHONE, WATCH, account, writeHealthExport } from './fixture.test-helper.js';
 
 function fixture(t) {
@@ -213,6 +215,12 @@ test('vitals convert to their units, and a blood pressure is one reading with bo
   const hints = events.filter(event => event.kind === 'hint');
   assert.equal(hints.length, 1);
   assert.match(hints[0].message, /^1 sample was left out/);
+});
+
+test('every value Health measures is a gauge in the vocabulary, so it has a unit', () => {
+  for (const { property } of Object.values({ ...HEART, ...VITALS, ...BLOOD_PRESSURE_PARTS })) {
+    assert.equal(METRIC_PROPERTIES[property]?.metric, 'gauge', property);
+  }
 });
 
 test('sleep is grouped into periods per source, each with its stages', async t => {
