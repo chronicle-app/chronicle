@@ -131,6 +131,9 @@
       "path": "plugins/apple-voice-memos/tsconfig.lib.json"
     },
     {
+      "path": "plugins/apple-photos/tsconfig.lib.json"
+    },
+    {
       "path": "plugins/apple-wallet/tsconfig.lib.json"
     },
     {
