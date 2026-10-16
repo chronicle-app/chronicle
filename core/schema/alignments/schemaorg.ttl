@@ -34,6 +34,7 @@ schemaorg: rdfs:label "schema.org";
   doc:note "A schemaorg:FindAction is finding something, which a search can lead to. Searching is a schemaorg:SearchAction." .
 :MoveAction doc:note "A :MoveAction can be a step through an information space, such as following a link from one web page to another. A schemaorg:MoveAction is relocating to a place, from its schemaorg:fromLocation to its schemaorg:toLocation." .
 :MonetaryAmount doc:note "One sum. A schemaorg:MonetaryAmount can also be a range, from its schemaorg:minValue to its schemaorg:maxValue." .
+:Note doc:note "A :Note is the text itself. A schemaorg:NoteDigitalDocument is a file that holds a note." .
 :PayAction doc:note "How much was paid and to whom are on the :FinancialTransaction that is its :result. A schemaorg:PayAction carries them itself, as its schemaorg:price and schemaorg:recipient." .
 :PaymentCard doc:note "One card, as issued with its number. A schemaorg:PaymentCard is a way of paying, and can stand for every card of a kind." .
 :Project doc:unlike schemaorg:Project;
