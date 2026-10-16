@@ -4065,9 +4065,7 @@ what the reading says: when it was taken, the names of its instruments, and the
 value measured, by its property.
 
 The action's :instrument is the watch, a :Device keyed by the name you gave it
-as its :handle, with its :model and :category. Beside it are the kind of device,
-a :ProductModel keyed by its Wikidata ID, and the :OperatingSystem release it
-ran.
+as its :handle, with its :model.
 """;
   rdf:value [
     a :MeasureAction;
@@ -4097,20 +4095,7 @@ ran.
       :source "apple-health";
       :handle "Sam’s Apple Watch";
       :name "Sam’s Apple Watch";
-      :model "Watch7,1";
-      :category "watch"
-    ], [
-      a :ProductModel;
-      doc:key ("source" "sourceId");
-      :source "wikidata";
-      :sourceId "Q18010946";
-      :name "Apple Watch";
-      :url "https://www.wikidata.org/wiki/Q18010946"
-    ], [
-      a :OperatingSystem;
-      doc:key ("@type" "source" "handle");
-      :source "apple-health";
-      :handle "watchOS 26.4"
+      :model "Watch7,1"
     ]
   ] .
 
@@ -4149,8 +4134,7 @@ the result of, with paths that start at `resultOf`, the inverse of :result.
       :source "apple-health";
       :handle "Sam’s Apple Watch";
       :name "Sam’s Apple Watch";
-      :model "Watch7,1";
-      :category "watch"
+      :model "Watch7,1"
     ];
     :result [
       a :SleepSession;

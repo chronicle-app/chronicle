@@ -10,7 +10,7 @@ import {
   SleepAction,
   SleepSession,
 } from '@chronicle.app/schema';
-import { type HealthDevice, lineOfHardware, productLine } from '../device.js';
+import { type HealthDevice, isAppleModel } from '../device.js';
 import type { Reading } from '../readings.js';
 import type { SleepPeriod } from '../sleep.js';
 
@@ -30,9 +30,8 @@ interface Measurer {
  *   heart, vitals: MeasureAction  agent: you   object: you { heartRate, … }
  *                    timestamp, or startTime and endTime for a value over a period
  *                    instrument: Device (the name it goes by in Health)
- *                                ProductModel? (the kind of device, by its Wikidata ID)
- *                                OperatingSystem? (the release it ran)
  *                                or SoftwareApplication (an app)
+ *                                or ProductModel (an ECG's watch model)
  *   sleep: SleepAction  agent: you   startTime, endTime
  *            result: SleepSession
  *          ExperienceAction for each stage   startTime, endTime
@@ -66,7 +65,7 @@ function measure(reading: Reading, you: Person): MeasureAction {
       : { startTime: reading.start, endTime: reading.end };
   return {
     '@type': 'MeasureAction',
-    // An ECG names no source, only the kind of device.
+    // An ECG names no source, only the watch's model.
     '@key': [
       '@type',
       'source',
@@ -135,10 +134,9 @@ function sleep(period: SleepPeriod & Measurer, you: Person): ActionAndChildren[]
 }
 
 /**
- * What took a reading, as precisely as the export says: the device by the
- * name it goes by in Health, the kind of device, and the OS release it ran.
- * An app is named by its name alone. An ECG names only the watch's hardware,
- * so it gives only the kind of device.
+ * What took a reading: the device by the name it goes by in Health, with its
+ * hardware as its model, or an app by its name. An ECG names only the watch's
+ * model, by Apple's identifier for it.
  */
 function instrumentOf({ sourceName, app, device }: Measurer): EntityAndChildren[] {
   if (app && sourceName) {
@@ -152,36 +150,27 @@ function instrumentOf({ sourceName, app, device }: Measurer): EntityAndChildren[
       },
     ];
   }
-  const line = productLine(device?.model) ?? lineOfHardware(device?.hardware);
-  const instrument: EntityAndChildren[] = [];
   if (sourceName) {
-    instrument.push({
-      '@type': 'Device',
-      '@key': ['@type', 'source', 'handle'],
-      source: SOURCE,
-      handle: sourceName,
-      name: sourceName,
-      ...(device?.hardware && { model: device.hardware }),
-      ...(line && { category: [line.category] }),
-    } satisfies Device);
-  }
-  if (line) {
-    instrument.push({
-      '@type': 'ProductModel',
-      '@key': ['source', 'sourceId'],
-      source: 'wikidata',
-      sourceId: line.wikidataId,
-      name: line.name,
-      url: `https://www.wikidata.org/wiki/${line.wikidataId}`,
-    });
-    if (device?.software) {
-      instrument.push({
-        '@type': 'OperatingSystem',
+    return [
+      {
+        '@type': 'Device',
         '@key': ['@type', 'source', 'handle'],
         source: SOURCE,
-        handle: `${line.os} ${device.software}`,
-      });
-    }
+        handle: sourceName,
+        name: sourceName,
+        ...(device?.hardware && { model: device.hardware }),
+      } satisfies Device,
+    ];
   }
-  return instrument;
+  if (isAppleModel(device?.hardware)) {
+    return [
+      {
+        '@type': 'ProductModel',
+        '@key': ['source', 'sourceId'],
+        source: 'apple-model-id',
+        sourceId: device.hardware,
+      },
+    ];
+  }
+  return [];
 }

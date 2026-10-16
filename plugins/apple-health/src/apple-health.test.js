@@ -78,15 +78,14 @@ function assertKeyed(actions) {
   }
 }
 
-// An instrument as [type, key]: a device by its name, a kind of device by its
-// Wikidata ID, an OS release, or an app.
+// An instrument as [type, key, model]: a device by its name, with its model,
+// an app by its name, or a model by Apple's identifier.
 const instruments = action =>
-  (action.instrument ?? []).map(node => [node['@type'], node.handle ?? node.sourceId]);
-const device = (name, ...release) => [
-  ['Device', name],
-  ['ProductModel', 'Q18010946'],
-  ...release.map(handle => ['OperatingSystem', handle]),
-];
+  (action.instrument ?? []).map(node => [
+    node['@type'],
+    node.handle ?? node.sourceId,
+    ...(node.model ? [node.model] : []),
+  ]);
 
 test('heart readings become MeasureActions on you, keyed by what they say', async t => {
   const { records } = await extract(AppleHealthHeartExtractor, { input: fixture(t) });
@@ -140,7 +139,7 @@ test('heart readings become MeasureActions on you, keyed by what they say', asyn
     ['@type', ['MeasureAction']],
     ['source', ['apple-health']],
     ['timestamp', ['2025-01-15T12:00:00.000Z']],
-    ['instrument[*].handle', [WATCH, 'watchOS 9.2']],
+    ['instrument[*].handle', [WATCH]],
     ['object.heartRate', [72]],
   ]);
   assert.deepEqual(keyOf(first), keyOf(duplicate));
@@ -158,21 +157,34 @@ test('heart readings become MeasureActions on you, keyed by what they say', asyn
     ['object.heartRhythm', ['Sinus Rhythm']],
   ]);
 
-  // The same watch under two addresses is one device. Each release is named
-  // where the sample names it. A sample that doesn't describe its device
-  // takes the device from the rest of the export, without a release.
-  assert.deepEqual(instruments(first), device(WATCH, 'watchOS 9.2'));
-  assert.deepEqual(instruments(other), device(WATCH, 'watchOS 9.2'));
-  assert.deepEqual(instruments(actions[0]), device(WATCH, 'watchOS 10.2'));
-  assert.deepEqual(instruments(actions[7]), device(WATCH));
-  const watch = first.instrument[0];
-  assert.equal(watch.model, 'Watch7,1');
-  assert.deepEqual(watch.category, ['watch']);
+  // The same watch under two addresses, on two releases, is one device, with
+  // its hardware as its model. A sample that doesn't describe its device takes
+  // the model from the rest of the export.
+  const watch = [['Device', WATCH, 'Watch7,1']];
+  assert.deepEqual(instruments(first), watch);
+  assert.deepEqual(instruments(other), watch);
+  assert.deepEqual(instruments(actions[0]), watch);
+  assert.deepEqual(instruments(actions[7]), watch);
+  assert.deepEqual(first.instrument[0], {
+    '@type': 'Device',
+    '@key': ['@type', 'source', 'handle'],
+    source: 'apple-health',
+    handle: WATCH,
+    name: WATCH,
+    model: 'Watch7,1',
+  });
   // An app is named by its name. The watch's earlier name is another device.
   assert.deepEqual(instruments(actions[10]), [['SoftwareApplication', 'Pulse Pal']]);
-  assert.deepEqual(instruments(actions[9]), device(OLD_WATCH, 'watchOS 9.1'));
-  // An ECG names the watch's hardware but not the watch.
-  assert.deepEqual(instruments(ecg), [['ProductModel', 'Q18010946']]);
+  assert.deepEqual(instruments(actions[9]), [['Device', OLD_WATCH, 'Watch7,1']]);
+  // An ECG names the watch's model but not the watch.
+  assert.deepEqual(ecg.instrument, [
+    {
+      '@type': 'ProductModel',
+      '@key': ['source', 'sourceId'],
+      source: 'apple-model-id',
+      sourceId: 'Watch7,1',
+    },
+  ]);
 });
 
 test('vitals convert to their units, and a blood pressure is one reading with both values', async t => {
@@ -220,10 +232,7 @@ test('sleep is grouped into periods per source, each with its stages', async t =
     ]
   );
   assert.deepEqual(instruments(nights[3]), [['SoftwareApplication', 'Sleep Cycle']]);
-  assert.deepEqual(
-    instruments(nights[2]).map(([type]) => type),
-    ['Device', 'ProductModel']
-  );
+  assert.deepEqual(instruments(nights[2]), [['Device', PHONE, 'iPhone15,2']]);
   assertKeyed(actions);
   assert.ok(actions.every(action => action.sourceId === undefined));
 

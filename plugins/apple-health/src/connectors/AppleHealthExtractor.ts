@@ -121,12 +121,10 @@ export default abstract class AppleHealthExtractor extends Extractor<typeof Appl
   /**
    * A sample's source as a reading names it: a device when the export
    * describes one for it, and an app otherwise. A sample that doesn't describe
-   * its device takes what other samples say about it, but not the OS release,
-   * which changes over time.
+   * its device takes what other samples say about it.
    */
   protected sourceOf(sample: Pick<HealthSample, 'sourceName'>, own: HealthDevice | null) {
-    const { software: _release, ...known } = this.devices.get(sample.sourceName) ?? {};
-    const device = own ?? (Object.keys(known).length > 0 ? known : null);
+    const device = own ?? this.devices.get(sample.sourceName) ?? null;
     return { sourceName: sample.sourceName, app: device === null, device };
   }
 
