@@ -807,6 +807,10 @@
   rdfs:comment "A written piece published on the web or in a periodical, such as a news story, a blog post, or a feed item.";
   rdfs:subClassOf :CreativeWork;
   skos:broadMatch schemaorg:Article .
+:Note a owl:Class;
+  rdfs:comment "A text that its author keeps and edits, such as a note in a notes app or a page in a personal wiki. Its :body is its text. A document file, such as a PDF or an attachment, is a :DocumentObject.";
+  rdfs:subClassOf :CreativeWork;
+  skos:closeMatch schemaorg:NoteDigitalDocument .
 :snapshotOf a owl:ObjectProperty;
   rdfs:comment "The resource this media captured at a moment, such as the web page in a screenshot or an archive. The value is the resource itself, the entity with the URL. The media's type tells a screenshot from an archive.";
   rdfs:subPropertyOf :relation;
