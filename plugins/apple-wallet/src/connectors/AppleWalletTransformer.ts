@@ -10,7 +10,7 @@ import {
   PayAction,
   PaymentCard,
 } from '@chronicle.app/schema';
-import { buildICloudPersonSchema } from '@chronicle.app/icloud';
+import { buildICloudPersonSchema } from '@chronicle.app/apple';
 import type { Card, WalletTransaction } from './AppleWalletExtractor.js';
 
 const SOURCE = 'apple-wallet';

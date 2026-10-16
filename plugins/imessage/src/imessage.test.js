@@ -5,7 +5,7 @@ import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ImessageExtractor, ImessageTransformer } from '../dist/index.js';
-import { ContactCache } from '@chronicle.app/icloud';
+import { ContactCache } from '@chronicle.app/apple';
 import { Runner, JsonLoader } from '@chronicle.app/etl';
 
 const account = {

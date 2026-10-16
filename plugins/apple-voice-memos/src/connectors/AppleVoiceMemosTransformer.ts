@@ -7,7 +7,7 @@ import {
   ProductModel,
   RecordAction,
 } from '@chronicle.app/schema';
-import { buildICloudPersonSchema } from '@chronicle.app/icloud';
+import { buildICloudPersonSchema } from '@chronicle.app/apple';
 import { readEncoder } from '../encoder.js';
 import type { VoiceMemo } from './AppleVoiceMemosExtractor.js';
 

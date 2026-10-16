@@ -12,6 +12,6 @@ Each action happens at the entry's `timestamp` and is keyed by the entry's ID wi
 
 The object is a `Meal` keyed by the same entry ID and named after the food. Its `category` is the meal slot: the built-in slots map to Breakfast, Lunch, Dinner and Snacks, a customized slot uses its own name, and an unnamed custom slot has none. The `description` joins the slot, brand, amount and calories.
 
-The agent is the iCloud account owner from `@chronicle.app/icloud`. An explicit `account` object (or null) describes exported data without a host account lookup.
+The agent is the iCloud account owner from `@chronicle.app/apple`. An explicit `account` object (or null) describes exported data without a host account lookup.
 
 Tests use a synthetic FoodNoms database with an explicit `account`, so they never read the host's FoodNoms data or iCloud account.

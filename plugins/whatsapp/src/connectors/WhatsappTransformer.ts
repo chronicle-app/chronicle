@@ -11,7 +11,7 @@ import {
   Message,
   MessageAction,
 } from '@chronicle.app/schema';
-import { lookupContactByPhone } from '@chronicle.app/icloud';
+import { lookupContactByPhone } from '@chronicle.app/apple';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { parseJid } from '../jid.js';

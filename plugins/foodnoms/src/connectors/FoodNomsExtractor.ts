@@ -1,6 +1,6 @@
 import { Record } from '@chronicle.app/etl';
 import { SqliteExtractor, timeRangeConditions } from '@chronicle.app/etl-sqlite';
-import { getICloudAccount } from '@chronicle.app/icloud';
+import { getICloudAccount } from '@chronicle.app/apple';
 import { z } from 'zod';
 import FoodNomsTransformer from './FoodNomsTransformer.js';
 

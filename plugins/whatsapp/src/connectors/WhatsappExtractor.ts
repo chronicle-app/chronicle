@@ -11,7 +11,7 @@ import {
   lookupContact,
   lookupContactByPhone,
   buildICloudPersonSchema,
-} from '@chronicle.app/icloud';
+} from '@chronicle.app/apple';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';

@@ -10,7 +10,7 @@ import {
   timeRangeConditions,
   unixToSafariTimestamp,
 } from '@chronicle.app/etl-sqlite';
-import { getICloudAccount } from '@chronicle.app/icloud';
+import { getICloudAccount } from '@chronicle.app/apple';
 import { z } from 'zod';
 import AppleWalletTransformer from './AppleWalletTransformer.js';
 

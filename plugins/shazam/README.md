@@ -40,7 +40,7 @@ A run reads only the library, offline. With `--link-artists`, it also looks up e
 
 **Where you were, when the device knew.** A Shazam made without a location fix records 0, 0 or -180, -180, which is left out.
 
-**The agent is your iCloud account,** whose library this is, from `@chronicle.app/icloud`. It's omitted when no account can be read. An explicit `account` object (or null) describes a copied library without a host account lookup.
+**The agent is your iCloud account,** whose library this is, from `@chronicle.app/apple`. It's omitted when no account can be read. An explicit `account` object (or null) describes a copied library without a host account lookup.
 
 **The archived fields are decoded in the plugin.** Core Data keeps a song's genres and Apple Music response as NSKeyedArchiver archives in binary property lists. `archive.ts` reads them. A field that doesn't decode is logged and left out; the Shazam is kept.
 

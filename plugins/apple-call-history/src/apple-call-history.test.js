@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { ContactCache } from '@chronicle.app/icloud';
+import { ContactCache } from '@chronicle.app/apple';
 import { AppleCallHistoryExtractor, CallHistoryTransformer } from '../dist/index.js';
 import { writeCallHistoryFixture, writeContactsFixture } from './fixture.test-helper.js';
 

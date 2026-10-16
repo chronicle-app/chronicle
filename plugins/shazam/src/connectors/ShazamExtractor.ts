@@ -7,7 +7,7 @@ import {
   timeRangeConditions,
   unixToSafariTimestamp,
 } from '@chronicle.app/etl-sqlite';
-import { getICloudAccount } from '@chronicle.app/icloud';
+import { getICloudAccount } from '@chronicle.app/apple';
 import { z } from 'zod';
 import { AppleMusicLookup, LOOKUP_BATCH, countryOf, type AppleMusicArtist } from '../appleMusic.js';
 import { unarchive } from '../archive.js';

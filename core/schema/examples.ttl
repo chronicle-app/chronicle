@@ -3346,8 +3346,8 @@ example:github-issue-closed
 You closed Riley's issue as done. An issue is a :Task filed against its
 :Repository, which it :isPartOf, so closing it as completed is a
 :CompleteAction; closing it as not planned would be a :CancelAction. Accounts
-are keyed by their numeric GitHub id, the repository by its owner (its
-:creator) and its :name, the issue by its repository and its number (its
+are keyed by their numeric GitHub id, the repository by its owner's login and
+its own name (both :handle), the issue by its repository and its number (its
 :handle), and the closing by its GitHub node id.
 """;
   rdf:value [
@@ -3367,15 +3367,16 @@ are keyed by their numeric GitHub id, the repository by its owner (its
     ];
     :object [
       a :Task;
-      doc:key ("@type" "source" "isPartOf.creator.sourceId" "isPartOf.name" "handle");
+      doc:key ("@type" "source" "isPartOf.creator.handle" "isPartOf.handle" "handle");
       :source "github";
       :handle "4";
       :url "https://github.com/trailco/trails/issues/4";
       :name "Trail signs are faded";
       :isPartOf [
         a :Repository;
-        doc:key ("@type" "source" "creator.sourceId" "name");
+        doc:key ("@type" "source" "creator.handle" "handle");
         :source "github";
+        :handle "trails";
         :url "https://github.com/trailco/trails";
         :name "trails";
         :creator [

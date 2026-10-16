@@ -13,7 +13,7 @@ import {
   MusicGroup,
   MusicRecording,
 } from '@chronicle.app/schema';
-import { buildICloudPersonSchema } from '@chronicle.app/icloud';
+import { buildICloudPersonSchema } from '@chronicle.app/apple';
 import type { Shazam } from './ShazamExtractor.js';
 
 const SOURCE = 'shazam';

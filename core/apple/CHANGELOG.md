@@ -1,4 +1,4 @@
-# @chronicle.app/icloud
+# @chronicle.app/apple
 
 ## 0.4.0
 

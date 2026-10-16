@@ -6,7 +6,7 @@ import {
   unixToSafariTimestamp,
   iterateRows,
 } from '@chronicle.app/etl-sqlite';
-import { getICloudAccount } from '@chronicle.app/icloud';
+import { getICloudAccount } from '@chronicle.app/apple';
 import { z } from 'zod';
 import SafariTransformer from './SafariTransformer.js';
 

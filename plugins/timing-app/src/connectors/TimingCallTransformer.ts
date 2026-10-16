@@ -5,7 +5,7 @@ import {
   CallAction,
   CallSession,
 } from '@chronicle.app/schema';
-import { lookupContact, lookupContactByName, type Contact } from '@chronicle.app/icloud';
+import { lookupContact, lookupContactByName, type Contact } from '@chronicle.app/apple';
 
 // The call UUID is Apple's (relayed through Timing's Event.origin_id), so calls
 // key on `apple-call-history` + UUID and fold with the Apple Call History plugin's calls.
