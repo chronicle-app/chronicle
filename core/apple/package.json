@@ -1,5 +1,5 @@
 {
-  "name": "@chronicle.app/icloud",
+  "name": "@chronicle.app/apple",
   "version": "0.4.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -17,7 +17,7 @@
   "author": "Andrew Louis",
   "license": "MIT",
   "type": "module",
-  "description": "Local iCloud account and AddressBook lookup",
+  "description": "Apple data on a Mac: your Apple Account, Contacts, and property lists",
   "devDependencies": {
     "@chronicle.app/etl": "0.4.0",
     "@chronicle.app/schema": "0.4.0",
@@ -29,7 +29,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/chronicle-app/chronicle.git",
-    "directory": "core/icloud"
+    "directory": "core/apple"
   },
   "publishConfig": {
     "access": "public",

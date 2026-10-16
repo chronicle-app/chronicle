@@ -17,7 +17,7 @@
       "path": "../../core/etl-sqlite/tsconfig.lib.json"
     },
     {
-      "path": "../../core/icloud/tsconfig.lib.json"
+      "path": "../../core/apple/tsconfig.lib.json"
     }
   ]
 }

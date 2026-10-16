@@ -39,7 +39,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "dependencies": {
-    "@chronicle.app/icloud": "0.4.0",
+    "@chronicle.app/apple": "0.4.0",
     "zod": "^3.24.1"
   },
   "peerDependencies": {

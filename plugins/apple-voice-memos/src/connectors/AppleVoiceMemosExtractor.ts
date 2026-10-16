@@ -9,7 +9,7 @@ import {
   timeRangeConditions,
   unixToSafariTimestamp,
 } from '@chronicle.app/etl-sqlite';
-import { getICloudAccount } from '@chronicle.app/icloud';
+import { getICloudAccount } from '@chronicle.app/apple';
 import { z } from 'zod';
 import { readRecordingMetadata } from '../mp4.js';
 import { parseTranscript, type Transcript } from '../transcript.js';

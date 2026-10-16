@@ -1,6 +1,6 @@
 import { ChronicleTransformer, Record } from '@chronicle.app/etl';
 import { ActionAndChildren, EatAction, DrinkAction, Meal, Agent } from '@chronicle.app/schema';
-import { buildICloudPersonSchema, type ICloudAccount } from '@chronicle.app/icloud';
+import { buildICloudPersonSchema, type ICloudAccount } from '@chronicle.app/apple';
 
 /**
  * Conservative seed list of common beverages, matched whole-word against an

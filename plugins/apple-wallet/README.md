@@ -48,7 +48,7 @@ Transactions come out newest first, and `--since` and `--until` bound when each 
 
 **Where, when Wallet knows.** An issuer's transaction carries no location. A transaction made with Apple Pay on the Mac can carry the device's fix and a locality, which become the action's `location`. A device without a fix records 0, 0, which is left out.
 
-**The agent is your iCloud account,** whose Wallet this is, from `@chronicle.app/icloud`. It's omitted when no account can be read. An explicit `account` object (or null) describes a copied store without a host account lookup.
+**The agent is your iCloud account,** whose Wallet this is, from `@chronicle.app/apple`. It's omitted when no account can be read. An explicit `account` object (or null) describes a copied store without a host account lookup.
 
 **Passes aren't read.** Boarding passes, tickets, and the other passes in the same store are left for a record type of their own.
 
