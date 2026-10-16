@@ -1,5 +1,5 @@
 import { ChronicleTransformer, Record, reference, selfAgent } from '@chronicle.app/etl';
-import { buildICloudPersonSchema } from '@chronicle.app/icloud';
+import { buildICloudPersonSchema } from '@chronicle.app/apple';
 import {
   ActionAndChildren,
   Device,

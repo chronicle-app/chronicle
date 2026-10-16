@@ -1,5 +1,5 @@
 import { Extractor, Record } from '@chronicle.app/etl';
-import { getICloudAccount } from '@chronicle.app/icloud';
+import { getICloudAccount } from '@chronicle.app/apple';
 import { z } from 'zod';
 import { type HealthDevice, parseDevice } from '../device.js';
 import {

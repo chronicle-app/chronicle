@@ -57,7 +57,7 @@ There are three kinds. Apple Health declares no default kinds: a bare `chronicle
 
 **Values are in the units the vocabulary defines.** Heart rates are in beats per minute, heart rate variability in milliseconds, blood oxygen as a fraction from 0 to 1, temperatures in degrees Celsius, and blood pressure in millimeters of mercury. A sleeping wrist temperature in degrees Fahrenheit is converted. A sample in a unit there's no conversion for is left out, and the run's summary says how many.
 
-**You are your iCloud account.** The export doesn't say whose it is, so it's taken to be the iCloud account signed in on this Mac, from `@chronicle.app/icloud`. An explicit `account` object describes someone else's export. With no account, or `account` set to null, you are Health's own record of you, keyed by `source` alone.
+**You are your iCloud account.** The export doesn't say whose it is, so it's taken to be the iCloud account signed in on this Mac, from `@chronicle.app/apple`. An explicit `account` object describes someone else's export. With no account, or `account` set to null, you are Health's own record of you, keyed by `source` alone.
 
 **Left out:** heart rate variability's beat-by-beat values, the motion context of a heart rate (sedentary or active), low and high heart rate notifications, workouts and their routes, activity rings, steps, distance, energy, food, and the other types Health keeps. `export_cda.xml` is a clinical-format copy of the same data and isn't read.
 
