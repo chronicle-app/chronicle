@@ -1,5 +1,14 @@
 # @chronicle.app/whatsapp
 
+## 0.5.0
+
+### Patch Changes
+
+- 27ce35d: `@chronicle.app/icloud` is now `@chronicle.app/apple`, since it reads Apple data on a Mac beyond iCloud: the Apple Account signed in, AddressBook contacts, and now binary property lists. Its exports are unchanged, and records still name the Apple Account `icloud`, so every identity stays the same. It adds `parseBinaryPlist` and `Uid`, which read a binary property list such as an NSKeyedArchiver archive; the Shazam plugin, which had its own, now uses them. The plugins that used `@chronicle.app/icloud` depend on `@chronicle.app/apple` instead.
+- Updated dependencies [27ce35d]
+  - @chronicle.app/apple@0.5.0
+  - @chronicle.app/etl-sqlite@0.5.0
+
 ## 0.4.0
 
 ### Patch Changes

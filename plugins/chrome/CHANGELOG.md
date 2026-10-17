@@ -1,5 +1,12 @@
 # @chronicle.app/chrome
 
+## 0.5.0
+
+### Patch Changes
+
+- @chronicle.app/google@0.5.0
+  - @chronicle.app/etl-sqlite@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes

@@ -1,5 +1,11 @@
 # @chronicle.app/zotero
 
+## 0.5.0
+
+### Patch Changes
+
+- @chronicle.app/etl-sqlite@0.5.0
+
 ## 0.4.0
 
 ### Patch Changes
