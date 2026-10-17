@@ -78,6 +78,12 @@
           "darwin"
         ]
       }
+    },
+    "deepLinks": {
+      "apple-photos": {
+        "ImageObject": "photos:search?searchTerm={handle}",
+        "VideoObject": "photos:search?searchTerm={handle}"
+      }
     }
   }
 }
