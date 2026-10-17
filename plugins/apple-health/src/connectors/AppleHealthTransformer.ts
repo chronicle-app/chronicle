@@ -27,7 +27,8 @@ interface Measurer {
  * The export gives nothing an ID, so each record is keyed by what it says:
  * when, by what, and what was measured or slept.
  *
- *   heart, vitals: MeasureAction  agent: you   object: you { heartRate, … }
+ *   heart, respiratory, body-measurements:
+ *          MeasureAction  agent: you   object: you { heartRate, … }
  *                    timestamp, or startTime and endTime for a value over a period
  *                    instrument: Device (the name it goes by in Health)
  *                                or SoftwareApplication (an app)
@@ -47,7 +48,8 @@ export default class AppleHealthTransformer extends ChronicleTransformer {
       (await buildICloudPersonSchema(record.context.account)) ?? selfAgent({ source: SOURCE });
     switch (record.extraction.recordType) {
       case 'heart':
-      case 'vitals':
+      case 'respiratory':
+      case 'body-measurements':
         return [measure(record.data as Reading, you)];
       case 'sleep':
         return sleep(record.data as SleepPeriod & Measurer, you);

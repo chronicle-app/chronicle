@@ -22,7 +22,7 @@
   "author": "Andrew Louis",
   "license": "MIT",
   "type": "module",
-  "description": "Chronicle plugin for your heart readings, sleep, and vitals, from the export the Health app makes",
+  "description": "Chronicle plugin for your heart, respiratory, and body readings, and your sleep, from the export the Health app makes",
   "devDependencies": {
     "@chronicle.app/etl": "0.4.0",
     "@chronicle.app/schema": "0.4.0",
@@ -67,9 +67,10 @@
           "archive": {
             "delivery": "export",
             "recordTypes": [
+              "body-measurements",
               "heart",
-              "sleep",
-              "vitals"
+              "respiratory",
+              "sleep"
             ]
           }
         }

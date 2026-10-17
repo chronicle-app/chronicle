@@ -5,9 +5,10 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { renderShapes, sampleTransform, shapesOf } from '@chronicle.app/etl';
 import {
+  AppleHealthBodyMeasurementsExtractor,
   AppleHealthHeartExtractor,
+  AppleHealthRespiratoryExtractor,
   AppleHealthSleepExtractor,
-  AppleHealthVitalsExtractor,
 } from '../dist/index.js';
 import { account, writeHealthExport } from './fixture.test-helper.js';
 
@@ -21,8 +22,9 @@ test('SHAPES.md describes what every record type becomes', async t => {
   const samples = [];
   for (const Extractor of [
     AppleHealthHeartExtractor,
+    AppleHealthRespiratoryExtractor,
+    AppleHealthBodyMeasurementsExtractor,
     AppleHealthSleepExtractor,
-    AppleHealthVitalsExtractor,
   ]) {
     samples.push(...(await sampleTransform(new Extractor({ input, account, limit: 0 }))));
   }

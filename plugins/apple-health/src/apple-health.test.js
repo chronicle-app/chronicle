@@ -6,12 +6,13 @@ import { test } from 'node:test';
 import { writeZip } from '@chronicle.app/etl';
 import { METRIC_PROPERTIES } from '@chronicle.app/schema';
 import {
+  AppleHealthBodyMeasurementsExtractor,
   AppleHealthHeartExtractor,
+  AppleHealthRespiratoryExtractor,
   AppleHealthSleepExtractor,
   AppleHealthTransformer,
-  AppleHealthVitalsExtractor,
 } from '../dist/index.js';
-import { BLOOD_PRESSURE_PARTS, HEART, VITALS } from '../dist/readings.js';
+import { READING_TYPES } from '../dist/readings.js';
 import { OLD_WATCH, PHONE, WATCH, account, writeHealthExport } from './fixture.test-helper.js';
 
 function fixture(t) {
@@ -105,6 +106,7 @@ test('heart readings become MeasureActions on you, keyed by what they say', asyn
       // The inconclusive ECG says nothing about the rhythm, so only one is here.
       ['2025-01-20T17:04:55.000Z', { heartRhythm: 'Sinus Rhythm' }],
       ['2025-01-15T22:35:00.000Z', { heartRateRecovery: 31 }],
+      ['2025-01-15T15:58:00.000Z', { systolicBloodPressure: 118, diastolicBloodPressure: 76 }],
       ['2025-01-15T12:00:00.000Z', { heartRate: 72 }],
       ['2025-01-15T12:00:00.000Z', { heartRate: 72 }],
       ['2025-01-15T12:00:00.000Z', { heartRate: 74 }],
@@ -136,7 +138,7 @@ test('heart readings become MeasureActions on you, keyed by what they say', asyn
 
   // A reading is keyed by when it was taken, by what, and what it measured. An
   // exact duplicate has the same key. A different value at the same instant doesn't.
-  const [, ecg, , first, duplicate, other] = actions;
+  const [ecg, first, duplicate, other] = [1, 4, 5, 6].map(index => actions[index]);
   assert.deepEqual(keyOf(first), [
     ['@type', ['MeasureAction']],
     ['source', ['apple-health']],
@@ -146,13 +148,13 @@ test('heart readings become MeasureActions on you, keyed by what they say', asyn
   ]);
   assert.deepEqual(keyOf(first), keyOf(duplicate));
   assert.notDeepEqual(keyOf(first), keyOf(other));
-  assert.deepEqual(keyOf(actions[7]).slice(2), [
+  assert.deepEqual(keyOf(actions[8]).slice(2), [
     ['startTime', ['2025-01-15T04:00:00.000Z']],
     ['endTime', ['2025-01-16T03:59:00.000Z']],
     ['instrument[*].handle', [WATCH]],
     ['object.restingHeartRate', [58]],
   ]);
-  assert.notDeepEqual(keyOf(actions[7]), keyOf(actions[8]));
+  assert.notDeepEqual(keyOf(actions[8]), keyOf(actions[9]));
   // An ECG names no source.
   assert.deepEqual(keyOf(ecg).slice(2), [
     ['timestamp', ['2025-01-20T17:04:55.000Z']],
@@ -166,7 +168,7 @@ test('heart readings become MeasureActions on you, keyed by what they say', asyn
   assert.deepEqual(instruments(first), watch);
   assert.deepEqual(instruments(other), watch);
   assert.deepEqual(instruments(actions[0]), watch);
-  assert.deepEqual(instruments(actions[7]), watch);
+  assert.deepEqual(instruments(actions[8]), watch);
   assert.deepEqual(first.instrument[0], {
     '@type': 'Device',
     '@key': ['@type', 'source', 'handle'],
@@ -176,8 +178,8 @@ test('heart readings become MeasureActions on you, keyed by what they say', asyn
     model: 'Watch7,1',
   });
   // An app is named by its name. The watch's earlier name is another device.
-  assert.deepEqual(instruments(actions[10]), [['SoftwareApplication', 'Pulse Pal']]);
-  assert.deepEqual(instruments(actions[9]), [['Device', OLD_WATCH, 'Watch7,1']]);
+  assert.deepEqual(instruments(actions[11]), [['SoftwareApplication', 'Pulse Pal']]);
+  assert.deepEqual(instruments(actions[10]), [['Device', OLD_WATCH, 'Watch7,1']]);
   // An ECG names the watch's model but not the watch.
   assert.deepEqual(ecg.instrument, [
     {
@@ -189,19 +191,23 @@ test('heart readings become MeasureActions on you, keyed by what they say', asyn
   ]);
 });
 
-test('vitals convert to their units, and a blood pressure is one reading with both values', async t => {
-  const { records, events } = await extract(AppleHealthVitalsExtractor, { input: fixture(t) });
-  const actions = await transformAll(records);
-  const values = actions.map(({ object }) => valuesOf(object));
-  assert.deepEqual(values, [
-    { systolicBloodPressure: 118, diastolicBloodPressure: 76 },
-    { oxygenSaturation: 0.97 },
-    { respiratoryRate: 15.5 },
-    // 96.8 °F
-    { sleepingWristTemperature: 36 },
-  ]);
-  assertKeyed(actions);
-  const pressure = actions[0];
+test('readings convert to their units, and a blood pressure is one reading with both values', async t => {
+  const input = fixture(t);
+  const valuesFrom = async (Extractor, config = {}) => {
+    const { records, events } = await extract(Extractor, { input, ...config });
+    const actions = await transformAll(records);
+    assertKeyed(actions);
+    return { actions, events, values: actions.map(({ object }) => valuesOf(object)) };
+  };
+  const respiratory = await valuesFrom(AppleHealthRespiratoryExtractor);
+  assert.deepEqual(respiratory.values, [{ oxygenSaturation: 0.97 }, { respiratoryRate: 15.5 }]);
+  const body = await valuesFrom(AppleHealthBodyMeasurementsExtractor);
+  // 96.8 °F
+  assert.deepEqual(body.values, [{ sleepingWristTemperature: 36 }]);
+
+  const heart = await valuesFrom(AppleHealthHeartExtractor, { series: 'BloodPressure' });
+  assert.deepEqual(heart.values, [{ systolicBloodPressure: 118, diastolicBloodPressure: 76 }]);
+  const pressure = heart.actions[0];
   assert.equal(pressure.timestamp, '2025-01-15T15:58:00.000Z');
   assert.deepEqual(keyOf(pressure).slice(2), [
     ['timestamp', ['2025-01-15T15:58:00.000Z']],
@@ -212,13 +218,13 @@ test('vitals convert to their units, and a blood pressure is one reading with bo
   assert.deepEqual(instruments(pressure), [['SoftwareApplication', 'Health']]);
 
   // A sample in a unit there's no conversion for is left out, and the run says so.
-  const hints = events.filter(event => event.kind === 'hint');
+  const hints = body.events.filter(event => event.kind === 'hint');
   assert.equal(hints.length, 1);
   assert.match(hints[0].message, /^1 sample was left out/);
 });
 
 test('every value Health measures is a gauge in the vocabulary, so it has a unit', () => {
-  for (const { property } of Object.values({ ...HEART, ...VITALS, ...BLOOD_PRESSURE_PARTS })) {
+  for (const { property } of Object.values(READING_TYPES)) {
     assert.equal(METRIC_PROPERTIES[property]?.metric, 'gauge', property);
   }
 });
@@ -310,7 +316,7 @@ test('since, until, and limit pick the newest readings by when they started', as
     const { records } = await extract(AppleHealthHeartExtractor, { input, ...config });
     return records.map(record => Object.values(record.data.values)[0]);
   };
-  assert.deepEqual(await values(window), ['Sinus Rhythm', 31, 72, 72, 74]);
+  assert.deepEqual(await values(window), ['Sinus Rhythm', 31, 118, 72, 72, 74]);
   assert.deepEqual(await values({ ...window, limit: 2 }), ['Sinus Rhythm', 31]);
 
   const { records } = await extract(AppleHealthSleepExtractor, {
@@ -320,6 +326,56 @@ test('since, until, and limit pick the newest readings by when they started', as
   assert.deepEqual(
     records.map(record => record.data.start),
     ['2025-01-15T18:00:00.000Z']
+  );
+});
+
+test('a series narrows a kind to it, and a kind with none of the series reads nothing', async t => {
+  const input = fixture(t);
+  const read = async (Extractor, series) => {
+    const { records } = await extract(Extractor, { input, series });
+    return records.map(record => Object.keys(record.data.values ?? { sleep: true }));
+  };
+  assert.deepEqual(await read(AppleHealthHeartExtractor, 'RestingHeartRate'), [
+    ['restingHeartRate'],
+  ]);
+  // Names match whatever their case, with or without HealthKit's prefix.
+  assert.deepEqual(
+    await read(
+      AppleHealthHeartExtractor,
+      'restingheartrate, HKQuantityTypeIdentifierHeartRateRecoveryOneMinute'
+    ),
+    [['heartRateRecovery'], ['restingHeartRate']]
+  );
+  assert.deepEqual(await read(AppleHealthHeartExtractor, 'Electrocardiogram'), [['heartRhythm']]);
+
+  // A run of several kinds passes each the same series, and each reads its own.
+  const series = 'RespiratoryRate,SleepAnalysis';
+  assert.deepEqual(await read(AppleHealthHeartExtractor, series), []);
+  assert.deepEqual(await read(AppleHealthRespiratoryExtractor, series), [['respiratoryRate']]);
+  assert.equal((await read(AppleHealthSleepExtractor, series)).length, 4);
+
+  // A kind with none of the series doesn't read the export, even a broken one.
+  const broken = join(dirname(input), 'broken');
+  mkdirSync(broken);
+  writeFileSync(join(broken, 'export.xml'), '<HealthData><Record type=');
+  await assert.rejects(extract(AppleHealthRespiratoryExtractor, { input: broken }));
+  const skipped = await extract(AppleHealthRespiratoryExtractor, {
+    input: broken,
+    series: 'SleepAnalysis',
+  });
+  assert.deepEqual(skipped.records, []);
+
+  await assert.rejects(
+    extract(AppleHealthHeartExtractor, { input, series: 'RestingHeartRate,Steps' }),
+    error => {
+      assert.equal(error.code, 'unknown-series');
+      assert.match(error.message, /no series "Steps"/);
+      assert.match(
+        error.hint,
+        /heart: HeartRate, .*; respiratory: RespiratoryRate, OxygenSaturation;/
+      );
+      return true;
+    }
   );
 });
 
@@ -352,7 +408,7 @@ test('the export reads the same zipped as unzipped, however it is passed', async
   assert.ok(unzipped.some(record => record.data.type === 'Electrocardiogram'));
 
   for (const input of [folder, dirname(folder), join(folder, 'export.xml'), zip, downloads]) {
-    const { records } = await extract(AppleHealthVitalsExtractor, { input, limit: 1 });
+    const { records } = await extract(AppleHealthRespiratoryExtractor, { input, limit: 1 });
     assert.equal(records.length, 1, input);
   }
 
@@ -363,7 +419,7 @@ test('the export reads the same zipped as unzipped, however it is passed', async
     join(dirname(folder), 'missing'),
     join(folder, 'electrocardiograms'),
   ]) {
-    await assert.rejects(extract(AppleHealthVitalsExtractor, { input }), error => {
+    await assert.rejects(extract(AppleHealthRespiratoryExtractor, { input }), error => {
       assert.equal(error.code, 'input-not-found', input);
       // A missing path names the path. Anything else also says what to pass.
       if (!input.endsWith('missing')) assert.match(error.hint ?? '', /--input/, input);

@@ -1,8 +1,7 @@
-import { type HealthSample, readExport } from '../health.js';
+import type { HealthSample } from '../health.js';
+import { SLEEP } from '../readings.js';
 import { groupSleep } from '../sleep.js';
 import AppleHealthExtractor, { type Found } from './AppleHealthExtractor.js';
-
-const SLEEP = new Set(['HKCategoryTypeIdentifierSleepAnalysis']);
 
 /**
  * Nights and naps, each with its stages. The export doesn't keep a source's
@@ -14,7 +13,7 @@ export default class AppleHealthSleepExtractor extends AppleHealthExtractor {
 
   protected async *read(): AsyncGenerator<Found> {
     const samples: HealthSample[] = [];
-    for await (const element of readExport(this.health, { records: SLEEP })) {
+    for await (const element of this.elements([SLEEP])) {
       if (element.kind === 'record') samples.push(element.sample);
     }
     for (const { sourceName, timeZone, start, end, stages } of groupSleep(samples)) {

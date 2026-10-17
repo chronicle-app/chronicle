@@ -1,4 +1,5 @@
 import type { HealthDevice } from './device.js';
+import { shortType } from './health.js';
 
 /** A measurement, ready to become a MeasureAction. */
 export interface Reading {
@@ -49,12 +50,15 @@ export const HEART: { [type: string]: ReadingType } = {
   },
 };
 
-export const VITALS: { [type: string]: ReadingType } = {
+export const RESPIRATORY: { [type: string]: ReadingType } = {
   HKQuantityTypeIdentifierRespiratoryRate: {
     property: 'respiratoryRate',
     units: { 'count/min': same },
   },
   HKQuantityTypeIdentifierOxygenSaturation: { property: 'oxygenSaturation', units: { '%': same } },
+};
+
+export const BODY_MEASUREMENTS: { [type: string]: ReadingType } = {
   HKQuantityTypeIdentifierAppleSleepingWristTemperature: {
     property: 'sleepingWristTemperature',
     units: { degC: same, degF: fahrenheit },
@@ -88,6 +92,28 @@ export function convert(
   if (!toCanonical || !Number.isFinite(number)) return null;
   return toCanonical(number);
 }
+
+/** Every type a Health reading can come from, by the property its value becomes. */
+export const READING_TYPES = {
+  ...HEART,
+  ...RESPIRATORY,
+  ...BODY_MEASUREMENTS,
+  ...BLOOD_PRESSURE_PARTS,
+};
+
+export const SLEEP = 'HKCategoryTypeIdentifierSleepAnalysis';
+export const ELECTROCARDIOGRAM = 'Electrocardiogram';
+
+/**
+ * Each kind, by the series it reads: Health's types, without their prefix,
+ * grouped as the Health app groups them.
+ */
+export const SERIES: { [kind: string]: string[] } = {
+  heart: [...Object.keys(HEART), BLOOD_PRESSURE, ELECTROCARDIOGRAM].map(type => shortType(type)),
+  respiratory: Object.keys(RESPIRATORY).map(type => shortType(type)),
+  'body-measurements': Object.keys(BODY_MEASUREMENTS).map(type => shortType(type)),
+  sleep: [shortType(SLEEP)],
+};
 
 // The ECG classifications that name a rhythm. Others, such as `Inconclusive`
 // or `Poor Recording`, say the recording couldn't tell.

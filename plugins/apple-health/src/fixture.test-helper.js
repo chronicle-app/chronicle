@@ -74,12 +74,12 @@ const ecg = (date, classification) =>
  * an exact duplicate, a different value at the same instant, a reading over a
  * period, one from an app, and one from the watch under its earlier name. A
  * resting heart rate whose sample doesn't describe the watch. HRV with its
- * beat list, walking heart rate, and recovery. ECGs: one sinus rhythm, one
- * inconclusive.
+ * beat list, walking heart rate, and recovery. A blood pressure correlation
+ * whose two values the export repeats as separate samples. ECGs: one sinus
+ * rhythm, one inconclusive.
  *
- * Vitals: respiratory rate, blood oxygen, a wrist temperature in °F, one in an
- * unknown unit, and a blood pressure correlation whose two values the export
- * repeats as separate samples.
+ * Respiratory: respiratory rate and blood oxygen. Body measurements: a wrist
+ * temperature in °F, and one in an unknown unit.
  *
  * Sleep, out of order: a watch night with `in bed` and a stage over the same
  * span, the phone's time in bed over the same night, a nap later that day,

@@ -1,6 +1,6 @@
 # @chronicle.app/apple-health
 
-Your heart readings, sleep, and vitals, from the export the Health app makes.
+Your heart, respiratory, and body readings, and your sleep, from the export the Health app makes.
 
 ## Usage
 
@@ -9,18 +9,24 @@ In the Health app on your iPhone, tap your picture, then Export All Health Data.
 ```sh
 chronicle extract apple-health --input ~/Downloads/export.zip
 chronicle extract apple-health sleep --input ~/Downloads/export.zip --since 2024-01-01
-chronicle extract apple-health -t all --input ~/Downloads/export.zip --limit 0 --stream --output health.json
+chronicle extract apple-health heart --series RestingHeartRate --input ~/Downloads/export.zip
+chronicle extract apple-health all --input ~/Downloads/export.zip --limit 0 --stream --output health.json
 ```
 
 `--input` also takes the `apple_health_export` folder it unzips to, a folder that holds either, or `export.xml`. A zip is read in place, never unpacked to disk.
 
-There are three kinds. Apple Health declares no default kinds: a bare `chronicle extract apple-health` asks which, and outside a terminal says to name them or pass `-t all`.
+There are four kinds, grouped as the Health app groups its data. Apple Health declares no default kinds: a bare `chronicle extract apple-health` asks which, and outside a terminal says to name them. `all` reads every kind. Each kind reads these series:
 
-- `heart`: heart rate, resting heart rate, walking heart rate, heart rate variability, heart rate recovery, and the rhythm each ECG found
-- `sleep`: nights and naps, with their sleep stages
-- `vitals`: respiratory rate, sleeping wrist temperature, blood oxygen, and blood pressure
+| Kind                | Series                                                                                                                                                                                    |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `heart`             | `HeartRate`, `RestingHeartRate`, `WalkingHeartRateAverage`, `HeartRateVariabilitySDNN`, `HeartRateRecoveryOneMinute`, `BloodPressure`, and `Electrocardiogram`, the rhythm each ECG found |
+| `respiratory`       | `RespiratoryRate`, `OxygenSaturation`                                                                                                                                                     |
+| `body-measurements` | `AppleSleepingWristTemperature`                                                                                                                                                           |
+| `sleep`             | `SleepAnalysis`: nights and naps, with their sleep stages                                                                                                                                 |
 
-`export.xml` holds everything Health keeps and can be several gigabytes. It's streamed, and each kind reads it once. A run also reads it once more to learn which sources are devices. Records come out newest first. The file keeps no useful order, so each kind holds what it reads, in a compact form, until it has read all of it. A whole export can be a million readings or more, so use `--stream` to write each record as it comes rather than holding every record until the end. `--since` and `--until` bound when each reading or sleep period started, and `--limit` keeps the newest.
+`--series` reads only the series it names, comma-separated, from whichever kinds the run reads, such as `heart --series RestingHeartRate` or `all --series RestingHeartRate,RespiratoryRate`. A series is Health's name for a type without HealthKit's prefix, in any case. A name that isn't a series fails, listing them.
+
+`export.xml` holds everything Health keeps and can be several gigabytes. It's streamed, and each kind reads it once, or not at all when the run reads none of its series from it. A run that reads it also reads it once more to learn which sources are devices. Records come out newest first. The file keeps no useful order, so each kind holds what it reads, in a compact form, until it has read all of it. A whole export can be a million readings or more, so use `--stream` to write each record as it comes rather than holding every record until the end. `--since` and `--until` bound when each reading or sleep period started, and `--limit` keeps the newest.
 
 ## Schema
 
@@ -41,7 +47,7 @@ There are three kinds. Apple Health declares no default kinds: a bare `chronicle
 
 ### Decisions
 
-**A reading is a `MeasureAction` on you.** You're its `agent` and its `object`, and the value measured is a property of you, such as your `heartRate`. Each value property is marked `metric` in the vocabulary. A reading taken at an instant has a `timestamp`. One over a period, such as a day's resting heart rate, has a `startTime` and `endTime`.
+**A reading is a `MeasureAction` on you.** You're its `agent` and its `object`, and the value measured is a property of you, such as your `heartRate`. Each value property is a gauge in the vocabulary, with the unit its values are in. A reading taken at an instant has a `timestamp`. One over a period, such as a day's resting heart rate, has a `startTime` and `endTime`.
 
 **Records are keyed by what they say.** The export gives samples no IDs, and Chronicle doesn't make them up, so a reading is keyed by its own fields: when it was taken, the names of its instruments (`instrument[*].handle`: the device or app), and the value it measured, by the property it's on, such as `object.heartRate`. A sample the export repeats exactly has the same key. Two different values from one device at the same instant are two readings. Each new export repeats everything, so the same reading keeps its key from one export to the next. A night, and each of its stages, is keyed by its times and its source, and a stage also by the stage.
 

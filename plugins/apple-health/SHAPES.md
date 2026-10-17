@@ -13,11 +13,33 @@ converted from the record. Every node also has `source`.
 ## heart
 
 ```ts
-MeasureAction key(startTime, endTime, instrument[*].handle, object.heartRate) / key(timestamp, object.heartRhythm) / key(timestamp, instrument[*].handle, object.heartRateRecovery) / key(timestamp, instrument[*].handle, object.heartRate) / key(startTime, endTime, instrument[*].handle, object.heartRateVariability) / key(startTime, endTime, instrument[*].handle, object.restingHeartRate) / key(startTime, endTime, instrument[*].handle, object.walkingHeartRate) {
+MeasureAction key(startTime, endTime, instrument[*].handle, object.heartRate) / key(timestamp, object.heartRhythm) / key(timestamp, instrument[*].handle, object.heartRateRecovery) / key(timestamp, instrument[*].handle, object.systolicBloodPressure, object.diastolicBloodPressure) / key(timestamp, instrument[*].handle, object.heartRate) / key(startTime, endTime, instrument[*].handle, object.heartRateVariability) / key(startTime, endTime, instrument[*].handle, object.restingHeartRate) / key(startTime, endTime, instrument[*].handle, object.walkingHeartRate) {
   startTime?, endTime?, timestamp?
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
-  object: Person key(sourceId) { sourceId, handle, sameAs[], heartRate?, heartRhythm?, heartRateRecovery?, heartRateVariability?, restingHeartRate?, walkingHeartRate? }
+  object: Person key(sourceId) { sourceId, handle, sameAs[], heartRate?, heartRhythm?, heartRateRecovery?, systolicBloodPressure?, diastolicBloodPressure?, heartRateVariability?, restingHeartRate?, walkingHeartRate? }
   instrument[]: Device | ProductModel | SoftwareApplication key(handle) / key(sourceId) { handle?, name?, model?, sourceId? }
+}
+```
+
+## respiratory
+
+```ts
+MeasureAction key(timestamp, instrument[*].handle, object.oxygenSaturation) / key(startTime, endTime, instrument[*].handle, object.respiratoryRate) {
+  timestamp?, startTime?, endTime?
+  agent: Person key(sourceId) { sourceId, handle, sameAs[] }
+  object: Person key(sourceId) { sourceId, handle, sameAs[], oxygenSaturation?, respiratoryRate? }
+  instrument[]: Device key(handle) { handle, name, model }
+}
+```
+
+## body-measurements
+
+```ts
+MeasureAction key(startTime, endTime, instrument[*].handle, object.sleepingWristTemperature) {
+  startTime, endTime
+  agent: Person key(sourceId) { sourceId, handle, sameAs[] }
+  object: Person key(sourceId) { sourceId, handle, sameAs[], sleepingWristTemperature }
+  instrument[]: Device key(handle) { handle, name, model }
 }
 ```
 
@@ -44,16 +66,5 @@ ExperienceAction key(startTime, endTime, instrument[*].handle, result.category) 
       }
     }
   }
-}
-```
-
-## vitals
-
-```ts
-MeasureAction key(timestamp, instrument[*].handle, object.systolicBloodPressure, object.diastolicBloodPressure) / key(timestamp, instrument[*].handle, object.oxygenSaturation) / key(startTime, endTime, instrument[*].handle, object.respiratoryRate) / key(startTime, endTime, instrument[*].handle, object.sleepingWristTemperature) {
-  timestamp?, startTime?, endTime?
-  agent: Person key(sourceId) { sourceId, handle, sameAs[] }
-  object: Person key(sourceId) { sourceId, handle, sameAs[], systolicBloodPressure?, diastolicBloodPressure?, oxygenSaturation?, respiratoryRate?, sleepingWristTemperature? }
-  instrument[]: SoftwareApplication | Device key(handle) { handle, name, model? }
 }
 ```

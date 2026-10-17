@@ -1,16 +1,19 @@
 import { Extractor, Record } from '@chronicle.app/etl';
 import { getICloudAccount } from '@chronicle.app/apple';
+import { EXIT_CODES, ExtractorError } from '@chronicle.app/logging';
 import { z } from 'zod';
 import { type HealthDevice, parseDevice } from '../device.js';
 import {
+  type HealthElement,
   type HealthExport,
   type HealthSample,
   instant,
   locateExport,
+  readExport,
   shortType,
   sourceDevices,
 } from '../health.js';
-import { convert, type ReadingType } from '../readings.js';
+import { BLOOD_PRESSURE_PARTS, convert, type ReadingType, SERIES } from '../readings.js';
 import AppleHealthTransformer from './AppleHealthTransformer.js';
 
 /**
@@ -33,6 +36,12 @@ export default abstract class AppleHealthExtractor extends Extractor<typeof Appl
       .describe(
         'Path to the Health export: export.zip, the folder it unzips to, or its export.xml'
       ),
+    series: z
+      .string()
+      .optional()
+      .describe(
+        'Only these series, comma-separated, such as RestingHeartRate,RespiratoryRate. Each is read by its kind'
+      ),
     account: z
       .object({
         accountID: z.string(),
@@ -47,6 +56,8 @@ export default abstract class AppleHealthExtractor extends Extractor<typeof Appl
   protected health!: HealthExport;
   protected devices = new Map<string, HealthDevice>();
   private account: unknown = null;
+  // The series of this kind the run reads, by Health's type without its prefix.
+  private series = new Set<string>();
   // Each device description parsed once. The same device's descriptions differ only by an address.
   private parsed = new Map<string, HealthDevice | null>();
   // What many readings have in common, such as their type and source, or their
@@ -59,10 +70,11 @@ export default abstract class AppleHealthExtractor extends Extractor<typeof Appl
   override async setup(): Promise<void> {
     await super.setup();
     this.health = await locateExport(this.config.input);
+    const kind = (this.constructor as typeof AppleHealthExtractor).recordTypes[0];
+    this.series = seriesOf(kind, this.config.series);
     // The export doesn't say whose it is, so it's taken to be this Mac's iCloud account's.
     this.account =
       this.config.account === undefined ? await getICloudAccount() : this.config.account;
-    this.devices = await sourceDevices(this.health);
   }
 
   override async teardown(): Promise<void> {
@@ -94,6 +106,58 @@ export default abstract class AppleHealthExtractor extends Extractor<typeof Appl
 
   /** What this kind finds in the export, in the order it's read. */
   protected abstract read(): AsyncGenerator<Found>;
+
+  /** Whether the run reads a type, given by Health's identifier for it or as a series. */
+  protected wants(type: string): boolean {
+    return this.series.has(shortType(type));
+  }
+
+  /**
+   * The export's samples and correlations of the types the run reads, once the
+   * export's devices are known. When it reads none of them, the export isn't read.
+   */
+  protected async *elements(
+    records: string[],
+    correlations: string[] = []
+  ): AsyncGenerator<HealthElement> {
+    const wanted = {
+      records: new Set(records.filter(type => this.wants(type))),
+      correlations: new Set(correlations.filter(type => this.wants(type))),
+    };
+    if (wanted.records.size === 0 && wanted.correlations.size === 0) return;
+    this.devices = await sourceDevices(this.health);
+    yield* readExport(this.health, wanted);
+  }
+
+  /**
+   * A reading for each sample of a type in `table`, and for each correlation,
+   * such as a blood pressure. A correlation is one reading with all its values,
+   * timed and sourced as the correlation is. The export repeats its values as
+   * separate samples, which aren't read.
+   */
+  protected async *readingsOf(
+    table: { [type: string]: ReadingType },
+    correlations: string[] = []
+  ): AsyncGenerator<Found> {
+    for await (const element of this.elements(Object.keys(table), correlations)) {
+      if (element.kind === 'record') {
+        const { sample } = element;
+        const reading = this.readingOf(sample, table[sample.type], this.deviceOf(sample.device));
+        if (reading) yield reading;
+        continue;
+      }
+      const { correlation } = element;
+      const parts = correlation.samples.flatMap(sample => {
+        const part = BLOOD_PRESSURE_PARTS[sample.type];
+        return part ? [this.readingOf(sample, part, null)] : [];
+      });
+      if (parts.length === 0 || parts.includes(null)) continue;
+      yield {
+        ...this.measuredBy(correlation, this.deviceOf(correlation.device)),
+        values: this.share(Object.assign({}, ...parts.map(part => part!.values))),
+      };
+    }
+  }
 
   /** A record of this extractor's kind, carrying whose export it is. */
   private recordOf(data: unknown): Record {
@@ -180,6 +244,38 @@ export default abstract class AppleHealthExtractor extends Extractor<typeof Appl
       action: 'Their unit isn’t one Chronicle converts yet. Report it so it can be added.',
     });
   }
+}
+
+/**
+ * The series of `kind` a run reads: all of them, or those `--series` names. A
+ * run can read several kinds, so a name can be any kind's series. Names match
+ * whatever their case, and with or without HealthKit's prefix.
+ */
+function seriesOf(kind: string, asked: string | undefined): Set<string> {
+  const names = (asked ?? '')
+    .split(',')
+    .map(name => name.trim())
+    .filter(Boolean);
+  if (names.length === 0) return new Set(SERIES[kind]);
+  const known = new Map(
+    Object.values(SERIES)
+      .flat()
+      .map(name => [name.toLowerCase(), name])
+  );
+  const unknown = names.filter(name => !known.has(shortType(name).toLowerCase()));
+  if (unknown.length > 0) {
+    const listed = Object.entries(SERIES).map(([of, series]) => `${of}: ${series.join(', ')}`);
+    throw new ExtractorError(
+      `Apple Health has no series ${unknown.map(name => `"${name}"`).join(', ')}`,
+      {
+        code: 'unknown-series',
+        exitCode: EXIT_CODES.usage,
+        hint: `The series of each kind are ${listed.join('; ')}.`,
+      }
+    );
+  }
+  const wanted = new Set(names.map(name => known.get(shortType(name).toLowerCase())));
+  return new Set(SERIES[kind].filter(name => wanted.has(name)));
 }
 
 /**
