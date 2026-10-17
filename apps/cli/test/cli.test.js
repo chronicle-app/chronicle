@@ -632,6 +632,41 @@ export class OtherShell extends Extractor {
   assert.doesNotMatch(run('sources', '--format', 'json').stderr, /gone-second/);
 });
 
+test('a run that names no kinds reads those its options ask for', t => {
+  const { dir, run } = fixture(t);
+  writeFileSync(
+    join(dir, 'tally.js'),
+    `import { Extractor, z } from '@chronicle.app/etl';
+class Tally extends Extractor {
+  static source = 'tally'; static strategy = 'local'; static delivery = 'local';
+  static schema = Extractor.schema.extend({ only: z.string().optional() });
+  static kindsFor = config => (config.only ? [config.only] : undefined);
+  async *extract() { yield this.createRecord({ kind: this.constructor.recordTypes[0] }); }
+}
+export class Apples extends Tally { static recordTypes = ['apples']; }
+export class Pears extends Tally { static recordTypes = ['pears']; }`
+  );
+  success(run('plugins', 'add', './tally.js'));
+
+  // Neither kind is a default, so without the option a run must name one.
+  const unnamed = run('extract', 'tally', '--raw');
+  assert.notEqual(unnamed.status, 0);
+  assert.match(unnamed.stderr, /No record types given/);
+  assert.equal(
+    JSON.parse(success(run('extract', 'tally', '--only', 'pears', '--raw'))).kind,
+    'pears'
+  );
+
+  // Kinds named win, and the run says which the option asks for that it leaves out.
+  const output = join(dir, 'apples.json');
+  const named = run('extract', 'tally', 'apples', '--only', 'pears', '--output', output);
+  success(named);
+  const written = readFileSync(output, 'utf8');
+  assert.match(written, /"apples"/);
+  assert.doesNotMatch(written, /"pears"/);
+  assert.match(named.stderr, /The options ask for pears too, which this run doesn't read/);
+});
+
 test('plugins new scaffolds a plugin for the source kind that reads it and passes its smoke test', t => {
   const { dir, run } = fixture(t);
   writeFileSync(join(dir, 'export.csv'), 'Title,Date\nSynthetic row,2024-01-01\n');
