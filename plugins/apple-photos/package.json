@@ -81,8 +81,8 @@
     },
     "deepLinks": {
       "apple-photos": {
-        "ImageObject": "photos:search?searchTerm={handle}",
-        "VideoObject": "photos:search?searchTerm={handle}"
+        "ImageObject": "photos://asset?identifier={sourceId}&cloud-identifier={sourceId}:001",
+        "VideoObject": "photos://asset?identifier={sourceId}&cloud-identifier={sourceId}:001"
       }
     }
   }

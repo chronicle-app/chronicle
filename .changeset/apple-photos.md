@@ -10,6 +10,6 @@ Add the Apple Photos plugin, run as `chronicle extract apple-photos`. It reads y
 - `favorites`: your favorites from before the change log begins, which have no date, as one list of your `likes`, on an `UpdateAction` dated when the library last changed.
 - `shared-with-you`: the photos and videos shared in Messages, from the library Photos keeps of them, each a `ShareAction` keyed by Messages' attachment ID, crediting who sent it from Messages, with the photo `sameAs` the iMessage plugin's attachment.
 
-A photo or video links into Photos with a `deepLinks` template that searches Photos for its file name, since Photos' own link to a photo takes the library's ID rather than iCloud's.
+A photo or video links into Photos by its key, with a `deepLinks` template that opens Photos with it selected.
 
 The vocabulary adds `ScreenshotAction`; `UnlikeAction`, which withdraws a like; `likes`, the entities an agent likes, which a `LikeAction` adds to and an `UnlikeAction` removes from, declared with the new `assertedBy`, `retractedBy`, and `runPredicate` annotations; `ShareAction`, which maps to schema.org's; `depicts`, a person who appears in an image or video; and `aiDescription`, a description of an image or video that an AI model wrote. `caption` applies to a `VideoObject` as well as an `ImageObject`, and `recipient` to a `ShareAction`.
