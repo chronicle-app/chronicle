@@ -9,7 +9,7 @@ In the Health app on your iPhone, tap your picture, then Export All Health Data.
 ```sh
 chronicle extract apple-health --input ~/Downloads/export.zip
 chronicle extract apple-health sleep --input ~/Downloads/export.zip --since 2024-01-01
-chronicle extract apple-health heart --series RestingHeartRate --input ~/Downloads/export.zip
+chronicle extract apple-health --series RestingHeartRate --input ~/Downloads/export.zip
 chronicle extract apple-health all --input ~/Downloads/export.zip --limit 0 --stream --output health.json
 ```
 
@@ -24,7 +24,7 @@ There are four kinds, grouped as the Health app groups its data. Apple Health de
 | `body-measurements` | `AppleSleepingWristTemperature`                                                                                                                                                           |
 | `sleep`             | `SleepAnalysis`: nights and naps, with their sleep stages                                                                                                                                 |
 
-`--series` reads only the series it names, comma-separated, from whichever kinds the run reads, such as `heart --series RestingHeartRate` or `all --series RestingHeartRate,RespiratoryRate`. A series is Health's name for a type without HealthKit's prefix, in any case. A name that isn't a series fails, listing them.
+`--series` reads only the series it names, comma-separated, such as `--series RestingHeartRate,RespiratoryRate`. A run that names no kinds reads the kinds they're in. One that names kinds reads the series among them, and says which kinds the series ask for that it leaves out. A series is Health's name for a type without HealthKit's prefix, in any case. `chronicle extract apple-health --help` lists them, and so does the error for a name that isn't one.
 
 `export.xml` holds everything Health keeps and can be several gigabytes. It's streamed, and each kind reads it once, or not at all when the run reads none of its series from it. A run that reads it also reads it once more to learn which sources are devices. Records come out newest first. The file keeps no useful order, so each kind holds what it reads, in a compact form, until it has read all of it. A whole export can be a million readings or more, so use `--stream` to write each record as it comes rather than holding every record until the end. `--since` and `--until` bound when each reading or sleep period started, and `--limit` keeps the newest.
 

@@ -14,6 +14,11 @@ import {
   sourceDevices,
 } from '../health.js';
 import { BLOOD_PRESSURE_PARTS, convert, type ReadingType, SERIES } from '../readings.js';
+
+// Every kind's series, as `--series` help and its error list them.
+const LISTED = Object.entries(SERIES)
+  .map(([kind, series]) => `${kind}: ${series.join(', ')}`)
+  .join('; ');
 import AppleHealthTransformer from './AppleHealthTransformer.js';
 
 /**
@@ -40,7 +45,7 @@ export default abstract class AppleHealthExtractor extends Extractor<typeof Appl
       .string()
       .optional()
       .describe(
-        'Only these series, comma-separated, such as RestingHeartRate,RespiratoryRate. Each is read by its kind'
+        `Only these series, comma-separated, such as RestingHeartRate,RespiratoryRate. Without a kind, the kinds they're in. The series are ${LISTED}`
       ),
     account: z
       .object({
@@ -52,6 +57,12 @@ export default abstract class AppleHealthExtractor extends Extractor<typeof Appl
       .nullable()
       .optional(),
   }) as any;
+
+  /** The kinds whose series `--series` names, so a run can give series without kinds. */
+  static override kindsFor = (config: { [option: string]: unknown }) =>
+    typeof config.series === 'string' && config.series.trim() !== ''
+      ? Object.keys(SERIES).filter(kind => seriesOf(kind, config.series as string).size > 0)
+      : undefined;
 
   protected health!: HealthExport;
   protected devices = new Map<string, HealthDevice>();
@@ -264,13 +275,12 @@ function seriesOf(kind: string, asked: string | undefined): Set<string> {
   );
   const unknown = names.filter(name => !known.has(shortType(name).toLowerCase()));
   if (unknown.length > 0) {
-    const listed = Object.entries(SERIES).map(([of, series]) => `${of}: ${series.join(', ')}`);
     throw new ExtractorError(
       `Apple Health has no series ${unknown.map(name => `"${name}"`).join(', ')}`,
       {
         code: 'unknown-series',
         exitCode: EXIT_CODES.usage,
-        hint: `The series of each kind are ${listed.join('; ')}.`,
+        hint: `The series are ${LISTED}.`,
       }
     );
   }

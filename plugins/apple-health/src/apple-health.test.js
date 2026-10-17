@@ -377,6 +377,10 @@ test('a series narrows a kind to it, and a kind with none of the series reads no
       return true;
     }
   );
+
+  // Without a kind, a run reads the kinds its series are in.
+  assert.deepEqual(AppleHealthHeartExtractor.kindsFor({ series }), ['respiratory', 'sleep']);
+  assert.equal(AppleHealthHeartExtractor.kindsFor({}), undefined);
 });
 
 /** Zip the export folder as the Health app does, as `export.zip` holding `apple_health_export/`. */
