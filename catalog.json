@@ -7,6 +7,12 @@
       "summary": "Phone and FaceTime calls (Apple Call History)"
     },
     {
+      "name": "apple-photos",
+      "package": "@chronicle.app/apple-photos",
+      "tier": "official",
+      "summary": "Photos library: photos, people, favorites, and Shared with You"
+    },
+    {
       "name": "apple-voice-memos",
       "package": "@chronicle.app/apple-voice-memos",
       "tier": "official",
