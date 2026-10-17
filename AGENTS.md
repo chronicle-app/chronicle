@@ -15,9 +15,11 @@ Chronicle extracts personal history into a shared vocabulary.
   or marked unlike.
 - A source's default record types are the plugin's call: mark the extractors
   a bare run reads with `static default = true`, or none, and a bare run asks
-  which (`-t all` and `-t defaults` name every kind and the defaults). Give
-  extractors `occurredAt(record)` so several kinds merge newest first; without
-  it they run one after another.
+  which (`-t all` and `-t defaults` name every kind and the defaults). When an
+  option can only be read by some kinds, `static kindsFor(config)` says which,
+  and a run that names no kinds reads those. Give extractors
+  `occurredAt(record)` so several kinds merge newest first; without it they
+  run one after another.
 - A `body` or `description` is plain text or Markdown, never HTML: convert
   markup with `htmlToMarkdown` and clean it with `tidyText` (both in
   `@chronicle.app/etl`). The SHAPES test fails on HTML in either.

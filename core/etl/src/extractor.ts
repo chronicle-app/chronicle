@@ -35,6 +35,12 @@ export abstract class Extractor<SelfClass extends typeof Extractor = typeof Extr
    */
   static strategy: string;
   static default?: boolean; // Whether this is the default extractor for the source
+  /**
+   * The kinds a run's options ask for when the run names none, such as the
+   * kinds an option can only be read from. Undefined when the options don't
+   * say. The CLI reads them instead of the defaults or asking.
+   */
+  static kindsFor?: (config: { [option: string]: unknown }) => string[] | undefined;
   /** How the source describes its records; no store annotations are injected. */
   static temporality: 'event' | 'snapshot' = 'event';
   /**

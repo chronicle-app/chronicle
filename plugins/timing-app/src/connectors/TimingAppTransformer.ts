@@ -232,9 +232,7 @@ export default class TimingAppTransformer extends ChronicleTransformer {
       sourceId: device.globalId,
       name: device.name,
     };
-    // Kind is open-ended data on :category (not a subclass); make/model on :model.
-    const category = deviceCategory(device.model);
-    if (category) node.category = [category];
+    // Its make and model, such as `Mac15,3`, says what kind of device it is.
     if (device.model) node.model = device.model;
     if (device.mac) {
       node.sameAs = [
@@ -321,15 +319,6 @@ export default class TimingAppTransformer extends ChronicleTransformer {
 
 function secondsToISO(seconds: number): string {
   return new Date(seconds * 1000).toISOString();
-}
-
-/** The device kind (open-ended :category data), inferred from Timing's model code. */
-function deviceCategory(model: string | null): string | null {
-  if (!model) return null;
-  if (/^Mac/i.test(model)) return 'computer';
-  if (/^iPhone/i.test(model)) return 'phone';
-  if (/^iPad/i.test(model)) return 'tablet';
-  return null;
 }
 
 /** Normalize a Timing Path value to an absolute filesystem path, or null if it isn't one. */

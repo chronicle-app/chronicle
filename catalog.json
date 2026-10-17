@@ -7,6 +7,12 @@
       "summary": "Phone and FaceTime calls (Apple Call History)"
     },
     {
+      "name": "apple-health",
+      "package": "@chronicle.app/apple-health",
+      "tier": "official",
+      "summary": "Apple Health heart, respiratory, and body readings, and sleep"
+    },
+    {
       "name": "apple-voice-memos",
       "package": "@chronicle.app/apple-voice-memos",
       "tier": "official",

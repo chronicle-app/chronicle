@@ -38,6 +38,15 @@ const toc = [
     {property.inverseName && (
       <div><dt>Inverse</dt><dd><code>{property.inverseName}</code> gives the relation from the other side. A record can use either name; only this property is stored.</dd></div>
     )}
+    {property.metric === 'gauge' && (
+      <div><dt>Metric</dt><dd>A gauge: each value is a level or a rate, so values over a time combine as a mean, minimum, or maximum.</dd></div>
+    )}
+    {property.metric === 'sum' && (
+      <div><dt>Metric</dt><dd>A sum: each value is an amount, so values over a time add up.</dd></div>
+    )}
+    {property.unit && (
+      <div><dt>Unit</dt><dd><code>{property.unit}</code>, in <a href="https://ucum.org/ucum">UCUM</a>. Every value is in this unit, whatever its source.</dd></div>
+    )}
   </dl>
   {property.alignments.length > 0 && <Alignments alignments={property.alignments} />}
   <ExamplesSection examples={property.examples} />

@@ -47,6 +47,14 @@ A key field can be a path into a nested record. In [an assistant's reply](exampl
 
 A :Realm is a bounded domain, such as a computer or a workspace. Entities located in one use :inRealm, and agents that belong to one use :memberOf. The shell example keys the user account by its username and by `memberOf[*].handle`, the handle of each realm it belongs to.
 
+A path can also follow a property backwards, by the name of its inverse. A session has no times of its own: the action whose :result it is gives them. In [a night of sleep](example:night-of-sleep), the :SleepSession's key reads them through `resultOf`, the inverse of :result:
+
+```json
+"@key": ["@type", "source", "resultOf.startTime", "resultOf.endTime", "resultOf.instrument[*].handle"]
+```
+
+A record under an action's :result is `resultOf` that action without saying so. Anywhere else, it gives `resultOf` itself. In [a stage of sleep](example:sleep-stage), the night is under the stage's session, so it gives its own action by its key alone, and its key reads the same times there as in its own record.
+
 ## sameAs
 
 :sameAs states that two references are the same entity.
