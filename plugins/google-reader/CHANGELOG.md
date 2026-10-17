@@ -1,5 +1,11 @@
 # @chronicle.app/google-reader
 
+## 0.5.0
+
+### Patch Changes
+
+- @chronicle.app/google@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes

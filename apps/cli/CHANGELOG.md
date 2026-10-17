@@ -1,5 +1,23 @@
 # @chronicle.app/cli
 
+## 0.5.0
+
+### Patch Changes
+
+- Updated dependencies [27ce35d]
+- Updated dependencies [8c47a8f]
+- Updated dependencies [1e615e1]
+  - @chronicle.app/imessage@0.5.0
+  - @chronicle.app/safari@0.5.0
+  - @chronicle.app/schema@0.5.0
+  - @chronicle.app/etl@0.5.0
+  - @chronicle.app/claude-code@0.5.0
+  - @chronicle.app/shell@0.5.0
+  - @chronicle.app/things-todo@0.5.0
+  - @chronicle.app/etl-sqlite@0.5.0
+  - @chronicle.app/auth@0.5.0
+  - @chronicle.app/logging@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes
