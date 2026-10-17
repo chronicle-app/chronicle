@@ -57,6 +57,8 @@ Each kind comes out newest first, and `--since` and `--until` bound when each re
 
 **Keys are iCloud's IDs.** A photo is keyed by iCloud's ID for it (`ZCLOUDASSETGUID`), an album by its own (`ZCLOUDGUID`), and a person by Photos' ID for them (`ZPERSONUUID`). They stay the same when the library is rebuilt from iCloud and on every Mac on the same library, while the library's own IDs (`ZUUID`) don't. A photo that isn't in iCloud is keyed by the library's ID.
 
+**A photo links to a search for its file name.** The plugin declares a `deepLinks` template for `ImageObject` and `VideoObject`, `photos:search?searchTerm=<original file name>`, which opens Photos' search for the name. Photos' own link to a photo (`photos://asset?identifier=`) takes the library's ID, not iCloud's, so a record can't build it. Cameras reuse file names, so the search usually shows a few photos, with the photo among them. A Live Photo's clip has no file name, so it has no link. Photos' search doesn't find Shared with You photos, so their link shows only photos in the library with a similar name.
+
 **The kind of camera, not which camera.** A camera photo's `instrument` is a `ProductModel` named by the make and model its file gives, such as `Apple iPhone 14 Pro`, keyed by that name in the `exif` namespace, so other sources reading the same files name the same one. Photos can't tell two phones of one model apart, so there's no `Device`.
 
 **People you named.** A photo `depicts` each person you named in Photos. A person merged into another is the one they were merged into, and the person Photos knows is you is `sameAs` `@me`. Pets, faces you haven't named, and where faces are in the photo are left out. Few named people link to a contact, so they don't merge with contacts by themselves.
