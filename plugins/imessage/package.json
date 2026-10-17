@@ -73,6 +73,11 @@
           "full-disk-access"
         ]
       }
+    },
+    "deepLinks": {
+      "imessage": {
+        "Message": "messages://open?message-guid={sourceId}"
+      }
     }
   }
 }
