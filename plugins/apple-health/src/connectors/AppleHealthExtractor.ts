@@ -102,10 +102,10 @@ export default abstract class AppleHealthExtractor extends Extractor<typeof Appl
     // order they were read in.
     found.sort((a, b) => b.start - a.start || b.end - a.end);
     let count = 0;
-    for (const { by, start, end, ...rest } of found) {
+    for (const { by, start, end, recorded, ...rest } of found) {
       if (this.shouldStopExtracting(count)) break;
       const [from, to] = [new Date(start).toISOString(), new Date(end).toISOString()];
-      yield this.recordOf({ ...by, start: from, end: to, ...rest });
+      yield this.recordOf({ ...by, start: from, end: to, ...rest }, recorded);
       count++;
     }
     this.hintUnconverted();
@@ -170,10 +170,17 @@ export default abstract class AppleHealthExtractor extends Extractor<typeof Appl
     }
   }
 
-  /** A record of this extractor's kind, carrying whose export it is. */
-  private recordOf(data: unknown): Record {
+  /**
+   * A record of this extractor's kind, carrying whose export it is, and
+   * asserted when Health wrote it, if the export says.
+   */
+  private recordOf(data: unknown, recorded: number | undefined): Record {
     const recordType = (this.constructor as typeof AppleHealthExtractor).recordTypes[0];
-    return this.createRecord(data, { recordType, account: this.account });
+    return this.createRecord(
+      data,
+      { recordType, account: this.account },
+      recorded === undefined ? {} : { assertedAt: new Date(recorded) }
+    );
   }
 
   private inRange(start: number): boolean {
@@ -229,7 +236,7 @@ export default abstract class AppleHealthExtractor extends Extractor<typeof Appl
     };
   }
 
-  /** Everything about a reading but its values: what, when, and by what. */
+  /** Everything about a reading but its values: what, when, by what, and when Health wrote it. */
   protected measuredBy(
     sample: Omit<HealthSample, 'unit' | 'value'>,
     own: HealthDevice | null
@@ -243,6 +250,7 @@ export default abstract class AppleHealthExtractor extends Extractor<typeof Appl
       }),
       start: instant(sample.startDate).getTime(),
       end: instant(sample.endDate).getTime(),
+      ...(sample.creationDate && { recorded: instant(sample.creationDate).getTime() }),
     };
   }
 
@@ -292,11 +300,13 @@ function seriesOf(kind: string, asked: string | undefined): Set<string> {
  * What a kind finds, a reading or a period of sleep, as it waits to be sorted:
  * when it started and ended, in milliseconds, and what it has in common with
  * others like it (`by`), shared among them. Its record holds all of it, with
- * the times as instants.
+ * the times as instants, but for when Health wrote it (`recorded`), which is
+ * when the record is asserted.
  */
 export interface Found {
   by: object;
   start: number;
   end: number;
+  recorded?: number;
   [field: string]: unknown;
 }

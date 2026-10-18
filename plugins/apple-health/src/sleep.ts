@@ -15,6 +15,8 @@ export interface SleepPeriod {
   end: string;
   /** The time zone the samples were written in, such as `America/Toronto`, when Health kept it. */
   timeZone?: string;
+  /** When Health last wrote one of its samples, if the export says. */
+  recorded?: string;
   stages: SleepStage[];
 }
 
@@ -82,11 +84,15 @@ function periodOf(
     stages.set(`${stage.stage}|${stage.start}|${stage.end}`, stage);
   }
   const timeZone = samples.find(sample => sample.metadata.HKTimeZone)?.metadata.HKTimeZone;
+  const written = samples.flatMap(sample =>
+    sample.creationDate ? [instant(sample.creationDate).getTime()] : []
+  );
   return {
     sourceName,
     start: start.toISOString(),
     end: end.toISOString(),
     ...(timeZone && { timeZone }),
+    ...(written.length > 0 && { recorded: new Date(Math.max(...written)).toISOString() }),
     stages: [...stages.values()],
   };
 }

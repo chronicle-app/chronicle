@@ -136,6 +136,27 @@ test('heart readings become MeasureActions on you, keyed by what they say', asyn
   }
   assertKeyed(actions);
 
+  // A reading is asserted when Health wrote it, which can be well after it was
+  // taken: a day's resting heart rate is written the next morning. An ECG gives
+  // no such time, so it's asserted when it was recorded.
+  assert.deepEqual(
+    actions.map(action => action['@assertedAt']),
+    [
+      '2025-02-01T13:10:00.000Z',
+      '2025-01-20T17:04:55.000Z',
+      '2025-01-15T22:40:00.000Z',
+      '2025-01-15T16:00:00.000Z',
+      '2025-01-15T12:01:00.000Z',
+      '2025-01-15T12:01:00.000Z',
+      '2025-01-15T12:01:00.000Z',
+      '2025-01-15T07:01:00.000Z',
+      '2025-01-16T11:00:00.000Z',
+      '2025-01-16T11:00:00.000Z',
+      '2024-12-01T11:00:00.000Z',
+      '2024-06-01T14:00:00.000Z',
+    ]
+  );
+
   // A reading is keyed by when it was taken, by what, and what it measured. An
   // exact duplicate has the same key. A different value at the same instant doesn't.
   const [ecg, first, duplicate, other] = [1, 4, 5, 6].map(index => actions[index]);
@@ -249,6 +270,16 @@ test('sleep is grouped into periods per source, each with its stages', async t =
   assert.deepEqual(instruments(nights[2]), [['Device', PHONE, 'iPhone15,2']]);
   assertKeyed(actions);
   assert.ok(actions.every(action => action.sourceId === undefined));
+  // A night is asserted when Health wrote the last of its samples.
+  assert.deepEqual(
+    nights.map(night => night['@assertedAt']),
+    [
+      '2025-01-15T18:30:00.000Z',
+      '2025-01-15T10:50:00.000Z',
+      '2025-01-15T11:00:00.000Z',
+      '2016-03-02T11:00:00.000Z',
+    ]
+  );
 
   // A night is keyed by its source and its times, and its session by the
   // night it's the result of.

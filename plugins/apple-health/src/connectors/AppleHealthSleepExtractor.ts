@@ -16,11 +16,12 @@ export default class AppleHealthSleepExtractor extends AppleHealthExtractor {
     for await (const element of this.elements([SLEEP])) {
       if (element.kind === 'record') samples.push(element.sample);
     }
-    for (const { sourceName, timeZone, start, end, stages } of groupSleep(samples)) {
+    for (const { sourceName, timeZone, start, end, recorded, stages } of groupSleep(samples)) {
       yield {
         by: this.share({ ...this.sourceOf({ sourceName }, null), ...(timeZone && { timeZone }) }),
         start: Date.parse(start),
         end: Date.parse(end),
+        ...(recorded && { recorded: Date.parse(recorded) }),
         stages,
       };
     }
