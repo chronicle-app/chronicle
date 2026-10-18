@@ -43,6 +43,17 @@ MeasureAction key(startTime, endTime, instrument[*].handle, object.sleepingWrist
 }
 ```
 
+## activity
+
+```ts
+MeasureAction key(startTime, endTime, instrument[*].handle, object.activeEnergyBurned) / key(startTime, endTime, instrument[*].handle, object.stepCount) {
+  startTime, endTime
+  agent: Person key(sourceId) { sourceId, handle, sameAs[] }
+  object: Person key(sourceId) { sourceId, handle, sameAs[], activeEnergyBurned?, stepCount? }
+  instrument[]: SoftwareApplication | Device key(handle) { handle, name, model? }
+}
+```
+
 ## sleep
 
 ```ts

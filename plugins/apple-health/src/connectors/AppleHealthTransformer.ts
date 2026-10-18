@@ -27,9 +27,10 @@ interface Measurer {
  * The export gives nothing an ID, so each record is keyed by what it says:
  * when, by what, and what was measured or slept.
  *
- *   heart, respiratory, body-measurements:
+ *   heart, respiratory, body-measurements, activity:
  *          MeasureAction  agent: you   object: you { heartRate, … }
- *                    timestamp, or startTime and endTime for a value over a period
+ *                    timestamp, or startTime and endTime for a value over a period,
+ *                    such as the steps taken in it
  *                    instrument: Device (the name it goes by in Health)
  *                                or SoftwareApplication (an app)
  *                                or ProductModel (an ECG's watch model)
@@ -50,6 +51,7 @@ export default class AppleHealthTransformer extends ChronicleTransformer {
       case 'heart':
       case 'respiratory':
       case 'body-measurements':
+      case 'activity':
         return [measure(record.data as Reading, you)];
       case 'sleep':
         return sleep(record.data as SleepPeriod & Measurer, you);

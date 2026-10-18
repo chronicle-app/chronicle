@@ -22,6 +22,7 @@ export interface Reading {
 type Convert = (value: number) => number;
 const same: Convert = value => value;
 const fahrenheit: Convert = value => Math.round(((value - 32) * 5 * 1000) / 9) / 1000;
+const kilojoules: Convert = value => Math.round((value * 1000) / 4.184) / 1000;
 
 /** A Health type a reading comes from: the property its value becomes, by the units it can arrive in. */
 export interface ReadingType {
@@ -65,6 +66,16 @@ export const BODY_MEASUREMENTS: { [type: string]: ReadingType } = {
   },
 };
 
+// Amounts over each sample's period. Health writes energy in `Cal`, its name
+// for the kilocalorie, or in `kJ`.
+export const ACTIVITY: { [type: string]: ReadingType } = {
+  HKQuantityTypeIdentifierStepCount: { property: 'stepCount', units: { count: same } },
+  HKQuantityTypeIdentifierActiveEnergyBurned: {
+    property: 'activeEnergyBurned',
+    units: { Cal: same, kcal: same, kJ: kilojoules },
+  },
+};
+
 /** A blood pressure correlation's two samples, by the property each becomes. */
 export const BLOOD_PRESSURE = 'HKCorrelationTypeIdentifierBloodPressure';
 export const BLOOD_PRESSURE_PARTS: { [type: string]: ReadingType } = {
@@ -98,6 +109,7 @@ export const READING_TYPES = {
   ...HEART,
   ...RESPIRATORY,
   ...BODY_MEASUREMENTS,
+  ...ACTIVITY,
   ...BLOOD_PRESSURE_PARTS,
 };
 
@@ -113,6 +125,7 @@ export const SERIES: { [kind: string]: string[] } = {
   respiratory: Object.keys(RESPIRATORY).map(type => shortType(type)),
   'body-measurements': Object.keys(BODY_MEASUREMENTS).map(type => shortType(type)),
   sleep: [shortType(SLEEP)],
+  activity: Object.keys(ACTIVITY).map(type => shortType(type)),
 };
 
 // The ECG classifications that name a rhythm. Others, such as `Inconclusive`

@@ -6,13 +6,14 @@ import { test } from 'node:test';
 import { writeZip } from '@chronicle.app/etl';
 import { METRIC_PROPERTIES } from '@chronicle.app/schema';
 import {
+  AppleHealthActivityExtractor,
   AppleHealthBodyMeasurementsExtractor,
   AppleHealthHeartExtractor,
   AppleHealthRespiratoryExtractor,
   AppleHealthSleepExtractor,
   AppleHealthTransformer,
 } from '../dist/index.js';
-import { READING_TYPES } from '../dist/readings.js';
+import { ACTIVITY, READING_TYPES } from '../dist/readings.js';
 import { OLD_WATCH, PHONE, WATCH, account, writeHealthExport } from './fixture.test-helper.js';
 
 function fixture(t) {
@@ -244,9 +245,50 @@ test('readings convert to their units, and a blood pressure is one reading with 
   assert.match(hints[0].message, /^1 sample was left out/);
 });
 
-test('every value Health measures is a gauge in the vocabulary, so it has a unit', () => {
-  for (const { property } of Object.values(READING_TYPES)) {
-    assert.equal(METRIC_PROPERTIES[property]?.metric, 'gauge', property);
+test('steps and active energy are amounts over their periods, one reading per device', async t => {
+  const { records } = await extract(AppleHealthActivityExtractor, { input: fixture(t) });
+  const actions = await transformAll(records);
+  assertKeyed(actions);
+
+  // Newest first. The app's energy arrives in kilojoules and becomes kilocalories.
+  assert.deepEqual(
+    actions.map(action => [
+      `${action.startTime}/${action.endTime}`,
+      instruments(action)[0][1],
+      valuesOf(action.object),
+    ]),
+    [
+      [
+        '2025-01-15T22:15:00.000Z/2025-01-15T22:35:00.000Z',
+        'Pulse Pal',
+        { activeEnergyBurned: 100 },
+      ],
+      ['2025-01-15T12:52:00.000Z/2025-01-15T12:53:00.000Z', WATCH, { stepCount: 96 }],
+      ['2025-01-15T12:52:00.000Z/2025-01-15T12:53:00.000Z', WATCH, { activeEnergyBurned: 4.125 }],
+      ['2025-01-15T12:50:00.000Z/2025-01-15T12:59:00.000Z', PHONE, { stepCount: 512 }],
+    ]
+  );
+  assert.ok(actions.every(action => action.timestamp === undefined));
+
+  // The watch counted some of the steps the phone did, over the same minute.
+  // Each device's count is its own reading, so adding them up counts those
+  // steps twice. Picking a device for each stretch of time is left to whatever
+  // reads them.
+  assert.deepEqual(keyOf(actions[1]).slice(2), [
+    ['startTime', ['2025-01-15T12:52:00.000Z']],
+    ['endTime', ['2025-01-15T12:53:00.000Z']],
+    ['instrument[*].handle', [WATCH]],
+    ['object.stepCount', [96]],
+  ]);
+  assert.deepEqual(instruments(actions[1]), [['Device', WATCH, 'Watch7,1']]);
+  assert.deepEqual(instruments(actions[3]), [['Device', PHONE, 'iPhone15,2']]);
+  assert.deepEqual(instruments(actions[0]), [['SoftwareApplication', 'Pulse Pal']]);
+});
+
+test('every value Health measures is a metric in the vocabulary, with a unit', () => {
+  // Activity's values are amounts, so sums. The rest are levels or rates, so gauges.
+  for (const [type, { property }] of Object.entries(READING_TYPES)) {
+    assert.equal(METRIC_PROPERTIES[property]?.metric, type in ACTIVITY ? 'sum' : 'gauge', property);
   }
 });
 
@@ -411,6 +453,7 @@ test('a series narrows a kind to it, and a kind with none of the series reads no
 
   // Without a kind, a run reads the kinds its series are in.
   assert.deepEqual(AppleHealthHeartExtractor.kindsFor({ series }), ['respiratory', 'sleep']);
+  assert.deepEqual(AppleHealthHeartExtractor.kindsFor({ series: 'StepCount' }), ['activity']);
   assert.equal(AppleHealthHeartExtractor.kindsFor({}), undefined);
 });
 

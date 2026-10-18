@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { renderShapes, sampleTransform, shapesOf } from '@chronicle.app/etl';
 import {
+  AppleHealthActivityExtractor,
   AppleHealthBodyMeasurementsExtractor,
   AppleHealthHeartExtractor,
   AppleHealthRespiratoryExtractor,
@@ -24,6 +25,7 @@ test('SHAPES.md describes what every record type becomes', async t => {
     AppleHealthHeartExtractor,
     AppleHealthRespiratoryExtractor,
     AppleHealthBodyMeasurementsExtractor,
+    AppleHealthActivityExtractor,
     AppleHealthSleepExtractor,
   ]) {
     samples.push(...(await sampleTransform(new Extractor({ input, account, limit: 0 }))));

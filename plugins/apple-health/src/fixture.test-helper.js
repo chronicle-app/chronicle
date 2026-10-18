@@ -81,11 +81,14 @@ const ecg = (date, classification) =>
  * Respiratory: respiratory rate and blood oxygen. Body measurements: a wrist
  * temperature in °F, and one in an unknown unit.
  *
+ * Activity: the phone's steps over nine minutes, and the watch's over one of
+ * them. The watch's active energy in `Cal`, and an app's in `kJ`.
+ *
  * Sleep, out of order: a watch night with `in bed` and a stage over the same
  * span, the phone's time in bed over the same night, a nap later that day,
  * and an older night from an app.
  *
- * Also skipped elements: a step count, a food correlation, and a workout.
+ * Also skipped elements: a food correlation and a workout.
  */
 export function writeHealthExport(dir) {
   const folder = join(dir, 'apple_health_export');
@@ -164,6 +167,35 @@ export function writeHealthExport(dir) {
       startDate: '2025-01-15 08:50:00 -0400',
       endDate: '2025-01-15 08:59:00 -0400',
       value: '512',
+    }),
+    record(quantity('StepCount'), {
+      sourceName: WATCH,
+      sourceVersion: '10.2',
+      device: watch('0xa', '10.2'),
+      unit: 'count',
+      creationDate: '2025-01-15 08:53:10 -0400',
+      startDate: '2025-01-15 08:52:00 -0400',
+      endDate: '2025-01-15 08:53:00 -0400',
+      value: '96',
+    }),
+    record(quantity('ActiveEnergyBurned'), {
+      sourceName: WATCH,
+      sourceVersion: '10.2',
+      device: watch('0xa', '10.2'),
+      unit: 'Cal',
+      creationDate: '2025-01-15 08:53:10 -0400',
+      startDate: '2025-01-15 08:52:00 -0400',
+      endDate: '2025-01-15 08:53:00 -0400',
+      value: '4.125',
+    }),
+    record(quantity('ActiveEnergyBurned'), {
+      sourceName: 'Pulse Pal',
+      sourceVersion: '2.0',
+      unit: 'kJ',
+      creationDate: '2025-01-15 18:36:00 -0400',
+      startDate: '2025-01-15 18:15:00 -0400',
+      endDate: '2025-01-15 18:35:00 -0400',
+      value: '418.4',
     }),
     record(quantity('RestingHeartRate'), {
       sourceName: WATCH,

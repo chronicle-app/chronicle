@@ -24,6 +24,7 @@ export const INVERSE_PROPERTIES: Record<string, string> = {
 
 /** Metric property name → the form its values take and the unit they are in. */
 export const METRIC_PROPERTIES: Record<string, { metric: 'gauge' | 'sum'; unit: string }> = {
+  activeEnergyBurned: { metric: 'sum', unit: 'kcal' },
   diastolicBloodPressure: { metric: 'gauge', unit: 'mm[Hg]' },
   heartRate: { metric: 'gauge', unit: '/min' },
   heartRateRecovery: { metric: 'gauge', unit: '/min' },
@@ -32,6 +33,7 @@ export const METRIC_PROPERTIES: Record<string, { metric: 'gauge' | 'sum'; unit: 
   respiratoryRate: { metric: 'gauge', unit: '/min' },
   restingHeartRate: { metric: 'gauge', unit: '/min' },
   sleepingWristTemperature: { metric: 'gauge', unit: 'Cel' },
+  stepCount: { metric: 'sum', unit: '{steps}' },
   systolicBloodPressure: { metric: 'gauge', unit: 'mm[Hg]' },
   walkingHeartRate: { metric: 'gauge', unit: '/min' },
 };
@@ -1852,6 +1854,7 @@ export const PaymentCardSchema: z.ZodType<PaymentCard> = z
 // Person, child of https://schema.chronicle.app/Agent
 export interface Person extends Omit<Agent, '@type'> {
   '@type': 'Person';
+  activeEnergyBurned?: number;
   diastolicBloodPressure?: number;
   heartRate?: number;
   heartRateRecovery?: number;
@@ -1861,6 +1864,7 @@ export interface Person extends Omit<Agent, '@type'> {
   respiratoryRate?: number;
   restingHeartRate?: number;
   sleepingWristTemperature?: number;
+  stepCount?: number;
   systolicBloodPressure?: number;
   walkingHeartRate?: number;
 }
@@ -1869,6 +1873,7 @@ export type PersonAndChildren = Person;
 
 const PersonProperties = {
   ...AgentProperties,
+  activeEnergyBurned: z.lazy(() => z.number()).optional(),
   diastolicBloodPressure: z.lazy(() => z.number()).optional(),
   heartRate: z.lazy(() => z.number()).optional(),
   heartRateRecovery: z.lazy(() => z.number()).optional(),
@@ -1878,6 +1883,7 @@ const PersonProperties = {
   respiratoryRate: z.lazy(() => z.number()).optional(),
   restingHeartRate: z.lazy(() => z.number()).optional(),
   sleepingWristTemperature: z.lazy(() => z.number()).optional(),
+  stepCount: z.lazy(() => z.number()).optional(),
   systolicBloodPressure: z.lazy(() => z.number()).optional(),
   walkingHeartRate: z.lazy(() => z.number()).optional(),
 };

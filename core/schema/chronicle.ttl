@@ -503,7 +503,7 @@
   rdfs:subClassOf :Entity .
 
 :MeasureAction a owl:Class;
-  rdfs:comment "The agent took a measurement of the :object, such as a person's heart rate or weight. Each value measured is a property of the :object, such as its :heartRate. A value measured over a period, such as a daily resting heart rate, has a :startTime and :endTime.";
+  rdfs:comment "The agent took a measurement of the :object, such as a person's heart rate or weight. Each value measured is a property of the :object, such as its :heartRate. A value measured over a period, such as a daily resting heart rate or the steps taken in a few minutes, has a :startTime and :endTime.";
   rdfs:subClassOf :Action .
 :heartRate a owl:DatatypeProperty;
   :metric "gauge";
@@ -580,6 +580,20 @@
   rdfs:domain :Person;
   rdfs:range :Number .
 [] a sh:PropertyShape; sh:path :diastolicBloodPressure; sh:targetSubjectsOf :diastolicBloodPressure; sh:maxCount 1 .
+:stepCount a owl:DatatypeProperty;
+  :metric "sum";
+  :unit "{steps}";
+  rdfs:comment "The number of steps taken.";
+  rdfs:domain :Person;
+  rdfs:range :Number .
+[] a sh:PropertyShape; sh:path :stepCount; sh:targetSubjectsOf :stepCount; sh:maxCount 1 .
+:activeEnergyBurned a owl:DatatypeProperty;
+  :metric "sum";
+  :unit "kcal";
+  rdfs:comment "The energy burned by moving, beyond what the body burns at rest, in kilocalories.";
+  rdfs:domain :Person;
+  rdfs:range :Number .
+[] a sh:PropertyShape; sh:path :activeEnergyBurned; sh:targetSubjectsOf :activeEnergyBurned; sh:maxCount 1 .
 :Post a owl:Class;
   rdfs:comment "A work published to a social or media platform, such as a feed post, a story, a reel, or a tweet. It can have a text :body and media files that it :contains. Its :sourceFormat is the platform's own format for it.";
   rdfs:subClassOf :CreativeWork;

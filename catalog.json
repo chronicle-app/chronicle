@@ -10,7 +10,7 @@
       "name": "apple-health",
       "package": "@chronicle.app/apple-health",
       "tier": "official",
-      "summary": "Apple Health heart, respiratory, and body readings, and sleep"
+      "summary": "Apple Health heart, respiratory, and body readings, steps and active energy, and sleep"
     },
     {
       "name": "apple-voice-memos",
