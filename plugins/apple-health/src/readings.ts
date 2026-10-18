@@ -42,7 +42,7 @@ export const HEART: { [type: string]: ReadingType } = {
     units: { 'count/min': same },
   },
   HKQuantityTypeIdentifierHeartRateVariabilitySDNN: {
-    property: 'heartRateVariability',
+    property: 'heartRateVariabilitySdnn',
     units: { ms: same },
   },
   HKQuantityTypeIdentifierHeartRateRecoveryOneMinute: {

@@ -13,10 +13,10 @@ converted from the record. Every node also has `source`.
 ## heart
 
 ```ts
-MeasureAction key(startTime, endTime, instrument[*].handle, object.heartRate) / key(timestamp, object.heartRhythm) / key(timestamp, instrument[*].handle, object.heartRateRecovery) / key(timestamp, instrument[*].handle, object.systolicBloodPressure, object.diastolicBloodPressure) / key(timestamp, instrument[*].handle, object.heartRate) / key(startTime, endTime, instrument[*].handle, object.heartRateVariability) / key(startTime, endTime, instrument[*].handle, object.restingHeartRate) / key(startTime, endTime, instrument[*].handle, object.walkingHeartRate) {
+MeasureAction key(startTime, endTime, instrument[*].handle, object.heartRate) / key(timestamp, object.heartRhythm) / key(timestamp, instrument[*].handle, object.heartRateRecovery) / key(timestamp, instrument[*].handle, object.systolicBloodPressure, object.diastolicBloodPressure) / key(timestamp, instrument[*].handle, object.heartRate) / key(startTime, endTime, instrument[*].handle, object.heartRateVariabilitySdnn) / key(startTime, endTime, instrument[*].handle, object.restingHeartRate) / key(startTime, endTime, instrument[*].handle, object.walkingHeartRate) {
   startTime?, endTime?, timestamp?
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
-  object: Person key(sourceId) { sourceId, handle, sameAs[], heartRate?, heartRhythm?, heartRateRecovery?, systolicBloodPressure?, diastolicBloodPressure?, heartRateVariability?, restingHeartRate?, walkingHeartRate? }
+  object: Person key(sourceId) { sourceId, handle, sameAs[], heartRate?, heartRhythm?, heartRateRecovery?, systolicBloodPressure?, diastolicBloodPressure?, heartRateVariabilitySdnn?, restingHeartRate?, walkingHeartRate? }
   instrument[]: Device | ProductModel | SoftwareApplication key(handle) / key(sourceId) { handle?, name?, model?, sourceId? }
 }
 ```

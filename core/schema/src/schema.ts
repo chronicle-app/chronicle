@@ -28,7 +28,7 @@ export const METRIC_PROPERTIES: Record<string, { metric: 'gauge' | 'sum'; unit: 
   diastolicBloodPressure: { metric: 'gauge', unit: 'mm[Hg]' },
   heartRate: { metric: 'gauge', unit: '/min' },
   heartRateRecovery: { metric: 'gauge', unit: '/min' },
-  heartRateVariability: { metric: 'gauge', unit: 'ms' },
+  heartRateVariabilitySdnn: { metric: 'gauge', unit: 'ms' },
   oxygenSaturation: { metric: 'gauge', unit: '1' },
   respiratoryRate: { metric: 'gauge', unit: '/min' },
   restingHeartRate: { metric: 'gauge', unit: '/min' },
@@ -1858,7 +1858,7 @@ export interface Person extends Omit<Agent, '@type'> {
   diastolicBloodPressure?: number;
   heartRate?: number;
   heartRateRecovery?: number;
-  heartRateVariability?: number;
+  heartRateVariabilitySdnn?: number;
   heartRhythm?: string;
   oxygenSaturation?: number;
   respiratoryRate?: number;
@@ -1877,7 +1877,7 @@ const PersonProperties = {
   diastolicBloodPressure: z.lazy(() => z.number()).optional(),
   heartRate: z.lazy(() => z.number()).optional(),
   heartRateRecovery: z.lazy(() => z.number()).optional(),
-  heartRateVariability: z.lazy(() => z.number()).optional(),
+  heartRateVariabilitySdnn: z.lazy(() => z.number()).optional(),
   heartRhythm: z.lazy(() => z.string()).optional(),
   oxygenSaturation: z.lazy(() => z.number()).optional(),
   respiratoryRate: z.lazy(() => z.number()).optional(),

@@ -111,7 +111,7 @@ test('heart readings become MeasureActions on you, keyed by what they say', asyn
       ['2025-01-15T12:00:00.000Z', { heartRate: 72 }],
       ['2025-01-15T12:00:00.000Z', { heartRate: 72 }],
       ['2025-01-15T12:00:00.000Z', { heartRate: 74 }],
-      ['2025-01-15T07:00:00.000Z/2025-01-15T07:01:00.000Z', { heartRateVariability: 48.25 }],
+      ['2025-01-15T07:00:00.000Z/2025-01-15T07:01:00.000Z', { heartRateVariabilitySdnn: 48.25 }],
       ['2025-01-15T04:00:00.000Z/2025-01-16T03:59:00.000Z', { restingHeartRate: 58 }],
       ['2025-01-15T04:00:00.000Z/2025-01-16T03:59:00.000Z', { walkingHeartRate: 97 }],
       ['2024-12-01T11:00:00.000Z', { heartRate: 61 }],

@@ -526,13 +526,13 @@
   rdfs:domain :Person;
   rdfs:range :Number .
 [] a sh:PropertyShape; sh:path :walkingHeartRate; sh:targetSubjectsOf :walkingHeartRate; sh:maxCount 1 .
-:heartRateVariability a owl:DatatypeProperty;
+:heartRateVariabilitySdnn a owl:DatatypeProperty;
   :metric "gauge";
   :unit "ms";
-  rdfs:comment "The variation in time between heartbeats, in milliseconds. It is the standard deviation of the intervals between beats.";
+  rdfs:comment "The variation in time between heartbeats as SDNN: the standard deviation of the intervals between beats over the measurement's period, in milliseconds. It grows with the length of the period, so values over periods of different lengths don't compare. Other measures of the variation, such as RMSSD, differ from it.";
   rdfs:domain :Person;
   rdfs:range :Number .
-[] a sh:PropertyShape; sh:path :heartRateVariability; sh:targetSubjectsOf :heartRateVariability; sh:maxCount 1 .
+[] a sh:PropertyShape; sh:path :heartRateVariabilitySdnn; sh:targetSubjectsOf :heartRateVariabilitySdnn; sh:maxCount 1 .
 :heartRateRecovery a owl:DatatypeProperty;
   :metric "gauge";
   :unit "/min";
