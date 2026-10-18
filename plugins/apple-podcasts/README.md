@@ -65,13 +65,13 @@ date as their timeline position while being sighted at read time.
 Entities:
 
 - `PodcastEpisode` — title, description, `url` (web page), `duration` (ISO 8601), episode
-  `image`, audio enclosure as an `encoding` (`AudioObject`), plus a `sameAs` edge
+  artwork as its `emblem`, the audio file in `contains` (`AudioObject`), plus a `sameAs` edge
   to the Apple catalog id (`ZSTORETRACKID`). Its `transcript` is the text of the
   downloaded TTML, a paragraph for each speaker's turn, without timings or
   speaker labels. The app keeps only some transcripts, mostly for episodes it
   has downloaded or just played, and clears them later; a transcript an earlier
   run extracted stays in the archive.
-- `PodcastSeries` — title, description, `webFeed`, `genre`, `image`, and a
+- `PodcastSeries` — title, description, `webFeed`, `genre`, artwork as its `emblem`, and a
   `sameAs` edge to the Apple catalog id (`ZSTORECOLLECTIONID`).
 - `Person` — the macOS iCloud account (so listening merges onto the same identity
   as other iCloud-sourced data); `Organization` — show/episode authors as
