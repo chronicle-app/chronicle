@@ -13,7 +13,7 @@ export interface SleepPeriod {
   sourceName: string;
   start: string;
   end: string;
-  /** The time zone the samples were written in, such as `America/Toronto`, when Health kept it. */
+  /** The time zone the samples were written in, such as `America/New_York`, when Health kept it. */
   timeZone?: string;
   /** When Health last wrote one of its samples, if the export says. */
   recorded?: string;

@@ -9,7 +9,7 @@ export interface Electrocardiogram {
   recorded: string;
   /** Apple's classification, such as `Sinus Rhythm` or `Inconclusive`. */
   classification: string;
-  /** The watch's hardware identifier, such as `Watch6,14`. */
+  /** The watch's hardware identifier, such as `Watch7,1`. */
   hardware?: string;
 }
 

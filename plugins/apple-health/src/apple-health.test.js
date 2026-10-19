@@ -294,7 +294,7 @@ test('steps and active energy are amounts over their periods, one reading per de
     ['object.stepCount', [96]],
   ]);
   assert.deepEqual(instruments(actions[1]), [['Device', WATCH, 'Watch7,1']]);
-  assert.deepEqual(instruments(actions[3]), [['Device', PHONE, 'iPhone15,2']]);
+  assert.deepEqual(instruments(actions[3]), [['Device', PHONE, 'iPhone16,1']]);
   assert.deepEqual(instruments(actions[0]), [['SoftwareApplication', 'Pulse Pal']]);
 });
 
@@ -318,11 +318,11 @@ test('sleep is grouped into periods per source, each with its stages', async t =
       [WATCH, '2025-01-15T18:00:00.000Z', '2025-01-15T18:30:00.000Z'],
       [WATCH, '2025-01-15T03:05:00.000Z', '2025-01-15T10:50:00.000Z'],
       [PHONE, '2025-01-15T02:45:00.000Z', '2025-01-15T11:00:00.000Z'],
-      ['Sleep Cycle', '2016-03-02T03:30:00.000Z', '2016-03-02T10:45:00.000Z'],
+      ['Sleep Diary', '2016-03-02T03:30:00.000Z', '2016-03-02T10:45:00.000Z'],
     ]
   );
-  assert.deepEqual(instruments(nights[3]), [['SoftwareApplication', 'Sleep Cycle']]);
-  assert.deepEqual(instruments(nights[2]), [['Device', PHONE, 'iPhone15,2']]);
+  assert.deepEqual(instruments(nights[3]), [['SoftwareApplication', 'Sleep Diary']]);
+  assert.deepEqual(instruments(nights[2]), [['Device', PHONE, 'iPhone16,1']]);
   assertKeyed(actions);
   assert.ok(actions.every(action => action.sourceId === undefined));
   // A night is asserted when Health wrote the last of its samples.

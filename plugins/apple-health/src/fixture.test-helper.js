@@ -17,7 +17,7 @@ export const PHONE = 'Sam’s iPhone';
 const device = (address, model, hardware, software) =>
   `&lt;&lt;HKDevice: ${address}&gt;, name:${model === 'Watch' ? 'Apple Watch' : 'iPhone'}, manufacturer:Apple Inc., model:${model}, hardware:${hardware}, software:${software}, creation date:2024-01-20 03:28:19 +0000&gt;`;
 const watch = (address, software) => device(address, 'Watch', 'Watch7,1', software);
-const phone = address => device(address, 'iPhone', 'iPhone15,2', '18.1');
+const phone = address => device(address, 'iPhone', 'iPhone16,1', '18.1');
 
 const record = (type, attributes, children = '') => {
   const attrs = Object.entries({ type, ...attributes })
@@ -41,7 +41,7 @@ const sleep = (source, value, start, end) =>
       endDate: end,
       value: stage(value),
     },
-    meta('HKTimeZone', 'America/Toronto')
+    meta('HKTimeZone', 'America/New_York')
   );
 
 // An ECG recording as the export writes it: a header, then the voltage samples.
@@ -338,7 +338,7 @@ ${record(quantity('BloodPressureDiastolic'), { sourceName: 'Health', sourceVersi
 ${record(quantity('DietaryEnergyConsumed'), { sourceName: 'Food Log', unit: 'Cal', creationDate: '2025-01-15 12:30:00 -0400', startDate: '2025-01-15 12:30:00 -0400', endDate: '2025-01-15 12:30:00 -0400', value: '420' }).replace(/^ /, '  ')}
  </Correlation>`,
     ` <Workout workoutActivityType="HKWorkoutActivityTypeRunning" duration="20" durationUnit="min" sourceName="${WATCH}" sourceVersion="10.2" device="${watch('0x9', '10.2')}" creationDate="2025-01-15 18:35:00 -0400" startDate="2025-01-15 18:15:00 -0400" endDate="2025-01-15 18:35:00 -0400">
-${meta('HKTimeZone', 'America/Toronto')}  <WorkoutStatistics type="HKQuantityTypeIdentifierHeartRate" startDate="2025-01-15 18:15:00 -0400" endDate="2025-01-15 18:35:00 -0400" average="150" minimum="120" maximum="171" unit="count/min"/>
+${meta('HKTimeZone', 'America/New_York')}  <WorkoutStatistics type="HKQuantityTypeIdentifierHeartRate" startDate="2025-01-15 18:15:00 -0400" endDate="2025-01-15 18:35:00 -0400" average="150" minimum="120" maximum="171" unit="count/min"/>
  </Workout>`,
     // The night of January 14 to 15, out of order, with the phone's time in bed over it.
     sleep(WATCH, 'AsleepDeep', '2025-01-15 00:10:00 -0400', '2025-01-15 00:40:00 -0400'),
@@ -352,7 +352,7 @@ ${meta('HKTimeZone', 'America/Toronto')}  <WorkoutStatistics type="HKQuantityTyp
     sleep(WATCH, 'AsleepCore', '2025-01-15 14:00:00 -0400', '2025-01-15 14:30:00 -0400'),
     // An older night from an app.
     record(SLEEP, {
-      sourceName: 'Sleep Cycle',
+      sourceName: 'Sleep Diary',
       sourceVersion: '3.1',
       creationDate: '2016-03-02 07:00:00 -0400',
       startDate: '2016-03-01 23:30:00 -0400',
@@ -371,7 +371,7 @@ ${meta('HKTimeZone', 'America/Toronto')}  <WorkoutStatistics type="HKQuantityTyp
   locale CDATA #REQUIRED
 >
 ]>
-<HealthData locale="en_CA">
+<HealthData locale="en_US">
  <ExportDate value="2025-08-10 10:13:08 -0400"/>
  <Me HKCharacteristicTypeIdentifierDateOfBirth="" HKCharacteristicTypeIdentifierBiologicalSex="HKBiologicalSexNotSet" HKCharacteristicTypeIdentifierBloodType="HKBloodTypeNotSet" HKCharacteristicTypeIdentifierFitzpatrickSkinType="HKFitzpatrickSkinTypeNotSet" HKCharacteristicTypeIdentifierCardioFitnessMedicationsUse="None"/>
 ${body}

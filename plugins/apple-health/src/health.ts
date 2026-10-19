@@ -143,7 +143,7 @@ const devicesByExport = new Map<string, Promise<Map<string, HealthDevice>>>();
 /**
  * The devices among the export's sources, by the name each goes by in Health,
  * such as `Sam’s Apple Watch`. A source that never describes a device, such
- * as Sleep Cycle, is an app. Some types never carry a device, such as sleep
+ * as Sleep Diary, is an app. Some types never carry a device, such as sleep
  * and resting heart rate, so this reads the whole export once and remembers
  * it for the run.
  */
