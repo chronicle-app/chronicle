@@ -26,8 +26,8 @@ The extractor supports the following options:
 
 - `--input`: Path to the SQLite database file. Defaults to
   `~/Library/Group Containers/243LU875E5.groups.com.apple.podcasts/Documents/MTLibrary.sqlite`.
-- `--since`: Only episodes whose play state was last modified on or after this date.
-- `--until`: Only episodes whose play state was last modified on or before this date.
+- `--since`: Only episodes last listened to, or saved, on or after this date.
+- `--until`: Only episodes last listened to, or saved, on or before this date.
 - `--limit`: Maximum number of records to extract (omit or `0` for no limit).
 
 ## Source database
@@ -39,9 +39,14 @@ Apple Podcasts stores its library in a Core Data SQLite file
   play count, a playhead past the first few seconds, or a bookmark. Joined to its
   podcast via `ZPODCASTUUID`. Columns: `ZUUID`/`ZGUID`, `ZTITLE`, `ZAUTHOR`,
   `ZPLAYHEAD`, `ZPLAYCOUNT`, `ZLASTDATEPLAYED` / `ZLASTUSERMARKEDASPLAYEDDATE` /
-  `ZPLAYSTATELASTMODIFIEDDATE` (listen time, best first), `ZPUBDATE`,
-  `ZISBOOKMARKED`/`ZLASTBOOKMARKEDDATE`, `ZSTORETRACKID`,
-  `ZWEBPAGEURL`/`ZARTWORKTEMPLATEURL`. Its duration and audio URL (`ZDURATION`,
+  `ZMTUPPMETADATA.ZTIMESTAMP` / `ZPLAYSTATELASTMODIFIEDDATE` (listen time, best
+  first), `ZPUBDATE`, `ZISBOOKMARKED`/`ZLASTBOOKMARKEDDATE`, `ZSTORETRACKID`,
+  `ZWEBPAGEURL`/`ZARTWORKTEMPLATEURL`, and the show's `ZSTORECOLLECTIONID`.
+  `ZMTUPPMETADATA` is the playback-sync table, joined by `ZMETADATAIDENTIFIER`;
+  its `ZTIMESTAMP` is when the episode's playback position last synced, and
+  dates the many played episodes with no `ZLASTDATEPLAYED`.
+  `ZPLAYSTATELASTMODIFIEDDATE` comes last because feed refreshes and
+  library-wide updates change it too. Its duration and audio URL (`ZDURATION`,
   `ZREMOTEURL`) are on its current media enclosure, `ZMTMEDIAENCLOSURE` via
   `ZCURRENTMEDIAENCLOSURE`, and its description (`ZTEXT`, HTML converted to
   Markdown) is in `ZMTEPISODEDESCRIPTION` via `ZDESCRIPTIONOBJECT`. Its

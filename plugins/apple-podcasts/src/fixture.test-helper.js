@@ -19,9 +19,15 @@ export const account = {
  * layout macOS 27 uses: an episode's duration and audio URL are on its media
  * enclosure, and its description is a row of its own.
  *
- * A followed show and one that isn't, and five episodes: finished after being
+ * A followed show and one that isn't, and six episodes: finished after being
  * saved, in progress, saved but unplayed, marked as played without a last-played
- * date, and one sampled for five seconds, which isn't extracted.
+ * date, an older one played with only its playback-sync time left, and one
+ * sampled for five seconds, which isn't extracted.
+ *
+ * A played episode's playback position syncs to a row of ZMTUPPMETADATA,
+ * matched by its metadata identifier. At 01:00 a library-wide update changed the
+ * older episode's play state and synced the finished one again, and a feed
+ * refresh at 02:30 changed the finished episode's play state.
  *
  * It's laid out as the app's group container is, with the library in
  * `Documents/` and downloaded transcripts in `Library/Cache/Assets/TTML/`. The
@@ -52,14 +58,16 @@ export function writeApplePodcastsFixture(dir) {
       ZPLAYCOUNT INTEGER, ZPLAYSTATELASTMODIFIEDDATE TIMESTAMP, ZLASTDATEPLAYED TIMESTAMP,
       ZLASTUSERMARKEDASPLAYEDDATE TIMESTAMP, ZISBOOKMARKED INTEGER,
       ZLASTBOOKMARKEDDATE TIMESTAMP, ZPUBDATE TIMESTAMP, ZSTORETRACKID INTEGER,
-      ZWEBPAGEURL VARCHAR, ZARTWORKTEMPLATEURL VARCHAR);
+      ZWEBPAGEURL VARCHAR, ZARTWORKTEMPLATEURL VARCHAR, ZMETADATAIDENTIFIER VARCHAR);
+    CREATE TABLE ZMTUPPMETADATA (Z_PK INTEGER PRIMARY KEY, ZMETADATAIDENTIFIER VARCHAR,
+      ZTIMESTAMP TIMESTAMP);
 
     INSERT INTO ZMTPODCAST VALUES
       (1, 'SHOW-FOLLOWED', 'Example Conversations', 'Example Network', 'Society & Culture',
         'https://example.com/feed.xml', 'https://example.com/show.jpg',
         'https://example.com/show', 1001, ${JAN_1 - 30 * DAY}, 'Long conversations.', 1),
       (2, 'SHOW-UNFOLLOWED', 'Example Stories', NULL, NULL, 'https://example.org/feed.xml',
-        NULL, NULL, NULL, NULL, NULL, 0);
+        NULL, NULL, 1002, NULL, NULL, 0);
 
     INSERT INTO ZMTMEDIAENCLOSURE VALUES
       (1, 1, 3121, 'https://example.com/audio/finished.mp3?dest=1',
@@ -69,7 +77,8 @@ export function writeApplePodcastsFixture(dir) {
       (3, 3, 1200, 'https://example.com/audio/saved.mp3',
         '${TRANSCRIPT_FOLDER}/transcript_2003.ttml'),
       (4, 4, 600, 'https://example.org/audio/sampled.mp3', NULL),
-      (5, 5, 45, 'https://example.org/audio/marked.mp3', NULL);
+      (5, 5, 45, 'https://example.org/audio/marked.mp3', NULL),
+      (6, 6, 1800, 'https://example.org/audio/older.mp3', NULL);
 
     INSERT INTO ZMTEPISODEDESCRIPTION VALUES
       (1, 1, 'A guest on their new book.',
@@ -77,19 +86,29 @@ export function writeApplePodcastsFixture(dir) {
 
     INSERT INTO ZMTEPISODE VALUES
       (1, 'EP-FINISHED', 'guid-1', 'A Finished Episode', 'Example Network', 1, 'SHOW-FOLLOWED',
-        1, 1, 0, 1, ${JAN_1 + 3600}, ${JAN_1 + 3000}, NULL, 1, ${JAN_1 - DAY},
+        1, 1, 0, 1, ${JAN_1 + 9000}, ${JAN_1 + 3000}, NULL, 1, ${JAN_1 - DAY},
         ${JAN_1 - 2 * DAY}, 2001, 'https://example.com/episodes/1',
-        'https://example.com/art/{w}x{h}bb.{f}'),
+        'https://example.com/art/{w}x{h}bb.{f}', 'md-finished'),
       (2, 'EP-IN-PROGRESS', 'guid-2', 'An Episode in Progress', 'Example Network', 1,
         'SHOW-FOLLOWED', 2, NULL, 239, 0, ${JAN_1 + 7200}, ${JAN_1 + 7200}, NULL, 0, NULL,
-        ${JAN_1 - DAY}, 2002, NULL, NULL),
+        ${JAN_1 - DAY}, 2002, NULL, NULL, 'md-in-progress'),
       (3, 'EP-SAVED', 'guid-3', 'A Saved Episode', 'Example Network', 1, 'SHOW-FOLLOWED',
         3, NULL, 0, 0, ${JAN_1 + 600}, NULL, NULL, 1, ${JAN_1 + 600}, ${JAN_1}, 2003, NULL,
-        NULL),
+        NULL, 'md-saved'),
       (4, 'EP-SAMPLED', 'guid-4', 'A Sampled Episode', NULL, 2, 'SHOW-UNFOLLOWED', 4, NULL,
-        5, 0, ${JAN_1 + 9000}, ${JAN_1 + 9000}, NULL, 0, NULL, ${JAN_1}, NULL, NULL, NULL),
+        5, 0, ${JAN_1 + 9000}, ${JAN_1 + 9000}, NULL, 0, NULL, ${JAN_1}, NULL, NULL, NULL,
+        'md-sampled'),
       (5, 'EP-MARKED', 'guid-5', 'A Trailer', NULL, 2, 'SHOW-UNFOLLOWED', 5, NULL, 0, 1,
-        ${JAN_1 + 5400}, NULL, ${JAN_1 + 5400}, 0, NULL, ${JAN_1 - DAY}, NULL, NULL, NULL);
+        ${JAN_1 + 5400}, NULL, ${JAN_1 + 5400}, 0, NULL, ${JAN_1 - DAY}, NULL, NULL, NULL,
+        'md-marked'),
+      (6, 'EP-OLDER', 'guid-6', 'An Older Episode', NULL, 2, 'SHOW-UNFOLLOWED', 6, NULL, 0,
+        1, ${JAN_1 + 3600}, NULL, NULL, 0, NULL, ${JAN_1 - 20 * DAY}, NULL, NULL, NULL,
+        'md-older');
+
+    INSERT INTO ZMTUPPMETADATA VALUES
+      (1, 'md-finished', ${JAN_1 + 3600}),
+      (2, 'md-in-progress', ${JAN_1 + 7200}),
+      (3, 'md-older', ${JAN_1 - 10 * DAY});
   `);
   db.close();
   return input;

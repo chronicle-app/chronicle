@@ -2,6 +2,7 @@ import { AuthRequired, Record } from '@chronicle.app/etl';
 import { getICloudAccount } from '@chronicle.app/apple';
 import {
   SqliteExtractor,
+  TimeRange,
   iterateRows,
   safariToUnixTimestamp,
   timeRangeConditions,
@@ -19,6 +20,28 @@ function getDefaultDbPath(): string {
     os.homedir(),
     'Library/Group Containers/243LU875E5.groups.com.apple.podcasts/Documents/MTLibrary.sqlite'
   );
+}
+
+// An episode's row in the playback-sync table, which has when its playback
+// position last synced.
+const EPISODE_SYNC = 'LEFT JOIN ZMTUPPMETADATA u ON u.ZMETADATAIDENTIFIER = e.ZMETADATAIDENTIFIER';
+
+// When an episode was last listened to, as the transformer dates its listen:
+// its last-played time, then when it was marked as played, then when its
+// playback position last synced, and last when its play state changed.
+const LISTENED_AT =
+  'COALESCE(e.ZLASTDATEPLAYED, e.ZLASTUSERMARKEDASPLAYEDDATE, u.ZTIMESTAMP, e.ZPLAYSTATELASTMODIFIEDDATE)';
+
+// When a saved episode was saved, as the transformer dates its bookmark.
+const SAVED_AT = `COALESCE(e.ZLASTBOOKMARKEDDATE, ${LISTENED_AT})`;
+
+// Conditions that an Apple-epoch column is within since/until, both inclusive.
+function inRange(column: string, range: TimeRange) {
+  return timeRangeConditions(column, range, {
+    convert: date => unixToSafariTimestamp(date.getTime() / 1000),
+    sinceOp: '>=',
+    untilOp: '<=',
+  });
 }
 
 // Core Data timestamps are seconds since 2001-01-01, same epoch as Safari.
@@ -85,19 +108,18 @@ export class ApplePodcastsExtractor extends SqliteExtractor<typeof ApplePodcasts
   }
 
   // Episodes the user actually engaged with: played (a non-zero play count or a
-  // playhead past the first few seconds) or bookmarked, within since/until
-  // against the play-state sighting time.
+  // playhead past the first few seconds) or bookmarked. Within since/until, an
+  // episode is extracted when its listen or its bookmark is in the range, by
+  // the dates the transformer gives them. Queried with EPISODE_SYNC.
   private episodeFilter(): { where: string; values: Array<number | string> } {
-    const range = timeRangeConditions('e.ZPLAYSTATELASTMODIFIEDDATE', this.config, {
-      convert: date => unixToSafariTimestamp(date.getTime() / 1000),
-      sinceOp: '>=',
-      untilOp: '<=',
-    });
-    const conditions = [
-      '(e.ZPLAYCOUNT > 0 OR e.ZPLAYHEAD > 10 OR e.ZISBOOKMARKED = 1)',
-      ...range.conditions,
-    ];
-    return { where: conditions.join(' AND '), values: range.values };
+    const listened = inRange(LISTENED_AT, this.config);
+    const saved = inRange(SAVED_AT, this.config);
+    const played = ['(e.ZPLAYCOUNT > 0 OR e.ZPLAYHEAD > 10)', ...listened.conditions];
+    const bookmarked = ['e.ZISBOOKMARKED = 1', ...saved.conditions];
+    return {
+      where: `((${played.join(' AND ')}) OR (${bookmarked.join(' AND ')}))`,
+      values: [...listened.values, ...saved.values],
+    };
   }
 
   // Each engaged episode becomes a ListenAction / CompleteAction /
@@ -107,7 +129,7 @@ export class ApplePodcastsExtractor extends SqliteExtractor<typeof ApplePodcasts
     const { where, values } = this.episodeFilter();
 
     // The episode's duration and audio file are on its current media enclosure,
-    // and its description is a row of its own.
+    // and its description is a row of its own. Newest listen first.
     let sql = `
       SELECT e.ZUUID AS episodeId,
              e.ZGUID AS episodeGuid,
@@ -119,6 +141,7 @@ export class ApplePodcastsExtractor extends SqliteExtractor<typeof ApplePodcasts
              e.ZPLAYSTATELASTMODIFIEDDATE AS stateModified,
              e.ZLASTDATEPLAYED AS lastDatePlayed,
              e.ZLASTUSERMARKEDASPLAYEDDATE AS userMarkedPlayedDate,
+             u.ZTIMESTAMP AS playbackSyncedDate,
              e.ZISBOOKMARKED AS isBookmarked,
              e.ZLASTBOOKMARKEDDATE AS lastBookmarkedDate,
              e.ZPUBDATE AS publishDate,
@@ -134,13 +157,15 @@ export class ApplePodcastsExtractor extends SqliteExtractor<typeof ApplePodcasts
              p.ZCATEGORY AS podcastCategory,
              p.ZFEEDURL AS feedUrl,
              p.ZIMAGEURL AS imageUrl,
+             p.ZSTORECOLLECTIONID AS storeCollectionId,
              p.ZITEMDESCRIPTION AS podcastDescription
       FROM ZMTEPISODE e
       LEFT JOIN ZMTPODCAST p ON e.ZPODCASTUUID = p.ZUUID
       LEFT JOIN ZMTMEDIAENCLOSURE m ON m.Z_PK = e.ZCURRENTMEDIAENCLOSURE
       LEFT JOIN ZMTEPISODEDESCRIPTION d ON d.Z_PK = e.ZDESCRIPTIONOBJECT
+      ${EPISODE_SYNC}
       WHERE ${where}
-      ORDER BY e.ZPLAYSTATELASTMODIFIEDDATE DESC`;
+      ORDER BY ${LISTENED_AT} DESC`;
     if (limit !== null) {
       sql += ` LIMIT ?`;
       values.push(limit);
@@ -226,6 +251,7 @@ export class ApplePodcastsExtractor extends SqliteExtractor<typeof ApplePodcasts
       stateModified: toUnix(row.stateModified),
       lastDatePlayed: toUnix(row.lastDatePlayed),
       userMarkedPlayedDate: toUnix(row.userMarkedPlayedDate),
+      playbackSyncedDate: toUnix(row.playbackSyncedDate),
       lastBookmarkedDate: toUnix(row.lastBookmarkedDate),
       publishDate: toUnix(row.publishDate),
       duration: row.duration || 0,
@@ -241,7 +267,7 @@ export class ApplePodcastsExtractor extends SqliteExtractor<typeof ApplePodcasts
     try {
       const { where, values } = this.episodeFilter();
       const episodes = this.db
-        .prepare(`SELECT COUNT(*) AS n FROM ZMTEPISODE e WHERE ${where}`)
+        .prepare(`SELECT COUNT(*) AS n FROM ZMTEPISODE e ${EPISODE_SYNC} WHERE ${where}`)
         .get(...values) as { n: number };
       const subscriptions = this.db
         .prepare(`SELECT COUNT(*) AS n FROM ZMTPODCAST WHERE ZSUBSCRIBED = 1`)

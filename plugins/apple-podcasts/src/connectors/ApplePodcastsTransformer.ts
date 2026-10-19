@@ -71,9 +71,15 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
     const episode = this.buildEpisode(data, podcast);
 
     // The real listen moment: Apple's last-played time, then the user-marked
-    // played date, falling back to the play-state sync time (all the snapshot
-    // gives us when no genuine date survived). See ZLASTDATEPLAYED.
-    const listenAt = date(data.lastDatePlayed ?? data.userMarkedPlayedDate ?? data.stateModified);
+    // played date, then when the playback position last synced (many played
+    // episodes have no last-played time), falling back to the play-state change
+    // time, which feed refreshes and library-wide updates also change.
+    const listenAt = date(
+      data.lastDatePlayed ??
+        data.userMarkedPlayedDate ??
+        data.playbackSyncedDate ??
+        data.stateModified
+    );
 
     const played = data.playCount > 0 || data.playhead > 10;
     if (played) {
