@@ -35,11 +35,11 @@ MeasureAction key(timestamp, instrument[*].handle, object.oxygenSaturation) / ke
 ## body-measurements
 
 ```ts
-MeasureAction key(startTime, endTime, instrument[*].handle, object.sleepingWristTemperature) {
-  startTime, endTime
+MeasureAction key(timestamp, instrument[*].handle, object.weight) / key(startTime, endTime, instrument[*].handle, object.sleepingWristTemperature) {
+  timestamp?, startTime?, endTime?
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
-  object: Person key(sourceId) { sourceId, handle, sameAs[], sleepingWristTemperature }
-  instrument[]: Device key(handle) { handle, name, model }
+  object: Person key(sourceId) { sourceId, handle, sameAs[], weight?, sleepingWristTemperature? }
+  instrument[]: SoftwareApplication | Device key(handle) { handle, name, model? }
 }
 ```
 

@@ -36,6 +36,7 @@ export const METRIC_PROPERTIES: Record<string, { metric: 'gauge' | 'sum'; unit: 
   stepCount: { metric: 'sum', unit: '{steps}' },
   systolicBloodPressure: { metric: 'gauge', unit: 'mm[Hg]' },
   walkingHeartRate: { metric: 'gauge', unit: '/min' },
+  weight: { metric: 'gauge', unit: 'kg' },
 };
 
 function requireNodeIdentity(
@@ -1867,6 +1868,7 @@ export interface Person extends Omit<Agent, '@type'> {
   stepCount?: number;
   systolicBloodPressure?: number;
   walkingHeartRate?: number;
+  weight?: number;
 }
 
 export type PersonAndChildren = Person;
@@ -1886,6 +1888,7 @@ const PersonProperties = {
   stepCount: z.lazy(() => z.number()).optional(),
   systolicBloodPressure: z.lazy(() => z.number()).optional(),
   walkingHeartRate: z.lazy(() => z.number()).optional(),
+  weight: z.lazy(() => z.number()).optional(),
 };
 
 export const PersonSchema: z.ZodType<Person> = z

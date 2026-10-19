@@ -23,6 +23,8 @@ type Convert = (value: number) => number;
 const same: Convert = value => value;
 const fahrenheit: Convert = value => Math.round(((value - 32) * 5 * 1000) / 9) / 1000;
 const kilojoules: Convert = value => Math.round((value * 1000) / 4.184) / 1000;
+const pounds: Convert = value => Math.round(value * 453.592_37) / 1000;
+const stones: Convert = value => Math.round(value * 6350.293_18) / 1000;
 
 /** A Health type a reading comes from: the property its value becomes, by the units it can arrive in. */
 export interface ReadingType {
@@ -59,7 +61,12 @@ export const RESPIRATORY: { [type: string]: ReadingType } = {
   HKQuantityTypeIdentifierOxygenSaturation: { property: 'oxygenSaturation', units: { '%': same } },
 };
 
+// Health writes a weight in the unit you chose for it: kilograms, pounds, or stones.
 export const BODY_MEASUREMENTS: { [type: string]: ReadingType } = {
+  HKQuantityTypeIdentifierBodyMass: {
+    property: 'weight',
+    units: { kg: same, lb: pounds, st: stones },
+  },
   HKQuantityTypeIdentifierAppleSleepingWristTemperature: {
     property: 'sleepingWristTemperature',
     units: { degC: same, degF: fahrenheit },

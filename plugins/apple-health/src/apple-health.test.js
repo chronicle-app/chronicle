@@ -224,8 +224,21 @@ test('readings convert to their units, and a blood pressure is one reading with 
   const respiratory = await valuesFrom(AppleHealthRespiratoryExtractor);
   assert.deepEqual(respiratory.values, [{ oxygenSaturation: 0.97 }, { respiratoryRate: 15.5 }]);
   const body = await valuesFrom(AppleHealthBodyMeasurementsExtractor);
-  // 96.8 °F
-  assert.deepEqual(body.values, [{ sleepingWristTemperature: 36 }]);
+  // Newest first: 165.4 lb, 96.8 °F, 74.8 kg, and 11.5 st, to the gram.
+  assert.deepEqual(body.values, [
+    { weight: 75.024 },
+    { sleepingWristTemperature: 36 },
+    { weight: 74.8 },
+    { weight: 73.028 },
+  ]);
+  // A weight is taken at an instant, by the app that wrote it.
+  const weight = body.actions[0];
+  assert.deepEqual(keyOf(weight).slice(2), [
+    ['timestamp', ['2025-01-15T11:30:00.000Z']],
+    ['instrument[*].handle', ['Smart Scale']],
+    ['object.weight', [75.024]],
+  ]);
+  assert.deepEqual(instruments(weight), [['SoftwareApplication', 'Smart Scale']]);
 
   const heart = await valuesFrom(AppleHealthHeartExtractor, { series: 'BloodPressure' });
   assert.deepEqual(heart.values, [{ systolicBloodPressure: 118, diastolicBloodPressure: 76 }]);

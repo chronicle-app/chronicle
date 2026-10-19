@@ -79,7 +79,8 @@ const ecg = (date, classification) =>
  * rhythm, one inconclusive.
  *
  * Respiratory: respiratory rate and blood oxygen. Body measurements: a wrist
- * temperature in °F, and one in an unknown unit.
+ * temperature in °F, and one in an unknown unit. Weights from a scale's app in
+ * pounds and in stones, and one entered in Health in kilograms.
  *
  * Activity: the phone's steps over nine minutes, and the watch's over one of
  * them. The watch's active energy in `Cal`, and an app's in `kJ`.
@@ -279,6 +280,37 @@ export function writeHealthExport(dir) {
       startDate: '2025-01-16 01:00:00 -0400',
       endDate: '2025-01-16 06:00:00 -0400',
       value: '309.15',
+    }),
+    record(quantity('BodyMass'), {
+      sourceName: 'Smart Scale',
+      sourceVersion: '4.0',
+      unit: 'lb',
+      creationDate: '2025-01-15 07:31:00 -0400',
+      startDate: '2025-01-15 07:30:00 -0400',
+      endDate: '2025-01-15 07:30:00 -0400',
+      value: '165.4',
+    }),
+    record(
+      quantity('BodyMass'),
+      {
+        sourceName: 'Health',
+        sourceVersion: '18.1',
+        unit: 'kg',
+        creationDate: '2025-01-10 08:00:00 -0400',
+        startDate: '2025-01-10 08:00:00 -0400',
+        endDate: '2025-01-10 08:00:00 -0400',
+        value: '74.8',
+      },
+      meta('HKWasUserEntered', '1')
+    ),
+    record(quantity('BodyMass'), {
+      sourceName: 'Smart Scale',
+      sourceVersion: '3.2',
+      unit: 'st',
+      creationDate: '2024-11-02 07:46:00 -0400',
+      startDate: '2024-11-02 07:45:00 -0400',
+      endDate: '2024-11-02 07:45:00 -0400',
+      value: '11.5',
     }),
     ` <Correlation type="HKCorrelationTypeIdentifierBloodPressure" sourceName="Health" sourceVersion="18.1" creationDate="2025-01-15 12:00:00 -0400" startDate="2025-01-15 11:58:00 -0400" endDate="2025-01-15 11:58:00 -0400">
 ${meta('HKWasUserEntered', '1')}${record(quantity('BloodPressureSystolic'), { sourceName: 'Health', sourceVersion: '18.1', unit: 'mmHg', creationDate: '2025-01-15 12:00:00 -0400', startDate: '2025-01-15 11:58:00 -0400', endDate: '2025-01-15 11:58:00 -0400', value: '118' }).replace(/^ /, '  ')}

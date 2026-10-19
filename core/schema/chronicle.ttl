@@ -566,6 +566,14 @@
   rdfs:domain :Person;
   rdfs:range :Number .
 [] a sh:PropertyShape; sh:path :sleepingWristTemperature; sh:targetSubjectsOf :sleepingWristTemperature; sh:maxCount 1 .
+:weight a owl:DatatypeProperty;
+  :metric "gauge";
+  :unit "kg";
+  rdfs:comment "The person's body weight, as a mass in kilograms.";
+  rdfs:domain :Person;
+  rdfs:range :Number;
+  skos:closeMatch schemaorg:weight .
+[] a sh:PropertyShape; sh:path :weight; sh:targetSubjectsOf :weight; sh:maxCount 1 .
 :systolicBloodPressure a owl:DatatypeProperty;
   :metric "gauge";
   :unit "mm[Hg]";
