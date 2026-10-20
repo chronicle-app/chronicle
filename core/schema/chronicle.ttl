@@ -720,6 +720,10 @@
   rdfs:comment "One episode of a podcast.";
   rdfs:subClassOf :CreativeWork;
   skos:broadMatch schemaorg:PodcastEpisode .
+:PodcastSeries a owl:Class;
+  rdfs:comment "A podcast, a series of episodes published through a :webFeed by a :publisher.";
+  rdfs:subClassOf :CreativeWork;
+  skos:broadMatch schemaorg:PodcastSeries .
 :attribution a owl:ObjectProperty;
   rdfs:comment "An agent responsible for bringing a work into being.";
   rdfs:subPropertyOf :relation;
@@ -763,6 +767,18 @@
   rdfs:range :MusicAlbum;
   skos:exactMatch schemaorg:inAlbum .
 [] a sh:PropertyShape; sh:path :inAlbum; sh:targetSubjectsOf :inAlbum; sh:maxCount 1 .
+:series a owl:ObjectProperty;
+  :propagatesEncounter true;
+  rdfs:comment "The series that this work is one of, such as the podcast an episode belongs to or the series a book was published in.";
+  rdfs:subPropertyOf :partOf;
+  rdfs:domain :CreativeWork;
+  rdfs:range :CreativeWork;
+  skos:closeMatch schemaorg:partOfSeries .
+:webFeed a owl:DatatypeProperty;
+  rdfs:comment "The URL of an RSS or Atom feed that publishes the work's items, such as a podcast's episodes or a blog's posts.";
+  rdfs:domain :CreativeWork;
+  rdfs:range :URL;
+  skos:exactMatch schemaorg:webFeed .
 :duration a owl:DatatypeProperty;
   rdfs:comment "How long the recording or media lasts.";
   rdfs:domain [ a owl:Class; owl:unionOf ( :AudioObject :VideoObject :MusicRecording :PodcastEpisode ) ];

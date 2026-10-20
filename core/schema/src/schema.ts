@@ -172,8 +172,10 @@ export interface CreativeWork extends Omit<Entity, '@type'> {
   isBasedOn?: CreativeWorkAndChildren[];
   publisher?: OrganizationAndChildren[];
   references?: EntityAndChildren[];
+  series?: CreativeWorkAndChildren[];
   sourceFormat?: string;
   visibility?: string;
+  webFeed?: string[];
 }
 
 export type CreativeWorkAndChildren =
@@ -188,6 +190,7 @@ export type CreativeWorkAndChildren =
   | MusicAlbumAndChildren
   | MusicRecordingAndChildren
   | PodcastEpisodeAndChildren
+  | PodcastSeriesAndChildren
   | PostAndChildren
   | QueryAndChildren
   | QuotationAndChildren
@@ -206,8 +209,10 @@ const CreativeWorkProperties = {
   isBasedOn: z.lazy(() => z.array(CreativeWorkAndChildrenSchema)).optional(),
   publisher: z.lazy(() => z.array(OrganizationAndChildrenSchema)).optional(),
   references: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
+  series: z.lazy(() => z.array(CreativeWorkAndChildrenSchema)).optional(),
   sourceFormat: z.lazy(() => z.string()).optional(),
   visibility: z.lazy(() => z.string()).optional(),
+  webFeed: z.lazy(() => z.array(z.string().url())).optional(),
 };
 
 export const CreativeWorkSchema: z.ZodType<CreativeWork> = z
@@ -1980,6 +1985,24 @@ export const PodcastEpisodeSchema: z.ZodType<PodcastEpisode> = z
   })
   .superRefine(requireNodeIdentity);
 
+// PodcastSeries, child of https://schema.chronicle.app/CreativeWork
+export interface PodcastSeries extends Omit<CreativeWork, '@type'> {
+  '@type': 'PodcastSeries';
+}
+
+export type PodcastSeriesAndChildren = PodcastSeries;
+
+const PodcastSeriesProperties = {
+  ...CreativeWorkProperties,
+};
+
+export const PodcastSeriesSchema: z.ZodType<PodcastSeries> = z
+  .object({
+    '@type': z.literal('PodcastSeries'),
+    ...PodcastSeriesProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // Post, child of https://schema.chronicle.app/CreativeWork
 export interface Post extends Omit<CreativeWork, '@type'> {
   '@type': 'Post';
@@ -2619,6 +2642,8 @@ export const ProjectAndChildrenSchema = ProjectSchema;
 export const ProductModelAndChildrenSchema = ProductModelSchema;
 
 export const PostAndChildrenSchema = PostSchema;
+
+export const PodcastSeriesAndChildrenSchema = PodcastSeriesSchema;
 
 export const PodcastEpisodeAndChildrenSchema = PodcastEpisodeSchema;
 
@@ -3580,6 +3605,11 @@ export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> =
     }),
 
     z.object({
+      '@type': z.literal('PodcastSeries'),
+      ...PodcastSeriesProperties,
+    }),
+
+    z.object({
       '@type': z.literal('PodcastEpisode'),
       ...PodcastEpisodeProperties,
     }),
@@ -3925,6 +3955,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     z.object({
       '@type': z.literal('Post'),
       ...PostProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('PodcastSeries'),
+      ...PodcastSeriesProperties,
     }),
 
     z.object({
@@ -4513,6 +4548,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('Post'),
       ...PostProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('PodcastSeries'),
+      ...PodcastSeriesProperties,
     }),
 
     z.object({

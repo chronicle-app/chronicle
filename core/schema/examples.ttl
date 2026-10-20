@@ -4316,3 +4316,36 @@ posting.
 :inAccount skos:example example:card-purchase .
 :isPartOf skos:example example:card-purchase .
 :recipient skos:example example:card-purchase .
+
+# Listening to a podcast episode
+example:podcast
+  rdfs:label "Listening to a podcast episode";
+  rdfs:comment """
+An episode belongs to a podcast through :series. The series carries its feed URL.
+""";
+  rdf:value [
+    a :ListenAction;
+    doc:key ("@type" "source" "sourceId");
+    :source "apple-podcasts";
+    :sourceId "1000762841935";
+    :object [
+      a :PodcastEpisode;
+      doc:key ("@type" "source" "sourceId");
+      :source "apple-podcasts";
+      :sourceId "1000762841935";
+      :name "The neighbourhood garden";
+      :series [
+        a :PodcastSeries;
+        doc:key ("@type" "source" "sourceId");
+        :source "apple-podcasts";
+        :sourceId "1847263950";
+        :name "City Stories";
+        :webFeed "https://example.org/podcast/feed.xml"
+      ]
+    ]
+  ] .
+
+:PodcastEpisode skos:example example:podcast .
+:PodcastSeries skos:example example:podcast .
+:series skos:example example:podcast .
+:webFeed skos:example example:podcast .

@@ -52,6 +52,7 @@ other source by name, for example `chronicle plugins install lastfm`, or let
 | Things 3                                                                               | [things-todo](plugins/things-todo/README.md)               | app-db (local)                  |
 | Phone and FaceTime calls (Apple Call History)                                          | [apple-call-history](plugins/apple-call-history/README.md) | app-db (local)                  |
 | Apple Health heart, respiratory, and body readings, steps and active energy, and sleep | [apple-health](plugins/apple-health/README.md)             | archive (export)                |
+| Podcast listens and subscriptions from Apple Podcasts                                  | [apple-podcasts](plugins/apple-podcasts/README.md)         | app-db (local)                  |
 | Voice Memos recordings and their transcripts                                           | [apple-voice-memos](plugins/apple-voice-memos/README.md)   | app-db (local)                  |
 | Card transactions from Apple Wallet                                                    | [apple-wallet](plugins/apple-wallet/README.md)             | app-db (local)                  |
 | Arc Timeline visits and trips                                                          | [arc-timeline](plugins/arc-timeline/README.md)             | icloud-backup (local)           |
