@@ -773,7 +773,7 @@
   rdfs:subPropertyOf :partOf;
   rdfs:domain :PodcastEpisode;
   rdfs:range :CreativeWork;
-  skos:closeMatch schemaorg:partOfSeries .
+  skos:broadMatch schemaorg:partOfSeries .
 :webFeed a owl:DatatypeProperty;
   rdfs:comment "The RSS or Atom feed URL for the podcast.";
   rdfs:domain :PodcastSeries;
