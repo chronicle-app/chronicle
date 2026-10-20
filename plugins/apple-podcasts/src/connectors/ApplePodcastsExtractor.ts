@@ -1,4 +1,4 @@
-import { AuthRequired, Record } from '@chronicle.app/etl';
+import { AuthRequired, Record, htmlToText } from '@chronicle.app/etl';
 import { getICloudAccount } from '@chronicle.app/apple';
 import {
   SqliteExtractor,
@@ -12,7 +12,6 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { z } from 'zod';
-import { transcriptText } from '../transcript.js';
 import ApplePodcastsTransformer from './ApplePodcastsTransformer.js';
 
 function getDefaultDbPath(): string {
@@ -234,7 +233,8 @@ export class ApplePodcastsExtractor extends SqliteExtractor<typeof ApplePodcasts
     this.hintUnreadableTranscripts();
   }
 
-  // The episode's transcript as text, when Apple Podcasts has downloaded it. A
+  // The episode's transcript as text, when Apple Podcasts has downloaded it: a
+  // paragraph for each speaker's turn, without timings or speaker labels. A
   // transcript that doesn't read loses only the transcript, not the episode.
   private readTranscript(folder: string, row: any): string | null {
     const { transcriptIdentifier: identifier, storeTrackId } = row;
@@ -242,7 +242,9 @@ export class ApplePodcastsExtractor extends SqliteExtractor<typeof ApplePodcasts
     const file = path.resolve(folder, `${identifier}-${storeTrackId}.ttml`);
     if (!file.startsWith(folder + path.sep)) return null;
     try {
-      return transcriptText(readFileSync(file, 'utf8')) || null;
+      // Each word of the TTML is a span, with no space between the spans.
+      const ttml = readFileSync(file, 'utf8').replaceAll('</span><span', '</span> <span');
+      return htmlToText(ttml) || null;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
       this.logger.warn(`Can't read an episode's transcript: ${(error as Error).message}`);
