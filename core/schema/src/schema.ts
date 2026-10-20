@@ -172,6 +172,7 @@ export interface CreativeWork extends Omit<Entity, '@type'> {
   isBasedOn?: CreativeWorkAndChildren[];
   publisher?: OrganizationAndChildren[];
   references?: EntityAndChildren[];
+  series?: CreativeWorkAndChildren[];
   sourceFormat?: string;
   visibility?: string;
 }
@@ -207,6 +208,7 @@ const CreativeWorkProperties = {
   isBasedOn: z.lazy(() => z.array(CreativeWorkAndChildrenSchema)).optional(),
   publisher: z.lazy(() => z.array(OrganizationAndChildrenSchema)).optional(),
   references: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
+  series: z.lazy(() => z.array(CreativeWorkAndChildrenSchema)).optional(),
   sourceFormat: z.lazy(() => z.string()).optional(),
   visibility: z.lazy(() => z.string()).optional(),
 };
@@ -1963,7 +1965,6 @@ export const PlanActionSchema: z.ZodType<PlanAction> = z
 export interface PodcastEpisode extends Omit<CreativeWork, '@type'> {
   '@type': 'PodcastEpisode';
   duration?: string;
-  series?: CreativeWorkAndChildren[];
   transcript?: string;
 }
 
@@ -1972,7 +1973,6 @@ export type PodcastEpisodeAndChildren = PodcastEpisode;
 const PodcastEpisodeProperties = {
   ...CreativeWorkProperties,
   duration: z.lazy(() => z.string()).optional(),
-  series: z.lazy(() => z.array(CreativeWorkAndChildrenSchema)).optional(),
   transcript: z.lazy(() => z.string()).optional(),
 };
 
