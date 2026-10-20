@@ -391,7 +391,7 @@
   skos:broadMatch schemaorg:TravelAction .
 :Journey a owl:Class;
   rdfs:comment "A recorded stretch of travel, with its :travelMode, its :distance, and its route as its :path. It is the :result of a :TravelAction, which gives its start and end.";
-  rdfs:subClassOf :Entity .
+  rdfs:subClassOf :Session .
 :travelMode a owl:DatatypeProperty;
   rdfs:comment "How the journey was made, such as `walking`, `cycling`, or `metro`.";
   rdfs:domain :Journey;
@@ -479,10 +479,10 @@
   rdfs:comment "The agent made a phone or video call. Its :result is the :CallSession.";
   rdfs:subClassOf :CommunicateAction .
 :Session a owl:Class;
-  rdfs:comment "A described period of the subject's activity, such as a block of app use, a manually logged block of time, or a call. Unlike an :Event, it is not a named happening. Its :scheduledStart and :scheduledEnd give a planned period. The action that records it gives when it actually happened.";
+  rdfs:comment "A period of one person's activity or experience, such as a night's sleep, a logged block of work, a trip across town, or their time on a call. The action that records it gives when it actually happened. Others who took part have sessions of their own. Something they shared, such as a concert or a meeting, is an :Event that each session :isPartOf. Its :scheduledStart and :scheduledEnd give a planned period.";
   rdfs:subClassOf :Entity .
 :CallSession a owl:Class;
-  rdfs:comment "A phone or video call, as a period of time. It is the :result of a :CallAction. Its :recipient is who received the call. A group call :isPartOf a :Channel whose :member values are the participants. A missed call has zero length.";
+  rdfs:comment "One person's time on a phone or video call. It is the :result of a :CallAction. Its :recipient is who received the call. A group call's session :isPartOf a :Channel whose :member values are the participants. A missed call has zero length.";
   rdfs:subClassOf :Session .
 :SleepAction a owl:Class;
   rdfs:comment "The agent slept from :startTime to :endTime, such as for a night or a nap. Its :result is the :SleepSession.";

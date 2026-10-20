@@ -120,7 +120,6 @@ export type EntityAndChildren =
   | CreativeWorkAndChildren
   | EventAndChildren
   | IntangibleAndChildren
-  | JourneyAndChildren
   | MealAndChildren
   | PhysicalObjectAndChildren
   | PlaceAndChildren
@@ -685,6 +684,7 @@ export type SessionAndChildren =
   | CallSessionAndChildren
   | DeviceSessionAndChildren
   | EnrollmentAndChildren
+  | JourneyAndChildren
   | MembershipAndChildren
   | RelationshipAndChildren
   | SleepSessionAndChildren
@@ -1373,8 +1373,8 @@ export const JoinActionSchema: z.ZodType<JoinAction> = z
   })
   .superRefine(requireNodeIdentity);
 
-// Journey, child of https://schema.chronicle.app/Entity
-export interface Journey extends Omit<Entity, '@type'> {
+// Journey, child of https://schema.chronicle.app/Session
+export interface Journey extends Omit<Session, '@type'> {
   '@type': 'Journey';
   distance?: number;
   path?: string;
@@ -1384,7 +1384,7 @@ export interface Journey extends Omit<Entity, '@type'> {
 export type JourneyAndChildren = Journey;
 
 const JourneyProperties = {
-  ...EntityProperties,
+  ...SessionProperties,
   distance: z.lazy(() => z.number()).optional(),
   path: z.lazy(() => z.string()).optional(),
   travelMode: z.lazy(() => z.string()).optional(),
@@ -2993,6 +2993,11 @@ export const SessionAndChildrenSchema: z.ZodType<SessionAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('Journey'),
+      ...JourneyProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Enrollment'),
       ...EnrollmentProperties,
     }),
@@ -3707,11 +3712,6 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('Journey'),
-      ...JourneyProperties,
-    }),
-
-    z.object({
       '@type': z.literal('Event'),
       ...EventProperties,
     }),
@@ -3804,6 +3804,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     z.object({
       '@type': z.literal('Membership'),
       ...MembershipProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Journey'),
+      ...JourneyProperties,
     }),
 
     z.object({
@@ -4290,11 +4295,6 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('Journey'),
-      ...JourneyProperties,
-    }),
-
-    z.object({
       '@type': z.literal('Event'),
       ...EventProperties,
     }),
@@ -4387,6 +4387,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('Membership'),
       ...MembershipProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Journey'),
+      ...JourneyProperties,
     }),
 
     z.object({
