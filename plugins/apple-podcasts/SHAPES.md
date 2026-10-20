@@ -24,7 +24,7 @@ ListenAction | BookmarkAction key(sourceId) {
       references[]?: Entity key(url, any source) { url }
       emblem?: ImageObject key(url, any source) { url }
       author[]?: Agent key(name) { name }
-      publisher[]?: Organization key(sourceId) { sourceId, name }
+      publisher[]?: Organization key(sourceId) { sourceId, url, name }
     }
     author[]?: Agent key(name) { name }
     references[]?: Entity key(url, any source) { url }
@@ -43,7 +43,7 @@ CompleteAction key(sourceId) {
       references[]?: Entity key(url, any source) { url }
       emblem?: ImageObject key(url, any source) { url }
       author[]?: Agent key(name) { name }
-      publisher[]?: Organization key(sourceId) { sourceId, name }
+      publisher[]?: Organization key(sourceId) { sourceId, url, name }
     }
     references[]?: Entity key(url, any source) { url }
     emblem?: ImageObject key(url, any source) { url* }
@@ -64,7 +64,7 @@ BookmarkAction key(sourceId) {
       references[]: Entity key(url, any source) { url }
       emblem: ImageObject key(url, any source) { url }
       author[]: Agent key(name) { name }
-      publisher[]: Organization key(sourceId) { sourceId, name }
+      publisher[]: Organization key(sourceId) { sourceId, url, name }
     }
     author[]: Agent key(name) { name }
   }
@@ -82,7 +82,7 @@ FollowAction key(sourceId) {
     references[]: Entity key(url, any source) { url }
     emblem: ImageObject key(url, any source) { url }
     author[]: Agent key(name) { name }
-    publisher[]: Organization key(sourceId) { sourceId, name }
+    publisher[]: Organization key(sourceId) { sourceId, url, name }
   }
 }
 ```

@@ -54,8 +54,10 @@ Apple Podcasts stores its library in a Core Data SQLite file
   container at `Library/Cache/Assets/TTML/<ZTRANSCRIPTIDENTIFIER>-<ZSTORETRACKID>.ttml`,
   where `ZTRANSCRIPTIDENTIFIER` is on the media enclosure.
 - `ZMTPODCAST` (`subscription` records, where `ZSUBSCRIBED = 1`) — Columns:
-  `ZTITLE`, `ZAUTHOR`, `ZCATEGORY`, `ZFEEDURL`, `ZIMAGEURL`,
-  `ZWEBPAGEURL`, `ZSTORECOLLECTIONID`, `ZADDEDDATE`, `ZITEMDESCRIPTION`.
+  `ZTITLE`, `ZAUTHOR`, `ZCATEGORY`, `ZFEEDURL`, `ZUPDATEDFEEDURL`,
+  `ZIMAGEURL`, `ZWEBPAGEURL`, `ZSTORECOLLECTIONID`, `ZADDEDDATE`,
+  `ZITEMDESCRIPTION`. `ZFEEDURL` is the feed's address when the show was
+  followed, and `ZUPDATEDFEEDURL` its new address when it has moved since.
 - `ZMTCHANNEL`, joined from a show by `ZCHANNEL` — the show's channel, its
   publisher's page on Apple Podcasts: `ZSTOREID` (its catalog ID) and `ZNAME`.
   Shows published independently have none.
@@ -92,7 +94,7 @@ Entities:
   has downloaded or just played, and clears them later; a transcript an earlier
   run extracted stays in the archive.
 - `PodcastSeries` — keyed by its catalog ID; title, description, `url` (its
-  page on Apple Podcasts), `webFeed`, `genre`, artwork as its `emblem`, its
+  page on Apple Podcasts), `webFeed` (the feed's current address), `genre`, artwork as its `emblem`, its
   `author`, and its channel as its `publisher`.
 
 A show's or an episode's `url` is its page on Apple Podcasts, made from the
@@ -109,7 +111,7 @@ merge.
   name. It can be a host, a network, or several people in one name, such as an
   episode's producers, so it isn't said to be a person or an organization.
 - `Organization` — a show's channel on Apple Podcasts, as its `publisher`, keyed
-  by the channel's catalog ID.
+  by the channel's catalog ID, with its page on Apple Podcasts as its `url`.
 - `Entity` — the page a feed links a show or an episode to, which it
   `references`, keyed by its url.
 

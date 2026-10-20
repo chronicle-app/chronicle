@@ -28,7 +28,7 @@ export const account = {
  * it that was played. They aren't in the catalog, so they're left out.
  *
  * The followed show is on its network's channel, and its feed names its host
- * as its author. The finished episode names its producers instead. The other
+ * as its author. Its feed has moved since it was followed. The finished episode names its producers instead. The other
  * shows aren't on a channel.
  *
  * The finished episode's feed links it to the show's home page, as many feeds
@@ -60,7 +60,8 @@ export function writeApplePodcastsFixture(dir) {
     CREATE TABLE ZMTPODCAST (Z_PK INTEGER PRIMARY KEY, ZUUID VARCHAR, ZTITLE VARCHAR,
       ZAUTHOR VARCHAR, ZCATEGORY VARCHAR, ZFEEDURL VARCHAR, ZIMAGEURL VARCHAR,
       ZWEBPAGEURL VARCHAR, ZSTORECOLLECTIONID INTEGER, ZADDEDDATE TIMESTAMP,
-      ZITEMDESCRIPTION VARCHAR, ZSUBSCRIBED INTEGER, ZCHANNEL INTEGER);
+      ZITEMDESCRIPTION VARCHAR, ZSUBSCRIBED INTEGER, ZCHANNEL INTEGER,
+      ZUPDATEDFEEDURL VARCHAR);
     CREATE TABLE ZMTCHANNEL (Z_PK INTEGER PRIMARY KEY, ZSTOREID INTEGER, ZNAME VARCHAR);
     CREATE TABLE ZMTMEDIAENCLOSURE (Z_PK INTEGER PRIMARY KEY, ZEPISODE INTEGER,
       ZDURATION FLOAT, ZREMOTEURL VARCHAR, ZTRANSCRIPTIDENTIFIER VARCHAR);
@@ -79,11 +80,12 @@ export function writeApplePodcastsFixture(dir) {
     INSERT INTO ZMTPODCAST VALUES
       (1, 'SHOW-FOLLOWED', 'Example Conversations', 'Pat Example', 'Society & Culture',
         'https://example.com/feed.xml', 'https://example.com/show.jpg',
-        'https://example.com/show', 1001, ${JAN_1 - 30 * DAY}, 'Long conversations.', 1, 1),
+        'https://example.com/show', 1001, ${JAN_1 - 30 * DAY}, 'Long conversations.', 1, 1,
+        'https://feeds.example.net/conversations.xml'),
       (2, 'SHOW-UNFOLLOWED', 'Podcast no longer available', NULL, NULL, 'https://example.org/feed.xml',
-        NULL, NULL, 1002, NULL, NULL, 0, NULL),
+        NULL, NULL, 1002, NULL, NULL, 0, NULL, NULL),
       (3, 'SHOW-UNCATALOGED', 'Example Members', NULL, NULL, 'https://example.net/members.xml',
-        NULL, NULL, NULL, ${JAN_1 - 5 * DAY}, NULL, 1, NULL);
+        NULL, NULL, NULL, ${JAN_1 - 5 * DAY}, NULL, 1, NULL, NULL);
 
     INSERT INTO ZMTCHANNEL VALUES (1, 3001, 'Example Network');
 

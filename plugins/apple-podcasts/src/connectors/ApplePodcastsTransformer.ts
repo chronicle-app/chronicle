@@ -196,7 +196,9 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
   private buildPodcast(data: any): PodcastSeries | undefined {
     const sourceId = catalogId(data.storeCollectionId);
     if (!sourceId) return undefined;
-    const feed = str(data.feedUrl);
+    // The feed's address when the show was followed, unless the feed has moved
+    // since, which the library notes. The old address redirects to the new.
+    const feed = str(data.updatedFeedUrl) ?? str(data.feedUrl);
     const image = str(data.imageUrl);
     const category = str(data.podcastCategory);
     return {
@@ -277,6 +279,7 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
         '@key': ['@type', 'source', 'sourceId'],
         source: SOURCE,
         sourceId,
+        url: `https://podcasts.apple.com/channel/id${sourceId}`,
         ...(str(data.channelName) && { name: str(data.channelName) }),
       },
     ];

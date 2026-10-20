@@ -69,6 +69,7 @@ const channel = {
   '@key': ['@type', 'source', 'sourceId'],
   source: 'apple-podcasts',
   sourceId: '3001',
+  url: 'https://podcasts.apple.com/channel/id3001',
   name: 'Example Network',
 };
 const image = url => ({ '@type': 'ImageObject', '@key': ['url'], url });
@@ -84,7 +85,8 @@ const followedShow = {
   url: 'https://podcasts.apple.com/podcast/id1001',
   name: 'Example Conversations',
   description: 'Long conversations.',
-  webFeed: 'https://example.com/feed.xml',
+  // Its feed has moved: the new address.
+  webFeed: 'https://feeds.example.net/conversations.xml',
   references: [page('https://example.com/show')],
   genre: ['Society & Culture'],
   emblem: image('https://example.com/show.jpg'),
