@@ -57,6 +57,15 @@ function catalogId(storeId: unknown): string | undefined {
   return typeof storeId === 'number' && storeId > 0 ? String(storeId) : undefined;
 }
 
+// A show's page on Apple Podcasts, or one of its episodes', by their catalog
+// IDs. A feed's own link for an episode or a show is often the show's or the
+// network's home page, which would merge every node that has it, so `url` is
+// Apple's page instead.
+function applePage(showId: string, episodeId?: string): string {
+  const page = `https://podcasts.apple.com/podcast/id${showId}`;
+  return episodeId ? `${page}?i=${episodeId}` : page;
+}
+
 // Episode artwork is stored as an mzstatic template with `{w}x{h}bb.{f}`
 // placeholders; fill them in for a concrete, fetchable image URL.
 function resolveArtwork(template: string): string {
@@ -189,6 +198,7 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
       '@key': ['@type', 'source', 'sourceId'],
       source: SOURCE,
       sourceId,
+      url: applePage(sourceId),
       ...(title(data.podcastTitle) && { name: title(data.podcastTitle) }),
       ...(markdown(data.podcastDescription) && {
         description: markdown(data.podcastDescription),
@@ -209,10 +219,8 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
     sourceId: string,
     podcast: PodcastSeries | undefined
   ): PodcastEpisode {
-    // `url` is the episode's web page only. The audio file lives on `contains`;
-    // keeping it out of `url` avoids fusing the episode with its own AudioObject
-    // through the shared `{url}` identity hub (shred auto-keys any node by url).
-    const url = str(data.webUrl);
+    // The audio file lives on `contains`, not `url`, so the episode isn't
+    // merged with its own AudioObject through their url.
     const audio = str(data.audioUrl);
     const artwork = str(data.artworkUrl);
     return {
@@ -224,7 +232,7 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
       ...(markdown(data.episodeDescription) && {
         description: markdown(data.episodeDescription),
       }),
-      ...(url && { url }),
+      ...(podcast?.sourceId && { url: applePage(podcast.sourceId, sourceId) }),
       ...(data.duration && { duration: this.formatDuration(data.duration) }),
       ...(date(data.publishDate) && { datePublished: date(data.publishDate) }),
       ...(artwork &&

@@ -82,8 +82,8 @@ date as their timeline position while being sighted at read time.
 
 Entities:
 
-- `PodcastEpisode` — keyed by its catalog ID; title, description, `url` (web
-  page), `duration` (ISO 8601), when it was released as its `datePublished`
+- `PodcastEpisode` — keyed by its catalog ID; title, description, `url` (its
+  page on Apple Podcasts), `duration` (ISO 8601), when it was released as its `datePublished`
   (`ZPUBDATE`), episode artwork as its `emblem`, and the audio
   file in `contains` (`AudioObject`). Its `transcript` is the text of the
   downloaded TTML, a paragraph for each speaker's turn, without timings. Each
@@ -91,9 +91,16 @@ Entities:
   The labels aren't names, and they're numbered within each episode. The app keeps only some transcripts, mostly for episodes it
   has downloaded or just played, and clears them later; a transcript an earlier
   run extracted stays in the archive.
-- `PodcastSeries` — keyed by its catalog ID; title, description, `webFeed`,
-  `genre`, artwork as its `emblem`, its `author`, and its channel as its
-  `publisher`.
+- `PodcastSeries` — keyed by its catalog ID; title, description, `url` (its
+  page on Apple Podcasts), `webFeed`, `genre`, artwork as its `emblem`, its
+  `author`, and its channel as its `publisher`.
+
+A show's or an episode's `url` is its page on Apple Podcasts, made from the
+catalog IDs, such as `https://podcasts.apple.com/podcast/id983795625?i=1000750314107`.
+The feed's own link (`ZWEBPAGEURL`) is often the show's or the network's home
+page, shared by every episode, and nodes with the same `url` merge. It stays in
+the raw record.
+
 - `Person` — the macOS iCloud account (so listening merges onto the same identity
   as other iCloud-sourced data).
 - `Agent` — the `author` the feed names for a show or an episode, keyed by that

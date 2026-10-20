@@ -78,6 +78,7 @@ const followedShow = {
   '@key': key,
   source: 'apple-podcasts',
   sourceId: '1001',
+  url: 'https://podcasts.apple.com/podcast/id1001',
   name: 'Example Conversations',
   description: 'Long conversations.',
   webFeed: 'https://example.com/feed.xml',
@@ -91,6 +92,7 @@ const unfollowedShow = {
   '@key': key,
   source: 'apple-podcasts',
   sourceId: '1002',
+  url: 'https://podcasts.apple.com/podcast/id1002',
   webFeed: 'https://example.org/feed.xml',
 };
 const finishedEpisode = {
@@ -100,7 +102,8 @@ const finishedEpisode = {
   sourceId: '2001',
   name: 'A Finished Episode',
   description: 'A guest on [their new book](https://example.com/book).',
-  url: 'https://example.com/episodes/1',
+  // Its page on Apple Podcasts, not the feed's link for it.
+  url: 'https://podcasts.apple.com/podcast/id1001?i=2001',
   duration: 'PT3121S',
   datePublished: new Date('2024-12-30T00:00:00.000Z'),
   emblem: image('https://example.com/art/600x600bb.jpg'),

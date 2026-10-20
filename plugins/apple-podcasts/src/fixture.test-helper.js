@@ -31,6 +31,9 @@ export const account = {
  * as its author. The finished episode names its producers instead. The other
  * shows aren't on a channel.
  *
+ * The finished episode's feed links it to the show's home page, as many feeds
+ * link every episode.
+ *
  * The unfollowed show has been retired. Its publisher retitled it and its older
  * episode "Podcast no longer available".
  *
@@ -104,7 +107,7 @@ export function writeApplePodcastsFixture(dir) {
       (1, 'EP-FINISHED', 'guid-1', 'A Finished Episode', 'Sam Producer, Pat Example', 1,
         'SHOW-FOLLOWED',
         1, 1, 0, 1, ${JAN_1 + 9000}, ${JAN_1 + 3000}, NULL, 1, ${JAN_1 - DAY},
-        ${JAN_1 - 2 * DAY}, 2001, 'https://example.com/episodes/1',
+        ${JAN_1 - 2 * DAY}, 2001, 'https://example.com/show',
         'https://example.com/art/{w}x{h}bb.{f}', 'md-finished'),
       (2, 'EP-IN-PROGRESS', 'guid-2', 'An Episode in Progress', 'Pat Example', 1,
         'SHOW-FOLLOWED', 2, NULL, 239, 0, ${JAN_1 + 7200}, ${JAN_1 + 7200}, NULL, 0, NULL,
