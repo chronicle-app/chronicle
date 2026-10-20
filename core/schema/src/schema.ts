@@ -19,6 +19,25 @@ const DateTimeSchema = z.union([
 /** Inverse property name → the forward property it reverses. */
 export const INVERSE_PROPERTIES: Record<string, string> = {
   hasPart: 'isPartOf',
+  hasStage: 'isStageOf',
+  resultOf: 'result',
+};
+
+/** Metric property name → the form its values take and the unit they are in. */
+export const METRIC_PROPERTIES: Record<string, { metric: 'gauge' | 'sum'; unit: string }> = {
+  activeEnergyBurned: { metric: 'sum', unit: 'kcal' },
+  diastolicBloodPressure: { metric: 'gauge', unit: 'mm[Hg]' },
+  heartRate: { metric: 'gauge', unit: '/min' },
+  heartRateRecovery: { metric: 'gauge', unit: '/min' },
+  heartRateVariabilitySdnn: { metric: 'gauge', unit: 'ms' },
+  oxygenSaturation: { metric: 'gauge', unit: '1' },
+  respiratoryRate: { metric: 'gauge', unit: '/min' },
+  restingHeartRate: { metric: 'gauge', unit: '/min' },
+  sleepingWristTemperature: { metric: 'gauge', unit: 'Cel' },
+  stepCount: { metric: 'sum', unit: '{steps}' },
+  systolicBloodPressure: { metric: 'gauge', unit: 'mm[Hg]' },
+  walkingHeartRate: { metric: 'gauge', unit: '/min' },
+  weight: { metric: 'gauge', unit: 'kg' },
 };
 
 function requireNodeIdentity(
@@ -92,6 +111,7 @@ export interface Entity extends Omit<Base, '@type'> {
   tags?: string[];
   url?: string;
   hasPart?: EntityAndChildren[];
+  resultOf?: ActionAndChildren[];
 }
 
 export type EntityAndChildren =
@@ -101,7 +121,6 @@ export type EntityAndChildren =
   | CreativeWorkAndChildren
   | EventAndChildren
   | IntangibleAndChildren
-  | JourneyAndChildren
   | MealAndChildren
   | PhysicalObjectAndChildren
   | PlaceAndChildren
@@ -133,6 +152,7 @@ const EntityProperties = {
   tags: z.lazy(() => z.array(z.string())).optional(),
   url: z.lazy(() => z.string().url()).optional(),
   hasPart: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
+  resultOf: z.lazy(() => z.array(ActionAndChildrenSchema)).optional(),
 };
 
 export const EntitySchema: z.ZodType<Entity> = z
@@ -261,6 +281,7 @@ export type ActionAndChildren =
   | ExperienceActionAndChildren
   | FindActionAndChildren
   | InteractActionAndChildren
+  | MeasureActionAndChildren
   | MessageActionAndChildren
   | MoveActionAndChildren
   | OrganizeActionAndChildren
@@ -652,11 +673,13 @@ export const CallActionSchema: z.ZodType<CallAction> = z
 // Session, child of https://schema.chronicle.app/Entity
 export interface Session extends Omit<Entity, '@type'> {
   '@type': 'Session';
+  isStageOf?: SessionAndChildren;
   references?: EntityAndChildren[];
   scheduledEnd?: Date | string;
   scheduledStart?: Date | string;
   subject?: EntityAndChildren[];
   workingDirectory?: DirectoryAndChildren;
+  hasStage?: SessionAndChildren[];
 }
 
 export type SessionAndChildren =
@@ -664,17 +687,22 @@ export type SessionAndChildren =
   | CallSessionAndChildren
   | DeviceSessionAndChildren
   | EnrollmentAndChildren
+  | JourneyAndChildren
   | MembershipAndChildren
   | RelationshipAndChildren
+  | SleepSessionAndChildren
+  | SleepStageAndChildren
   | TenureAndChildren;
 
 const SessionProperties = {
   ...EntityProperties,
+  isStageOf: z.lazy(() => SessionAndChildrenSchema).optional(),
   references: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
   scheduledEnd: z.lazy(() => DateTimeSchema).optional(),
   scheduledStart: z.lazy(() => DateTimeSchema).optional(),
   subject: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
   workingDirectory: z.lazy(() => DirectoryAndChildrenSchema).optional(),
+  hasStage: z.lazy(() => z.array(SessionAndChildrenSchema)).optional(),
 };
 
 export const SessionSchema: z.ZodType<Session> = z
@@ -1198,7 +1226,7 @@ export interface ExperienceAction extends Omit<Action, '@type'> {
 }
 
 export type ExperienceActionAndChildren =
-  ExperienceAction | JoinActionAndChildren | LeaveActionAndChildren;
+  ExperienceAction | JoinActionAndChildren | LeaveActionAndChildren | SleepActionAndChildren;
 
 const ExperienceActionProperties = {
   ...ActionProperties,
@@ -1351,8 +1379,8 @@ export const JoinActionSchema: z.ZodType<JoinAction> = z
   })
   .superRefine(requireNodeIdentity);
 
-// Journey, child of https://schema.chronicle.app/Entity
-export interface Journey extends Omit<Entity, '@type'> {
+// Journey, child of https://schema.chronicle.app/Session
+export interface Journey extends Omit<Session, '@type'> {
   '@type': 'Journey';
   distance?: number;
   path?: string;
@@ -1362,7 +1390,7 @@ export interface Journey extends Omit<Entity, '@type'> {
 export type JourneyAndChildren = Journey;
 
 const JourneyProperties = {
-  ...EntityProperties,
+  ...SessionProperties,
   distance: z.lazy(() => z.number()).optional(),
   path: z.lazy(() => z.string()).optional(),
   travelMode: z.lazy(() => z.string()).optional(),
@@ -1499,6 +1527,24 @@ export const MealSchema: z.ZodType<Meal> = z
   .object({
     '@type': z.literal('Meal'),
     ...MealProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// MeasureAction, child of https://schema.chronicle.app/Action
+export interface MeasureAction extends Omit<Action, '@type'> {
+  '@type': 'MeasureAction';
+}
+
+export type MeasureActionAndChildren = MeasureAction;
+
+const MeasureActionProperties = {
+  ...ActionProperties,
+};
+
+export const MeasureActionSchema: z.ZodType<MeasureAction> = z
+  .object({
+    '@type': z.literal('MeasureAction'),
+    ...MeasureActionProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -1815,12 +1861,40 @@ export const PaymentCardSchema: z.ZodType<PaymentCard> = z
 // Person, child of https://schema.chronicle.app/Agent
 export interface Person extends Omit<Agent, '@type'> {
   '@type': 'Person';
+  activeEnergyBurned?: number;
+  diastolicBloodPressure?: number;
+  heartRate?: number;
+  heartRateRecovery?: number;
+  heartRateVariabilitySdnn?: number;
+  heartRhythm?: string;
+  oxygenSaturation?: number;
+  respiratoryRate?: number;
+  restingHeartRate?: number;
+  sleepingWristTemperature?: number;
+  stepCount?: number;
+  systolicBloodPressure?: number;
+  walkingHeartRate?: number;
+  weight?: number;
 }
 
 export type PersonAndChildren = Person;
 
 const PersonProperties = {
   ...AgentProperties,
+  activeEnergyBurned: z.lazy(() => z.number()).optional(),
+  diastolicBloodPressure: z.lazy(() => z.number()).optional(),
+  heartRate: z.lazy(() => z.number()).optional(),
+  heartRateRecovery: z.lazy(() => z.number()).optional(),
+  heartRateVariabilitySdnn: z.lazy(() => z.number()).optional(),
+  heartRhythm: z.lazy(() => z.string()).optional(),
+  oxygenSaturation: z.lazy(() => z.number()).optional(),
+  respiratoryRate: z.lazy(() => z.number()).optional(),
+  restingHeartRate: z.lazy(() => z.number()).optional(),
+  sleepingWristTemperature: z.lazy(() => z.number()).optional(),
+  stepCount: z.lazy(() => z.number()).optional(),
+  systolicBloodPressure: z.lazy(() => z.number()).optional(),
+  walkingHeartRate: z.lazy(() => z.number()).optional(),
+  weight: z.lazy(() => z.number()).optional(),
 };
 
 export const PersonSchema: z.ZodType<Person> = z
@@ -2184,6 +2258,60 @@ export const RevisionSchema: z.ZodType<Revision> = z
   })
   .superRefine(requireNodeIdentity);
 
+// SleepAction, child of https://schema.chronicle.app/ExperienceAction
+export interface SleepAction extends Omit<ExperienceAction, '@type'> {
+  '@type': 'SleepAction';
+}
+
+export type SleepActionAndChildren = SleepAction;
+
+const SleepActionProperties = {
+  ...ExperienceActionProperties,
+};
+
+export const SleepActionSchema: z.ZodType<SleepAction> = z
+  .object({
+    '@type': z.literal('SleepAction'),
+    ...SleepActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// SleepSession, child of https://schema.chronicle.app/Session
+export interface SleepSession extends Omit<Session, '@type'> {
+  '@type': 'SleepSession';
+}
+
+export type SleepSessionAndChildren = SleepSession;
+
+const SleepSessionProperties = {
+  ...SessionProperties,
+};
+
+export const SleepSessionSchema: z.ZodType<SleepSession> = z
+  .object({
+    '@type': z.literal('SleepSession'),
+    ...SleepSessionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// SleepStage, child of https://schema.chronicle.app/Session
+export interface SleepStage extends Omit<Session, '@type'> {
+  '@type': 'SleepStage';
+}
+
+export type SleepStageAndChildren = SleepStage;
+
+const SleepStageProperties = {
+  ...SessionProperties,
+};
+
+export const SleepStageSchema: z.ZodType<SleepStage> = z
+  .object({
+    '@type': z.literal('SleepStage'),
+    ...SleepStageProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // SoftwareAgent, child of https://schema.chronicle.app/Agent
 export interface SoftwareAgent extends Omit<Agent, '@type'> {
   '@type': 'SoftwareAgent';
@@ -2456,6 +2584,12 @@ export const SoftwareApplicationAndChildrenSchema = SoftwareApplicationSchema;
 
 export const SoftwareAgentAndChildrenSchema = SoftwareAgentSchema;
 
+export const SleepStageAndChildrenSchema = SleepStageSchema;
+
+export const SleepSessionAndChildrenSchema = SleepSessionSchema;
+
+export const SleepActionAndChildrenSchema = SleepActionSchema;
+
 export const RevisionAndChildrenSchema = RevisionSchema;
 
 export const RespondActionAndChildrenSchema = RespondActionSchema;
@@ -2588,6 +2722,8 @@ export const MessageAndChildrenSchema = MessageSchema;
 
 export const MembershipAndChildrenSchema = MembershipSchema;
 
+export const MeasureActionAndChildrenSchema = MeasureActionSchema;
+
 export const MealAndChildrenSchema = MealSchema;
 
 export const LocationAndChildrenSchema = LocationSchema;
@@ -2649,6 +2785,11 @@ export const ExperienceActionAndChildrenSchema: z.ZodType<ExperienceActionAndChi
     z.object({
       '@type': z.literal('ExperienceAction'),
       ...ExperienceActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('SleepAction'),
+      ...SleepActionProperties,
     }),
 
     z.object({
@@ -2863,6 +3004,16 @@ export const SessionAndChildrenSchema: z.ZodType<SessionAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('SleepStage'),
+      ...SleepStageProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('SleepSession'),
+      ...SleepSessionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Relationship'),
       ...RelationshipProperties,
     }),
@@ -2870,6 +3021,11 @@ export const SessionAndChildrenSchema: z.ZodType<SessionAndChildren> = z
     z.object({
       '@type': z.literal('Membership'),
       ...MembershipProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Journey'),
+      ...JourneyProperties,
     }),
 
     z.object({
@@ -3176,6 +3332,11 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('MeasureAction'),
+      ...MeasureActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('FindAction'),
       ...FindActionProperties,
     }),
@@ -3183,6 +3344,11 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     z.object({
       '@type': z.literal('ExperienceAction'),
       ...ExperienceActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('SleepAction'),
+      ...SleepActionProperties,
     }),
 
     z.object({
@@ -3577,11 +3743,6 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('Journey'),
-      ...JourneyProperties,
-    }),
-
-    z.object({
       '@type': z.literal('Event'),
       ...EventProperties,
     }),
@@ -3662,6 +3823,16 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('SleepStage'),
+      ...SleepStageProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('SleepSession'),
+      ...SleepSessionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Relationship'),
       ...RelationshipProperties,
     }),
@@ -3669,6 +3840,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     z.object({
       '@type': z.literal('Membership'),
       ...MembershipProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Journey'),
+      ...JourneyProperties,
     }),
 
     z.object({
@@ -3930,6 +4106,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('MeasureAction'),
+      ...MeasureActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('FindAction'),
       ...FindActionProperties,
     }),
@@ -3937,6 +4118,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('ExperienceAction'),
       ...ExperienceActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('SleepAction'),
+      ...SleepActionProperties,
     }),
 
     z.object({
@@ -4145,11 +4331,6 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
-      '@type': z.literal('Journey'),
-      ...JourneyProperties,
-    }),
-
-    z.object({
       '@type': z.literal('Event'),
       ...EventProperties,
     }),
@@ -4230,6 +4411,16 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('SleepStage'),
+      ...SleepStageProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('SleepSession'),
+      ...SleepSessionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Relationship'),
       ...RelationshipProperties,
     }),
@@ -4237,6 +4428,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('Membership'),
       ...MembershipProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Journey'),
+      ...JourneyProperties,
     }),
 
     z.object({

@@ -256,6 +256,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
       // Only a path you gave picks a strategy: an extractor's default input
       // (WhatsApp's Mac database) is not an export you handed it.
       input: metadata?.flags?.input?.setFromDefault ? undefined : parsed.input,
+      config: FlagManager.buildExtractorConfig(parsed),
       hasCredentials: await this.hasStoredCredentials(positional),
       // Asking needs a terminal. Without one the selector throws with the
       // strategies instead of waiting for keys that never come.
@@ -296,15 +297,23 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
 
   /**
    * Before a run of several kinds, or of the plugin's defaults, say which kinds
-   * it reads, and which it leaves out and how to have them.
+   * it reads, and which it leaves out and how to have them. Say too when the
+   * kinds named leave out some the run's options ask for.
    */
   private announce(
-    selection: { kinds: string[]; excluded: string[]; how: string; merged: boolean } | undefined,
+    selection:
+      | { kinds: string[]; excluded: string[]; how: string; merged: boolean; unread: string[] }
+      | undefined,
     source: string,
     verb: string
   ): void {
     if (!selection) return;
-    const { kinds, excluded, how, merged } = selection;
+    const { kinds, excluded, how, merged, unread } = selection;
+    if (unread.length > 0) {
+      this.hint(
+        `The options ask for ${unread.join(', ')} too, which this run doesn't read. Name ${unread.length === 1 ? 'it' : 'them'} as well, or name no kinds.`
+      );
+    }
     // One kind, nothing left out: nothing to say.
     if (kinds.length < 2 && (how === 'named' || excluded.length === 0)) return;
     const order = kinds.length > 1 && !merged ? ', one kind after another' : '';

@@ -1980,7 +1980,7 @@ in (:workingDirectory), the :Project it counted toward (:isPartOf), and the
 window title as its :name.
 
 The device is keyed by Timing's ID for it, with its hardware address linked
-through :sameAs. Its kind is :category data and its make is :model. The
+through :sameAs. Its :model is Apple's identifier for its hardware. The
 directory is keyed by its path within the machine it lives on (:inRealm), the
 same :Realm the device runs in.
 """;
@@ -2010,7 +2010,6 @@ same :Realm the device runs in.
       :source "timing-app";
       :sourceId "1234567890123456789";
       :name "pat-mbp";
-      :category "computer";
       :model "Mac15,3";
       :sameAs [
         a :Device;
@@ -4055,6 +4054,162 @@ one.
 :transcript skos:example example:voice-memo .
 :ProductModel skos:example example:voice-memo .
 :OperatingSystem skos:example example:voice-memo .
+
+example:heart-rate
+  rdfs:label "A heart rate reading";
+  rdfs:comment """
+Your watch took your heart rate. The :MeasureAction happened at its
+:timestamp, and the value measured is a property of what was measured: your
+:heartRate. You are both the :agent and the :object. The action is keyed by
+what the reading says: when it was taken, the names of its instruments, and the
+value measured, by its property.
+
+The action's :instrument is the watch, a :Device keyed by the name you gave it
+as its :handle, with its :model.
+""";
+  rdf:value [
+    a :MeasureAction;
+    doc:key ("@type" "source" "timestamp" "instrument[*].handle" "object.heartRate");
+    :source "apple-health";
+    :timestamp "2026-05-09T13:02:10.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "icloud";
+      :sourceId "1234567890";
+      :handle "you@example.com";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "icloud";
+      :sourceId "1234567890";
+      :handle "you@example.com";
+      :sameAs "@me";
+      :heartRate 72
+    ];
+    :instrument [
+      a :Device;
+      doc:key ("@type" "source" "handle");
+      :source "apple-health";
+      :handle "Sam’s Apple Watch";
+      :name "Sam’s Apple Watch";
+      :model "Watch7,1"
+    ]
+  ] .
+
+:MeasureAction skos:example example:heart-rate .
+:heartRate skos:example example:heart-rate .
+:Device skos:example example:heart-rate .
+
+example:night-of-sleep
+  rdfs:label "A night's sleep";
+  rdfs:comment """
+Your watch tracked a night's sleep. The :SleepAction spans the night from
+:startTime to :endTime, and its :result is the :SleepSession. Each stage of the
+night is a :SleepStage that :isStageOf this one.
+
+The action is keyed by its start and end and the name of the device. The
+session has no times of its own, so its key reads them from the action it is
+the result of, with paths that start at `resultOf`, the inverse of :result.
+""";
+  rdf:value [
+    a :SleepAction;
+    doc:key ("@type" "source" "startTime" "endTime" "instrument[*].handle");
+    :source "apple-health";
+    :startTime "2026-05-09T03:12:00.000Z"^^xsd:dateTime;
+    :endTime "2026-05-09T10:41:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "icloud";
+      :sourceId "1234567890";
+      :handle "you@example.com";
+      :sameAs "@me"
+    ];
+    :instrument [
+      a :Device;
+      doc:key ("@type" "source" "handle");
+      :source "apple-health";
+      :handle "Sam’s Apple Watch";
+      :name "Sam’s Apple Watch";
+      :model "Watch7,1"
+    ];
+    :result [
+      a :SleepSession;
+      doc:key ("@type" "source" "resultOf.startTime" "resultOf.endTime" "resultOf.instrument[*].handle");
+      :source "apple-health"
+    ]
+  ] .
+
+:SleepAction skos:example example:night-of-sleep .
+:SleepSession skos:example example:night-of-sleep, example:sleep-stage .
+
+example:sleep-stage
+  rdfs:label "A stage of sleep";
+  rdfs:comment """
+One stage of a night's sleep, here deep sleep. An :ExperienceAction spans the
+stage from :startTime to :endTime, and its :result is a :SleepStage whose
+:category is the stage. The stage :isStageOf the night's :SleepSession. The
+action and the stage are keyed by what the stage says: its start and end, the
+device, and the stage. The stage reads the times and the device from the action
+it is the result of, with paths that start at `resultOf`.
+
+The night appears here under the stage rather than as its own action's
+result, so it gives that action as its `resultOf`, by its key alone.
+Its key then reads the night's times, as it does in the night's own record.
+""";
+  rdf:value [
+    a :ExperienceAction;
+    doc:key ("@type" "source" "startTime" "endTime" "instrument[*].handle" "result.category");
+    :source "apple-health";
+    :startTime "2026-05-09T04:20:30.000Z"^^xsd:dateTime;
+    :endTime "2026-05-09T04:51:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "icloud";
+      :sourceId "1234567890";
+      :handle "you@example.com";
+      :sameAs "@me"
+    ];
+    :instrument [
+      a :Device;
+      doc:key ("@type" "source" "handle");
+      :source "apple-health";
+      :handle "Sam’s Apple Watch";
+      :name "Sam’s Apple Watch"
+    ];
+    :result [
+      a :SleepStage;
+      doc:key ("@type" "source" "category" "resultOf.startTime" "resultOf.endTime" "resultOf.instrument[*].handle");
+      :source "apple-health";
+      :category "deep";
+      :isStageOf [
+        a :SleepSession;
+        doc:key ("@type" "source" "resultOf.startTime" "resultOf.endTime" "resultOf.instrument[*].handle");
+        :source "apple-health";
+        :resultOf [
+          a :SleepAction;
+          doc:key ("@type" "source" "startTime" "endTime" "instrument[*].handle");
+          :source "apple-health";
+          :startTime "2026-05-09T03:12:00.000Z"^^xsd:dateTime;
+          :endTime "2026-05-09T10:41:00.000Z"^^xsd:dateTime;
+          :instrument [
+            a :Device;
+            doc:key ("@type" "source" "handle");
+            :source "apple-health";
+            :handle "Sam’s Apple Watch"
+          ]
+        ]
+      ]
+    ]
+  ] .
+
+:ExperienceAction skos:example example:sleep-stage .
+:SleepStage skos:example example:sleep-stage .
+:isStageOf skos:example example:sleep-stage .
 
 example:card-purchase
   rdfs:label "A card purchase";

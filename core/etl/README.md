@@ -151,8 +151,14 @@ appears again in one payload. Attachments remain references; this
 package does not copy their bytes. Attachment downloading, CLI flag helpers,
 and additional presentation transforms are not included.
 
-Three extractor and system helpers are shared by several sources:
+Four extractor and system helpers are shared by several sources:
 
+- `openExport(input)` opens an export however it was handed over: a folder, a
+  zip, a folder that holds only zips, or one part of a Google Takeout split
+  into numbered zips, which brings in its sibling parts. It lists, finds, and
+  streams files by their paths inside the export, and reads files in a zip in
+  place, decompressing them as they stream. `writeZip` writes a zip for test
+  fixtures.
 - `ArchiveExtractor` is a base for takeout-style exports read in place from an
   `--input` directory. It reads JSON files, checks the since/until window,
   repairs the mojibake these exports write, and attaches the export's account

@@ -67,6 +67,27 @@ const getInverseName = (store, propertyId) =>
     null
   )[0]?.object?.value;
 
+// :metric says what form a number property's values take, a gauge or a sum,
+// and :unit the one unit they are all in. METRIC_PROPERTIES gives both to a
+// store, so it can keep and combine the values.
+const METRIC_KINDS = ['gauge', 'sum'];
+const annotationsOf = (store, propertyId, name) =>
+  store
+    .getQuads(namedNode(propertyId), namedNode(`https://schema.chronicle.app/${name}`), null)
+    .map(quad => quad.object.value);
+const getMetric = (store, propertyId, range) => {
+  const [metrics, units] = ['metric', 'unit'].map(name => annotationsOf(store, propertyId, name));
+  if (metrics.length === 0 && units.length === 0) return;
+  if (metrics.length !== 1 || !METRIC_KINDS.includes(metrics[0])) {
+    throw new Error(`${propertyId}: :metric must be one of ${METRIC_KINDS.join(', ')}`);
+  }
+  if (range.length !== 1 || range[0] !== 'https://schema.chronicle.app/Number') {
+    throw new Error(`${propertyId}: a metric must take a :Number`);
+  }
+  if (units.length !== 1) throw new Error(`${propertyId}: a metric must have one :unit`);
+  return { metric: metrics[0], unit: units[0] };
+};
+
 const extractSchemaInfo = store => {
   const classesRaw = declaredClasses(store).map(classTerm => {
     const classId = classTerm.value;
@@ -88,6 +109,7 @@ const extractSchemaInfo = store => {
     .map(propertyTerm => {
       const propertyId = propertyTerm.value;
       const { min, max } = cardinalityOf(store, propertyId);
+      const range = rangeOf(store, propertyId);
 
       return {
         propertyId,
@@ -95,10 +117,11 @@ const extractSchemaInfo = store => {
         comment: getComment(store, propertyId),
         seeAlso: getSeeAlso(store, propertyId),
         domain: domainOf(store, propertyId),
-        range: rangeOf(store, propertyId),
+        range,
         isRequired: min >= 1,
         isMany: max !== 1,
         inverseName: getInverseName(store, propertyId),
+        metric: getMetric(store, propertyId, range),
       };
     })
     .filter(p => p.range.length > 0);
@@ -185,6 +208,20 @@ const writeSchemaFile = (classes, properties, inverses, version) =>
     for (const inverse of inverses) {
       schemaFile.write(
         `  ${JSON.stringify(inverse.shortName)}: ${JSON.stringify(inverse.inverseOf)},\n`
+      );
+    }
+    schemaFile.write('};\n\n');
+
+    // The form each metric's values take, and the unit they are in.
+    schemaFile.write(
+      '/** Metric property name → the form its values take and the unit they are in. */\n'
+    );
+    schemaFile.write(
+      "export const METRIC_PROPERTIES: Record<string, { metric: 'gauge' | 'sum'; unit: string }> = {\n"
+    );
+    for (const property of properties.filter(p => p.metric)) {
+      schemaFile.write(
+        `  ${JSON.stringify(property.shortName)}: ${JSON.stringify(property.metric)},\n`
       );
     }
     schemaFile.write('};\n\n');
