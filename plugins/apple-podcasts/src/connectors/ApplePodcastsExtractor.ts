@@ -234,16 +234,20 @@ export class ApplePodcastsExtractor extends SqliteExtractor<typeof ApplePodcasts
   }
 
   // The episode's transcript as text, when Apple Podcasts has downloaded it: a
-  // paragraph for each speaker's turn, without timings or speaker labels. A
-  // transcript that doesn't read loses only the transcript, not the episode.
+  // paragraph for each speaker's turn, starting with the speaker's label, such
+  // as `SPEAKER_1: `, and without timings. A transcript that doesn't read loses
+  // only the transcript, not the episode.
   private readTranscript(folder: string, row: any): string | null {
     const { transcriptIdentifier: identifier, storeTrackId } = row;
     if (typeof identifier !== 'string' || typeof storeTrackId !== 'number') return null;
     const file = path.resolve(folder, `${identifier}-${storeTrackId}.ttml`);
     if (!file.startsWith(folder + path.sep)) return null;
     try {
-      // Each word of the TTML is a span, with no space between the spans.
-      const ttml = readFileSync(file, 'utf8').replaceAll('</span><span', '</span> <span');
+      // Each word of the TTML is a span, with no space between the spans. Each
+      // turn is a `<p>` with its speaker's label in `ttm:agent`.
+      const ttml = readFileSync(file, 'utf8')
+        .replaceAll('</span><span', '</span> <span')
+        .replaceAll(/<p\b[^>]*\bttm:agent="([^"]+)"[^>]*>/g, '$&$1: ');
       return htmlToText(ttml) || null;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;

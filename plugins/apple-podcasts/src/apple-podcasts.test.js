@@ -101,7 +101,8 @@ const finishedEpisode = {
       url: 'https://example.com/audio/finished.mp3?dest=1',
     },
   ],
-  transcript: "Welcome back, it's Q&A time.\n\nThanks for having me. Glad to be here.",
+  transcript:
+    "SPEAKER_1: Welcome back, it's Q&A time.\n\nSPEAKER_2: Thanks for having me. Glad to be here.",
   series: [followedShow],
   publisher: [network],
 };
@@ -145,7 +146,8 @@ test('played and saved episodes become listens, completions, and bookmarks, and 
   );
 
   // The episode carries its show, its audio file, its artwork, its description
-  // as Markdown, and its transcript, a paragraph for each speaker's turn.
+  // as Markdown, and its transcript, a paragraph for each speaker's turn,
+  // starting with the speaker's label.
   assert.deepEqual(actions[3], {
     '@type': 'ListenAction',
     '@key': key,

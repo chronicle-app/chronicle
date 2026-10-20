@@ -78,8 +78,9 @@ Entities:
 - `PodcastEpisode` — keyed by its catalog ID; title, description, `url` (web
   page), `duration` (ISO 8601), episode artwork as its `emblem`, and the audio
   file in `contains` (`AudioObject`). Its `transcript` is the text of the
-  downloaded TTML, a paragraph for each speaker's turn, without timings or
-  speaker labels. The app keeps only some transcripts, mostly for episodes it
+  downloaded TTML, a paragraph for each speaker's turn, without timings. Each
+  paragraph starts with Apple's label for its speaker, such as `SPEAKER_1: `.
+  The labels aren't names, and they're numbered within each episode. The app keeps only some transcripts, mostly for episodes it
   has downloaded or just played, and clears them later; a transcript an earlier
   run extracted stays in the archive.
 - `PodcastSeries` — keyed by its catalog ID; title, description, `webFeed`,
