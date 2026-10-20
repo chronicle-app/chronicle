@@ -91,7 +91,6 @@ const unfollowedShow = {
   '@key': key,
   source: 'apple-podcasts',
   sourceId: '1002',
-  name: 'Example Stories',
   webFeed: 'https://example.org/feed.xml',
 };
 const finishedEpisode = {
@@ -139,9 +138,10 @@ test('played and saved episodes become listens, completions, and bookmarks, and 
       ['BookmarkAction', 'A Finished Episode', '2024-12-31T00:00:00.000Z'],
       ['BookmarkAction', 'A Saved Episode', '2025-01-01T00:10:00.000Z'],
       // No last-played date: dated when its playback position last synced, not
-      // when the library-wide update changed its play state.
-      ['ListenAction', 'An Older Episode', '2024-12-22T00:00:00.000Z'],
-      ['CompleteAction', 'An Older Episode', '2024-12-22T00:00:00.000Z'],
+      // when the library-wide update changed its play state. Its show was
+      // retired, and the title it was given then isn't its name.
+      ['ListenAction', undefined, '2024-12-22T00:00:00.000Z'],
+      ['CompleteAction', undefined, '2024-12-22T00:00:00.000Z'],
       // Followed 30 days before.
       ['FollowAction', 'Example Conversations', '2024-12-02T00:00:00.000Z'],
     ]
@@ -184,8 +184,11 @@ test('played and saved episodes become listens, completions, and bookmarks, and 
   );
   assert.match(hints[0].hint.action, /`chronicle extract apple-podcasts`/);
 
-  // A show reached only through an episode is keyed the same way.
-  assert.deepEqual(episode('An Older Episode').series, [unfollowedShow]);
+  // A show reached only through an episode is keyed the same way. A retired
+  // show has no name either.
+  const older = actions.find(action => action.sourceId === '2006').object;
+  assert.equal(older.name, undefined);
+  assert.deepEqual(older.series, [unfollowedShow]);
   assert.deepEqual(actions.at(-1).object, followedShow);
 });
 

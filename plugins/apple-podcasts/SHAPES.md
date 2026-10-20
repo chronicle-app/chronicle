@@ -17,10 +17,10 @@ ListenAction | BookmarkAction key(sourceId) {
   sourceId, timestamp
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
   object: PodcastEpisode key(sourceId) {
-    sourceId, name, duration*, description?*, url?, transcript?
+    sourceId, name?, duration*, description?*, url?, transcript?
     contains[]: AudioObject key(url, any source) { url }
     series[]: PodcastSeries key(sourceId) {
-      sourceId, name, description?, webFeed, genre[]?
+      sourceId, name?, description?, webFeed, genre[]?
       emblem?: ImageObject key(url, any source) { url }
       author[]?: Agent key(name) { name }
       publisher[]?: Organization key(sourceId) { sourceId, name }
@@ -34,10 +34,10 @@ CompleteAction key(sourceId) {
   sourceId, timestamp
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
   object: PodcastEpisode key(sourceId) {
-    sourceId, name, duration*, description?*, url?, transcript?
+    sourceId, name?, duration*, description?*, url?, transcript?
     contains[]: AudioObject key(url, any source) { url }
     series[]: PodcastSeries key(sourceId) {
-      sourceId, name, webFeed, description?, genre[]?
+      sourceId, webFeed, name?, description?, genre[]?
       emblem?: ImageObject key(url, any source) { url }
       author[]?: Agent key(name) { name }
       publisher[]?: Organization key(sourceId) { sourceId, name }

@@ -66,6 +66,10 @@ each device. The library's own UUIDs (`ZUUID`) differ from one device to the
 next, so they aren't used. An episode or followed show that isn't in the catalog
 has no key and is left out, and the run says how many.
 
+A publisher that retires a show can retitle it and its episodes "Podcast no
+longer available". That isn't a title, so they're left without a `name`, and a
+title an earlier run extracted stays.
+
 Core Data timestamps (seconds since 2001-01-01) are converted to Unix time.
 
 This is a **snapshot** source: the database keeps only the latest state per row,

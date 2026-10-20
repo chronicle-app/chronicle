@@ -25,6 +25,14 @@ function str(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
+// A publisher that retires a show can retitle it and its episodes "Podcast no
+// longer available". That names neither, so it's no title, and a title an
+// earlier run extracted stays.
+function title(value: unknown): string | undefined {
+  const text = str(value);
+  return text?.toLowerCase() === 'podcast no longer available' ? undefined : text;
+}
+
 // Apple keeps an episode's description as HTML; Markdown here.
 function markdown(value: unknown): string | undefined {
   const html = str(value);
@@ -181,7 +189,7 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
       '@key': ['@type', 'source', 'sourceId'],
       source: SOURCE,
       sourceId,
-      ...(str(data.podcastTitle) && { name: str(data.podcastTitle) }),
+      ...(title(data.podcastTitle) && { name: title(data.podcastTitle) }),
       ...(markdown(data.podcastDescription) && {
         description: markdown(data.podcastDescription),
       }),
@@ -212,7 +220,7 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
       '@key': ['@type', 'source', 'sourceId'],
       source: SOURCE,
       sourceId,
-      ...(str(data.episodeTitle) && { name: str(data.episodeTitle) }),
+      ...(title(data.episodeTitle) && { name: title(data.episodeTitle) }),
       ...(markdown(data.episodeDescription) && {
         description: markdown(data.episodeDescription),
       }),

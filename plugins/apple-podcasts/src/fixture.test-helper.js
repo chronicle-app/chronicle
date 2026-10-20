@@ -31,6 +31,9 @@ export const account = {
  * as its author. The finished episode names its producers instead. The other
  * shows aren't on a channel.
  *
+ * The unfollowed show has been retired. Its publisher retitled it and its older
+ * episode "Podcast no longer available".
+ *
  * A played episode's playback position syncs to a row of ZMTUPPMETADATA,
  * matched by its metadata identifier. At 01:00 a library-wide update changed the
  * older episode's play state and synced the finished one again, and a feed
@@ -74,7 +77,7 @@ export function writeApplePodcastsFixture(dir) {
       (1, 'SHOW-FOLLOWED', 'Example Conversations', 'Pat Example', 'Society & Culture',
         'https://example.com/feed.xml', 'https://example.com/show.jpg',
         'https://example.com/show', 1001, ${JAN_1 - 30 * DAY}, 'Long conversations.', 1, 1),
-      (2, 'SHOW-UNFOLLOWED', 'Example Stories', NULL, NULL, 'https://example.org/feed.xml',
+      (2, 'SHOW-UNFOLLOWED', 'Podcast no longer available', NULL, NULL, 'https://example.org/feed.xml',
         NULL, NULL, 1002, NULL, NULL, 0, NULL),
       (3, 'SHOW-UNCATALOGED', 'Example Members', NULL, NULL, 'https://example.net/members.xml',
         NULL, NULL, NULL, ${JAN_1 - 5 * DAY}, NULL, 1, NULL);
@@ -115,7 +118,7 @@ export function writeApplePodcastsFixture(dir) {
       (5, 'EP-MARKED', 'guid-5', 'A Trailer', NULL, 2, 'SHOW-UNFOLLOWED', 5, NULL, 0, 1,
         ${JAN_1 + 5400}, NULL, ${JAN_1 + 5400}, 0, NULL, ${JAN_1 - DAY}, 2005, NULL, NULL,
         'md-marked'),
-      (6, 'EP-OLDER', 'guid-6', 'An Older Episode', NULL, 2, 'SHOW-UNFOLLOWED', 6, NULL, 0,
+      (6, 'EP-OLDER', 'guid-6', 'Podcast No Longer Available', NULL, 2, 'SHOW-UNFOLLOWED', 6, NULL, 0,
         1, ${JAN_1 + 3600}, NULL, NULL, 0, NULL, ${JAN_1 - 20 * DAY}, 2006, NULL, NULL,
         'md-older'),
       (7, 'EP-UNCATALOGED', 'guid-7', 'A Members Episode', NULL, 3, 'SHOW-UNCATALOGED', 7,
