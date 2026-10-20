@@ -23,10 +23,8 @@ ListenAction | BookmarkAction key(sourceId) {
       sourceId, name, description?, webFeed, genre[]?
       emblem?: ImageObject key(url, any source) { url }
       publisher[]?: Organization key(name) { name }
-      sameAs[]: PodcastSeries key(sourceId) { sourceId, name }
     }
     publisher[]?: Organization key(name) { name }
-    sameAs[]?: PodcastEpisode key(sourceId) { sourceId, name }
     emblem?: ImageObject key(url, any source) { url* }
   }
 }
@@ -39,13 +37,11 @@ CompleteAction key(sourceId) {
     contains[]: AudioObject key(url, any source) { url }
     series[]: PodcastSeries key(sourceId) {
       sourceId, name, webFeed, description?, genre[]?
-      sameAs[]: PodcastSeries key(sourceId) { sourceId, name }
       emblem?: ImageObject key(url, any source) { url }
       publisher[]?: Organization key(name) { name }
     }
     emblem?: ImageObject key(url, any source) { url* }
     publisher[]?: Organization key(name) { name }
-    sameAs[]?: PodcastEpisode key(sourceId) { sourceId, name }
   }
 }
 // Some records also become:
@@ -60,10 +56,8 @@ BookmarkAction key(sourceId) {
       sourceId, name, description, webFeed, genre[]
       emblem: ImageObject key(url, any source) { url }
       publisher[]: Organization key(name) { name }
-      sameAs[]: PodcastSeries key(sourceId) { sourceId, name }
     }
     publisher[]: Organization key(name) { name }
-    sameAs[]: PodcastEpisode key(sourceId) { sourceId, name }
   }
 }
 ```
@@ -78,7 +72,6 @@ FollowAction key(sourceId) {
     sourceId, name, description, webFeed, genre[]
     emblem: ImageObject key(url, any source) { url }
     publisher[]: Organization key(name) { name }
-    sameAs[]: PodcastSeries key(sourceId) { sourceId, name }
   }
 }
 ```

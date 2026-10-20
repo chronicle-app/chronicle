@@ -24,6 +24,9 @@ export const account = {
  * date, an older one played with only its playback-sync time left, and one
  * sampled for five seconds, which isn't extracted.
  *
+ * Each has Apple's catalog ID, but for another followed show and an episode of
+ * it that was played. They aren't in the catalog, so they're left out.
+ *
  * A played episode's playback position syncs to a row of ZMTUPPMETADATA,
  * matched by its metadata identifier. At 01:00 a library-wide update changed the
  * older episode's play state and synced the finished one again, and a feed
@@ -67,7 +70,9 @@ export function writeApplePodcastsFixture(dir) {
         'https://example.com/feed.xml', 'https://example.com/show.jpg',
         'https://example.com/show', 1001, ${JAN_1 - 30 * DAY}, 'Long conversations.', 1),
       (2, 'SHOW-UNFOLLOWED', 'Example Stories', NULL, NULL, 'https://example.org/feed.xml',
-        NULL, NULL, 1002, NULL, NULL, 0);
+        NULL, NULL, 1002, NULL, NULL, 0),
+      (3, 'SHOW-UNCATALOGED', 'Example Members', NULL, NULL, 'https://example.net/members.xml',
+        NULL, NULL, NULL, ${JAN_1 - 5 * DAY}, NULL, 1);
 
     INSERT INTO ZMTMEDIAENCLOSURE VALUES
       (1, 1, 3121, 'https://example.com/audio/finished.mp3?dest=1',
@@ -78,7 +83,8 @@ export function writeApplePodcastsFixture(dir) {
         '${TRANSCRIPT_FOLDER}/transcript_2003.ttml'),
       (4, 4, 600, 'https://example.org/audio/sampled.mp3', NULL),
       (5, 5, 45, 'https://example.org/audio/marked.mp3', NULL),
-      (6, 6, 1800, 'https://example.org/audio/older.mp3', NULL);
+      (6, 6, 1800, 'https://example.org/audio/older.mp3', NULL),
+      (7, 7, 900, 'https://example.net/audio/members.mp3', NULL);
 
     INSERT INTO ZMTEPISODEDESCRIPTION VALUES
       (1, 1, 'A guest on their new book.',
@@ -96,14 +102,17 @@ export function writeApplePodcastsFixture(dir) {
         3, NULL, 0, 0, ${JAN_1 + 600}, NULL, NULL, 1, ${JAN_1 + 600}, ${JAN_1}, 2003, NULL,
         NULL, 'md-saved'),
       (4, 'EP-SAMPLED', 'guid-4', 'A Sampled Episode', NULL, 2, 'SHOW-UNFOLLOWED', 4, NULL,
-        5, 0, ${JAN_1 + 9000}, ${JAN_1 + 9000}, NULL, 0, NULL, ${JAN_1}, NULL, NULL, NULL,
+        5, 0, ${JAN_1 + 9000}, ${JAN_1 + 9000}, NULL, 0, NULL, ${JAN_1}, 2004, NULL, NULL,
         'md-sampled'),
       (5, 'EP-MARKED', 'guid-5', 'A Trailer', NULL, 2, 'SHOW-UNFOLLOWED', 5, NULL, 0, 1,
-        ${JAN_1 + 5400}, NULL, ${JAN_1 + 5400}, 0, NULL, ${JAN_1 - DAY}, NULL, NULL, NULL,
+        ${JAN_1 + 5400}, NULL, ${JAN_1 + 5400}, 0, NULL, ${JAN_1 - DAY}, 2005, NULL, NULL,
         'md-marked'),
       (6, 'EP-OLDER', 'guid-6', 'An Older Episode', NULL, 2, 'SHOW-UNFOLLOWED', 6, NULL, 0,
-        1, ${JAN_1 + 3600}, NULL, NULL, 0, NULL, ${JAN_1 - 20 * DAY}, NULL, NULL, NULL,
-        'md-older');
+        1, ${JAN_1 + 3600}, NULL, NULL, 0, NULL, ${JAN_1 - 20 * DAY}, 2006, NULL, NULL,
+        'md-older'),
+      (7, 'EP-UNCATALOGED', 'guid-7', 'A Members Episode', NULL, 3, 'SHOW-UNCATALOGED', 7,
+        NULL, 0, 1, ${JAN_1 + 4000}, ${JAN_1 + 4000}, NULL, 0, NULL, ${JAN_1 - DAY}, NULL,
+        NULL, NULL, 'md-uncataloged');
 
     INSERT INTO ZMTUPPMETADATA VALUES
       (1, 'md-finished', ${JAN_1 + 3600}),

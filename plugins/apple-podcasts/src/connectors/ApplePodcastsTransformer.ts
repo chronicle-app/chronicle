@@ -41,6 +41,13 @@ function date(unixSeconds: unknown): Date | undefined {
     : undefined;
 }
 
+// Apple's catalog ID for a show or episode (the podcasts.apple.com ID), the same
+// on each device, as a key; undefined when it isn't in the catalog. The
+// library's own UUIDs differ from one device to the next.
+function catalogId(storeId: unknown): string | undefined {
+  return typeof storeId === 'number' && storeId > 0 ? String(storeId) : undefined;
+}
+
 // Episode artwork is stored as an mzstatic template with `{w}x{h}bb.{f}`
 // placeholders; fill them in for a concrete, fetchable image URL.
 function resolveArtwork(template: string): string {
@@ -66,9 +73,13 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
     const { data } = record;
     const actions: ActionAndChildren[] = [];
 
+    // The extractor leaves out episodes that aren't in Apple's catalog.
+    const sourceId = catalogId(data.storeTrackId);
+    if (!sourceId) throw new Error('An Apple Podcasts episode has no catalog ID');
+
     const user = await this.buildUser(record);
     const podcast = this.buildPodcast(data);
-    const episode = this.buildEpisode(data, podcast);
+    const episode = this.buildEpisode(data, sourceId, podcast);
 
     // The real listen moment: Apple's last-played time, then the user-marked
     // played date, then when the playback position last synced (many played
@@ -87,7 +98,7 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
         '@type': 'ListenAction',
         '@key': ['@type', 'source', 'sourceId'],
         source: SOURCE,
-        sourceId: data.episodeId,
+        sourceId,
         ...(listenAt && { timestamp: listenAt }),
         agent: user,
         object: episode,
@@ -100,7 +111,7 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
           '@type': 'CompleteAction',
           '@key': ['@type', 'source', 'sourceId'],
           source: SOURCE,
-          sourceId: data.episodeId,
+          sourceId,
           ...(listenAt && { timestamp: listenAt }),
           agent: user,
           object: episode,
@@ -114,7 +125,7 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
         '@type': 'BookmarkAction',
         '@key': ['@type', 'source', 'sourceId'],
         source: SOURCE,
-        sourceId: data.episodeId,
+        sourceId,
         ...(bookmarkedAt && { timestamp: bookmarkedAt }),
         agent: user,
         object: episode,
@@ -128,8 +139,10 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
   // library — capturing shows the user follows even if they never played one.
   private async buildSubscriptionActions(record: Record): Promise<ActionAndChildren[]> {
     const { data } = record;
-    const user = await this.buildUser(record);
+    // The extractor leaves out followed shows that aren't in Apple's catalog.
     const podcast = this.buildPodcast(data);
+    if (!podcast) throw new Error('A followed Apple Podcasts show has no catalog ID');
+    const user = await this.buildUser(record);
     const followedAt = date(data.addedDate);
 
     return [
@@ -137,7 +150,7 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
         '@type': 'FollowAction',
         '@key': ['@type', 'source', 'sourceId'],
         source: SOURCE,
-        sourceId: data.podcastId,
+        sourceId: podcast.sourceId,
         ...(followedAt && { timestamp: followedAt }),
         agent: user,
         object: podcast,
@@ -155,20 +168,18 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
     return user as AgentAndChildren;
   }
 
-  private buildPodcast(data: any): PodcastSeries {
+  // The show, keyed by its catalog ID; undefined when it isn't in the catalog.
+  private buildPodcast(data: any): PodcastSeries | undefined {
+    const sourceId = catalogId(data.storeCollectionId);
+    if (!sourceId) return undefined;
     const feed = str(data.feedUrl);
     const image = str(data.imageUrl);
     const category = str(data.podcastCategory);
-    const sameAs = this.storeSameAs(
-      'PodcastSeries',
-      data.storeCollectionId,
-      str(data.podcastTitle)
-    );
     return {
       '@type': 'PodcastSeries',
       '@key': ['@type', 'source', 'sourceId'],
       source: SOURCE,
-      sourceId: data.podcastId,
+      sourceId,
       ...(str(data.podcastTitle) && { name: str(data.podcastTitle) }),
       ...(markdown(data.podcastDescription) && {
         description: markdown(data.podcastDescription),
@@ -182,23 +193,25 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
       ...(this.publisher(data.podcastAuthor) && {
         publisher: this.publisher(data.podcastAuthor),
       }),
-      ...(sameAs && { sameAs }),
     };
   }
 
-  private buildEpisode(data: any, podcast: PodcastSeries): PodcastEpisode {
+  private buildEpisode(
+    data: any,
+    sourceId: string,
+    podcast: PodcastSeries | undefined
+  ): PodcastEpisode {
     // `url` is the episode's web page only. The audio file lives on `contains`;
     // keeping it out of `url` avoids fusing the episode with its own AudioObject
     // through the shared `{url}` identity hub (shred auto-keys any node by url).
     const url = str(data.webUrl);
     const audio = str(data.audioUrl);
     const artwork = str(data.artworkUrl);
-    const sameAs = this.storeSameAs('PodcastEpisode', data.storeTrackId, str(data.episodeTitle));
     return {
       '@type': 'PodcastEpisode',
       '@key': ['@type', 'source', 'sourceId'],
       source: SOURCE,
-      sourceId: data.episodeId,
+      sourceId,
       ...(str(data.episodeTitle) && { name: str(data.episodeTitle) }),
       ...(markdown(data.episodeDescription) && {
         description: markdown(data.episodeDescription),
@@ -214,11 +227,10 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
           contains: [createAudioObject({ url: audio })],
         }),
       ...(str(data.transcript) && { transcript: str(data.transcript) }),
-      series: [podcast],
+      ...(podcast && { series: [podcast] }),
       ...(this.publisher(data.episodeAuthor) && {
         publisher: this.publisher(data.episodeAuthor),
       }),
-      ...(sameAs && { sameAs }),
     };
   }
 
@@ -234,26 +246,6 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
         '@key': ['@type', 'source', 'name'],
         source: SOURCE,
         name,
-      },
-    ];
-  }
-
-  // A sameAs edge to Apple's public catalog id (the podcasts.apple.com id), a
-  // real Apple-issued handle distinct from the local library UUID we key on — so
-  // the show/episode merges with anything else referencing the catalog id.
-  private storeSameAs(
-    type: 'PodcastSeries' | 'PodcastEpisode',
-    storeId: unknown,
-    name?: string
-  ): any[] | undefined {
-    if (typeof storeId !== 'number' || storeId <= 0) return undefined;
-    return [
-      {
-        '@type': type,
-        '@key': ['@type', 'source', 'sourceId'],
-        source: SOURCE,
-        sourceId: String(storeId),
-        ...(name && { name }),
       },
     ];
   }

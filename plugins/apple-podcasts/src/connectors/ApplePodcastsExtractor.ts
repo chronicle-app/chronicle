@@ -35,6 +35,16 @@ const LISTENED_AT =
 // When a saved episode was saved, as the transformer dates its bookmark.
 const SAVED_AT = `COALESCE(e.ZLASTBOOKMARKEDDATE, ${LISTENED_AT})`;
 
+// Episodes and shows are keyed by Apple's catalog ID, which is the same on each
+// device. The library's own UUIDs differ from one device to the next, so what
+// isn't in the catalog has no key and is left out.
+const EPISODE_IN_CATALOG = 'IFNULL(e.ZSTORETRACKID, 0) > 0';
+const SHOW_IN_CATALOG = 'IFNULL(ZSTORECOLLECTIONID, 0) > 0';
+
+function counted(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
 // Conditions that an Apple-epoch column is within since/until, both inclusive.
 function inRange(column: string, range: TimeRange) {
   return timeRangeConditions(column, range, {
@@ -111,10 +121,37 @@ export class ApplePodcastsExtractor extends SqliteExtractor<typeof ApplePodcasts
       count++;
     }
     for await (const record of this.extractSubscriptions(account)) {
-      if (this.shouldStopExtracting(count)) return;
+      if (this.shouldStopExtracting(count)) break;
       yield record;
       count++;
     }
+    this.hintUncataloged();
+  }
+
+  // Say how many engaged episodes and followed shows were left out for not
+  // being in Apple's catalog.
+  private hintUncataloged(): void {
+    const { where, values } = this.episodeFilter();
+    const episodes = this.db!.prepare(
+      `SELECT COUNT(*) AS n FROM ZMTEPISODE e ${EPISODE_SYNC}
+       WHERE ${where} AND NOT ${EPISODE_IN_CATALOG}`
+    ).get(...values) as { n: number };
+    const shows = this.db!.prepare(
+      `SELECT COUNT(*) AS n FROM ZMTPODCAST WHERE ZSUBSCRIBED = 1 AND NOT ${SHOW_IN_CATALOG}`
+    ).get() as { n: number };
+    const total = episodes.n + shows.n;
+    if (total === 0) return;
+    const parts = [
+      episodes.n > 0 && counted(episodes.n, 'episode', 'episodes'),
+      shows.n > 0 && counted(shows.n, 'followed show', 'followed shows'),
+    ].filter(Boolean);
+    this.hint(
+      `${parts.join(' and ')} ${total === 1 ? 'was' : 'were'} left out, as ${total === 1 ? 'it isn’t' : 'they aren’t'} in Apple’s catalog`,
+      {
+        action:
+          'Only what’s in Apple’s catalog has an ID that’s the same on each device. Report it if you need them, so they can be keyed another way.',
+      }
+    );
   }
 
   // Episodes the user actually engaged with: played (a non-zero play count or a
@@ -141,8 +178,7 @@ export class ApplePodcastsExtractor extends SqliteExtractor<typeof ApplePodcasts
     // The episode's duration and audio file are on its current media enclosure,
     // and its description is a row of its own. Newest listen first.
     let sql = `
-      SELECT e.ZUUID AS episodeId,
-             e.ZGUID AS episodeGuid,
+      SELECT e.ZGUID AS episodeGuid,
              e.ZTITLE AS episodeTitle,
              e.ZAUTHOR AS episodeAuthor,
              m.ZDURATION AS duration,
@@ -161,7 +197,6 @@ export class ApplePodcastsExtractor extends SqliteExtractor<typeof ApplePodcasts
              e.ZWEBPAGEURL AS webUrl,
              e.ZARTWORKTEMPLATEURL AS artworkUrl,
              d.ZTEXT AS episodeDescription,
-             p.ZUUID AS podcastId,
              p.ZTITLE AS podcastTitle,
              p.ZAUTHOR AS podcastAuthor,
              p.ZCATEGORY AS podcastCategory,
@@ -174,7 +209,7 @@ export class ApplePodcastsExtractor extends SqliteExtractor<typeof ApplePodcasts
       LEFT JOIN ZMTMEDIAENCLOSURE m ON m.Z_PK = e.ZCURRENTMEDIAENCLOSURE
       LEFT JOIN ZMTEPISODEDESCRIPTION d ON d.Z_PK = e.ZDESCRIPTIONOBJECT
       ${EPISODE_SYNC}
-      WHERE ${where}
+      WHERE ${where} AND ${EPISODE_IN_CATALOG}
       ORDER BY ${LISTENED_AT} DESC`;
     if (limit !== null) {
       sql += ` LIMIT ?`;
@@ -233,8 +268,7 @@ export class ApplePodcastsExtractor extends SqliteExtractor<typeof ApplePodcasts
   // when it was added to the library.
   private async *extractSubscriptions(account: unknown): AsyncGenerator<Record> {
     const rows = this.db!.prepare(
-      `SELECT ZUUID AS podcastId,
-              ZTITLE AS podcastTitle,
+      `SELECT ZTITLE AS podcastTitle,
               ZAUTHOR AS podcastAuthor,
               ZCATEGORY AS podcastCategory,
               ZFEEDURL AS feedUrl,
@@ -244,7 +278,7 @@ export class ApplePodcastsExtractor extends SqliteExtractor<typeof ApplePodcasts
               ZADDEDDATE AS addedDate,
               ZITEMDESCRIPTION AS podcastDescription
        FROM ZMTPODCAST
-       WHERE ZSUBSCRIBED = 1 AND ZUUID IS NOT NULL`
+       WHERE ZSUBSCRIBED = 1 AND ${SHOW_IN_CATALOG}`
     ).all() as any[];
 
     for (const row of rows) {
@@ -277,10 +311,15 @@ export class ApplePodcastsExtractor extends SqliteExtractor<typeof ApplePodcasts
     try {
       const { where, values } = this.episodeFilter();
       const episodes = this.db
-        .prepare(`SELECT COUNT(*) AS n FROM ZMTEPISODE e ${EPISODE_SYNC} WHERE ${where}`)
+        .prepare(
+          `SELECT COUNT(*) AS n FROM ZMTEPISODE e ${EPISODE_SYNC}
+           WHERE ${where} AND ${EPISODE_IN_CATALOG}`
+        )
         .get(...values) as { n: number };
       const subscriptions = this.db
-        .prepare(`SELECT COUNT(*) AS n FROM ZMTPODCAST WHERE ZSUBSCRIBED = 1`)
+        .prepare(
+          `SELECT COUNT(*) AS n FROM ZMTPODCAST WHERE ZSUBSCRIBED = 1 AND ${SHOW_IN_CATALOG}`
+        )
         .get() as { n: number };
       return episodes.n + subscriptions.n;
     } catch {

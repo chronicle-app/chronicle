@@ -37,7 +37,7 @@ Apple Podcasts stores its library in a Core Data SQLite file
 
 - `ZMTEPISODE` (`listens` records) — episodes the user engaged with: a non-zero
   play count, a playhead past the first few seconds, or a bookmark. Joined to its
-  podcast via `ZPODCASTUUID`. Columns: `ZUUID`/`ZGUID`, `ZTITLE`, `ZAUTHOR`,
+  podcast via `ZPODCASTUUID`. Columns: `ZGUID`, `ZTITLE`, `ZAUTHOR`,
   `ZPLAYHEAD`, `ZPLAYCOUNT`, `ZLASTDATEPLAYED` / `ZLASTUSERMARKEDASPLAYEDDATE` /
   `ZMTUPPMETADATA.ZTIMESTAMP` / `ZPLAYSTATELASTMODIFIEDDATE` (listen time, best
   first), `ZPUBDATE`, `ZISBOOKMARKED`/`ZLASTBOOKMARKEDDATE`, `ZSTORETRACKID`,
@@ -54,8 +54,14 @@ Apple Podcasts stores its library in a Core Data SQLite file
   container at `Library/Cache/Assets/TTML/<ZTRANSCRIPTIDENTIFIER>-<ZSTORETRACKID>.ttml`,
   where `ZTRANSCRIPTIDENTIFIER` is on the media enclosure.
 - `ZMTPODCAST` (`subscription` records, where `ZSUBSCRIBED = 1`) — Columns:
-  `ZUUID`, `ZTITLE`, `ZAUTHOR`, `ZCATEGORY`, `ZFEEDURL`, `ZIMAGEURL`,
+  `ZTITLE`, `ZAUTHOR`, `ZCATEGORY`, `ZFEEDURL`, `ZIMAGEURL`,
   `ZWEBPAGEURL`, `ZSTORECOLLECTIONID`, `ZADDEDDATE`, `ZITEMDESCRIPTION`.
+
+Episodes and shows are keyed by Apple's catalog ID (`ZSTORETRACKID`,
+`ZSTORECOLLECTIONID`, the ID in a podcasts.apple.com link), which is the same on
+each device. The library's own UUIDs (`ZUUID`) differ from one device to the
+next, so they aren't used. An episode or followed show that isn't in the catalog
+has no key and is left out, and the run says how many.
 
 Core Data timestamps (seconds since 2001-01-01) are converted to Unix time.
 
@@ -69,15 +75,15 @@ date as their timeline position while being sighted at read time.
 
 Entities:
 
-- `PodcastEpisode` — title, description, `url` (web page), `duration` (ISO 8601), episode
-  artwork as its `emblem`, the audio file in `contains` (`AudioObject`), plus a `sameAs` edge
-  to the Apple catalog id (`ZSTORETRACKID`). Its `transcript` is the text of the
+- `PodcastEpisode` — keyed by its catalog ID; title, description, `url` (web
+  page), `duration` (ISO 8601), episode artwork as its `emblem`, and the audio
+  file in `contains` (`AudioObject`). Its `transcript` is the text of the
   downloaded TTML, a paragraph for each speaker's turn, without timings or
   speaker labels. The app keeps only some transcripts, mostly for episodes it
   has downloaded or just played, and clears them later; a transcript an earlier
   run extracted stays in the archive.
-- `PodcastSeries` — title, description, `webFeed`, `genre`, artwork as its `emblem`, and a
-  `sameAs` edge to the Apple catalog id (`ZSTORECOLLECTIONID`).
+- `PodcastSeries` — keyed by its catalog ID; title, description, `webFeed`,
+  `genre`, and artwork as its `emblem`.
 - `Person` — the macOS iCloud account (so listening merges onto the same identity
   as other iCloud-sourced data); `Organization` — show/episode authors as
   publishers.
