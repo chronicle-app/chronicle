@@ -9,6 +9,7 @@ import {
   Person,
   SleepAction,
   SleepSession,
+  SleepStage,
 } from '@chronicle.app/schema';
 import { type HealthDevice, isAppleModel } from '../device.js';
 import type { Reading } from '../readings.js';
@@ -37,8 +38,8 @@ interface Measurer {
  *   sleep: SleepAction  agent: you   startTime, endTime
  *            result: SleepSession
  *          ExperienceAction for each stage   startTime, endTime
- *            result: Session  category: the stage
- *                    isPartOf: the SleepSession  resultOf: the SleepAction
+ *            result: SleepStage  category: the stage
+ *                    isStageOf: the SleepSession  resultOf: the SleepAction
  */
 export default class AppleHealthTransformer extends ChronicleTransformer {
   static override source = SOURCE;
@@ -106,9 +107,9 @@ function sleep(period: SleepPeriod & Measurer, you: Person): ActionAndChildren[]
     result: night,
   };
   const actions: ActionAndChildren[] = [slept];
-  // Each stage is part of the night. Under a stage the night isn't its
+  // Each stage is a stage of the night. Under a stage the night isn't its
   // action's result, so it says which action it's the result of.
-  const partOf: SleepSession = { ...night, resultOf: [reference(slept)] };
+  const stageOf: SleepSession = { ...night, resultOf: [reference(slept)] };
   for (const { stage, start, end } of period.stages) {
     actions.push({
       '@type': 'ExperienceAction',
@@ -126,12 +127,12 @@ function sleep(period: SleepPeriod & Measurer, you: Person): ActionAndChildren[]
       agent: you,
       ...(instrument.length > 0 && { instrument }),
       result: {
-        '@type': 'Session',
+        '@type': 'SleepStage',
         '@key': ['@type', 'source', 'category', ...SESSION_KEY],
         source: SOURCE,
         category: [stage],
-        isPartOf: [partOf],
-      },
+        isStageOf: stageOf,
+      } satisfies SleepStage,
     } satisfies ExperienceAction);
   }
   return actions;

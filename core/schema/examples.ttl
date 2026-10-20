@@ -4108,7 +4108,7 @@ example:night-of-sleep
   rdfs:comment """
 Your watch tracked a night's sleep. The :SleepAction spans the night from
 :startTime to :endTime, and its :result is the :SleepSession. Each stage of the
-night is its own :Session that :isPartOf this one.
+night is a :SleepStage that :isStageOf this one.
 
 The action is keyed by its start and end and the name of the device. The
 session has no times of its own, so its key reads them from the action it is
@@ -4150,14 +4150,14 @@ example:sleep-stage
   rdfs:label "A stage of sleep";
   rdfs:comment """
 One stage of a night's sleep, here deep sleep. An :ExperienceAction spans the
-stage from :startTime to :endTime, and its :result is a :Session whose
-:category is the stage. The session :isPartOf the night's :SleepSession. The
-action and the session are keyed by what the stage says: its start and end,
-the device, and the stage. The session reads the times and the device from the
-action it is the result of, with paths that start at `resultOf`.
+stage from :startTime to :endTime, and its :result is a :SleepStage whose
+:category is the stage. The stage :isStageOf the night's :SleepSession. The
+action and the stage are keyed by what the stage says: its start and end, the
+device, and the stage. The stage reads the times and the device from the action
+it is the result of, with paths that start at `resultOf`.
 
-The night appears here under the stage's session rather than as its own
-action's result, so it gives that action as its `resultOf`, by its key alone.
+The night appears here under the stage rather than as its own action's
+result, so it gives that action as its `resultOf`, by its key alone.
 Its key then reads the night's times, as it does in the night's own record.
 """;
   rdf:value [
@@ -4182,11 +4182,11 @@ Its key then reads the night's times, as it does in the night's own record.
       :name "Sam’s Apple Watch"
     ];
     :result [
-      a :Session;
+      a :SleepStage;
       doc:key ("@type" "source" "category" "resultOf.startTime" "resultOf.endTime" "resultOf.instrument[*].handle");
       :source "apple-health";
       :category "deep";
-      :isPartOf [
+      :isStageOf [
         a :SleepSession;
         doc:key ("@type" "source" "resultOf.startTime" "resultOf.endTime" "resultOf.instrument[*].handle");
         :source "apple-health";
@@ -4208,7 +4208,8 @@ Its key then reads the night's times, as it does in the night's own record.
   ] .
 
 :ExperienceAction skos:example example:sleep-stage .
-:Session skos:example example:sleep-stage .
+:SleepStage skos:example example:sleep-stage .
+:isStageOf skos:example example:sleep-stage .
 
 example:card-purchase
   rdfs:label "A card purchase";

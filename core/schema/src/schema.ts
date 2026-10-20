@@ -19,6 +19,7 @@ const DateTimeSchema = z.union([
 /** Inverse property name → the forward property it reverses. */
 export const INVERSE_PROPERTIES: Record<string, string> = {
   hasPart: 'isPartOf',
+  hasStage: 'isStageOf',
   resultOf: 'result',
 };
 
@@ -672,11 +673,13 @@ export const CallActionSchema: z.ZodType<CallAction> = z
 // Session, child of https://schema.chronicle.app/Entity
 export interface Session extends Omit<Entity, '@type'> {
   '@type': 'Session';
+  isStageOf?: SessionAndChildren;
   references?: EntityAndChildren[];
   scheduledEnd?: Date | string;
   scheduledStart?: Date | string;
   subject?: EntityAndChildren[];
   workingDirectory?: DirectoryAndChildren;
+  hasStage?: SessionAndChildren[];
 }
 
 export type SessionAndChildren =
@@ -688,15 +691,18 @@ export type SessionAndChildren =
   | MembershipAndChildren
   | RelationshipAndChildren
   | SleepSessionAndChildren
+  | SleepStageAndChildren
   | TenureAndChildren;
 
 const SessionProperties = {
   ...EntityProperties,
+  isStageOf: z.lazy(() => SessionAndChildrenSchema).optional(),
   references: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
   scheduledEnd: z.lazy(() => DateTimeSchema).optional(),
   scheduledStart: z.lazy(() => DateTimeSchema).optional(),
   subject: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
   workingDirectory: z.lazy(() => DirectoryAndChildrenSchema).optional(),
+  hasStage: z.lazy(() => z.array(SessionAndChildrenSchema)).optional(),
 };
 
 export const SessionSchema: z.ZodType<Session> = z
@@ -2288,6 +2294,24 @@ export const SleepSessionSchema: z.ZodType<SleepSession> = z
   })
   .superRefine(requireNodeIdentity);
 
+// SleepStage, child of https://schema.chronicle.app/Session
+export interface SleepStage extends Omit<Session, '@type'> {
+  '@type': 'SleepStage';
+}
+
+export type SleepStageAndChildren = SleepStage;
+
+const SleepStageProperties = {
+  ...SessionProperties,
+};
+
+export const SleepStageSchema: z.ZodType<SleepStage> = z
+  .object({
+    '@type': z.literal('SleepStage'),
+    ...SleepStageProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // SoftwareAgent, child of https://schema.chronicle.app/Agent
 export interface SoftwareAgent extends Omit<Agent, '@type'> {
   '@type': 'SoftwareAgent';
@@ -2559,6 +2583,8 @@ export const SoftwareSourceCodeAndChildrenSchema = SoftwareSourceCodeSchema;
 export const SoftwareApplicationAndChildrenSchema = SoftwareApplicationSchema;
 
 export const SoftwareAgentAndChildrenSchema = SoftwareAgentSchema;
+
+export const SleepStageAndChildrenSchema = SleepStageSchema;
 
 export const SleepSessionAndChildrenSchema = SleepSessionSchema;
 
@@ -2975,6 +3001,11 @@ export const SessionAndChildrenSchema: z.ZodType<SessionAndChildren> = z
     z.object({
       '@type': z.literal('Tenure'),
       ...TenureProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('SleepStage'),
+      ...SleepStageProperties,
     }),
 
     z.object({
@@ -3792,6 +3823,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('SleepStage'),
+      ...SleepStageProperties,
+    }),
+
+    z.object({
       '@type': z.literal('SleepSession'),
       ...SleepSessionProperties,
     }),
@@ -4372,6 +4408,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('Tenure'),
       ...TenureProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('SleepStage'),
+      ...SleepStageProperties,
     }),
 
     z.object({

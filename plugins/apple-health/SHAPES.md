@@ -68,9 +68,9 @@ ExperienceAction key(startTime, endTime, instrument[*].handle, result.category) 
   startTime, endTime
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
   instrument[]: Device | SoftwareApplication key(handle) { handle, name, model? }
-  result: Session key(category, resultOf.startTime, resultOf.endTime, resultOf.instrument[*].handle) {
+  result: SleepStage key(category, resultOf.startTime, resultOf.endTime, resultOf.instrument[*].handle) {
     category[]
-    isPartOf[]: SleepSession key(resultOf.startTime, resultOf.endTime, resultOf.instrument[*].handle) {
+    isStageOf: SleepSession key(resultOf.startTime, resultOf.endTime, resultOf.instrument[*].handle) {
       resultOf[]: SleepAction key(startTime, endTime, instrument[*].handle) {
         startTime, endTime
         instrument[]: Device | SoftwareApplication key(handle) { handle }

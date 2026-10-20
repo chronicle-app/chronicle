@@ -310,30 +310,24 @@ test('sleep is grouped into periods per source, each with its stages', async t =
   const actions = await transformAll(records);
   const nights = actions.filter(action => action['@type'] === 'SleepAction');
 
-  // Newest first. The phone and the watch each have their own night, and the
-  // nap is its own period.
+  // Newest first, and the nap is its own period. Time in bed isn't read, so a
+  // night spans its stages, and the phone, which only knew when you were in
+  // bed, has no night.
   assert.deepEqual(
     nights.map(night => [night.instrument[0].handle, night.startTime, night.endTime]),
     [
       [WATCH, '2025-01-15T18:00:00.000Z', '2025-01-15T18:30:00.000Z'],
-      [WATCH, '2025-01-15T03:05:00.000Z', '2025-01-15T10:50:00.000Z'],
-      [PHONE, '2025-01-15T02:45:00.000Z', '2025-01-15T11:00:00.000Z'],
-      ['Sleep Diary', '2016-03-02T03:30:00.000Z', '2016-03-02T10:45:00.000Z'],
+      [WATCH, '2025-01-15T03:20:00.000Z', '2025-01-15T10:50:00.000Z'],
+      ['Sleep Diary', '2016-03-02T03:50:00.000Z', '2016-03-02T10:30:00.000Z'],
     ]
   );
-  assert.deepEqual(instruments(nights[3]), [['SoftwareApplication', 'Sleep Diary']]);
-  assert.deepEqual(instruments(nights[2]), [['Device', PHONE, 'iPhone16,1']]);
+  assert.deepEqual(instruments(nights[2]), [['SoftwareApplication', 'Sleep Diary']]);
   assertKeyed(actions);
   assert.ok(actions.every(action => action.sourceId === undefined));
   // A night is asserted when Health wrote the last of its samples.
   assert.deepEqual(
     nights.map(night => night['@assertedAt']),
-    [
-      '2025-01-15T18:30:00.000Z',
-      '2025-01-15T10:50:00.000Z',
-      '2025-01-15T11:00:00.000Z',
-      '2016-03-02T11:00:00.000Z',
-    ]
+    ['2025-01-15T18:30:00.000Z', '2025-01-15T10:50:00.000Z', '2016-03-02T11:00:00.000Z']
   );
 
   // A night is keyed by its source and its times, and its session by the
@@ -341,39 +335,44 @@ test('sleep is grouped into periods per source, each with its stages', async t =
   const night = nights[1];
   assert.equal(night.result['@type'], 'SleepSession');
   assert.deepEqual(keyOf(night).slice(2), [
-    ['startTime', ['2025-01-15T03:05:00.000Z']],
+    ['startTime', ['2025-01-15T03:20:00.000Z']],
     ['endTime', ['2025-01-15T10:50:00.000Z']],
     ['instrument[*].handle', [WATCH]],
   ]);
   assert.deepEqual(keyOf(night.result, night).slice(2), [
-    ['resultOf.startTime', ['2025-01-15T03:05:00.000Z']],
+    ['resultOf.startTime', ['2025-01-15T03:20:00.000Z']],
     ['resultOf.endTime', ['2025-01-15T10:50:00.000Z']],
     ['resultOf.instrument[*].handle', [WATCH]],
   ]);
 
-  // The night's stages, each a Session that is part of the night. There the
-  // night says what it's the result of, so its key is the same. `in bed` and a
-  // stage over the same span are two stages.
+  // The night's stages, each a SleepStage of the night. There the night says
+  // what it's the result of, so its key is the same. Health's core sleep is
+  // light sleep.
   const sameNight = node =>
     JSON.stringify(keyOf(node)) === JSON.stringify(keyOf(night.result, night));
-  const stages = actions
-    .filter(action => action['@type'] === 'ExperienceAction')
-    .filter(action => sameNight(action.result.isPartOf[0]));
+  const allStages = actions.filter(action => action['@type'] === 'ExperienceAction');
+  const stages = allStages.filter(action => sameNight(action.result.isStageOf));
   assert.deepEqual(
     stages.map(stage => [stage.result.category[0], stage.startTime, stage.endTime]),
     [
-      ['in bed', '2025-01-15T03:05:00.000Z', '2025-01-15T10:50:00.000Z'],
-      ['core', '2025-01-15T03:20:00.000Z', '2025-01-15T04:10:00.000Z'],
-      ['in bed', '2025-01-15T03:20:00.000Z', '2025-01-15T04:10:00.000Z'],
+      ['light', '2025-01-15T03:20:00.000Z', '2025-01-15T04:10:00.000Z'],
       ['deep', '2025-01-15T04:10:00.000Z', '2025-01-15T04:40:00.000Z'],
       ['REM', '2025-01-15T04:40:00.000Z', '2025-01-15T05:10:00.000Z'],
+      ['light', '2025-01-15T05:10:00.000Z', '2025-01-15T10:30:00.000Z'],
       ['awake', '2025-01-15T10:30:00.000Z', '2025-01-15T10:50:00.000Z'],
     ]
   );
-  for (const stage of stages) {
-    assert.equal(stage.result['@type'], 'Session');
-    assert.equal(stage.result.isPartOf[0]['@type'], 'SleepSession');
+  for (const stage of allStages) {
+    assert.equal(stage.result['@type'], 'SleepStage');
+    assert.equal(stage.result.isStageOf['@type'], 'SleepSession');
   }
+  // The app's night is one stretch of sleep of no known stage.
+  assert.deepEqual(
+    allStages
+      .filter(stage => stage.instrument[0].handle === 'Sleep Diary')
+      .map(stage => [stage.result.category[0], stage.startTime, stage.endTime]),
+    [['asleep', '2016-03-02T03:50:00.000Z', '2016-03-02T10:30:00.000Z']]
+  );
   // A stage is keyed by its source, its times, and the stage, and so is its session.
   const deep = stages.find(stage => stage.result.category[0] === 'deep');
   assert.deepEqual(keyOf(deep).slice(2), [
@@ -438,7 +437,7 @@ test('a series narrows a kind to it, and a kind with none of the series reads no
   const series = 'RespiratoryRate,SleepAnalysis';
   assert.deepEqual(await read(AppleHealthHeartExtractor, series), []);
   assert.deepEqual(await read(AppleHealthRespiratoryExtractor, series), [['respiratoryRate']]);
-  assert.equal((await read(AppleHealthSleepExtractor, series)).length, 4);
+  assert.equal((await read(AppleHealthSleepExtractor, series)).length, 3);
 
   // A kind with none of the series doesn't read the export, even a broken one.
   const broken = join(dirname(input), 'broken');

@@ -166,6 +166,14 @@
   rdfs:domain :Entity;
   rdfs:range :Entity;
   skos:exactMatch schemaorg:isPartOf .
+:isStageOf a owl:ObjectProperty;
+  rdfs:comment "The session that this session is a stage of, such as the night that a stretch of deep sleep is a stage of. A stage is part of how the whole went and does not happen apart from it. A whole's stages of the same type do not overlap, though together they need not cover it. Seen from the whole, its stages are its `hasStage` values.";
+  :inverseName "hasStage";
+  rdfs:subPropertyOf :isPartOf;
+  rdfs:domain :Session;
+  rdfs:range :Session;
+  skos:broadMatch schemaorg:isPartOf .
+[] a sh:PropertyShape; sh:path :isStageOf; sh:targetSubjectsOf :isStageOf; sh:maxCount 1 .
 :about a owl:ObjectProperty;
   rdfs:comment "What the entity is about, such as a topic or a tag.";
   rdfs:domain :Entity;
@@ -485,10 +493,13 @@
   rdfs:comment "One person's time on a phone or video call. It is the :result of a :CallAction. Its :recipient is who received the call. A group call's session :isPartOf a :Channel whose :member values are the participants. A missed call has zero length.";
   rdfs:subClassOf :Session .
 :SleepAction a owl:Class;
-  rdfs:comment "The agent slept from :startTime to :endTime, such as for a night or a nap. Its :result is the :SleepSession.";
+  rdfs:comment "The agent slept from :startTime to :endTime, such as for a night or a nap, including any brief wakings. Its :result is the :SleepSession.";
   rdfs:subClassOf :ExperienceAction .
 :SleepSession a owl:Class;
-  rdfs:comment "A period of sleep, such as a night or a nap. Each stage of it, such as `deep`, `REM`, or `awake`, is a :Session that :isPartOf it, with the stage as its :category. It is the :result of a :SleepAction, which gives its start and end.";
+  rdfs:comment "A period of sleep, such as a night or a nap. It is the :result of a :SleepAction, which gives its start and end. Each tracked stage of it is a :SleepStage that :isStageOf it.";
+  rdfs:subClassOf :Session .
+:SleepStage a owl:Class;
+  rdfs:comment "A stretch of one stage of sleep, such as deep sleep, that :isStageOf a :SleepSession. It is the :result of an :ExperienceAction, which gives its start and end. Its :category is the stage: `awake`, `light`, `deep`, `REM`, or `asleep` when the stage is not known. Not allowed: another name for one of these, such as `core` for light sleep.";
   rdfs:subClassOf :Session .
 :EatAction a owl:Class;
   rdfs:comment "The agent ate the :object, a :Meal. Where they ate is the action's :location.";

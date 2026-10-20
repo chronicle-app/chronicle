@@ -85,9 +85,9 @@ const ecg = (date, classification) =>
  * Activity: the phone's steps over nine minutes, and the watch's over one of
  * them. The watch's active energy in `Cal`, and an app's in `kJ`.
  *
- * Sleep, out of order: a watch night with `in bed` and a stage over the same
- * span, the phone's time in bed over the same night, a nap later that day,
- * and an older night from an app.
+ * Sleep, out of order: a watch night with its stages and its time in bed,
+ * the phone's time in bed over the same night, a nap later that day, and an
+ * older night from an app, asleep within its time in bed.
  *
  * Also skipped elements: a food correlation and a workout.
  */
@@ -340,17 +340,18 @@ ${record(quantity('DietaryEnergyConsumed'), { sourceName: 'Food Log', unit: 'Cal
     ` <Workout workoutActivityType="HKWorkoutActivityTypeRunning" duration="20" durationUnit="min" sourceName="${WATCH}" sourceVersion="10.2" device="${watch('0x9', '10.2')}" creationDate="2025-01-15 18:35:00 -0400" startDate="2025-01-15 18:15:00 -0400" endDate="2025-01-15 18:35:00 -0400">
 ${meta('HKTimeZone', 'America/New_York')}  <WorkoutStatistics type="HKQuantityTypeIdentifierHeartRate" startDate="2025-01-15 18:15:00 -0400" endDate="2025-01-15 18:35:00 -0400" average="150" minimum="120" maximum="171" unit="count/min"/>
  </Workout>`,
-    // The night of January 14 to 15, out of order, with the phone's time in bed over it.
+    // The night of January 14 to 15, out of order, with the watch's and the
+    // phone's time in bed over it.
     sleep(WATCH, 'AsleepDeep', '2025-01-15 00:10:00 -0400', '2025-01-15 00:40:00 -0400'),
-    sleep(WATCH, 'InBed', '2025-01-14 23:05:00 -0400', '2025-01-15 06:50:00 -0400'),
+    sleep(WATCH, 'InBed', '2025-01-14 23:05:00 -0400', '2025-01-15 07:05:00 -0400'),
     sleep(WATCH, 'AsleepCore', '2025-01-14 23:20:00 -0400', '2025-01-15 00:10:00 -0400'),
-    sleep(WATCH, 'InBed', '2025-01-14 23:20:00 -0400', '2025-01-15 00:10:00 -0400'),
     sleep(WATCH, 'AsleepREM', '2025-01-15 00:40:00 -0400', '2025-01-15 01:10:00 -0400'),
+    sleep(WATCH, 'AsleepCore', '2025-01-15 01:10:00 -0400', '2025-01-15 06:30:00 -0400'),
     sleep(WATCH, 'Awake', '2025-01-15 06:30:00 -0400', '2025-01-15 06:50:00 -0400'),
     sleep(PHONE, 'InBed', '2025-01-14 22:45:00 -0400', '2025-01-15 07:00:00 -0400'),
     // A nap that afternoon, hours after the night ended.
     sleep(WATCH, 'AsleepCore', '2025-01-15 14:00:00 -0400', '2025-01-15 14:30:00 -0400'),
-    // An older night from an app.
+    // An older night from an app, asleep within its time in bed.
     record(SLEEP, {
       sourceName: 'Sleep Diary',
       sourceVersion: '3.1',
@@ -358,6 +359,14 @@ ${meta('HKTimeZone', 'America/New_York')}  <WorkoutStatistics type="HKQuantityTy
       startDate: '2016-03-01 23:30:00 -0400',
       endDate: '2016-03-02 06:45:00 -0400',
       value: stage('InBed'),
+    }),
+    record(SLEEP, {
+      sourceName: 'Sleep Diary',
+      sourceVersion: '3.1',
+      creationDate: '2016-03-02 07:00:00 -0400',
+      startDate: '2016-03-01 23:50:00 -0400',
+      endDate: '2016-03-02 06:30:00 -0400',
+      value: stage('AsleepUnspecified'),
     }),
   ].join('\n');
 
