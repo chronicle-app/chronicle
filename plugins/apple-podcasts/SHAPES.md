@@ -21,11 +21,13 @@ ListenAction | BookmarkAction key(sourceId) {
     contains[]: AudioObject key(url, any source) { url }
     series[]: PodcastSeries key(sourceId) {
       sourceId, url, name?, description?, webFeed, genre[]?
+      references[]?: Entity key(url, any source) { url }
       emblem?: ImageObject key(url, any source) { url }
       author[]?: Agent key(name) { name }
       publisher[]?: Organization key(sourceId) { sourceId, name }
     }
     author[]?: Agent key(name) { name }
+    references[]?: Entity key(url, any source) { url }
     emblem?: ImageObject key(url, any source) { url* }
   }
 }
@@ -38,10 +40,12 @@ CompleteAction key(sourceId) {
     contains[]: AudioObject key(url, any source) { url }
     series[]: PodcastSeries key(sourceId) {
       sourceId, url, webFeed, name?, description?, genre[]?
+      references[]?: Entity key(url, any source) { url }
       emblem?: ImageObject key(url, any source) { url }
       author[]?: Agent key(name) { name }
       publisher[]?: Organization key(sourceId) { sourceId, name }
     }
+    references[]?: Entity key(url, any source) { url }
     emblem?: ImageObject key(url, any source) { url* }
     author[]?: Agent key(name) { name }
   }
@@ -52,10 +56,12 @@ BookmarkAction key(sourceId) {
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
   object: PodcastEpisode key(sourceId) {
     sourceId, name, description*, url, duration, datePublished, transcript
+    references[]: Entity key(url, any source) { url }
     emblem: ImageObject key(url, any source) { url* }
     contains[]: AudioObject key(url, any source) { url }
     series[]: PodcastSeries key(sourceId) {
       sourceId, url, name, description, webFeed, genre[]
+      references[]: Entity key(url, any source) { url }
       emblem: ImageObject key(url, any source) { url }
       author[]: Agent key(name) { name }
       publisher[]: Organization key(sourceId) { sourceId, name }
@@ -73,6 +79,7 @@ FollowAction key(sourceId) {
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
   object: PodcastSeries key(sourceId) {
     sourceId, url, name, description, webFeed, genre[]
+    references[]: Entity key(url, any source) { url }
     emblem: ImageObject key(url, any source) { url }
     author[]: Agent key(name) { name }
     publisher[]: Organization key(sourceId) { sourceId, name }

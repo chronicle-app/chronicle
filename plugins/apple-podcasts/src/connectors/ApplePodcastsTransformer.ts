@@ -10,6 +10,7 @@ import {
   ActionAndChildren,
   Agent,
   AgentAndChildren,
+  Entity,
   Organization,
   PodcastSeries,
   PodcastEpisode,
@@ -60,7 +61,7 @@ function catalogId(storeId: unknown): string | undefined {
 // A show's page on Apple Podcasts, or one of its episodes', by their catalog
 // IDs. A feed's own link for an episode or a show is often the show's or the
 // network's home page, which would merge every node that has it, so `url` is
-// Apple's page instead.
+// Apple's page instead, and the feed's link is a page it references.
 function applePage(showId: string, episodeId?: string): string {
   const page = `https://podcasts.apple.com/podcast/id${showId}`;
   return episodeId ? `${page}?i=${episodeId}` : page;
@@ -68,6 +69,11 @@ function applePage(showId: string, episodeId?: string): string {
 
 // Episode artwork is stored as an mzstatic template with `{w}x{h}bb.{f}`
 // placeholders; fill them in for a concrete, fetchable image URL.
+function feedLink(value: unknown): Entity[] | undefined {
+  const url = str(value);
+  return url && isHttpUrl(url) ? [{ '@type': 'Entity', '@key': ['url'], url }] : undefined;
+}
+
 function resolveArtwork(template: string): string {
   return template.replace('{w}', '600').replace('{h}', '600').replace('{f}', 'jpg');
 }
@@ -204,6 +210,7 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
         description: markdown(data.podcastDescription),
       }),
       ...(feed && isHttpUrl(feed) && { webFeed: feed }),
+      ...(feedLink(data.podcastWebUrl) && { references: feedLink(data.podcastWebUrl) }),
       ...(category && { genre: [category] }),
       ...(image &&
         isHttpUrl(image) && {
@@ -233,6 +240,7 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
         description: markdown(data.episodeDescription),
       }),
       ...(podcast?.sourceId && { url: applePage(podcast.sourceId, sourceId) }),
+      ...(feedLink(data.webUrl) && { references: feedLink(data.webUrl) }),
       ...(data.duration && { duration: this.formatDuration(data.duration) }),
       ...(date(data.publishDate) && { datePublished: date(data.publishDate) }),
       ...(artwork &&

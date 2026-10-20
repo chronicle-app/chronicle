@@ -205,6 +205,7 @@ export class ApplePodcastsExtractor extends SqliteExtractor<typeof ApplePodcasts
              p.ZFEEDURL AS feedUrl,
              p.ZIMAGEURL AS imageUrl,
              p.ZSTORECOLLECTIONID AS storeCollectionId,
+             p.ZWEBPAGEURL AS podcastWebUrl,
              p.ZITEMDESCRIPTION AS podcastDescription,
              c.ZSTOREID AS channelStoreId,
              c.ZNAME AS channelName
@@ -285,7 +286,7 @@ export class ApplePodcastsExtractor extends SqliteExtractor<typeof ApplePodcasts
               p.ZCATEGORY AS podcastCategory,
               p.ZFEEDURL AS feedUrl,
               p.ZIMAGEURL AS imageUrl,
-              p.ZWEBPAGEURL AS webUrl,
+              p.ZWEBPAGEURL AS podcastWebUrl,
               p.ZSTORECOLLECTIONID AS storeCollectionId,
               p.ZADDEDDATE AS addedDate,
               p.ZITEMDESCRIPTION AS podcastDescription,

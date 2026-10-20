@@ -72,6 +72,9 @@ const channel = {
   name: 'Example Network',
 };
 const image = url => ({ '@type': 'ImageObject', '@key': ['url'], url });
+// A feed's link for a show or an episode is a page it references, keyed by its
+// url, so episodes that share one don't merge.
+const page = url => ({ '@type': 'Entity', '@key': ['url'], url });
 // Shows and episodes are keyed by Apple's catalog ID.
 const followedShow = {
   '@type': 'PodcastSeries',
@@ -82,6 +85,7 @@ const followedShow = {
   name: 'Example Conversations',
   description: 'Long conversations.',
   webFeed: 'https://example.com/feed.xml',
+  references: [page('https://example.com/show')],
   genre: ['Society & Culture'],
   emblem: image('https://example.com/show.jpg'),
   author: [author('Pat Example')],
@@ -102,8 +106,9 @@ const finishedEpisode = {
   sourceId: '2001',
   name: 'A Finished Episode',
   description: 'A guest on [their new book](https://example.com/book).',
-  // Its page on Apple Podcasts, not the feed's link for it.
+  // Its page on Apple Podcasts. The feed links it to the show's home page.
   url: 'https://podcasts.apple.com/podcast/id1001?i=2001',
+  references: [page('https://example.com/show')],
   duration: 'PT3121S',
   datePublished: new Date('2024-12-30T00:00:00.000Z'),
   emblem: image('https://example.com/art/600x600bb.jpg'),

@@ -98,8 +98,10 @@ Entities:
 A show's or an episode's `url` is its page on Apple Podcasts, made from the
 catalog IDs, such as `https://podcasts.apple.com/podcast/id983795625?i=1000750314107`.
 The feed's own link (`ZWEBPAGEURL`) is often the show's or the network's home
-page, shared by every episode, and nodes with the same `url` merge. It stays in
-the raw record.
+page, shared by every episode, and nodes with the same `url` merge. So the show
+or episode `references` that link instead, as an `Entity` keyed by its url. The
+page meets other sources' visits to it, and the episodes that share it don't
+merge.
 
 - `Person` — the macOS iCloud account (so listening merges onto the same identity
   as other iCloud-sourced data).
@@ -108,6 +110,8 @@ the raw record.
   episode's producers, so it isn't said to be a person or an organization.
 - `Organization` — a show's channel on Apple Podcasts, as its `publisher`, keyed
   by the channel's catalog ID.
+- `Entity` — the page a feed links a show or an episode to, which it
+  `references`, keyed by its url.
 
 Actions (all with the iCloud `Person` as `agent`; without an Apple Account
 signed in, extraction stops):
