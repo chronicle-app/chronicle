@@ -103,8 +103,18 @@ export class ApplePodcastsExtractor extends SqliteExtractor<typeof ApplePodcasts
       });
     }
 
-    yield* this.extractEpisodes(account);
-    yield* this.extractSubscriptions(account);
+    // The limit is on records of both types: the episodes' query takes it, and
+    // the followed shows fill what's left.
+    let count = 0;
+    for await (const record of this.extractEpisodes(account)) {
+      yield record;
+      count++;
+    }
+    for await (const record of this.extractSubscriptions(account)) {
+      if (this.shouldStopExtracting(count)) return;
+      yield record;
+      count++;
+    }
   }
 
   // Episodes the user actually engaged with: played (a non-zero play count or a

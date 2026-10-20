@@ -214,6 +214,18 @@ test('extraction honours the time range and counts what it extracts', async t =>
   assert.equal(saved.count, 2);
 });
 
+test('the limit counts followed shows with the episodes', async t => {
+  // The five extracted episodes come first, so a limit of five leaves no room
+  // for the followed show.
+  const { records } = await extract(t, { limit: 5 });
+  assert.deepEqual(
+    ids(records).map(([type]) => type),
+    ['listens', 'listens', 'listens', 'listens', 'listens']
+  );
+  const all = await extract(t, { limit: 6 });
+  assert.equal(ids(all.records).at(-1)[0], 'subscriptions');
+});
+
 test('without an Apple Account, extraction stops and says to sign in', async t => {
   await assert.rejects(extract(t, { account: null }), error => {
     assert.equal(error.code, 'auth-required');
