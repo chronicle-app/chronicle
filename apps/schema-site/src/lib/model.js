@@ -119,6 +119,8 @@ export async function loadSchema({ ontology, examples, alignments = [] }) {
       range: rangeOf(store, subject).map(term => localName(term)),
       ...cardinalityOf(store, subject),
       inverseName: first(subject, NAMESPACE + 'inverseName'),
+      metric: first(subject, NAMESPACE + 'metric'),
+      unit: first(subject, NAMESPACE + 'unit'),
       examples: await examplesOf(subject),
     };
     for (const term of [...property.domain, ...property.range]) {

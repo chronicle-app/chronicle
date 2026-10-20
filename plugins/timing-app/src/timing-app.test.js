@@ -69,7 +69,6 @@ const realm = {
 const mac = {
   ...byId('Device', MAC_GLOBAL_ID),
   name: 'pat-mbp.local',
-  category: ['computer'],
   model: 'Mac15,3',
   sameAs: [
     {
@@ -211,7 +210,6 @@ test('the default run merges app usage, time entries, and calls, newest first', 
     execute('105', 1300, 1400, {}, app('com.example.notes', 'Notes'), {
       ...byId('Device', PHONE_GLOBAL_ID),
       name: 'pat-iphone',
-      category: ['phone'],
       model: 'iPhone15,2',
       inRealm: { ...realm, handle: 'pat-iphone' },
     })

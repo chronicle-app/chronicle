@@ -119,6 +119,12 @@ typing; use validators at runtime to enforce identity requirements.
   `:isPartOf`. A record can give the relation under either name, so a whole
   can list its parts, and only the forward edge is stored. The generated
   `INVERSE_PROPERTIES` maps each inverse name to its forward property.
+- A number property can say what form its values take with `:metric`. A
+  `gauge` is a level or a rate, such as a heart rate, and combines as a mean,
+  minimum, or maximum. A `sum` is an amount, such as a number of steps, and
+  adds up. A metric's `:unit` is the one unit all its values are in, as a UCUM
+  code such as `/min`. The generated `METRIC_PROPERTIES` gives each metric's
+  form and unit.
 - A SHACL property shape after a property holds its record rules. `sh:maxCount 1`
   makes it take one value. A shape with `sh:targetClass` and `sh:minCount 1`
   makes it required on that class.
@@ -129,7 +135,8 @@ The generator turns the ontology into TypeScript types and Zod validators. It
 reads terms through `scripts/terms.js`, which the schema site also uses. It
 handles inheritance, including a class with two parents, domains and ranges,
 and SHACL counts, and it fails for cyclic inheritance, undeclared referenced
-classes, or a property with two domains or ranges. The package has no
+classes, a property with two domains or ranges, or a metric that isn't a
+gauge or a sum of numbers in one unit. The package has no
 persistence metadata, derived effects, or runtime filesystem parser.
 Generated runtime code depends only on Zod; the TTL is also included in the package.
 

@@ -6,4 +6,6 @@ Automatic iCloud account and AddressBook enrichment comes from `@chronicle.app/a
 
 Attachments are local file references with MIME metadata, not copied bytes. Missing files are skipped. Attributed-body decoding retains the existing heuristic; it is not a complete typedstream decoder. Raw records preserve the source blob, and large integer timestamps are decimal strings so serialization is safe.
 
+The plugin declares a `deepLinks` template for `Message` (`messages://open?message-guid=<GUID>`), so a host can open the message in Messages. SMS messages are linked the same way, since they are in `chat.db` too. Attachments are not linked, because an attachment's GUID is not a message GUID.
+
 Tests use synthetic Messages and AddressBook databases, account command fixtures, and temporary attachment files. They do not read personal messages or contacts.
