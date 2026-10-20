@@ -102,6 +102,7 @@ const finishedEpisode = {
   description: 'A guest on [their new book](https://example.com/book).',
   url: 'https://example.com/episodes/1',
   duration: 'PT3121S',
+  datePublished: new Date('2024-12-30T00:00:00.000Z'),
   emblem: image('https://example.com/art/600x600bb.jpg'),
   contains: [
     {
@@ -155,9 +156,10 @@ test('played and saved episodes become listens, completions, and bookmarks, and 
     ['2002', '2005', '2001', '2003', '2006', '1001']
   );
 
-  // The episode carries its show, its author, its audio file, its artwork, its
-  // description as Markdown, and its transcript, a paragraph for each speaker's
-  // turn, starting with the speaker's label. The show carries its publisher.
+  // The episode carries its show, its author, when it was released, its audio
+  // file, its artwork, its description as Markdown, and its transcript, a
+  // paragraph for each speaker's turn, starting with the speaker's label. The
+  // show carries its publisher.
   assert.deepEqual(actions[3], {
     '@type': 'ListenAction',
     '@key': key,

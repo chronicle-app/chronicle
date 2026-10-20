@@ -17,7 +17,7 @@ ListenAction | BookmarkAction key(sourceId) {
   sourceId, timestamp
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
   object: PodcastEpisode key(sourceId) {
-    sourceId, name?, duration*, description?*, url?, transcript?
+    sourceId, name?, duration*, datePublished, description?*, url?, transcript?
     contains[]: AudioObject key(url, any source) { url }
     series[]: PodcastSeries key(sourceId) {
       sourceId, name?, description?, webFeed, genre[]?
@@ -34,7 +34,7 @@ CompleteAction key(sourceId) {
   sourceId, timestamp
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
   object: PodcastEpisode key(sourceId) {
-    sourceId, name?, duration*, description?*, url?, transcript?
+    sourceId, name?, duration*, datePublished, description?*, url?, transcript?
     contains[]: AudioObject key(url, any source) { url }
     series[]: PodcastSeries key(sourceId) {
       sourceId, webFeed, name?, description?, genre[]?
@@ -51,7 +51,7 @@ BookmarkAction key(sourceId) {
   sourceId, timestamp
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
   object: PodcastEpisode key(sourceId) {
-    sourceId, name, description*, url, duration, transcript
+    sourceId, name, description*, url, duration, datePublished, transcript
     emblem: ImageObject key(url, any source) { url* }
     contains[]: AudioObject key(url, any source) { url }
     series[]: PodcastSeries key(sourceId) {

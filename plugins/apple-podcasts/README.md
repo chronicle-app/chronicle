@@ -83,7 +83,8 @@ date as their timeline position while being sighted at read time.
 Entities:
 
 - `PodcastEpisode` — keyed by its catalog ID; title, description, `url` (web
-  page), `duration` (ISO 8601), episode artwork as its `emblem`, and the audio
+  page), `duration` (ISO 8601), when it was released as its `datePublished`
+  (`ZPUBDATE`), episode artwork as its `emblem`, and the audio
   file in `contains` (`AudioObject`). Its `transcript` is the text of the
   downloaded TTML, a paragraph for each speaker's turn, without timings. Each
   paragraph starts with Apple's label for its speaker, such as `SPEAKER_1: `.
@@ -111,6 +112,6 @@ signed in, extraction stops):
 - `FollowAction` — per subscribed show, dated when it was added to the library.
 
 Not captured: the fractional playhead position (no schema field for partial
-progress), the episode number, and the episode's release as an action.
+progress) and the episode and season numbers.
 
 `SHAPES.md` sketches the output, generated from the tests.

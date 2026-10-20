@@ -226,6 +226,7 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
       }),
       ...(url && { url }),
       ...(data.duration && { duration: this.formatDuration(data.duration) }),
+      ...(date(data.publishDate) && { datePublished: date(data.publishDate) }),
       ...(artwork &&
         isHttpUrl(artwork) && {
           emblem: createImageObject({ url: resolveArtwork(artwork) }),
