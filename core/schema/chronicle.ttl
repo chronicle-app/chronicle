@@ -775,11 +775,10 @@
   rdfs:range :CreativeWork;
   skos:closeMatch schemaorg:partOfSeries .
 :webFeed a owl:DatatypeProperty;
-  rdfs:comment "The RSS or Atom feed URL for the podcast.";
-  rdfs:domain :PodcastSeries;
+  rdfs:comment "The URL of an RSS or Atom feed that publishes the work's items, such as a podcast's episodes or a blog's posts.";
+  rdfs:domain :CreativeWork;
   rdfs:range :URL;
   skos:exactMatch schemaorg:webFeed .
-[] a sh:PropertyShape; sh:path :webFeed; sh:targetSubjectsOf :webFeed; sh:maxCount 1 .
 :duration a owl:DatatypeProperty;
   rdfs:comment "How long the recording or media lasts.";
   rdfs:domain [ a owl:Class; owl:unionOf ( :AudioObject :VideoObject :MusicRecording :PodcastEpisode ) ];

@@ -211,7 +211,7 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
       ...(markdown(data.podcastDescription) && {
         description: markdown(data.podcastDescription),
       }),
-      ...(feed && isHttpUrl(feed) && { webFeed: feed }),
+      ...(feed && isHttpUrl(feed) && { webFeed: [feed] }),
       ...(feedLink(data.podcastWebUrl) && { references: feedLink(data.podcastWebUrl) }),
       ...(category && { genre: [category] }),
       ...(image &&

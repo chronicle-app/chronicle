@@ -175,6 +175,7 @@ export interface CreativeWork extends Omit<Entity, '@type'> {
   series?: CreativeWorkAndChildren[];
   sourceFormat?: string;
   visibility?: string;
+  webFeed?: string[];
 }
 
 export type CreativeWorkAndChildren =
@@ -211,6 +212,7 @@ const CreativeWorkProperties = {
   series: z.lazy(() => z.array(CreativeWorkAndChildrenSchema)).optional(),
   sourceFormat: z.lazy(() => z.string()).optional(),
   visibility: z.lazy(() => z.string()).optional(),
+  webFeed: z.lazy(() => z.array(z.string().url())).optional(),
 };
 
 export const CreativeWorkSchema: z.ZodType<CreativeWork> = z
@@ -1986,14 +1988,12 @@ export const PodcastEpisodeSchema: z.ZodType<PodcastEpisode> = z
 // PodcastSeries, child of https://schema.chronicle.app/CreativeWork
 export interface PodcastSeries extends Omit<CreativeWork, '@type'> {
   '@type': 'PodcastSeries';
-  webFeed?: string;
 }
 
 export type PodcastSeriesAndChildren = PodcastSeries;
 
 const PodcastSeriesProperties = {
   ...CreativeWorkProperties,
-  webFeed: z.lazy(() => z.string().url()).optional(),
 };
 
 export const PodcastSeriesSchema: z.ZodType<PodcastSeries> = z

@@ -86,7 +86,7 @@ const followedShow = {
   name: 'Example Conversations',
   description: 'Long conversations.',
   // Its feed has moved: the new address.
-  webFeed: 'https://feeds.example.net/conversations.xml',
+  webFeed: ['https://feeds.example.net/conversations.xml'],
   references: [page('https://example.com/show')],
   genre: ['Society & Culture'],
   emblem: image('https://example.com/show.jpg'),
@@ -99,7 +99,7 @@ const unfollowedShow = {
   source: 'apple-podcasts',
   sourceId: '1002',
   url: 'https://podcasts.apple.com/podcast/id1002',
-  webFeed: 'https://example.org/feed.xml',
+  webFeed: ['https://example.org/feed.xml'],
 };
 const finishedEpisode = {
   '@type': 'PodcastEpisode',
