@@ -8,6 +8,7 @@ import {
 } from '@chronicle.app/etl';
 import {
   ActionAndChildren,
+  Agent,
   AgentAndChildren,
   Organization,
   PodcastSeries,
@@ -41,9 +42,9 @@ function date(unixSeconds: unknown): Date | undefined {
     : undefined;
 }
 
-// Apple's catalog ID for a show or episode (the podcasts.apple.com ID), the same
-// on each device, as a key; undefined when it isn't in the catalog. The
-// library's own UUIDs differ from one device to the next.
+// Apple's catalog ID for a show, an episode, or a channel (the podcasts.apple.com
+// ID), the same on each device, as a key; undefined when it isn't in the
+// catalog. The library's own UUIDs differ from one device to the next.
 function catalogId(storeId: unknown): string | undefined {
   return typeof storeId === 'number' && storeId > 0 ? String(storeId) : undefined;
 }
@@ -190,9 +191,8 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
         isHttpUrl(image) && {
           emblem: createImageObject({ url: image }),
         }),
-      ...(this.publisher(data.podcastAuthor) && {
-        publisher: this.publisher(data.podcastAuthor),
-      }),
+      ...(this.author(data.podcastAuthor) && { author: this.author(data.podcastAuthor) }),
+      ...(this.publisher(data) && { publisher: this.publisher(data) }),
     };
   }
 
@@ -228,24 +228,31 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
         }),
       ...(str(data.transcript) && { transcript: str(data.transcript) }),
       ...(podcast && { series: [podcast] }),
-      ...(this.publisher(data.episodeAuthor) && {
-        publisher: this.publisher(data.episodeAuthor),
-      }),
+      ...(this.author(data.episodeAuthor) && { author: this.author(data.episodeAuthor) }),
     };
   }
 
-  // The feed's author/network as an Organization publisher. Keyed on the name —
-  // the only handle Apple gives for it — so repeated authors collapse. Returns
-  // undefined when there is no author, so the slot is omitted rather than nulled.
-  private publisher(author: unknown): Organization[] | undefined {
-    const name = str(author);
-    if (!name) return undefined;
+  // The author the feed names for a show or an episode. It can be a host, a
+  // network, or several people in one name, so it's an Agent rather than a
+  // Person or an Organization, keyed by that name, which is all there is.
+  private author(name: unknown): Agent[] | undefined {
+    const text = str(name);
+    if (!text) return undefined;
+    return [{ '@type': 'Agent', '@key': ['@type', 'source', 'name'], source: SOURCE, name: text }];
+  }
+
+  // The show's publisher: its channel on Apple Podcasts, keyed by the channel's
+  // catalog ID. A show published independently has none.
+  private publisher(data: any): Organization[] | undefined {
+    const sourceId = catalogId(data.channelStoreId);
+    if (!sourceId) return undefined;
     return [
       {
         '@type': 'Organization',
-        '@key': ['@type', 'source', 'name'],
+        '@key': ['@type', 'source', 'sourceId'],
         source: SOURCE,
-        name,
+        sourceId,
+        ...(str(data.channelName) && { name: str(data.channelName) }),
       },
     ];
   }

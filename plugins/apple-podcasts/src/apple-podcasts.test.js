@@ -56,10 +56,19 @@ const me = {
   '@key': key,
   sameAs: ['@me'],
 };
-const network = {
-  '@type': 'Organization',
+// The feed's author is an Agent named as the feed names it. The show's
+// publisher is its channel, keyed by the channel's catalog ID.
+const author = name => ({
+  '@type': 'Agent',
   '@key': ['@type', 'source', 'name'],
   source: 'apple-podcasts',
+  name,
+});
+const channel = {
+  '@type': 'Organization',
+  '@key': ['@type', 'source', 'sourceId'],
+  source: 'apple-podcasts',
+  sourceId: '3001',
   name: 'Example Network',
 };
 const image = url => ({ '@type': 'ImageObject', '@key': ['url'], url });
@@ -74,7 +83,8 @@ const followedShow = {
   webFeed: 'https://example.com/feed.xml',
   genre: ['Society & Culture'],
   emblem: image('https://example.com/show.jpg'),
-  publisher: [network],
+  author: [author('Pat Example')],
+  publisher: [channel],
 };
 const unfollowedShow = {
   '@type': 'PodcastSeries',
@@ -104,7 +114,7 @@ const finishedEpisode = {
   transcript:
     "SPEAKER_1: Welcome back, it's Q&A time.\n\nSPEAKER_2: Thanks for having me. Glad to be here.",
   series: [followedShow],
-  publisher: [network],
+  author: [author('Sam Producer, Pat Example')],
 };
 
 test('played and saved episodes become listens, completions, and bookmarks, and followed shows become follows', async t => {
@@ -145,9 +155,9 @@ test('played and saved episodes become listens, completions, and bookmarks, and 
     ['2002', '2005', '2001', '2003', '2006', '1001']
   );
 
-  // The episode carries its show, its audio file, its artwork, its description
-  // as Markdown, and its transcript, a paragraph for each speaker's turn,
-  // starting with the speaker's label.
+  // The episode carries its show, its author, its audio file, its artwork, its
+  // description as Markdown, and its transcript, a paragraph for each speaker's
+  // turn, starting with the speaker's label. The show carries its publisher.
   assert.deepEqual(actions[3], {
     '@type': 'ListenAction',
     '@key': key,

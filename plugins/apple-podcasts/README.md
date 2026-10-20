@@ -56,6 +56,9 @@ Apple Podcasts stores its library in a Core Data SQLite file
 - `ZMTPODCAST` (`subscription` records, where `ZSUBSCRIBED = 1`) — Columns:
   `ZTITLE`, `ZAUTHOR`, `ZCATEGORY`, `ZFEEDURL`, `ZIMAGEURL`,
   `ZWEBPAGEURL`, `ZSTORECOLLECTIONID`, `ZADDEDDATE`, `ZITEMDESCRIPTION`.
+- `ZMTCHANNEL`, joined from a show by `ZCHANNEL` — the show's channel, its
+  publisher's page on Apple Podcasts: `ZSTOREID` (its catalog ID) and `ZNAME`.
+  Shows published independently have none.
 
 Episodes and shows are keyed by Apple's catalog ID (`ZSTORETRACKID`,
 `ZSTORECOLLECTIONID`, the ID in a podcasts.apple.com link), which is the same on
@@ -84,10 +87,15 @@ Entities:
   has downloaded or just played, and clears them later; a transcript an earlier
   run extracted stays in the archive.
 - `PodcastSeries` — keyed by its catalog ID; title, description, `webFeed`,
-  `genre`, and artwork as its `emblem`.
+  `genre`, artwork as its `emblem`, its `author`, and its channel as its
+  `publisher`.
 - `Person` — the macOS iCloud account (so listening merges onto the same identity
-  as other iCloud-sourced data); `Organization` — show/episode authors as
-  publishers.
+  as other iCloud-sourced data).
+- `Agent` — the `author` the feed names for a show or an episode, keyed by that
+  name. It can be a host, a network, or several people in one name, such as an
+  episode's producers, so it isn't said to be a person or an organization.
+- `Organization` — a show's channel on Apple Podcasts, as its `publisher`, keyed
+  by the channel's catalog ID.
 
 Actions (all with the iCloud `Person` as `agent`; without an Apple Account
 signed in, extraction stops):

@@ -27,6 +27,10 @@ export const account = {
  * Each has Apple's catalog ID, but for another followed show and an episode of
  * it that was played. They aren't in the catalog, so they're left out.
  *
+ * The followed show is on its network's channel, and its feed names its host
+ * as its author. The finished episode names its producers instead. The other
+ * shows aren't on a channel.
+ *
  * A played episode's playback position syncs to a row of ZMTUPPMETADATA,
  * matched by its metadata identifier. At 01:00 a library-wide update changed the
  * older episode's play state and synced the finished one again, and a feed
@@ -50,7 +54,8 @@ export function writeApplePodcastsFixture(dir) {
     CREATE TABLE ZMTPODCAST (Z_PK INTEGER PRIMARY KEY, ZUUID VARCHAR, ZTITLE VARCHAR,
       ZAUTHOR VARCHAR, ZCATEGORY VARCHAR, ZFEEDURL VARCHAR, ZIMAGEURL VARCHAR,
       ZWEBPAGEURL VARCHAR, ZSTORECOLLECTIONID INTEGER, ZADDEDDATE TIMESTAMP,
-      ZITEMDESCRIPTION VARCHAR, ZSUBSCRIBED INTEGER);
+      ZITEMDESCRIPTION VARCHAR, ZSUBSCRIBED INTEGER, ZCHANNEL INTEGER);
+    CREATE TABLE ZMTCHANNEL (Z_PK INTEGER PRIMARY KEY, ZSTOREID INTEGER, ZNAME VARCHAR);
     CREATE TABLE ZMTMEDIAENCLOSURE (Z_PK INTEGER PRIMARY KEY, ZEPISODE INTEGER,
       ZDURATION FLOAT, ZREMOTEURL VARCHAR, ZTRANSCRIPTIDENTIFIER VARCHAR);
     CREATE TABLE ZMTEPISODEDESCRIPTION (Z_PK INTEGER PRIMARY KEY, ZEPISODE INTEGER,
@@ -66,13 +71,15 @@ export function writeApplePodcastsFixture(dir) {
       ZTIMESTAMP TIMESTAMP);
 
     INSERT INTO ZMTPODCAST VALUES
-      (1, 'SHOW-FOLLOWED', 'Example Conversations', 'Example Network', 'Society & Culture',
+      (1, 'SHOW-FOLLOWED', 'Example Conversations', 'Pat Example', 'Society & Culture',
         'https://example.com/feed.xml', 'https://example.com/show.jpg',
-        'https://example.com/show', 1001, ${JAN_1 - 30 * DAY}, 'Long conversations.', 1),
+        'https://example.com/show', 1001, ${JAN_1 - 30 * DAY}, 'Long conversations.', 1, 1),
       (2, 'SHOW-UNFOLLOWED', 'Example Stories', NULL, NULL, 'https://example.org/feed.xml',
-        NULL, NULL, 1002, NULL, NULL, 0),
+        NULL, NULL, 1002, NULL, NULL, 0, NULL),
       (3, 'SHOW-UNCATALOGED', 'Example Members', NULL, NULL, 'https://example.net/members.xml',
-        NULL, NULL, NULL, ${JAN_1 - 5 * DAY}, NULL, 1);
+        NULL, NULL, NULL, ${JAN_1 - 5 * DAY}, NULL, 1, NULL);
+
+    INSERT INTO ZMTCHANNEL VALUES (1, 3001, 'Example Network');
 
     INSERT INTO ZMTMEDIAENCLOSURE VALUES
       (1, 1, 3121, 'https://example.com/audio/finished.mp3?dest=1',
@@ -91,14 +98,15 @@ export function writeApplePodcastsFixture(dir) {
         '<p>A guest on <a href="https://example.com/book">their new book</a>.</p>');
 
     INSERT INTO ZMTEPISODE VALUES
-      (1, 'EP-FINISHED', 'guid-1', 'A Finished Episode', 'Example Network', 1, 'SHOW-FOLLOWED',
+      (1, 'EP-FINISHED', 'guid-1', 'A Finished Episode', 'Sam Producer, Pat Example', 1,
+        'SHOW-FOLLOWED',
         1, 1, 0, 1, ${JAN_1 + 9000}, ${JAN_1 + 3000}, NULL, 1, ${JAN_1 - DAY},
         ${JAN_1 - 2 * DAY}, 2001, 'https://example.com/episodes/1',
         'https://example.com/art/{w}x{h}bb.{f}', 'md-finished'),
-      (2, 'EP-IN-PROGRESS', 'guid-2', 'An Episode in Progress', 'Example Network', 1,
+      (2, 'EP-IN-PROGRESS', 'guid-2', 'An Episode in Progress', 'Pat Example', 1,
         'SHOW-FOLLOWED', 2, NULL, 239, 0, ${JAN_1 + 7200}, ${JAN_1 + 7200}, NULL, 0, NULL,
         ${JAN_1 - DAY}, 2002, NULL, NULL, 'md-in-progress'),
-      (3, 'EP-SAVED', 'guid-3', 'A Saved Episode', 'Example Network', 1, 'SHOW-FOLLOWED',
+      (3, 'EP-SAVED', 'guid-3', 'A Saved Episode', 'Pat Example', 1, 'SHOW-FOLLOWED',
         3, NULL, 0, 0, ${JAN_1 + 600}, NULL, NULL, 1, ${JAN_1 + 600}, ${JAN_1}, 2003, NULL,
         NULL, 'md-saved'),
       (4, 'EP-SAMPLED', 'guid-4', 'A Sampled Episode', NULL, 2, 'SHOW-UNFOLLOWED', 4, NULL,

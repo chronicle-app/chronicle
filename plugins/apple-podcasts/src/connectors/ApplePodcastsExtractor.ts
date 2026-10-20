@@ -24,6 +24,9 @@ function getDefaultDbPath(): string {
 // An episode's row in the playback-sync table, which has when its playback
 // position last synced.
 const EPISODE_SYNC = 'LEFT JOIN ZMTUPPMETADATA u ON u.ZMETADATAIDENTIFIER = e.ZMETADATAIDENTIFIER';
+// A show's channel is its publisher's page on Apple Podcasts. Shows published
+// independently have none.
+const SHOW_CHANNEL = 'LEFT JOIN ZMTCHANNEL c ON c.Z_PK = p.ZCHANNEL';
 
 // When an episode was last listened to, as the transformer dates its listen:
 // its last-played time, then when it was marked as played, then when its
@@ -202,9 +205,12 @@ export class ApplePodcastsExtractor extends SqliteExtractor<typeof ApplePodcasts
              p.ZFEEDURL AS feedUrl,
              p.ZIMAGEURL AS imageUrl,
              p.ZSTORECOLLECTIONID AS storeCollectionId,
-             p.ZITEMDESCRIPTION AS podcastDescription
+             p.ZITEMDESCRIPTION AS podcastDescription,
+             c.ZSTOREID AS channelStoreId,
+             c.ZNAME AS channelName
       FROM ZMTEPISODE e
       LEFT JOIN ZMTPODCAST p ON e.ZPODCASTUUID = p.ZUUID
+      ${SHOW_CHANNEL}
       LEFT JOIN ZMTMEDIAENCLOSURE m ON m.Z_PK = e.ZCURRENTMEDIAENCLOSURE
       LEFT JOIN ZMTEPISODEDESCRIPTION d ON d.Z_PK = e.ZDESCRIPTIONOBJECT
       ${EPISODE_SYNC}
@@ -274,17 +280,20 @@ export class ApplePodcastsExtractor extends SqliteExtractor<typeof ApplePodcasts
   // when it was added to the library.
   private async *extractSubscriptions(account: unknown): AsyncGenerator<Record> {
     const rows = this.db!.prepare(
-      `SELECT ZTITLE AS podcastTitle,
-              ZAUTHOR AS podcastAuthor,
-              ZCATEGORY AS podcastCategory,
-              ZFEEDURL AS feedUrl,
-              ZIMAGEURL AS imageUrl,
-              ZWEBPAGEURL AS webUrl,
-              ZSTORECOLLECTIONID AS storeCollectionId,
-              ZADDEDDATE AS addedDate,
-              ZITEMDESCRIPTION AS podcastDescription
-       FROM ZMTPODCAST
-       WHERE ZSUBSCRIBED = 1 AND ${SHOW_IN_CATALOG}`
+      `SELECT p.ZTITLE AS podcastTitle,
+              p.ZAUTHOR AS podcastAuthor,
+              p.ZCATEGORY AS podcastCategory,
+              p.ZFEEDURL AS feedUrl,
+              p.ZIMAGEURL AS imageUrl,
+              p.ZWEBPAGEURL AS webUrl,
+              p.ZSTORECOLLECTIONID AS storeCollectionId,
+              p.ZADDEDDATE AS addedDate,
+              p.ZITEMDESCRIPTION AS podcastDescription,
+              c.ZSTOREID AS channelStoreId,
+              c.ZNAME AS channelName
+       FROM ZMTPODCAST p
+       ${SHOW_CHANNEL}
+       WHERE p.ZSUBSCRIBED = 1 AND ${SHOW_IN_CATALOG}`
     ).all() as any[];
 
     for (const row of rows) {
