@@ -350,4 +350,8 @@ test('edits are bounded by when they ended, and the session gap splits them', as
       '# Garden plan',
     ]
   );
+
+  // Only edits read the gap, so a run that gives it without kinds reads them.
+  assert.deepEqual(AppleNotesEditsExtractor.kindsFor({ sessionGap: '5' }), ['edits']);
+  assert.equal(AppleNotesEditsExtractor.kindsFor({}), undefined);
 });

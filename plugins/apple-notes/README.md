@@ -17,7 +17,7 @@ The store is `~/Library/Group Containers/group.com.apple.notes/NoteStore.sqlite`
 There are two record types. A bare run extracts `notes`; `-t edits` extracts edits, and `-t notes,edits` both:
 
 - `notes`: each note as it is now, last edited first. `--since` and `--until` bound when each was last edited, so a run since the last one picks up every note changed since.
-- `edits`: bursts of one person's writing in one note, newest first. `--since` and `--until` bound when each ended. `--session-gap` sets how many minutes without writing end a burst, 20 by default.
+- `edits`: bursts of one person's writing in one note, newest first. `--since` and `--until` bound when each ended. `--session-gap` sets how many minutes without writing end a burst, 20 by default, and a run that gives it and names no types reads edits.
 
 ## Schema
 

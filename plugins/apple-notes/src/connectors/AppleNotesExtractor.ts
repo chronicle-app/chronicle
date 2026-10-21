@@ -460,17 +460,22 @@ export class AppleNotesEditsExtractor extends AppleNotesBaseExtractor {
   static override recordTypes = ['edits'];
   static override default = false;
 
+  /** `--session-gap` is read only by edits, so a run that gives it without kinds reads them. */
+  static override kindsFor = (config: { [option: string]: unknown }) =>
+    config.sessionGap === undefined ? undefined : ['edits'];
+
   static override schema = AppleNotesBaseExtractor.schema.extend({
-    // The CLI passes every value as a string.
+    // The CLI passes every value as a string. No default here, or the CLI
+    // would pass one to every run and each would read edits.
     sessionGap: z.coerce
       .number()
       .positive()
-      .default(20)
-      .describe('Minutes without writing that end a writing session'),
+      .optional()
+      .describe('Minutes without writing that end a writing session, 20 by default'),
   });
 
   async *extract(): AsyncGenerator<Record> {
-    const { since, until, sessionGap } = this.config;
+    const { since, until, sessionGap = 20 } = this.config;
     const edits: Edit[] = [];
     for (const row of this.noteRows(null)) {
       const body = this.body(row);
