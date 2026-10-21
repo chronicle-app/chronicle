@@ -33,7 +33,6 @@ CreateAction key(sourceId) {
 UpdateAction key(object.sourceId, agent.sourceId, startTime) {
   startTime, endTime
   object: Note key(sourceId) { sourceId, name }
-  instrument[]: Device key(sourceId) { sourceId }
   result: Changeset key(action.object.sourceId, action.agent.sourceId, action.startTime) {
     body
     isPartOf[]: Note key(sourceId) { sourceId, name }

@@ -11,7 +11,6 @@ import {
   Changeset,
   Collection,
   CreateAction,
-  Device,
   MediaObjectAndChildren,
   Note,
   Person,
@@ -27,7 +26,6 @@ const SOURCE = 'apple-notes';
  *                     contains: attachments
  *   edits:  UpdateAction  agent: who typed it   startTime–endTime
  *             object: Note
- *             instrument: Device  (the Notes install that typed it, by replica UUID)
  *             result: Changeset  (the text from the session that's still there)
  *
  * A person is keyed by their CloudKit user ID in Notes. You are tagged
@@ -83,12 +81,6 @@ export default class AppleNotesTransformer extends ChronicleTransformer {
       body: edit.text,
       isPartOf: [noteWork(edit.note.id, edit.note.title)],
     };
-    const devices: Device[] = edit.replicas.map(replica => ({
-      '@type': 'Device',
-      '@key': ['@type', 'source', 'sourceId'],
-      source: SOURCE,
-      sourceId: replica,
-    }));
     return {
       '@type': 'UpdateAction',
       '@key': ['@type', 'source', 'object.sourceId', 'agent.sourceId', 'startTime'],
@@ -97,7 +89,6 @@ export default class AppleNotesTransformer extends ChronicleTransformer {
       endTime: new Date(edit.end),
       ...(edit.author && { agent: person(edit.author) }),
       object: work,
-      ...(devices.length > 0 && { instrument: devices }),
       result: changeset,
     } as UpdateAction;
   }

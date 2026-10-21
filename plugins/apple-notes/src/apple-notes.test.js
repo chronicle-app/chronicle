@@ -8,7 +8,7 @@ import {
   AppleNotesExtractor,
   AppleNotesTransformer,
 } from '../dist/index.js';
-import { NOON, REPLICA, writeNotesFixture } from './fixture.test-helper.js';
+import { NOON, writeNotesFixture } from './fixture.test-helper.js';
 
 function fixture(t) {
   const dir = mkdtempSync(join(tmpdir(), 'apple-notes-fixture-'));
@@ -85,7 +85,6 @@ const folder = (sourceId, name) => ({
   sourceId,
   name,
 });
-const device = sourceId => ({ '@type': 'Device', '@key': key, source: 'apple-notes', sourceId });
 const at = seconds => new Date((NOON + seconds) * 1000);
 
 test('each note is a CreateAction by whoever made it, newest first', async t => {
@@ -153,7 +152,6 @@ test("each person's writing is its own edit, with the text from it that's still 
     start: edit.startTime,
     end: edit.endTime,
     text: edit.result.body,
-    devices: edit.instrument?.map(each => each.sourceId),
   }));
   assert.deepEqual(summary, [
     // A replica the note doesn't map to anyone: no agent.
@@ -163,7 +161,6 @@ test("each person's writing is its own edit, with the text from it that's still 
       start: at(86_900),
       end: at(86_900),
       text: 'Bay leaf',
-      devices: [REPLICA.stranger],
     },
     {
       note: 'NOTE-SOUP',
@@ -171,7 +168,6 @@ test("each person's writing is its own edit, with the text from it that's still 
       start: at(86_800),
       end: at(86_800),
       text: 'More salt',
-      devices: [REPLICA.mac],
     },
     {
       note: 'NOTE-SOUP',
@@ -179,7 +175,6 @@ test("each person's writing is its own edit, with the text from it that's still 
       start: at(86_400),
       end: at(86_440),
       text: 'Soup\nCarrots, leeks\n[table]',
-      devices: [REPLICA.samPhone],
     },
     {
       note: 'NOTE-GARDEN',
@@ -187,7 +182,6 @@ test("each person's writing is its own edit, with the text from it that's still 
       start: at(3 * 3600),
       end: at(3 * 3600 + 30),
       text: '[image: seedlings.jpeg]\nSee #garden',
-      devices: [REPLICA.mac],
     },
     // Sam wrote while you were writing, and it's Sam's own edit.
     {
@@ -196,7 +190,6 @@ test("each person's writing is its own edit, with the text from it that's still 
       start: at(240),
       end: at(240),
       text: 'Basil',
-      devices: [REPLICA.samPhone],
     },
     {
       note: 'NOTE-GARDEN',
@@ -204,7 +197,6 @@ test("each person's writing is its own edit, with the text from it that's still 
       start: at(0),
       end: at(120),
       text: 'Garden plan\nOrder seeds from the catalog\nTomatoes',
-      devices: [REPLICA.mac],
     },
   ]);
 
@@ -217,7 +209,6 @@ test("each person's writing is its own edit, with the text from it that's still 
     endTime: at(240),
     agent: sam,
     object: note('NOTE-GARDEN', 'Garden plan'),
-    instrument: [device(REPLICA.samPhone)],
     result: {
       '@type': 'Changeset',
       '@key': [
