@@ -237,9 +237,14 @@ const MEDIA: Array<[RegExp, MediaObjectAndChildren['@type']]> = [
   [/movie|video|mpeg-4|quicktime/, 'VideoObject'],
 ];
 
+/** What a file attachment is, by its type. Tables, drawings, and link previews aren't files. */
+export function mediaType(uti: string): MediaObjectAndChildren['@type'] | undefined {
+  return MEDIA.find(([pattern]) => pattern.test(uti))?.[1];
+}
+
 /** A file attachment. Tables, drawings, and link previews aren't files, so they're left out. */
 function attachment(a: Attachment): MediaObjectAndChildren | null {
-  const type = MEDIA.find(([pattern]) => pattern.test(a.uti))?.[1];
+  const type = mediaType(a.uti);
   if (!type) return null;
   return {
     '@type': type,

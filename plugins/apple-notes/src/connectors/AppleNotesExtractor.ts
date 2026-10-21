@@ -1,6 +1,5 @@
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { Record } from '@chronicle.app/etl';
 import { SqliteExtractor, iterateRows, safariToUnixTimestamp } from '@chronicle.app/etl-sqlite';
 import { z } from 'zod';
@@ -14,7 +13,7 @@ import {
   type NoteBody,
   type WritingSession,
 } from '../noteBody.js';
-import AppleNotesTransformer from './AppleNotesTransformer.js';
+import AppleNotesTransformer, { mediaType } from './AppleNotesTransformer.js';
 
 const CONTAINER = `${process.env.HOME}/Library/Group Containers/group.com.apple.notes`;
 
@@ -345,8 +344,10 @@ abstract class AppleNotesBaseExtractor extends SqliteExtractor<typeof AppleNotes
   }
 
   /**
-   * How an attachment reads in the text. A file on this Mac is a Markdown
-   * image or link to it; anything else is named in brackets, such as `[table]`.
+   * How an attachment reads in the text. A file is a Markdown image or link to
+   * `cid:` and its ID, as an email's inline image is: the one in the note's
+   * `contains` with that `sourceId`. Anything else is named in brackets, such
+   * as `[table]`.
    */
   protected attachmentText(row: NoteRow): (identifier: string) => string {
     const byId = new Map(this.attachments(row).map(a => [a.id, a]));
@@ -358,10 +359,11 @@ abstract class AppleNotesBaseExtractor extends SqliteExtractor<typeof AppleNotes
       if (!attachment) return '[attachment]';
       const kind = kindOf(attachment.uti);
       const name = attachment.title ?? (attachment.file ? path.basename(attachment.file) : null);
-      if (!attachment.file) return `[${kind}${name ? `: ${name}` : ''}]`;
+      const type = mediaType(attachment.uti);
+      if (!type) return `[${kind}${name ? `: ${name}` : ''}]`;
       const text = (name ?? kind).replaceAll(/[\\[\]]/g, '\\$&');
-      const link = `[${text}](${pathToFileURL(attachment.file).href})`;
-      return kind === 'image' ? `!${link}` : link;
+      const link = `[${text}](cid:${encodeURIComponent(attachment.id)})`;
+      return type === 'ImageObject' ? `!${link}` : link;
     };
   }
 }
@@ -373,6 +375,7 @@ function kindOf(uti: string): string {
   if (uti === 'com.apple.notes.table') return 'table';
   if (/pdf/.test(uti)) return 'pdf';
   if (/audio|m4a/.test(uti)) return 'audio';
+  if (/movie|video|mpeg-4|quicktime/.test(uti)) return 'video';
   if (/url/.test(uti)) return 'link';
   return 'attachment';
 }
