@@ -56,12 +56,14 @@ export const lookupContact = handle =>
  *   bold and a link, and a ticked checklist item; two minutes later Sam added
  *   to the end of that item and added another from a phone; three hours
  *   later you added an image and a hashtag. Some of your text was deleted,
- *   which leaves only a tombstone.
+ *   which leaves only a tombstone. Notes saved it a moment after the last
+ *   text, to a fraction of a second, as it does.
  * - NOTE-SOUP is in Sam's Kitchen folder, made by Sam. Sam wrote most of it,
  *   you added a line, and a replica the note doesn't map to anyone added the
  *   last. It holds a table, which isn't a file.
  * - NOTE-OLD predates write times and was never synced, so it was made here.
- * - NOTE-LOCKED is password protected, so its text can't be read.
+ * - NOTE-LOCKED is password protected, so its text can't be read. It was made
+ *   before the garden note and last edited after it.
  * - NOTE-GONE is marked for deletion, so it's left out.
  */
 export function writeNotesFixture(dir) {
@@ -100,7 +102,7 @@ export function writeNotesFixture(dir) {
       ZIDENTIFIER: 'NOTE-GARDEN',
       ZTITLE1: 'Garden plan',
       ZCREATIONDATE3: apple(NOON - 60),
-      ZMODIFICATIONDATE1: apple(NOON + 3 * 3600),
+      ZMODIFICATIONDATE1: apple(NOON + 3 * 3600 + 30.25),
       ZFOLDER: 2,
       ZISPINNED: 1,
       ZREPLICAIDTOUSERIDDICTDATA: replicaUsers([
@@ -189,6 +191,7 @@ export function writeNotesFixture(dir) {
       ZIDENTIFIER: 'NOTE-LOCKED',
       ZTITLE1: 'Locked',
       ZCREATIONDATE3: apple(NOON - 3600),
+      ZMODIFICATIONDATE1: apple(NOON + 4 * 3600),
       ZISPASSWORDPROTECTED: 1,
       ZFOLDER: 2,
       ZSERVERRECORDDATA: cloudRecord('__defaultOwner__'),
@@ -338,11 +341,12 @@ function replicaUsers(pairs) {
   ]);
 }
 
-/** ZSERVERRECORDDATA: the note's CloudKit record, with who created it. */
-function cloudRecord(creator) {
+/** ZSERVERRECORDDATA: the note's CloudKit record, with who created it and who last changed it. */
+function cloudRecord(creator, modifier = creator) {
   return keyedArchive({
     RecordType: 'Note',
     CreatorUserRecordID: { $class: 'CKRecordID', RecordName: creator },
+    LastModifiedUserRecordID: { $class: 'CKRecordID', RecordName: modifier },
   });
 }
 

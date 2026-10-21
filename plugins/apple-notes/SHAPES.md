@@ -13,17 +13,23 @@ converted from the record. Every node also has `source`.
 ## notes
 
 ```ts
+UpdateAction key(object.sourceId, agent.sourceId, startTime) {
+  startTime, endTime
+  object: Note key(sourceId) {
+    sourceId, name, body?, tags[]?
+    isPartOf[]: Collection key(sourceId) { sourceId, name }
+    contains[]?: ImageObject key(sourceId) { sourceId, contentPath }
+  }
+  agent?: Person key(sourceId) { sourceId, handle, sameAs[] }
+}
+// Every record also becomes:
 CreateAction key(sourceId) {
   sourceId, timestamp
   agent: Person key(sourceId) {
     sourceId*, name?, handle?
     sameAs[]: Agent | Person key(handle) / key(sourceId) { handle?*, sourceId?*, name? }
   }
-  result: Note key(sourceId) {
-    sourceId, name, body?, tags[]?
-    isPartOf[]: Collection key(sourceId) { sourceId, name }
-    contains[]?: ImageObject key(sourceId) { sourceId, contentPath }
-  }
+  result: Note key(sourceId) { sourceId, name }
 }
 ```
 

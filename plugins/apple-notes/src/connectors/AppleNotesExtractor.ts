@@ -3,7 +3,13 @@ import path from 'node:path';
 import { Record } from '@chronicle.app/etl';
 import { SqliteExtractor, iterateRows, safariToUnixTimestamp } from '@chronicle.app/etl-sqlite';
 import { z } from 'zod';
-import { CURRENT_USER, recordCreator, shareParticipants, type Participant } from '../cloudKit.js';
+import {
+  CURRENT_USER,
+  recordCreator,
+  recordModifier,
+  shareParticipants,
+  type Participant,
+} from '../cloudKit.js';
 import {
   decodeNoteBody,
   decodeReplicaUsers,
@@ -40,7 +46,14 @@ export interface AppleNote {
   created: string;
   /** Who made the note, when the database says. */
   creator: Author | null;
+  /** When Notes last saved a change to it. */
   modified: string | null;
+  /**
+   * Its latest burst of writing, as `edits` gives it. A note none of whose
+   * text says when it was written was last edited when Notes last saved it,
+   * by whoever iCloud says last changed it.
+   */
+  lastEdit: Pick<Edit, 'start' | 'end' | 'author'>;
   folder: { id: string; title: string | null; trash: boolean } | null;
   locked: boolean;
   pinned: boolean;
@@ -160,8 +173,8 @@ abstract class AppleNotesBaseExtractor extends SqliteExtractor<typeof AppleNotes
     return ent;
   }
 
-  protected *noteRows(order: 'created' | 'modified', limit: number | null): Generator<NoteRow> {
-    const column = order === 'created' ? 'n.ZCREATIONDATE3' : 'n.ZMODIFICATIONDATE1';
+  /** Notes, last edited first. */
+  protected *noteRows(limit: number | null): Generator<NoteRow> {
     let sql = `
       SELECT n.Z_PK AS pk, n.ZIDENTIFIER AS id, n.ZTITLE1 AS title,
              n.ZCREATIONDATE3 AS created, n.ZMODIFICATIONDATE1 AS modified,
@@ -175,7 +188,7 @@ abstract class AppleNotesBaseExtractor extends SqliteExtractor<typeof AppleNotes
       LEFT JOIN ZICCLOUDSYNCINGOBJECT a ON a.Z_PK = n.ZACCOUNT7
       WHERE n.Z_ENT = ? AND n.ZCREATIONDATE3 IS NOT NULL
         AND coalesce(n.ZMARKEDFORDELETION, 0) = 0
-      ORDER BY ${column} DESC`;
+      ORDER BY coalesce(n.ZMODIFICATIONDATE1, n.ZCREATIONDATE3) DESC`;
     const params: number[] = [this.entity('ICNote')];
     if (limit !== null) {
       sql += ' LIMIT ?';
@@ -248,13 +261,48 @@ abstract class AppleNotesBaseExtractor extends SqliteExtractor<typeof AppleNotes
 
   /** Who made the note. One never synced to iCloud was made on this Mac. */
   protected creator(row: NoteRow): Author | null {
+    return this.recordUser(row, recordCreator, 'made');
+  }
+
+  /** Who last changed the note, as iCloud last synced it. */
+  protected modifier(row: NoteRow): Author | null {
+    return this.recordUser(row, recordModifier, 'last changed');
+  }
+
+  /** A user the note's CloudKit record names. One never synced is all yours. */
+  private recordUser(
+    row: NoteRow,
+    read: (record: Uint8Array) => string | null,
+    did: string
+  ): Author | null {
     if (!row.serverRecord) return this.author(row, CURRENT_USER);
     try {
-      return this.author(row, recordCreator(row.serverRecord));
+      return this.author(row, read(row.serverRecord));
     } catch (error) {
-      this.logger.warn("Can't read who made a note", { note: row.id, error: String(error) });
+      this.logger.warn(`Can't read who ${did} a note`, { note: row.id, error: String(error) });
       return null;
     }
+  }
+
+  /** The bursts of writing still in a note, each with the text from it that's there. */
+  protected edits(row: NoteRow, body: NoteBody): Edit[] {
+    const attachmentText = this.attachmentText(row);
+    const authorOf = this.replicaAuthors(row, body);
+    const edits: Edit[] = [];
+    for (const session of writingSessions(body, this.config.sessionGap * 60, authorOf)) {
+      const text = sessionText(body, session, attachmentText);
+      if (!text) continue;
+      edits.push({
+        note: { id: row.id, title: row.title },
+        author: this.author(row, session.author),
+        start: new Date(session.start * 1000).toISOString(),
+        end: new Date(session.end * 1000).toISOString(),
+        text,
+        characters: session.characters,
+        replicas: session.replicas,
+      });
+    }
+    return edits;
   }
 
   /**
@@ -361,7 +409,10 @@ function kindOf(uti: string): string {
   return 'attachment';
 }
 
-/** Each note as it is now, newest first by when it was created. */
+/**
+ * Each note as it is now, last edited first. Bounded by when Notes last saved
+ * a change to it, so a later run picks up a deletion that left no text.
+ */
 export class AppleNotesExtractor extends AppleNotesBaseExtractor {
   static override description = 'Your notes, as they are now';
   static override recordTypes = ['notes'];
@@ -369,18 +420,27 @@ export class AppleNotesExtractor extends AppleNotesBaseExtractor {
 
   async *extract(): AsyncGenerator<Record> {
     const { since, until } = this.config;
-    for (const row of this.noteRows('created', since || until ? null : this.getEffectiveLimit())) {
+    for (const row of this.noteRows(since || until ? null : this.getEffectiveLimit())) {
       const created = iso(row.created);
-      if ((since && created < since.toISOString()) || (until && created >= until.toISOString()))
+      const modified = row.modified ? iso(row.modified) : null;
+      const saved = modified ?? created;
+      if ((since && saved < since.toISOString()) || (until && saved >= until.toISOString()))
         continue;
       const body = this.body(row);
       const inline = this.inlineAttachments();
+      // Bursts come newest first by when they ended, as `edits` gives them.
+      const [latest] = (body ? this.edits(row, body) : []).sort((a, b) =>
+        b.end.localeCompare(a.end)
+      );
       const note: AppleNote = {
         id: row.id,
         title: row.title,
         created,
         creator: this.creator(row),
-        modified: row.modified ? iso(row.modified) : null,
+        modified,
+        lastEdit: latest
+          ? { start: latest.start, end: latest.end, author: latest.author }
+          : { start: saved, end: saved, author: this.modifier(row) },
         folder: row.folderId
           ? { id: row.folderId, title: row.folderTitle, trash: row.folderType === 1 }
           : null,
@@ -399,7 +459,7 @@ export class AppleNotesExtractor extends AppleNotesBaseExtractor {
             ]
           : [],
       };
-      yield this.createRecord(note, { recordType: 'notes', occurredAt: created });
+      yield this.createRecord(note, { recordType: 'notes', occurredAt: saved });
     }
   }
 }
@@ -409,33 +469,20 @@ export class AppleNotesExtractor extends AppleNotesBaseExtractor {
  * text with when it was written, and each character with the replica that
  * typed it, which the note maps to a person. So the text still in a note can
  * be grouped into the sessions that wrote it, one person's at a time. Deleted
- * text is gone, and so are sessions whose text was all deleted.
+ * text is gone, and so are sessions whose text was all deleted. Not read
+ * unless asked for: most people want their notes, not how they were written.
  */
 export class AppleNotesEditsExtractor extends AppleNotesBaseExtractor {
   static override description = 'Who wrote what is in your notes, and when';
   static override recordTypes = ['edits'];
+  static override default = false;
 
   async *extract(): AsyncGenerator<Record> {
-    const { since, until, sessionGap } = this.config;
+    const { since, until } = this.config;
     const edits: Edit[] = [];
-    for (const row of this.noteRows('modified', null)) {
+    for (const row of this.noteRows(null)) {
       const body = this.body(row);
-      if (!body) continue;
-      const attachmentText = this.attachmentText(row);
-      const authorOf = this.replicaAuthors(row, body);
-      for (const session of writingSessions(body, sessionGap * 60, authorOf)) {
-        const text = sessionText(body, session, attachmentText);
-        if (!text) continue;
-        edits.push({
-          note: { id: row.id, title: row.title },
-          author: this.author(row, session.author),
-          start: new Date(session.start * 1000).toISOString(),
-          end: new Date(session.end * 1000).toISOString(),
-          text,
-          characters: session.characters,
-          replicas: session.replicas,
-        });
-      }
+      if (body) edits.push(...this.edits(row, body));
     }
     edits.sort((a, b) => b.end.localeCompare(a.end));
     const limit = this.getEffectiveLimit();

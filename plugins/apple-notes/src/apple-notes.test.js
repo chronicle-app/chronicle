@@ -56,6 +56,7 @@ function withoutDirectives(node) {
 }
 
 const key = ['@type', 'source', 'sourceId'];
+const editKey = ['@type', 'source', 'object.sourceId', 'agent.sourceId', 'startTime'];
 const identity = (source, handle) => ({
   '@type': 'Agent',
   '@key': ['@type', 'source', 'handle'],
@@ -108,25 +109,35 @@ const folder = (sourceId, name) => ({
 });
 const at = seconds => new Date((NOON + seconds) * 1000);
 
-test('each note is a CreateAction by whoever made it, newest first', async t => {
+test('each note is its latest edit, with the note as it is now, and when it was made', async t => {
   const { dir, input } = fixture(t);
   const actions = await nodes(AppleNotesExtractor, { input });
 
   assert.deepEqual(
-    actions.map(action => action.sourceId),
-    ['NOTE-SOUP', 'NOTE-GARDEN', 'NOTE-LOCKED', 'NOTE-OLD'],
-    'the note marked for deletion is left out'
+    actions.map(action => [action['@type'], action.object?.sourceId ?? action.sourceId]),
+    [
+      ['UpdateAction', 'NOTE-SOUP'],
+      ['CreateAction', 'NOTE-SOUP'],
+      ['UpdateAction', 'NOTE-LOCKED'],
+      ['CreateAction', 'NOTE-LOCKED'],
+      ['UpdateAction', 'NOTE-GARDEN'],
+      ['CreateAction', 'NOTE-GARDEN'],
+      ['UpdateAction', 'NOTE-OLD'],
+      ['CreateAction', 'NOTE-OLD'],
+    ],
+    'last edited first; the note marked for deletion is left out'
   );
-  const [soup, garden, locked, old] = actions;
+  const [soup, soupMade, locked, lockedMade, garden, gardenMade, old, oldMade] = actions;
 
+  // Your last burst, the image and hashtag, with the note as it is now.
   assert.deepEqual(garden, {
-    '@type': 'CreateAction',
-    '@key': key,
+    '@type': 'UpdateAction',
+    '@key': editKey,
     source: 'apple-notes',
-    sourceId: 'NOTE-GARDEN',
-    timestamp: at(-60),
+    startTime: at(3 * 3600),
+    endTime: at(3 * 3600 + 30),
     agent: pat,
-    result: {
+    object: {
       ...note('NOTE-GARDEN', 'Garden plan'),
       body: [
         '# Garden plan',
@@ -149,21 +160,39 @@ test('each note is a CreateAction by whoever made it, newest first', async t => 
       ],
     },
   });
+  assert.deepEqual(gardenMade, {
+    '@type': 'CreateAction',
+    '@key': key,
+    source: 'apple-notes',
+    sourceId: 'NOTE-GARDEN',
+    timestamp: at(-60),
+    agent: pat,
+    result: note('NOTE-GARDEN', 'Garden plan'),
+  });
 
-  // Made by Sam in Sam's folder. A table isn't a file, so the note contains nothing.
-  assert.deepEqual(soup.agent, sam);
-  assert.equal(soup.result.body, '# Soup\nCarrots, leeks\n[table]\nMore salt\nBay leaf');
-  assert.deepEqual(soup.result.isPartOf, [folder('FOLDER-KITCHEN', 'Kitchen')]);
-  assert.equal(soup.result.contains, undefined);
+  // Made by Sam in Sam's folder, and last written by a replica the note maps
+  // to no one. A table isn't a file, so the note contains nothing.
+  assert.deepEqual(soupMade.agent, sam);
+  assert.deepEqual([soup.startTime, soup.endTime, soup.agent], [at(86_900), at(86_900), undefined]);
+  assert.equal(soup.object.body, '# Soup\nCarrots, leeks\n[table]\nMore salt\nBay leaf');
+  assert.deepEqual(soup.object.isPartOf, [folder('FOLDER-KITCHEN', 'Kitchen')]);
+  assert.equal(soup.object.contains, undefined);
 
-  // A locked note's text can't be read; a note never synced was made here.
-  assert.equal(locked.result.body, undefined);
-  assert.deepEqual(locked.agent, pat);
-  assert.deepEqual(old.agent, pat);
-  assert.equal(old.result.body, '# Old list\n- Milk');
+  // With no text that says when it was written, a note was last edited when
+  // Notes last saved it, or else when it was made, by whoever iCloud says
+  // last changed it. A locked note's text can't be read; a note never synced
+  // was made and changed here.
+  assert.equal(locked.object.body, undefined);
+  assert.deepEqual([locked.startTime, locked.endTime], [at(4 * 3600), at(4 * 3600)]);
+  assert.deepEqual([locked.agent, lockedMade.agent], [pat, pat]);
+  assert.equal(old.object.body, '# Old list\n- Milk');
+  assert.deepEqual([old.startTime, old.endTime], [oldMade.timestamp, oldMade.timestamp]);
+  assert.deepEqual([old.agent, oldMade.agent], [pat, pat]);
 
   // With no Apple Account signed in, you're who Notes knows you as.
-  const [, gardenHere] = await nodes(AppleNotesExtractor, { input }, { account: null });
+  const gardenHere = (await nodes(AppleNotesExtractor, { input }, { account: null })).find(
+    action => action['@type'] === 'CreateAction' && action.sourceId === 'NOTE-GARDEN'
+  );
   assert.deepEqual(gardenHere.agent, {
     '@type': 'Person',
     '@key': key,
@@ -172,6 +201,22 @@ test('each note is a CreateAction by whoever made it, newest first', async t => 
     name: 'Pat Doe',
     sameAs: ['@me'],
   });
+});
+
+test('notes are bounded by when Notes last saved them', async t => {
+  const { input } = fixture(t);
+  const saved = async config =>
+    (await nodes(AppleNotesExtractor, { input, ...config }))
+      .filter(action => action['@type'] === 'UpdateAction')
+      .map(action => action.object.sourceId);
+
+  assert.deepEqual(await saved({ limit: 2 }), ['NOTE-SOUP', 'NOTE-LOCKED']);
+  // The garden note's last text is from before the window, but Notes saved it
+  // a moment later, inside it.
+  assert.deepEqual(await saved({ since: at(3 * 3600 + 30.1), until: at(86_400) }), [
+    'NOTE-LOCKED',
+    'NOTE-GARDEN',
+  ]);
 });
 
 test("each person's writing is its own edit, with the text from it that's still there", async t => {
@@ -233,12 +278,29 @@ test("each person's writing is its own edit, with the text from it that's still 
     },
   ]);
 
+  // Read only when asked for.
+  assert.equal(AppleNotesEditsExtractor.default, false);
+
+  // A note's latest burst is the same action `notes` gives it, so this one
+  // adds what it wrote to that one.
+  const latest = (await nodes(AppleNotesExtractor, { input })).filter(
+    action => action['@type'] === 'UpdateAction'
+  );
+  for (const id of ['NOTE-GARDEN', 'NOTE-SOUP']) {
+    const fromNotes = latest.find(action => action.object.sourceId === id);
+    const newest = edits.find(edit => edit.object.sourceId === id);
+    assert.deepEqual(
+      [newest.startTime, newest.endTime, newest.agent],
+      [fromNotes.startTime, fromNotes.endTime, fromNotes.agent]
+    );
+  }
+
   const samsEdit = edits.find(
     edit => edit.agent?.sourceId === '_sam' && edit.object.sourceId === 'NOTE-GARDEN'
   );
   assert.deepEqual(samsEdit, {
     '@type': 'UpdateAction',
-    '@key': ['@type', 'source', 'object.sourceId', 'agent.sourceId', 'startTime'],
+    '@key': editKey,
     source: 'apple-notes',
     startTime: at(240),
     endTime: at(240),
