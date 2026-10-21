@@ -59,6 +59,7 @@ schemaorg: rdfs:label "schema.org";
 :mimeType doc:note "A MIME type. schemaorg:encodingFormat can also be the URL of a page that defines the format." .
 :performer doc:note "A schemaorg:performer is someone who performed at a schemaorg:Event." .
 :sameAs doc:note "Links two references to one entity: another entity, or a text reference such as `@me`. schemaorg:sameAs is the URL of a page that identifies the item, such as its Wikipedia article." .
+:series doc:note "schemaorg:partOfSeries links an episode, a clip, or a season to its series. Other works, such as a book in a schemaorg:BookSeries, are part of their series through schemaorg:isPartOf." .
 :source doc:unlike schemaorg:source;
   doc:note "schemaorg:source is the source or cause of an event." .
 :target doc:unlike schemaorg:target;

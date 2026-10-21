@@ -7,10 +7,22 @@
       "summary": "Phone and FaceTime calls (Apple Call History)"
     },
     {
+      "name": "apple-health",
+      "package": "@chronicle.app/apple-health",
+      "tier": "official",
+      "summary": "Apple Health heart, respiratory, and body readings, steps and active energy, and sleep"
+    },
+    {
       "name": "apple-notes",
       "package": "@chronicle.app/apple-notes",
       "tier": "official",
       "summary": "Apple Notes, and who wrote what when"
+    },
+    {
+      "name": "apple-podcasts",
+      "package": "@chronicle.app/apple-podcasts",
+      "tier": "official",
+      "summary": "Podcast listens and subscriptions from Apple Podcasts"
     },
     {
       "name": "apple-voice-memos",

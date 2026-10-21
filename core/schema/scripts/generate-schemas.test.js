@@ -61,6 +61,28 @@ test('a class with two parents is listed once in each union', () => {
   assert.equal(union.match(/literal\('LocalBusiness'\)/g).length, 1);
 });
 
+// The vocabulary with a number property of a person, annotated as given.
+const property = annotations =>
+  `${ontology}\n:steps a owl:DatatypeProperty; ${annotations} rdfs:domain :Person; rdfs:range :Number .`;
+
+test('a metric is a gauge or a sum of numbers, in one unit', () => {
+  const result = generate(property(':metric "sum"; :unit "1";'));
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.generated, /heartRate: \{ metric: 'gauge', unit: '\/min' \}/);
+  assert.match(result.generated, /steps: \{ metric: 'sum', unit: '1' \}/);
+  for (const [ttl, error] of [
+    [property(':metric true; :unit "1";'), /:metric must be one of gauge, sum/],
+    [property(':unit "1";'), /:metric must be one of gauge, sum/],
+    [property(':metric "sum";'), /a metric must have one :unit/],
+    [property(':metric "sum"; :unit "1", "/min";'), /a metric must have one :unit/],
+    [`${ontology}\n:heartRhythm :metric "gauge"; :unit "1" .`, /a metric must take a :Number/],
+  ]) {
+    const rejected = generate(ttl);
+    assert.notEqual(rejected.status, 0);
+    assert.match(rejected.stderr, error);
+  }
+});
+
 test('vocabulary version is generated and invalid declarations are rejected', () => {
   // Whatever the vocabulary's current version, swap it for others.
   const current = /owl:versionInfo "[^"]*"/;

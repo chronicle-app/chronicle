@@ -19,6 +19,8 @@ export interface SelectionInput {
   types?: string[];
   /** `--input`: a path, which points at an export when the source has one. */
   input?: string;
+  /** The run's options, by their names in an extractor's config. */
+  config?: { [option: string]: unknown };
   /** Whether the source has stored credentials — decides the live strategy. */
   hasCredentials?: boolean;
   /** Interactive selection is possible (a TTY for Ink's raw mode). */
@@ -97,13 +99,15 @@ export class ExtractorSelector {
     excluded: string[];
     how: 'named' | 'defaults' | 'picked';
     merged: boolean;
+    /** Kinds the run's options ask for that the named kinds leave out. */
+    unread: string[];
   };
 
   /**
    * The kinds to read, then the extractor (or extractors, combined) that read
    * them. Named kinds (`--type`, or positionals) win, `all` and `defaults`
-   * spelled out; without any, the kinds the plugin declares default; without
-   * those, a person picks.
+   * spelled out; without any, the kinds the run's options ask for; without
+   * those, the kinds the plugin declares default; without those, a person picks.
    */
   private async resolveExtractor(pool: ExtractorMetadata[]): Promise<any> {
     const named = this.input.types?.length ? this.input.types : undefined;
@@ -111,11 +115,16 @@ export class ExtractorSelector {
 
     let kinds: string[];
     let how: 'named' | 'defaults' | 'picked';
+    const asked = this.askedKinds(strategyPool);
     if (named) {
       if (named.includes(DEFAULT_KINDS) && defaultKinds(strategyPool).length === 0) {
         throw this.noDefaults(strategyPool);
       }
       kinds = expandKinds(named, strategyPool);
+      how = 'named';
+    } else if (asked.length > 0) {
+      // The options name them as surely as `--type` would.
+      kinds = asked;
       how = 'named';
     } else if (defaultKinds(strategyPool).length > 0) {
       kinds = defaultKinds(strategyPool);
@@ -131,6 +140,7 @@ export class ExtractorSelector {
       excluded: allKinds(strategyPool).filter(kind => !kinds.includes(kind)),
       how,
       merged: parts.length <= 1 || canMerge(parts),
+      unread: asked.filter(kind => !kinds.includes(kind)),
     };
     return extractor;
   }
@@ -159,6 +169,18 @@ export class ExtractorSelector {
       return pool;
     }
     return this.pickStrategy(covering);
+  }
+
+  /** The kinds the run's options ask for, as the extractors read them, in declaration order. */
+  private askedKinds(pool: ExtractorMetadata[]): string[] {
+    const { config } = this.input;
+    if (!config) return [];
+    const asked = new Set(
+      [...new Set(pool.map(e => e.extractor))].flatMap(
+        extractor => extractor.kindsFor?.(config) ?? []
+      )
+    );
+    return allKinds(pool).filter(kind => asked.has(kind));
   }
 
   private noDefaults(pool: ExtractorMetadata[]): ExtractorError {

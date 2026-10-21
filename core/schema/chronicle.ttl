@@ -19,8 +19,19 @@
 # Annotations on properties, for tools rather than records. :inverseName on
 # a property names its inverse: a record can give the relation under either
 # name, and a store keeps only the forward property.
+#
+# :metric on a number property says what form its values take, and so how
+# its values over a time combine. A "gauge" is a level or a rate, such as a
+# heart rate, and combines as a mean, minimum, or maximum. A "sum" is an
+# amount, such as a number of steps, and adds up. Each value is for its
+# action's time: its :timestamp, or its :startTime to its :endTime. A
+# metric's :unit is the one unit all its values are in, as a UCUM code such
+# as `/min`, so values from any source can be compared. Values of two
+# properties can't be, even in the same unit.
 :abstract a owl:AnnotationProperty .
 :propagatesEncounter a owl:AnnotationProperty .
+:metric a owl:AnnotationProperty .
+:unit a owl:AnnotationProperty .
 :inverseName a owl:AnnotationProperty .
 
 :Base a owl:Class;
@@ -155,6 +166,14 @@
   rdfs:domain :Entity;
   rdfs:range :Entity;
   skos:exactMatch schemaorg:isPartOf .
+:isStageOf a owl:ObjectProperty;
+  rdfs:comment "The session that this session is a stage of, such as the night that a stretch of deep sleep is a stage of. A stage is part of how the whole went and does not happen apart from it. A whole's stages of the same type do not overlap, though together they need not cover it. Seen from the whole, its stages are its `hasStage` values.";
+  :inverseName "hasStage";
+  rdfs:subPropertyOf :isPartOf;
+  rdfs:domain :Session;
+  rdfs:range :Session;
+  skos:broadMatch schemaorg:isPartOf .
+[] a sh:PropertyShape; sh:path :isStageOf; sh:targetSubjectsOf :isStageOf; sh:maxCount 1 .
 :about a owl:ObjectProperty;
   rdfs:comment "What the entity is about, such as a topic or a tag.";
   rdfs:domain :Entity;
@@ -313,7 +332,8 @@
   skos:exactMatch schemaorg:endTime .
 [] a sh:PropertyShape; sh:path :endTime; sh:targetSubjectsOf :endTime; sh:maxCount 1 .
 :result a owl:ObjectProperty;
-  rdfs:comment "What the action produced, such as a work or a session.";
+  rdfs:comment "What the action produced, such as a work or a session. Seen from what it produced, the action is its `resultOf` value.";
+  :inverseName "resultOf";
   rdfs:domain :Action;
   rdfs:range :Entity;
   skos:exactMatch schemaorg:result .
@@ -379,7 +399,7 @@
   skos:broadMatch schemaorg:TravelAction .
 :Journey a owl:Class;
   rdfs:comment "A recorded stretch of travel, with its :travelMode, its :distance, and its route as its :path. It is the :result of a :TravelAction, which gives its start and end.";
-  rdfs:subClassOf :Entity .
+  rdfs:subClassOf :Session .
 :travelMode a owl:DatatypeProperty;
   rdfs:comment "How the journey was made, such as `walking`, `cycling`, or `metro`.";
   rdfs:domain :Journey;
@@ -467,10 +487,19 @@
   rdfs:comment "The agent made a phone or video call. Its :result is the :CallSession.";
   rdfs:subClassOf :CommunicateAction .
 :Session a owl:Class;
-  rdfs:comment "A described period of the subject's activity, such as a block of app use, a manually logged block of time, or a call. Unlike an :Event, it is not a named happening. Its :scheduledStart and :scheduledEnd give a planned period. The action that records it gives when it actually happened.";
+  rdfs:comment "A period of one person's activity or experience, such as a night's sleep, a logged block of work, a trip across town, or their time on a call. The action that records it gives when it actually happened. Others who took part have sessions of their own. Something they shared, such as a concert or a meeting, is an :Event that each session :isPartOf. Its :scheduledStart and :scheduledEnd give a planned period.";
   rdfs:subClassOf :Entity .
 :CallSession a owl:Class;
-  rdfs:comment "A phone or video call, as a period of time. It is the :result of a :CallAction. Its :recipient is who received the call. A group call :isPartOf a :Channel whose :member values are the participants. A missed call has zero length.";
+  rdfs:comment "One person's time on a phone or video call. It is the :result of a :CallAction. Its :recipient is who received the call. A group call's session :isPartOf a :Channel whose :member values are the participants. A missed call has zero length.";
+  rdfs:subClassOf :Session .
+:SleepAction a owl:Class;
+  rdfs:comment "The agent slept from :startTime to :endTime, such as for a night or a nap, including any brief wakings. Its :result is the :SleepSession.";
+  rdfs:subClassOf :ExperienceAction .
+:SleepSession a owl:Class;
+  rdfs:comment "A period of sleep, such as a night or a nap. It is the :result of a :SleepAction, which gives its start and end. Each tracked stage of it is a :SleepStage that :isStageOf it.";
+  rdfs:subClassOf :Session .
+:SleepStage a owl:Class;
+  rdfs:comment "A stretch of one stage of sleep, such as deep sleep, that :isStageOf a :SleepSession. It is the :result of an :ExperienceAction, which gives its start and end. Its :category is the stage: `awake`, `light`, `deep`, `REM`, or `asleep` when the stage is not known. Not allowed: another name for one of these, such as `core` for light sleep.";
   rdfs:subClassOf :Session .
 :EatAction a owl:Class;
   rdfs:comment "The agent ate the :object, a :Meal. Where they ate is the action's :location.";
@@ -483,6 +512,107 @@
 :Meal a owl:Class;
   rdfs:comment "A meal or snack that the subject ate. Its :category is its slot, such as breakfast, lunch, or dinner.";
   rdfs:subClassOf :Entity .
+
+:MeasureAction a owl:Class;
+  rdfs:comment "The agent took a measurement of the :object, such as a person's heart rate or weight. Each value measured is a property of the :object, such as its :heartRate. A value measured over a period, such as a daily resting heart rate or the steps taken in a few minutes, has a :startTime and :endTime.";
+  rdfs:subClassOf :Action .
+:heartRate a owl:DatatypeProperty;
+  :metric "gauge";
+  :unit "/min";
+  rdfs:comment "The heart rate, in beats per minute.";
+  rdfs:domain :Person;
+  rdfs:range :Number .
+[] a sh:PropertyShape; sh:path :heartRate; sh:targetSubjectsOf :heartRate; sh:maxCount 1 .
+:restingHeartRate a owl:DatatypeProperty;
+  :metric "gauge";
+  :unit "/min";
+  rdfs:comment "The heart rate at rest, in beats per minute.";
+  rdfs:domain :Person;
+  rdfs:range :Number .
+[] a sh:PropertyShape; sh:path :restingHeartRate; sh:targetSubjectsOf :restingHeartRate; sh:maxCount 1 .
+:walkingHeartRate a owl:DatatypeProperty;
+  :metric "gauge";
+  :unit "/min";
+  rdfs:comment "The average heart rate while walking, in beats per minute.";
+  rdfs:domain :Person;
+  rdfs:range :Number .
+[] a sh:PropertyShape; sh:path :walkingHeartRate; sh:targetSubjectsOf :walkingHeartRate; sh:maxCount 1 .
+:heartRateVariabilitySdnn a owl:DatatypeProperty;
+  :metric "gauge";
+  :unit "ms";
+  rdfs:comment "The variation in time between heartbeats as SDNN: the standard deviation of the intervals between beats over the measurement's period, in milliseconds. It grows with the length of the period, so values over periods of different lengths don't compare. Other measures of the variation, such as RMSSD, differ from it.";
+  rdfs:domain :Person;
+  rdfs:range :Number .
+[] a sh:PropertyShape; sh:path :heartRateVariabilitySdnn; sh:targetSubjectsOf :heartRateVariabilitySdnn; sh:maxCount 1 .
+:heartRateRecovery a owl:DatatypeProperty;
+  :metric "gauge";
+  :unit "/min";
+  rdfs:comment "How far the heart rate fell in the minute after exercise, in beats per minute.";
+  rdfs:domain :Person;
+  rdfs:range :Number .
+[] a sh:PropertyShape; sh:path :heartRateRecovery; sh:targetSubjectsOf :heartRateRecovery; sh:maxCount 1 .
+:heartRhythm a owl:DatatypeProperty;
+  rdfs:comment "The rhythm of the heart, as an electrocardiogram classifies it, such as `sinus rhythm` or `atrial fibrillation`.";
+  rdfs:domain :Person;
+  rdfs:range :Text .
+[] a sh:PropertyShape; sh:path :heartRhythm; sh:targetSubjectsOf :heartRhythm; sh:maxCount 1 .
+:respiratoryRate a owl:DatatypeProperty;
+  :metric "gauge";
+  :unit "/min";
+  rdfs:comment "The breathing rate, in breaths per minute.";
+  rdfs:domain :Person;
+  rdfs:range :Number .
+[] a sh:PropertyShape; sh:path :respiratoryRate; sh:targetSubjectsOf :respiratoryRate; sh:maxCount 1 .
+:oxygenSaturation a owl:DatatypeProperty;
+  :metric "gauge";
+  :unit "1";
+  rdfs:comment "The fraction of hemoglobin in the blood that carries oxygen, from `0` to `1`, such as `0.97`.";
+  rdfs:domain :Person;
+  rdfs:range :Number .
+[] a sh:PropertyShape; sh:path :oxygenSaturation; sh:targetSubjectsOf :oxygenSaturation; sh:maxCount 1 .
+:sleepingWristTemperature a owl:DatatypeProperty;
+  :metric "gauge";
+  :unit "Cel";
+  rdfs:comment "The skin temperature at the wrist during sleep, in degrees Celsius.";
+  rdfs:domain :Person;
+  rdfs:range :Number .
+[] a sh:PropertyShape; sh:path :sleepingWristTemperature; sh:targetSubjectsOf :sleepingWristTemperature; sh:maxCount 1 .
+:weight a owl:DatatypeProperty;
+  :metric "gauge";
+  :unit "kg";
+  rdfs:comment "The person's body weight, as a mass in kilograms.";
+  rdfs:domain :Person;
+  rdfs:range :Number;
+  skos:closeMatch schemaorg:weight .
+[] a sh:PropertyShape; sh:path :weight; sh:targetSubjectsOf :weight; sh:maxCount 1 .
+:systolicBloodPressure a owl:DatatypeProperty;
+  :metric "gauge";
+  :unit "mm[Hg]";
+  rdfs:comment "The blood pressure while the heart beats, in millimeters of mercury.";
+  rdfs:domain :Person;
+  rdfs:range :Number .
+[] a sh:PropertyShape; sh:path :systolicBloodPressure; sh:targetSubjectsOf :systolicBloodPressure; sh:maxCount 1 .
+:diastolicBloodPressure a owl:DatatypeProperty;
+  :metric "gauge";
+  :unit "mm[Hg]";
+  rdfs:comment "The blood pressure between heartbeats, in millimeters of mercury.";
+  rdfs:domain :Person;
+  rdfs:range :Number .
+[] a sh:PropertyShape; sh:path :diastolicBloodPressure; sh:targetSubjectsOf :diastolicBloodPressure; sh:maxCount 1 .
+:stepCount a owl:DatatypeProperty;
+  :metric "sum";
+  :unit "{steps}";
+  rdfs:comment "The number of steps taken.";
+  rdfs:domain :Person;
+  rdfs:range :Number .
+[] a sh:PropertyShape; sh:path :stepCount; sh:targetSubjectsOf :stepCount; sh:maxCount 1 .
+:activeEnergyBurned a owl:DatatypeProperty;
+  :metric "sum";
+  :unit "kcal";
+  rdfs:comment "The energy burned by moving, beyond what the body burns at rest, in kilocalories.";
+  rdfs:domain :Person;
+  rdfs:range :Number .
+[] a sh:PropertyShape; sh:path :activeEnergyBurned; sh:targetSubjectsOf :activeEnergyBurned; sh:maxCount 1 .
 :Post a owl:Class;
   rdfs:comment "A work published to a social or media platform, such as a feed post, a story, a reel, or a tweet. It can have a text :body and media files that it :contains. Its :sourceFormat is the platform's own format for it.";
   rdfs:subClassOf :CreativeWork;
@@ -590,6 +720,10 @@
   rdfs:comment "One episode of a podcast.";
   rdfs:subClassOf :CreativeWork;
   skos:broadMatch schemaorg:PodcastEpisode .
+:PodcastSeries a owl:Class;
+  rdfs:comment "A podcast, a series of episodes published through a :webFeed by a :publisher.";
+  rdfs:subClassOf :CreativeWork;
+  skos:broadMatch schemaorg:PodcastSeries .
 :attribution a owl:ObjectProperty;
   rdfs:comment "An agent responsible for bringing a work into being.";
   rdfs:subPropertyOf :relation;
@@ -633,6 +767,18 @@
   rdfs:range :MusicAlbum;
   skos:exactMatch schemaorg:inAlbum .
 [] a sh:PropertyShape; sh:path :inAlbum; sh:targetSubjectsOf :inAlbum; sh:maxCount 1 .
+:series a owl:ObjectProperty;
+  :propagatesEncounter true;
+  rdfs:comment "The series that this work is one of, such as the podcast an episode belongs to or the series a book was published in.";
+  rdfs:subPropertyOf :partOf;
+  rdfs:domain :CreativeWork;
+  rdfs:range :CreativeWork;
+  skos:closeMatch schemaorg:partOfSeries .
+:webFeed a owl:DatatypeProperty;
+  rdfs:comment "The URL of an RSS or Atom feed that publishes the work's items, such as a podcast's episodes or a blog's posts.";
+  rdfs:domain :CreativeWork;
+  rdfs:range :URL;
+  skos:exactMatch schemaorg:webFeed .
 :duration a owl:DatatypeProperty;
   rdfs:comment "How long the recording or media lasts.";
   rdfs:domain [ a owl:Class; owl:unionOf ( :AudioObject :VideoObject :MusicRecording :PodcastEpisode ) ];
@@ -721,10 +867,10 @@
   rdfs:comment "A period of using a device, such as a block of time with one app in focus. It is the :result of an :ExecuteAction, which gives its start and end. Its :subject is the resource in focus, and it :isPartOf a project. When no resource is in focus, its :name is the window's title.";
   rdfs:subClassOf :Session .
 :PhysicalObject a owl:Class;
-  rdfs:comment "A physical object the subject owns or uses, such as a device, a vehicle, or a musical instrument. Its :category is its kind, such as `computer` or `car`, and its :model is its make and model. The subclasses name the roles an object plays in actions, such as :Device.";
+  rdfs:comment "A physical object the subject owns or uses, such as a device, a vehicle, or a musical instrument. Its :model is its make and model. The subclasses name the roles an object plays in actions, such as :Device.";
   rdfs:subClassOf :Entity .
 :Device a owl:Class;
-  rdfs:comment "A physical computing device the subject runs software on, such as a computer, a phone, or a tablet. It is the :instrument of an :ExecuteAction. It names a role, not a kind, so its :category says what kind of device it is. It is :inRealm the logical machine, which can outlive the hardware.";
+  rdfs:comment "A physical computing device the subject runs software on, such as a computer, a phone, a tablet, or a watch. It is the :instrument of the actions done with it, such as an :ExecuteAction or a :MeasureAction. It names a role, not a kind, so its :model says what kind of device it is. It is :inRealm the logical machine, which can outlive the hardware.";
   rdfs:subClassOf :PhysicalObject .
 :ProductModel a owl:Class;
   rdfs:comment "A kind of product, such as a line of phones or one model of camera, rather than one particular product. One particular computing device is a :Device.";
@@ -744,7 +890,7 @@
   rdfs:domain :Session;
   rdfs:range :Entity .
 :model a owl:DatatypeProperty;
-  rdfs:comment "The make and model of the object, such as `Mac17,9` or `iPhone15,2`. It is not the object's :name or its :category.";
+  rdfs:comment "The make and model of the object, such as `Mac17,9` or `iPhone15,2`. It is not the object's :name.";
   rdfs:domain :PhysicalObject;
   rdfs:range :Text;
   skos:exactMatch schemaorg:model .
