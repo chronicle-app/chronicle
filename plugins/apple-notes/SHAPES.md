@@ -13,8 +13,8 @@ converted from the record. Every node also has `source`.
 ## notes
 
 ```ts
-UpdateAction key(object.sourceId, agent.sourceId, startTime) {
-  startTime, endTime
+UpdateAction key(object.sourceId, timestamp) {
+  timestamp
   object: Note key(sourceId) {
     sourceId, name, body?, tags[]?
     isPartOf[]: Collection key(sourceId) { sourceId, name }

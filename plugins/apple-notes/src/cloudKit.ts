@@ -49,12 +49,6 @@ export function recordCreator(bytes: Uint8Array): string | null {
   return text(path(top, 'CreatorUserRecordID', 'RecordName'));
 }
 
-/** The CloudKit user ID of whoever last changed a record (`ZSERVERRECORDDATA`). */
-export function recordModifier(bytes: Uint8Array): string | null {
-  const { top, path } = archive(bytes);
-  return text(path(top, 'LastModifiedUserRecordID', 'RecordName'));
-}
-
 /**
  * The people a share (`ZSERVERSHAREDATA`) lists, with the name, email, and
  * phone iCloud has for each. An invitation not yet accepted has no CloudKit

@@ -21,12 +21,9 @@ import {
 import type { AppleNote, Attachment, Author, Edit } from './AppleNotesExtractor.js';
 
 const SOURCE = 'apple-notes';
-// A person's burst of writing in a note is one action, whether `notes` or
-// `edits` gives it. Two people can start writing in the same second.
-const EDIT_KEY = ['@type', 'source', 'object.sourceId', 'agent.sourceId', 'startTime'];
 
 /**
- *   notes:  UpdateAction  agent: who wrote it   startTime–endTime (its latest burst)
+ *   notes:  UpdateAction  agent: who last wrote in it   timestamp (when it was last edited)
  *             object: Note  (by its UUID)  body  isPartOf: Collection (folder)
  *                     contains: attachments
  *           CreateAction  agent: who made it   timestamp (when the note was made)
@@ -34,9 +31,6 @@ const EDIT_KEY = ['@type', 'source', 'object.sourceId', 'agent.sourceId', 'start
  *   edits:  UpdateAction  agent: who typed it   startTime–endTime (each burst)
  *             object: Note
  *             result: Changeset  (the text from the session that's still there)
- *
- * A note's latest burst is the same action in both, so `edits` adds what it
- * wrote to the one `notes` gives.
  *
  * You are your Apple Account, as the other Apple plugins key you. Anyone else
  * is keyed by their CloudKit user ID in Notes, and linked to the same person
@@ -68,7 +62,7 @@ export default class AppleNotesTransformer extends ChronicleTransformer {
     return this.mePromise;
   }
 
-  /** The note's latest edit, with the note as it is now. */
+  /** The note's last edit, with the note as it has been since. */
   private lastEdited(note: AppleNote, me: Person | null): UpdateAction {
     const work = noteWork(note.id, note.title);
     const body = note.body && tidyText(note.body);
@@ -77,13 +71,12 @@ export default class AppleNotesTransformer extends ChronicleTransformer {
     if (note.folder) work.isPartOf = [folder(note.folder)];
     const media = note.attachments.map(a => attachment(a)).filter(m => m !== null);
     if (media.length > 0) work.contains = media;
-    const { start, end, author } = note.lastEdit;
+    const { at, author } = note.lastEdit;
     return {
       '@type': 'UpdateAction',
-      '@key': EDIT_KEY,
+      '@key': ['@type', 'source', 'object.sourceId', 'timestamp'],
       source: SOURCE,
-      startTime: new Date(start),
-      endTime: new Date(end),
+      timestamp: new Date(at),
       ...(author && { agent: this.person(author, me) }),
       object: work,
     } as UpdateAction;
@@ -119,7 +112,7 @@ export default class AppleNotesTransformer extends ChronicleTransformer {
     };
     return {
       '@type': 'UpdateAction',
-      '@key': EDIT_KEY,
+      '@key': ['@type', 'source', 'object.sourceId', 'agent.sourceId', 'startTime'],
       source: SOURCE,
       startTime: new Date(edit.start),
       endTime: new Date(edit.end),

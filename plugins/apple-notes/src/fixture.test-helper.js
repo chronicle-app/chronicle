@@ -60,7 +60,8 @@ export const lookupContact = handle =>
  *   text, to a fraction of a second, as it does.
  * - NOTE-SOUP is in Sam's Kitchen folder, made by Sam. Sam wrote most of it,
  *   you added a line, and a replica the note doesn't map to anyone added the
- *   last. It holds a table, which isn't a file.
+ *   last, which synced in without moving when Notes last saved the note. It
+ *   holds a table, which isn't a file.
  * - NOTE-OLD predates write times and was never synced, so it was made here.
  * - NOTE-LOCKED is password protected, so its text can't be read. It was made
  *   before the garden note and last edited after it.
@@ -144,7 +145,7 @@ export function writeNotesFixture(dir) {
       ZIDENTIFIER: 'NOTE-SOUP',
       ZTITLE1: 'Soup',
       ZCREATIONDATE3: apple(NOON + 86_400),
-      ZMODIFICATIONDATE1: apple(NOON + 86_400 + 600),
+      ZMODIFICATIONDATE1: apple(NOON + 86_400 + 450),
       ZFOLDER: 3,
       ZREPLICAIDTOUSERIDDICTDATA: replicaUsers([
         [REPLICA.samPhone, USER.sam],
@@ -341,12 +342,11 @@ function replicaUsers(pairs) {
   ]);
 }
 
-/** ZSERVERRECORDDATA: the note's CloudKit record, with who created it and who last changed it. */
-function cloudRecord(creator, modifier = creator) {
+/** ZSERVERRECORDDATA: the note's CloudKit record, with who created it. */
+function cloudRecord(creator) {
   return keyedArchive({
     RecordType: 'Note',
     CreatorUserRecordID: { $class: 'CKRecordID', RecordName: creator },
-    LastModifiedUserRecordID: { $class: 'CKRecordID', RecordName: modifier },
   });
 }
 
