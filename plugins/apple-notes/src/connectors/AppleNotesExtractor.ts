@@ -433,7 +433,13 @@ export class AppleNotesEditsExtractor extends AppleNotesBaseExtractor {
       if (since && edit.end < since.toISOString()) continue;
       if (until && edit.end >= until.toISOString()) continue;
       if (limit !== null && count++ >= limit) return;
-      yield this.createRecord(edit, { recordType: 'edits', occurredAt: edit.end });
+      // An edit happened during its burst, but what it says about the note,
+      // its title and the text still in it, is as of this read.
+      yield this.createRecord(
+        edit,
+        { recordType: 'edits', occurredAt: edit.end },
+        { assertedAt: this.asOfTime() }
+      );
     }
   }
 }

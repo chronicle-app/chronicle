@@ -16,8 +16,8 @@ function fixture(t) {
   return { dir, input: writeNotesFixture(dir) };
 }
 
-/** What a record type becomes, in the order the extractor gives it. */
-async function nodes(Extractor, config) {
+/** What a record type becomes, in the order the extractor gives it, with when it was read. */
+async function payloads(Extractor, config) {
   const extractor = new Extractor({ limit: 0, ...config });
   const transformer = new AppleNotesTransformer();
   const out = [];
@@ -25,11 +25,16 @@ async function nodes(Extractor, config) {
     await extractor.setup();
     for await (const record of extractor.extract())
       for (const node of await transformer.performTransform(record))
-        out.push(withoutDirectives(node.data));
+        out.push({ readAt: record.extraction.assertedAt, data: node.data });
   } finally {
     await extractor.teardown();
   }
   return out;
+}
+
+/** What a record type's nodes say, in the order the extractor gives them. */
+async function nodes(Extractor, config) {
+  return (await payloads(Extractor, config)).map(({ data }) => withoutDirectives(data));
 }
 
 // A snapshot source asserts every node complete at read time; the tests look
@@ -227,6 +232,9 @@ test("each person's writing is its own edit, with the text from it that's still 
       isPartOf: [note('NOTE-GARDEN', 'Garden plan')],
     },
   });
+  // The note's title and text in an edit are as of the read, not the burst.
+  for (const { readAt, data } of await payloads(AppleNotesEditsExtractor, { input }))
+    assert.equal(data['@assertedAt'], readAt);
   assert.equal(
     edits.find(edit => edit.object.sourceId === 'NOTE-LOCKED'),
     undefined
