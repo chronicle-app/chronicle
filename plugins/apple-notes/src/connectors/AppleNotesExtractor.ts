@@ -17,17 +17,21 @@ import AppleNotesTransformer from './AppleNotesTransformer.js';
 const CONTAINER = `${process.env.HOME}/Library/Group Containers/group.com.apple.notes`;
 
 /**
- * Who wrote something: you, or someone a note is shared with. The name, email,
- * and phone are what iCloud showed for them when a share last synced.
+ * Who wrote something: you, or someone a note is shared with. The name,
+ * emails, and phone numbers are what iCloud showed for them in the shares
+ * that list them, as each share last synced.
  */
 export interface Author {
   /** Their CloudKit user ID in Notes, the same in every note. Null for a note only on this Mac. */
   id: string | null;
   self: boolean;
   name: string | null;
-  email: string | null;
-  phone: string | null;
+  emails: string[];
+  phones: string[];
 }
+
+/** What the shares say about one person. */
+type Listed = Pick<Author, 'name' | 'emails' | 'phones'>;
 
 /** A note as it is now. */
 export interface AppleNote {
@@ -103,6 +107,12 @@ interface InlineAttachment {
 
 const iso = (appleSeconds: number) =>
   new Date(safariToUnixTimestamp(appleSeconds) * 1000).toISOString();
+
+/** The addresses with one more, unless it's already there in any case. */
+const withAddress = (addresses: string[], address: string | null) =>
+  address && !addresses.some(known => known.toLowerCase() === address.toLowerCase())
+    ? [...addresses, address]
+    : addresses;
 
 /**
  * Notes keeps every note, folder, account, and attachment in
@@ -184,13 +194,15 @@ abstract class AppleNotesBaseExtractor extends SqliteExtractor<typeof AppleNotes
     }
   }
 
-  private everyone?: Map<string, Participant>;
+  private everyone?: Map<string, Listed>;
 
   /**
    * Everyone any share lists, by CloudKit user ID. A person's ID is the same in
-   * every note, so someone named in one share is known in all of them.
+   * every note, so someone named in one share is known in all of them. A share
+   * lists each person by the address they were invited at, so one person can
+   * have a different one in each share, and they keep them all.
    */
-  private people(): Map<string, Participant> {
+  private people(): Map<string, Listed> {
     if (this.everyone) return this.everyone;
     this.everyone = new Map();
     const rows = this.db!.prepare(
@@ -205,12 +217,11 @@ abstract class AppleNotesBaseExtractor extends SqliteExtractor<typeof AppleNotes
         continue;
       }
       for (const person of participants) {
-        const known = this.everyone.get(person.id);
+        const known = this.everyone.get(person.id) ?? { name: null, emails: [], phones: [] };
         this.everyone.set(person.id, {
-          id: person.id,
-          name: known?.name ?? person.name,
-          email: known?.email ?? person.email,
-          phone: known?.phone ?? person.phone,
+          name: known.name ?? person.name,
+          emails: withAddress(known.emails, person.email),
+          phones: withAddress(known.phones, person.phone),
         });
       }
     }
@@ -230,8 +241,8 @@ abstract class AppleNotesBaseExtractor extends SqliteExtractor<typeof AppleNotes
       id: userId,
       self,
       name: known?.name ?? null,
-      email: known?.email ?? null,
-      phone: known?.phone ?? null,
+      emails: known?.emails ?? [],
+      phones: known?.phones ?? [],
     };
   }
 

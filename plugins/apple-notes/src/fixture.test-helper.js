@@ -19,15 +19,44 @@ export const REPLICA = {
 /** CloudKit user IDs in Notes: yours, as the account records it, and Sam's. */
 export const USER = { you: '_you', sam: '_sam' };
 
+/** The Apple Account signed in on the Mac, which is you. */
+export const ACCOUNT = {
+  accountID: 'pat@example.com',
+  displayName: 'Pat Doe',
+  email: 'pat@example.com',
+  dsid: '8000001',
+};
+
+/** Contacts on the Mac: a card for Sam, with a number no share lists. */
+const CARDS = [
+  {
+    id: 'CONTACT-SAM',
+    firstName: 'Sam',
+    lastName: 'Rivera',
+    fullName: 'Sam Rivera',
+    emails: ['sam@example.com'],
+    phoneNumbers: ['+1 613-555-0142'],
+  },
+];
+
+/** Find a card by an email or a number, as Contacts does, without reading the host's. */
+export const lookupContact = handle =>
+  CARDS.find(
+    card =>
+      card.emails.includes(handle) ||
+      card.phoneNumbers.some(phone => phone.replaceAll(/\D/g, '') === handle.replaceAll(/\D/g, ''))
+  ) ?? null;
+
 /**
  * A synthetic NoteStore.sqlite, with one image under Accounts/ beside it, in
- * the columns current macOS uses. Pat (you) and Sam share notes both ways:
+ * the columns current macOS uses. Pat (you) and Sam share notes both ways,
+ * and each share lists Sam at a different email:
  *
  * - NOTE-GARDEN is yours and shared with Sam. You wrote a title, a line with
  *   bold and a link, and a ticked checklist item; two minutes later Sam added
  *   to the end of that item and added another from a phone; three hours
- *   later you added an image and a
- *   hashtag. Some of your text was deleted, which leaves only a tombstone.
+ *   later you added an image and a hashtag. Some of your text was deleted,
+ *   which leaves only a tombstone.
  * - NOTE-SOUP is in Sam's Kitchen folder, made by Sam. Sam wrote most of it,
  *   you added a line, and a replica the note doesn't map to anyone added the
  *   last. It holds a table, which isn't a file.
@@ -54,7 +83,7 @@ export function writeNotesFixture(dir) {
   `);
 
   const pat = { given: 'Pat', family: 'Doe', email: 'pat@example.com', phone: '16135550100' };
-  const sam = { given: 'Sam', family: 'Rivera', email: 'sam@example.com', phone: '16135550142' };
+  const sam = { given: 'Sam', family: 'Rivera' };
 
   insert(db, { Z_PK: 1, Z_ENT: 14, ZIDENTIFIER: 'ACCOUNT-1', ZUSERRECORDNAME: USER.you });
   insert(db, { Z_PK: 2, Z_ENT: 15, ZIDENTIFIER: 'FOLDER-NOTES', ZTITLE2: 'Notes', ZFOLDERTYPE: 0 });
@@ -82,7 +111,7 @@ export function writeNotesFixture(dir) {
       // A share you own lists you as the current user.
       ZSERVERSHAREDATA: cloudShare([
         { id: '__defaultOwner__', ...pat },
-        { id: USER.sam, ...sam },
+        { id: USER.sam, ...sam, email: 'sam@example.com' },
         { email: 'invited@example.com' },
       ]),
     },
@@ -121,7 +150,7 @@ export function writeNotesFixture(dir) {
       ]),
       ZSERVERRECORDDATA: cloudRecord(USER.sam),
       ZSERVERSHAREDATA: cloudShare([
-        { id: USER.sam, ...sam },
+        { id: USER.sam, ...sam, email: 'sam.rivera@work.example.com' },
         { id: USER.you, ...pat },
       ]),
     },

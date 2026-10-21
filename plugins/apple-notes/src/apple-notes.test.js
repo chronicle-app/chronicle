@@ -8,7 +8,7 @@ import {
   AppleNotesExtractor,
   AppleNotesTransformer,
 } from '../dist/index.js';
-import { NOON, writeNotesFixture } from './fixture.test-helper.js';
+import { ACCOUNT, NOON, lookupContact, writeNotesFixture } from './fixture.test-helper.js';
 
 function fixture(t) {
   const dir = mkdtempSync(join(tmpdir(), 'apple-notes-fixture-'));
@@ -16,10 +16,17 @@ function fixture(t) {
   return { dir, input: writeNotesFixture(dir) };
 }
 
-/** What a record type becomes, in the order the extractor gives it, with when it was read. */
-async function payloads(Extractor, config) {
+/**
+ * What a record type becomes, in the order the extractor gives it, with when it
+ * was read. The account and Contacts are the fixture's, never the host's.
+ */
+async function payloads(Extractor, config, transformerConfig = {}) {
   const extractor = new Extractor({ limit: 0, ...config });
-  const transformer = new AppleNotesTransformer();
+  const transformer = new AppleNotesTransformer({
+    account: ACCOUNT,
+    lookupContact,
+    ...transformerConfig,
+  });
   const out = [];
   try {
     await extractor.setup();
@@ -33,8 +40,10 @@ async function payloads(Extractor, config) {
 }
 
 /** What a record type's nodes say, in the order the extractor gives them. */
-async function nodes(Extractor, config) {
-  return (await payloads(Extractor, config)).map(({ data }) => withoutDirectives(data));
+async function nodes(Extractor, config, transformerConfig) {
+  return (await payloads(Extractor, config, transformerConfig)).map(({ data }) =>
+    withoutDirectives(data)
+  );
 }
 
 // A snapshot source asserts every node complete at read time; the tests look
@@ -53,23 +62,35 @@ const identity = (source, handle) => ({
   source,
   handle,
 });
-// You, by your CloudKit user ID in Notes, with the name and contacts a share lists.
+// You, by your Apple Account, as the other Apple plugins key you.
 const pat = {
   '@type': 'Person',
   '@key': key,
-  source: 'apple-notes',
-  sourceId: '_you',
-  name: 'Pat Doe',
-  sameAs: [identity('email', 'pat@example.com'), identity('phone', '+16135550100'), '@me'],
+  source: 'icloud',
+  sourceId: ACCOUNT.dsid,
+  handle: ACCOUNT.email,
+  sameAs: ['@me'],
 };
-// Sam, linked by email and phone to the same person in other sources.
+// Sam, by both emails the shares list, and the number and card Contacts finds
+// for one of them.
 const sam = {
   '@type': 'Person',
   '@key': key,
   source: 'apple-notes',
   sourceId: '_sam',
   name: 'Sam Rivera',
-  sameAs: [identity('email', 'sam@example.com'), identity('phone', '+16135550142')],
+  sameAs: [
+    identity('email', 'sam@example.com'),
+    identity('email', 'sam.rivera@work.example.com'),
+    identity('phone', '+16135550142'),
+    {
+      '@type': 'Person',
+      '@key': ['source', 'sourceId'],
+      source: 'apple-contacts',
+      sourceId: 'CONTACT-SAM',
+      name: 'Sam Rivera',
+    },
+  ],
 };
 const note = (sourceId, name) => ({
   '@type': 'Note',
@@ -140,6 +161,17 @@ test('each note is a CreateAction by whoever made it, newest first', async t => 
   assert.deepEqual(locked.agent, pat);
   assert.deepEqual(old.agent, pat);
   assert.equal(old.result.body, '# Old list\n- Milk');
+
+  // With no Apple Account signed in, you're who Notes knows you as.
+  const [, gardenHere] = await nodes(AppleNotesExtractor, { input }, { account: null });
+  assert.deepEqual(gardenHere.agent, {
+    '@type': 'Person',
+    '@key': key,
+    source: 'apple-notes',
+    sourceId: '_you',
+    name: 'Pat Doe',
+    sameAs: ['@me'],
+  });
 });
 
 test("each person's writing is its own edit, with the text from it that's still there", async t => {
@@ -164,7 +196,7 @@ test("each person's writing is its own edit, with the text from it that's still 
     },
     {
       note: 'NOTE-SOUP',
-      by: '_you',
+      by: ACCOUNT.dsid,
       start: at(86_800),
       end: at(86_800),
       text: 'More salt',
@@ -178,7 +210,7 @@ test("each person's writing is its own edit, with the text from it that's still 
     },
     {
       note: 'NOTE-GARDEN',
-      by: '_you',
+      by: ACCOUNT.dsid,
       start: at(3 * 3600),
       end: at(3 * 3600 + 30),
       text: '[image: seedlings.jpeg]\nSee #garden',
@@ -194,7 +226,7 @@ test("each person's writing is its own edit, with the text from it that's still 
     },
     {
       note: 'NOTE-GARDEN',
-      by: '_you',
+      by: ACCOUNT.dsid,
       start: at(0),
       end: at(120),
       text: '# Garden plan\nOrder **seeds** from [the catalog](https://seeds.example.com)\n- [x] Tomatoes',
@@ -257,7 +289,7 @@ test('edits are bounded by when they ended, and the session gap splits them', as
 
   // Your first session wrote a minute apart; a 30-second gap splits it in three.
   const garden = (await nodes(AppleNotesEditsExtractor, { input, sessionGap: 0.5 })).filter(
-    edit => edit.object.sourceId === 'NOTE-GARDEN' && edit.agent?.sourceId === '_you'
+    edit => edit.object.sourceId === 'NOTE-GARDEN' && edit.agent?.sourceId === ACCOUNT.dsid
   );
   assert.deepEqual(
     garden.map(edit => edit.result.body),
