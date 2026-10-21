@@ -110,7 +110,7 @@ test('each note is a CreateAction by whoever made it, newest first', async t => 
       body: [
         '# Garden plan',
         'Order **seeds** from [the catalog](https://seeds.example.com)',
-        '- [x] Tomatoes',
+        '- [x] Tomatoes, cherry',
         '- [ ] Basil',
         '[image: seedlings.jpeg]',
         'See #garden',
@@ -174,7 +174,7 @@ test("each person's writing is its own edit, with the text from it that's still 
       by: '_sam',
       start: at(86_400),
       end: at(86_440),
-      text: 'Soup\nCarrots, leeks\n[table]',
+      text: '# Soup\nCarrots, leeks\n[table]',
     },
     {
       note: 'NOTE-GARDEN',
@@ -183,25 +183,28 @@ test("each person's writing is its own edit, with the text from it that's still 
       end: at(3 * 3600 + 30),
       text: '[image: seedlings.jpeg]\nSee #garden',
     },
-    // Sam wrote while you were writing, and it's Sam's own edit.
+    // Sam wrote while you were writing, and it's Sam's own edit. Sam's words at
+    // the end of your item aren't an item of their own.
     {
       note: 'NOTE-GARDEN',
       by: '_sam',
       start: at(240),
       end: at(240),
-      text: 'Basil',
+      text: ', cherry\n…\n- [ ] Basil',
     },
     {
       note: 'NOTE-GARDEN',
       by: '_you',
       start: at(0),
       end: at(120),
-      text: 'Garden plan\nOrder seeds from the catalog\nTomatoes',
+      text: '# Garden plan\nOrder **seeds** from [the catalog](https://seeds.example.com)\n- [x] Tomatoes',
     },
   ]);
 
-  const basil = edits.find(edit => edit.agent?.sourceId === '_sam' && edit.result.body === 'Basil');
-  assert.deepEqual(basil, {
+  const samsEdit = edits.find(
+    edit => edit.agent?.sourceId === '_sam' && edit.object.sourceId === 'NOTE-GARDEN'
+  );
+  assert.deepEqual(samsEdit, {
     '@type': 'UpdateAction',
     '@key': ['@type', 'source', 'object.sourceId', 'agent.sourceId', 'startTime'],
     source: 'apple-notes',
@@ -219,7 +222,7 @@ test("each person's writing is its own edit, with the text from it that's still 
         'action.startTime',
       ],
       source: 'apple-notes',
-      body: 'Basil',
+      body: ', cherry\n…\n- [ ] Basil',
       isPartOf: [note('NOTE-GARDEN', 'Garden plan')],
     },
   });
@@ -260,9 +263,9 @@ test('edits are bounded by when they ended, and the session gap splits them', as
     garden.map(edit => edit.result.body),
     [
       '[image: seedlings.jpeg]\nSee #garden',
-      'Tomatoes',
-      'Order seeds from the catalog',
-      'Garden plan',
+      '- [x] Tomatoes',
+      'Order **seeds** from [the catalog](https://seeds.example.com)',
+      '# Garden plan',
     ]
   );
 });

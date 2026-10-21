@@ -25,7 +25,8 @@ export const USER = { you: '_you', sam: '_sam' };
  *
  * - NOTE-GARDEN is yours and shared with Sam. You wrote a title, a line with
  *   bold and a link, and a ticked checklist item; two minutes later Sam added
- *   an item from a phone; three hours later you added an image and a
+ *   to the end of that item and added another from a phone; three hours
+ *   later you added an image and a
  *   hashtag. Some of your text was deleted, which leaves only a tombstone.
  * - NOTE-SOUP is in Sam's Kitchen folder, made by Sam. Sam wrote most of it,
  *   you added a line, and a replica the note doesn't map to anyone added the
@@ -95,7 +96,9 @@ export function writeNotesFixture(dir) {
         { text: 'the catalog', replica: 1, at: NOON + 60, link: 'https://seeds.example.com' },
         { deleted: 9 },
         { text: '\n', replica: 1, at: NOON + 60 },
-        { text: 'Tomatoes\n', replica: 1, at: NOON + 120, style: 103, checked: true },
+        { text: 'Tomatoes', replica: 1, at: NOON + 120, style: 103, checked: true },
+        { text: ', cherry', replica: 2, at: NOON + 240, style: 103, checked: true },
+        { text: '\n', replica: 1, at: NOON + 120, style: 103, checked: true },
         { text: 'Basil\n', replica: 2, at: NOON + 240, style: 103, checked: false },
         { text: '￼', replica: 1, at: NOON + 3 * 3600, attachment: 'IMAGE-1' },
         { text: '\nSee ', replica: 1, at: NOON + 3 * 3600 + 30 },

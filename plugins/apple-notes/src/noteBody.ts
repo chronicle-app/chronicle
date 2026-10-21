@@ -193,27 +193,41 @@ export type AttachmentText = (identifier: string) => string;
 
 /** The note as Markdown: headings, lists, checklists, code, emphasis, and links. */
 export function noteMarkdown(body: NoteBody, attachmentText: AttachmentText): string {
+  return markdown(body, 0, body.text.length, attachmentText);
+}
+
+/**
+ * The text from `from` to `to` as Markdown. A line keeps its heading, list, or
+ * checklist marker when the range starts it; the end of a line begun earlier
+ * has none.
+ */
+function markdown(body: NoteBody, from: number, to: number, attachmentText: AttachmentText) {
   const lines: string[] = [];
   let inCode = false;
-  let paragraphStart = 0;
-  for (const paragraphEnd of [...newlines(body.text), body.text.length]) {
+  let start = from;
+  for (const end of [...newlines(body.text, from, to), to]) {
+    // A range that ends with a newline doesn't reach into the next line.
+    if (start === to && to < body.text.length) break;
+    const paragraphStart = start === 0 ? 0 : body.text.lastIndexOf('\n', start - 1) + 1;
     const run = runAt(body.runs, paragraphStart);
-    const content = inline(body, paragraphStart, paragraphEnd, attachmentText);
+    const content = inline(body, start, end, attachmentText);
     const code = run?.style === STYLE.monospaced;
     if (code !== inCode) {
       lines.push('```');
       inCode = code;
     }
-    lines.push(code ? body.text.slice(paragraphStart, paragraphEnd) : prefix(run) + content);
-    paragraphStart = paragraphEnd + 1;
+    if (code) lines.push(body.text.slice(start, end));
+    else lines.push(start === paragraphStart ? prefix(run) + content : content.trimStart());
+    start = end + 1;
   }
   if (inCode) lines.push('```');
   return lines.join('\n');
 }
 
-function newlines(text: string): number[] {
+function newlines(text: string, from: number, to: number): number[] {
   const at: number[] = [];
-  for (let i = text.indexOf('\n'); i !== -1; i = text.indexOf('\n', i + 1)) at.push(i);
+  for (let i = text.indexOf('\n', from); i !== -1 && i < to; i = text.indexOf('\n', i + 1))
+    at.push(i);
   return at;
 }
 
@@ -382,19 +396,21 @@ export function writingSessions(
   return sessions;
 }
 
-/** The session's surviving text, its separate pieces joined by an ellipsis line. */
+/**
+ * The session's surviving text as Markdown, as the note's is, its separate
+ * pieces joined by an ellipsis line.
+ */
 export function sessionText(
   body: NoteBody,
   session: WritingSession,
   attachmentText: AttachmentText
 ): string {
   return session.ranges
-    .map(([from, to]) => {
-      let piece = '';
-      for (const { run, text } of runsBetween(body, from, to))
-        piece += run.attachment ? withAttachment(text, run.attachment, attachmentText) : text;
-      return piece.trim();
-    })
+    .map(([from, to]) =>
+      markdown(body, from, to, attachmentText)
+        .replace(/^(?:[ \t]*\n)+/, '')
+        .trimEnd()
+    )
     .filter(Boolean)
     .join('\n…\n');
 }
