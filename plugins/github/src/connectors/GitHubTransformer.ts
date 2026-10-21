@@ -194,7 +194,7 @@ export default class GitHubTransformer extends ChronicleTransformer {
       ...this.buildRevisionRef(commit.oid),
       url: commit.url,
       name: commit.messageHeadline,
-      ...(commit.messageBody && { body: commit.messageBody }),
+      ...(commit.messageBody && { description: commit.messageBody }),
       ...(this.viewer && { author: [this.buildSelf()] }),
       isPartOf: [
         this.buildRepository(commit.repository),
@@ -289,7 +289,7 @@ export default class GitHubTransformer extends ChronicleTransformer {
       handle: String(issue.number),
       url: issue.url,
       name: issue.title,
-      ...(issue.body && { body: issue.body }),
+      ...(issue.body && { description: issue.body }),
       isPartOf: [this.buildRepository(issue.repository)],
     };
   }
@@ -303,7 +303,7 @@ export default class GitHubTransformer extends ChronicleTransformer {
       handle: String(pullRequest.number),
       url: pullRequest.url,
       name: pullRequest.title,
-      ...(pullRequest.body && { body: pullRequest.body }),
+      ...(pullRequest.body && { description: pullRequest.body }),
       ...(pullRequest.author && { author: [this.buildActor(pullRequest.author)] }),
       isPartOf: [this.buildRepository(pullRequest.repository)],
       visibility: VISIBILITY[pullRequest.repository.visibility],

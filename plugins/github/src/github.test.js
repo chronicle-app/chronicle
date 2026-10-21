@@ -88,28 +88,28 @@ const trails = {
 };
 const repositories = { R_bakery: bakery, R_trails: trails };
 
-/** An issue is a Task; `body` only where the issue itself is the record. */
+/** An issue is a Task; `description` only where the issue itself is the record. */
 /** A commit named by its hash alone, shared across sources. */
 const revision = oid => ({ '@type': 'Revision', '@key': ['@type', 'sourceId'], sourceId: oid });
 const threadKey = ['@type', 'source', 'isPartOf.creator.handle', 'isPartOf.handle', 'handle'];
-const task = (t, { withBody = false } = {}) => ({
+const task = (t, { withDescription = false } = {}) => ({
   '@type': 'Task',
   '@key': threadKey,
   source,
   handle: String(t.number),
   url: t.url,
   name: t.title,
-  ...(withBody && t.body && { body: t.body }),
+  ...(withDescription && t.body && { description: t.body }),
   isPartOf: [repositories[t.repository.id]],
 });
-const changeset = (t, { withBody = false } = {}) => ({
+const changeset = (t, { withDescription = false } = {}) => ({
   '@type': 'Changeset',
   '@key': threadKey,
   source,
   handle: String(t.number),
   url: t.url,
   name: t.title,
-  ...(withBody && t.body && { body: t.body }),
+  ...(withDescription && t.body && { description: t.body }),
   author: [person(t.author)],
   isPartOf: [repositories[t.repository.id]],
   visibility: repositories[t.repository.id].visibility,

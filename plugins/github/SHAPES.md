@@ -17,7 +17,7 @@ PublishAction key(sourceId) {
   sourceId, timestamp
   agent: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
   object: Changeset key(isPartOf.creator.handle, isPartOf.handle, handle) {
-    handle, url, name, body?, visibility
+    handle, url, name, description?, visibility
     author[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
     isPartOf[]: Repository key(creator.handle, handle) {
       handle, url, name, description, tags[], visibility
@@ -35,7 +35,7 @@ PlanAction key(sourceId) {
   sourceId, timestamp
   agent: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
   object: Task key(isPartOf.creator.handle, isPartOf.handle, handle) {
-    handle, url, name, body
+    handle, url, name, description
     isPartOf[]: Repository key(creator.handle, handle) {
       handle, url, name, description, tags[], visibility
       references[]: Entity key(url, any source) { url }
@@ -87,7 +87,7 @@ UpdateAction key(sourceId) {
     creator[]: Person | Organization key(sourceId) { sourceId, handle, name, sameAs[]?, url }
   }
   result: Revision key(sourceId, any source) {
-    sourceId, url, name, body?
+    sourceId, url, name, description?
     author[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
     isPartOf[]: Repository | Changeset key(creator.handle, handle) / key(isPartOf.creator.handle, isPartOf.handle, handle) {
       handle, url?, name?, description?, tags[]?, visibility?
