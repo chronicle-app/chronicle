@@ -3,12 +3,17 @@ import { test } from 'node:test';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import {
   AppleNotesEditsExtractor,
   AppleNotesExtractor,
   AppleNotesTransformer,
 } from '../dist/index.js';
 import { ACCOUNT, NOON, lookupContact, writeNotesFixture } from './fixture.test-helper.js';
+
+/** The garden note's photo, as its body shows it: an image of the file on this Mac. */
+const seedlings = dir =>
+  `![seedlings.jpeg](${pathToFileURL(join(dir, 'Accounts/ACCOUNT-1/Media/MEDIA-1/GENERATION-1/seedlings.jpeg')).href})`;
 
 function fixture(t) {
   const dir = mkdtempSync(join(tmpdir(), 'apple-notes-fixture-'));
@@ -144,7 +149,7 @@ test('each note is its last edit, with the note as it is now, and when it was ma
         'Order **seeds** from [the catalog](https://seeds.example.com)',
         '- [x] Tomatoes, cherry',
         '- [ ] Basil',
-        '[image: seedlings.jpeg]',
+        seedlings(dir),
         'See #garden',
       ].join('\n'),
       tags: ['garden'],
@@ -222,7 +227,7 @@ test('notes are bounded by when they were last edited', async t => {
 });
 
 test("each person's writing is its own edit, with the text from it that's still there", async t => {
-  const { input } = fixture(t);
+  const { dir, input } = fixture(t);
   const edits = await nodes(AppleNotesEditsExtractor, { input });
 
   const summary = edits.map(edit => ({
@@ -260,7 +265,7 @@ test("each person's writing is its own edit, with the text from it that's still 
       by: ACCOUNT.dsid,
       start: at(3 * 3600),
       end: at(3 * 3600 + 30),
-      text: '[image: seedlings.jpeg]\nSee #garden',
+      text: `${seedlings(dir)}\nSee #garden`,
     },
     // Sam wrote while you were writing, and it's Sam's own edit. Sam's words at
     // the end of your item aren't an item of their own.
@@ -322,7 +327,7 @@ test("each person's writing is its own edit, with the text from it that's still 
 });
 
 test('edits are bounded by when they ended, and the session gap splits them', async t => {
-  const { input } = fixture(t);
+  const { dir, input } = fixture(t);
   const ends = async config =>
     (await nodes(AppleNotesEditsExtractor, { input, ...config })).map(edit =>
       edit.endTime.toISOString()
@@ -344,7 +349,7 @@ test('edits are bounded by when they ended, and the session gap splits them', as
   assert.deepEqual(
     garden.map(edit => edit.result.body),
     [
-      '[image: seedlings.jpeg]\nSee #garden',
+      `${seedlings(dir)}\nSee #garden`,
       '- [x] Tomatoes',
       'Order **seeds** from [the catalog](https://seeds.example.com)',
       '# Garden plan',

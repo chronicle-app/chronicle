@@ -1,5 +1,6 @@
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { Record } from '@chronicle.app/etl';
 import { SqliteExtractor, iterateRows, safariToUnixTimestamp } from '@chronicle.app/etl-sqlite';
 import { z } from 'zod';
@@ -343,7 +344,10 @@ abstract class AppleNotesBaseExtractor extends SqliteExtractor<typeof AppleNotes
     return null;
   }
 
-  /** How an attachment reads in the text. */
+  /**
+   * How an attachment reads in the text. A file on this Mac is a Markdown
+   * image or link to it; anything else is named in brackets, such as `[table]`.
+   */
   protected attachmentText(row: NoteRow): (identifier: string) => string {
     const byId = new Map(this.attachments(row).map(a => [a.id, a]));
     const inline = this.inlineAttachments();
@@ -352,8 +356,12 @@ abstract class AppleNotesBaseExtractor extends SqliteExtractor<typeof AppleNotes
       if (tag) return tag.alt ?? '';
       const attachment = byId.get(identifier);
       if (!attachment) return '[attachment]';
+      const kind = kindOf(attachment.uti);
       const name = attachment.title ?? (attachment.file ? path.basename(attachment.file) : null);
-      return `[${kindOf(attachment.uti)}${name ? `: ${name}` : ''}]`;
+      if (!attachment.file) return `[${kind}${name ? `: ${name}` : ''}]`;
+      const text = (name ?? kind).replaceAll(/[\\[\]]/g, '\\$&');
+      const link = `[${text}](${pathToFileURL(attachment.file).href})`;
+      return kind === 'image' ? `!${link}` : link;
     };
   }
 }
