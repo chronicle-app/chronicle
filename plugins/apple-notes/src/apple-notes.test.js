@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { nodeKey } from '@chronicle.app/schema';
 import {
   AppleNotesEditsExtractor,
   AppleNotesExtractor,
@@ -10,8 +11,13 @@ import {
 } from '../dist/index.js';
 import { ACCOUNT, NOON, lookupContact, writeNotesFixture } from './fixture.test-helper.js';
 
-/** The garden note's photo, as its body shows it: an image of the attachment in its `contains`. */
-const seedlings = '![seedlings.jpeg](cid:IMAGE-1)';
+/** The garden note's photo, as its body shows it: an image of the identity its node in `contains` has. */
+const seedlings = `![seedlings.jpeg](cid:${nodeKey({
+  '@type': 'ImageObject',
+  '@key': ['@type', 'source', 'sourceId'],
+  source: 'apple-notes',
+  sourceId: 'IMAGE-1',
+})})`;
 
 function fixture(t) {
   const dir = mkdtempSync(join(tmpdir(), 'apple-notes-fixture-'));

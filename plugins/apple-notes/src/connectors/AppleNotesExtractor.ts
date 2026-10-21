@@ -1,6 +1,7 @@
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 import { Record } from '@chronicle.app/etl';
+import { nodeKey } from '@chronicle.app/schema';
 import { SqliteExtractor, iterateRows, safariToUnixTimestamp } from '@chronicle.app/etl-sqlite';
 import { z } from 'zod';
 import { CURRENT_USER, recordCreator, shareParticipants, type Participant } from '../cloudKit.js';
@@ -13,7 +14,7 @@ import {
   type NoteBody,
   type WritingSession,
 } from '../noteBody.js';
-import AppleNotesTransformer, { mediaType } from './AppleNotesTransformer.js';
+import AppleNotesTransformer, { mediaObject } from './AppleNotesTransformer.js';
 
 const CONTAINER = `${process.env.HOME}/Library/Group Containers/group.com.apple.notes`;
 
@@ -345,9 +346,9 @@ abstract class AppleNotesBaseExtractor extends SqliteExtractor<typeof AppleNotes
 
   /**
    * How an attachment reads in the text. A file is a Markdown image or link to
-   * `cid:` and its ID, as an email's inline image is: the one in the note's
-   * `contains` with that `sourceId`. Anything else is named in brackets, such
-   * as `[table]`.
+   * `cid:` and the identity its node in the note's `contains` has, the hash of
+   * its key, as an email's inline image names its part. Anything else is named
+   * in brackets, such as `[table]`.
    */
   protected attachmentText(row: NoteRow): (identifier: string) => string {
     const byId = new Map(this.attachments(row).map(a => [a.id, a]));
@@ -359,11 +360,11 @@ abstract class AppleNotesBaseExtractor extends SqliteExtractor<typeof AppleNotes
       if (!attachment) return '[attachment]';
       const kind = kindOf(attachment.uti);
       const name = attachment.title ?? (attachment.file ? path.basename(attachment.file) : null);
-      const type = mediaType(attachment.uti);
-      if (!type) return `[${kind}${name ? `: ${name}` : ''}]`;
+      const media = mediaObject(attachment);
+      if (!media) return `[${kind}${name ? `: ${name}` : ''}]`;
       const text = (name ?? kind).replaceAll(/[\\[\]]/g, '\\$&');
-      const link = `[${text}](cid:${encodeURIComponent(attachment.id)})`;
-      return type === 'ImageObject' ? `!${link}` : link;
+      const link = `[${text}](cid:${nodeKey(media)})`;
+      return media['@type'] === 'ImageObject' ? `!${link}` : link;
     };
   }
 }

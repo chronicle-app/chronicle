@@ -69,7 +69,7 @@ export default class AppleNotesTransformer extends ChronicleTransformer {
     if (body) work.body = body;
     if (note.hashtags.length > 0) work.tags = note.hashtags;
     if (note.folder) work.isPartOf = [folder(note.folder)];
-    const media = note.attachments.map(a => attachment(a)).filter(m => m !== null);
+    const media = note.attachments.map(a => mediaObject(a)).filter(m => m !== null);
     if (media.length > 0) work.contains = media;
     const { at, author } = note.lastEdit;
     return {
@@ -237,14 +237,12 @@ const MEDIA: Array<[RegExp, MediaObjectAndChildren['@type']]> = [
   [/movie|video|mpeg-4|quicktime/, 'VideoObject'],
 ];
 
-/** What a file attachment is, by its type. Tables, drawings, and link previews aren't files. */
-export function mediaType(uti: string): MediaObjectAndChildren['@type'] | undefined {
-  return MEDIA.find(([pattern]) => pattern.test(uti))?.[1];
-}
-
-/** A file attachment. Tables, drawings, and link previews aren't files, so they're left out. */
-function attachment(a: Attachment): MediaObjectAndChildren | null {
-  const type = mediaType(a.uti);
+/**
+ * A file attachment, as the note `contains` it and its text names it. Tables,
+ * drawings, and link previews aren't files, so they have none.
+ */
+export function mediaObject(a: Attachment): MediaObjectAndChildren | null {
+  const type = MEDIA.find(([pattern]) => pattern.test(a.uti))?.[1];
   if (!type) return null;
   return {
     '@type': type,
