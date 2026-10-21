@@ -214,7 +214,7 @@ test("each person's writing is its own edit, with the text from it that's still 
     object: note('NOTE-GARDEN', 'Garden plan'),
     instrument: [device(REPLICA.samPhone)],
     result: {
-      '@type': 'Quotation',
+      '@type': 'Changeset',
       '@key': [
         '@type',
         'source',

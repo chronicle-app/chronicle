@@ -8,13 +8,13 @@ import {
 import {
   ActionAndChildren,
   Agent,
+  Changeset,
   Collection,
   CreateAction,
   Device,
   MediaObjectAndChildren,
   Note,
   Person,
-  Quotation,
   UpdateAction,
 } from '@chronicle.app/schema';
 import type { AppleNote, Attachment, Author, Edit } from './AppleNotesExtractor.js';
@@ -28,7 +28,7 @@ const SOURCE = 'apple-notes';
  *   edits:  UpdateAction  agent: who typed it   startTime–endTime
  *             object: Note
  *             instrument: Device  (the Notes install that typed it, by replica UUID)
- *             result: Quotation  (the text from the session that's still there)
+ *             result: Changeset  (the text from the session that's still there)
  *
  * A person is keyed by their CloudKit user ID in Notes. You are tagged
  * as yourself; anyone else is linked by their email and phone to the same
@@ -69,9 +69,9 @@ export default class AppleNotesTransformer extends ChronicleTransformer {
 
   private edited(edit: Edit): UpdateAction {
     const work = noteWork(edit.note.id, edit.note.title);
-    // The passage is the session's, so it's keyed by the session.
-    const passage: Quotation = {
-      '@type': 'Quotation',
+    // The changeset is the session's, so it's keyed by the session.
+    const changeset: Changeset = {
+      '@type': 'Changeset',
       '@key': [
         '@type',
         'source',
@@ -98,7 +98,7 @@ export default class AppleNotesTransformer extends ChronicleTransformer {
       ...(edit.author && { agent: person(edit.author) }),
       object: work,
       ...(devices.length > 0 && { instrument: devices }),
-      result: passage,
+      result: changeset,
     } as UpdateAction;
   }
 }
