@@ -308,7 +308,7 @@ test('global config and explicit flag precedence reach the dynamic dispatcher', 
   assert.notEqual(run('config', 'get', 'limit').status, 0);
 });
 
-test('every command has help, asked for either way, drawn by the help class', async t => {
+test('every command has help, asked for any way, drawn by the help class', async t => {
   const { env, run } = fixture(t);
   const listed = JSON.parse(success(run('commands', '--format', 'json')));
   const ask = args =>
@@ -321,12 +321,14 @@ test('every command has help, asked for either way, drawn by the help class', as
       child.on('close', status => resolve({ status, stdout, stderr }));
     });
   // Multi-word commands as a shell passes them: each word its own argument.
+  // `help` after the words asks too, whether they take an argument or not.
   const asked = listed
     .map(({ command }) => command.split(' '))
     .filter(words => words.length > 1)
     .flatMap(words => [
       [...words, '--help'],
       ['help', ...words],
+      [...words, 'help'],
     ]);
   const results = await Promise.all(asked.map(ask));
   for (const [i, { status, stdout, stderr }] of results.entries()) {
@@ -339,6 +341,11 @@ test('every command has help, asked for either way, drawn by the help class', as
   }
   // Topics list their commands, and the root lists each command once.
   assert.match(success(run('config', 'preset', '--help')), /config preset show/);
+  assert.equal(
+    success(run('config', 'preset', 'help')),
+    success(run('config', 'preset', '--help'))
+  );
+  assert.equal(success(run('sources', 'help')), success(run('sources', '--help')));
   const root = success(run('--help'));
   assert.equal(root.match(/^ {2}extract /gm)?.length, 1);
   assert.doesNotMatch(root, /^ {2}e /m);
