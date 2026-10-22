@@ -189,6 +189,7 @@ export type CreativeWorkAndChildren =
   | MessageAndChildren
   | MusicAlbumAndChildren
   | MusicRecordingAndChildren
+  | NoteAndChildren
   | PodcastEpisodeAndChildren
   | PodcastSeriesAndChildren
   | PostAndChildren
@@ -1773,6 +1774,24 @@ export const NavigateActionSchema: z.ZodType<NavigateAction> = z
   })
   .superRefine(requireNodeIdentity);
 
+// Note, child of https://schema.chronicle.app/CreativeWork
+export interface Note extends Omit<CreativeWork, '@type'> {
+  '@type': 'Note';
+}
+
+export type NoteAndChildren = Note;
+
+const NoteProperties = {
+  ...CreativeWorkProperties,
+};
+
+export const NoteSchema: z.ZodType<Note> = z
+  .object({
+    '@type': z.literal('Note'),
+    ...NoteProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // OperatingSystem, child of https://schema.chronicle.app/Software
 export interface OperatingSystem extends Omit<Software, '@type'> {
   '@type': 'OperatingSystem';
@@ -2686,6 +2705,8 @@ export const TradeActionAndChildrenSchema: z.ZodType<TradeActionAndChildren> = z
 export const PageSelectorAndChildrenSchema = PageSelectorSchema;
 
 export const OperatingSystemAndChildrenSchema = OperatingSystemSchema;
+
+export const NoteAndChildrenSchema = NoteSchema;
 
 export const NavigateActionAndChildrenSchema = NavigateActionSchema;
 
@@ -3615,6 +3636,11 @@ export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> =
     }),
 
     z.object({
+      '@type': z.literal('Note'),
+      ...NoteProperties,
+    }),
+
+    z.object({
       '@type': z.literal('MusicRecording'),
       ...MusicRecordingProperties,
     }),
@@ -3965,6 +3991,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     z.object({
       '@type': z.literal('PodcastEpisode'),
       ...PodcastEpisodeProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Note'),
+      ...NoteProperties,
     }),
 
     z.object({
@@ -4558,6 +4589,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('PodcastEpisode'),
       ...PodcastEpisodeProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Note'),
+      ...NoteProperties,
     }),
 
     z.object({

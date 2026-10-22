@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { keysetOf } from '@chronicle.app/schema';
 import {
   GitHubGistsExtractor,
   GitHubResolutionsExtractor,
@@ -39,7 +40,7 @@ async function extract(Extractor, config = {}) {
 
 const source = 'github';
 const key = ['@type', 'source', 'sourceId'];
-const repositoryKey = ['@type', 'source', 'creator.handle', 'handle'];
+const repositoryKey = ['@type', 'source', 'creator[*].handle', 'handle'];
 const date = iso => new Date(iso);
 
 const sam = {
@@ -88,28 +89,34 @@ const trails = {
 };
 const repositories = { R_bakery: bakery, R_trails: trails };
 
-/** An issue is a Task; `body` only where the issue itself is the record. */
+/** An issue is a Task; `description` only where the issue itself is the record. */
 /** A commit named by its hash alone, shared across sources. */
 const revision = oid => ({ '@type': 'Revision', '@key': ['@type', 'sourceId'], sourceId: oid });
-const threadKey = ['@type', 'source', 'isPartOf.creator.handle', 'isPartOf.handle', 'handle'];
-const task = (t, { withBody = false } = {}) => ({
+const threadKey = [
+  '@type',
+  'source',
+  'isPartOf[*].creator[*].handle',
+  'isPartOf[*].handle',
+  'handle',
+];
+const task = (t, { withDescription = false } = {}) => ({
   '@type': 'Task',
   '@key': threadKey,
   source,
   handle: String(t.number),
   url: t.url,
   name: t.title,
-  ...(withBody && t.body && { body: t.body }),
+  ...(withDescription && t.body && { description: t.body }),
   isPartOf: [repositories[t.repository.id]],
 });
-const changeset = (t, { withBody = false } = {}) => ({
+const changeset = (t, { withDescription = false } = {}) => ({
   '@type': 'Changeset',
   '@key': threadKey,
   source,
   handle: String(t.number),
   url: t.url,
   name: t.title,
-  ...(withBody && t.body && { body: t.body }),
+  ...(withDescription && t.body && { description: t.body }),
   author: [person(t.author)],
   isPartOf: [repositories[t.repository.id]],
   visibility: repositories[t.repository.id].visibility,
@@ -186,5 +193,23 @@ test('a missing scope names the gh command that adds it', async t => {
   await assert.rejects(extract(GitHubGistsExtractor), {
     name: 'PermissionDenied',
     hint: /gh auth refresh -s gist/,
+  });
+});
+
+// A key reads through a list only by `[*]`. Without it, a key leaves out what's
+// in the list, and every repository's #3 would be one node.
+test("a pull request is keyed by its repository's owner and name, and its number", () => {
+  assert.deepEqual(keysetOf(changeset(oven), source), {
+    '@type': 'Changeset',
+    source,
+    'isPartOf[*].creator[*].handle': 'sam',
+    'isPartOf[*].handle': 'bakery',
+    handle: '3',
+  });
+  assert.deepEqual(keysetOf(bakery, source), {
+    '@type': 'Repository',
+    source,
+    'creator[*].handle': 'sam',
+    handle: 'bakery',
   });
 });

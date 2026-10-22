@@ -13,6 +13,12 @@
       "summary": "Apple Health heart, respiratory, and body readings, steps and active energy, and sleep"
     },
     {
+      "name": "apple-notes",
+      "package": "@chronicle.app/apple-notes",
+      "tier": "official",
+      "summary": "Apple Notes, and who wrote what when"
+    },
+    {
       "name": "apple-podcasts",
       "package": "@chronicle.app/apple-podcasts",
       "tier": "official",

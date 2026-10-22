@@ -41,19 +41,25 @@ const HANDLE_KEY: ['@type', 'source', 'handle'] = ['@type', 'source', 'handle'];
  * A repository is its owner's, by name: the `owner/name` in its URL and its
  * git remotes, which a clone can see without asking GitHub.
  */
-const REPOSITORY_KEY = ['@type', 'source', 'creator.handle', 'handle'];
+const REPOSITORY_KEY = ['@type', 'source', 'creator[*].handle', 'handle'];
 /**
  * An issue or pull request is its repository's, by number: the #12 in its URL.
  * Issues and pull requests share one sequence, so a number is never both.
  */
-const THREAD_KEY = ['@type', 'source', 'isPartOf.creator.handle', 'isPartOf.handle', 'handle'];
+const THREAD_KEY = [
+  '@type',
+  'source',
+  'isPartOf[*].creator[*].handle',
+  'isPartOf[*].handle',
+  'handle',
+];
 /**
  * A commit is named by its hash wherever it's seen, with no source: a clone
  * and its forge share the node.
  */
 const REVISION_KEY = ['@type', 'sourceId'];
 /** You star a repository once, so the repository identifies the star. */
-const STAR_KEY = ['@type', 'source', 'object.creator.handle', 'object.handle'];
+const STAR_KEY = ['@type', 'source', 'object.creator[*].handle', 'object.handle'];
 
 /** GitHub's visibilities, in the schema's buckets. An enterprise's internal repository is private. */
 const VISIBILITY = { PUBLIC: 'public', PRIVATE: 'private', INTERNAL: 'private' } as const;
@@ -194,7 +200,7 @@ export default class GitHubTransformer extends ChronicleTransformer {
       ...this.buildRevisionRef(commit.oid),
       url: commit.url,
       name: commit.messageHeadline,
-      ...(commit.messageBody && { body: commit.messageBody }),
+      ...(commit.messageBody && { description: commit.messageBody }),
       ...(this.viewer && { author: [this.buildSelf()] }),
       isPartOf: [
         this.buildRepository(commit.repository),
@@ -289,7 +295,7 @@ export default class GitHubTransformer extends ChronicleTransformer {
       handle: String(issue.number),
       url: issue.url,
       name: issue.title,
-      ...(issue.body && { body: issue.body }),
+      ...(issue.body && { description: issue.body }),
       isPartOf: [this.buildRepository(issue.repository)],
     };
   }
@@ -303,7 +309,7 @@ export default class GitHubTransformer extends ChronicleTransformer {
       handle: String(pullRequest.number),
       url: pullRequest.url,
       name: pullRequest.title,
-      ...(pullRequest.body && { body: pullRequest.body }),
+      ...(pullRequest.body && { description: pullRequest.body }),
       ...(pullRequest.author && { author: [this.buildActor(pullRequest.author)] }),
       isPartOf: [this.buildRepository(pullRequest.repository)],
       visibility: VISIBILITY[pullRequest.repository.visibility],

@@ -57,6 +57,8 @@ as: rdfs:label "Activity Streams 2.0";
 :MediaObject skos:broadMatch as:Document .
 :MoveAction doc:unlike as:Move;
   doc:note "An as:Move is the actor moving the as:object from the as:origin to the as:target, such as a post from one list to another." .
+:Note doc:unlike as:Note;
+  doc:note "An as:Note is a short written work, usually under a paragraph, such as a post on a social platform." .
 :Organization skos:broadMatch as:Organization .
 :Person skos:broadMatch as:Person .
 :Place doc:note "A :Place gives its coordinates on its :location. An as:Place has its own as:latitude and as:longitude.";

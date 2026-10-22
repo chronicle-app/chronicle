@@ -953,6 +953,10 @@
   rdfs:comment "A written piece published on the web or in a periodical, such as a news story, a blog post, or a feed item.";
   rdfs:subClassOf :CreativeWork;
   skos:broadMatch schemaorg:Article .
+:Note a owl:Class;
+  rdfs:comment "A text that its author keeps and edits, such as a note in a notes app or a page in a personal wiki. Its :body is its text. A document file, such as a PDF or an attachment, is a :DocumentObject.";
+  rdfs:subClassOf :CreativeWork;
+  skos:closeMatch schemaorg:NoteDigitalDocument .
 :snapshotOf a owl:ObjectProperty;
   rdfs:comment "The resource this media captured at a moment, such as the web page in a screenshot or an archive. The value is the resource itself, the entity with the URL. The media's type tells a screenshot from an archive.";
   rdfs:subPropertyOf :relation;
@@ -1003,7 +1007,7 @@
   rdfs:comment "A store of files and their history under version control, hosted on a forge or kept locally. It can hold source code, data, documents, or anything else. Work filed against it, such as tasks and changesets, :isPartOf it.";
   rdfs:subClassOf :CreativeWork .
 :Changeset a owl:Class;
-  rdfs:comment "A set of changes to a work, proposed or applied as a unit, that can be revised until it is decided, such as a pull request or a suggested edit to a document. It :isPartOf the work it changes. A :PublishAction puts it forward. An :AcceptAction, :RejectAction, or :CancelAction then decides it.";
+  rdfs:comment "A set of changes to a work, made as a unit, such as a pull request, a suggested edit to a document, or the text a writer added to a note in one sitting. Its :body is the text it adds. It :isPartOf the work it changes. One applied directly is the :result of the :UpdateAction that made it. One proposed is put forward by a :PublishAction and can be revised until an :AcceptAction, :RejectAction, or :CancelAction decides it. A version of a work, such as a commit, is a :Revision.";
   rdfs:subClassOf :CreativeWork .
 :AcceptAction a owl:Class;
   rdfs:comment "The agent accepted what was put forward, such as merging a changeset into the work it changes. The :object is what was accepted.";
