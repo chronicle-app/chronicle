@@ -71,6 +71,9 @@
           "darwin",
           "linux",
           "win32"
+        ],
+        "requires": [
+          "full-disk-access"
         ]
       }
     }

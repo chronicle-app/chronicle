@@ -29,6 +29,10 @@ export default class SourcesInfo extends BaseCommand<typeof SourcesInfo> {
 
     const types = [...new Set(listing.strategies.flatMap(strategy => strategy.recordTypes))];
     const runsOn = listing.platforms.map(p => PLATFORM_NAMES[p] ?? p).join(', ');
+    // Full Disk Access is macOS's to grant; elsewhere it asks nothing.
+    const needs = listing.requires.filter(
+      need => need !== 'full-disk-access' || process.platform === 'darwin'
+    );
     this.log(
       line([[args.source, t.strong], [listing.summary ? `  ${listing.summary}` : '']], width)
     );
@@ -47,9 +51,7 @@ export default class SourcesInfo extends BaseCommand<typeof SourcesInfo> {
               ],
             ]
           : []),
-        ...(listing.requires.length > 0
-          ? [['needs', listing.requires.join(', ')] as [string, string]]
-          : []),
+        ...(needs.length > 0 ? [['needs', needs.join(', ')] as [string, string]] : []),
       ],
       t,
       width,

@@ -68,6 +68,9 @@
         },
         "platforms": [
           "darwin"
+        ],
+        "requires": [
+          "full-disk-access"
         ]
       }
     }
