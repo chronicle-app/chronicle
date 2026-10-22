@@ -4,7 +4,7 @@ import * as nodeModule from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Config } from '@oclif/core';
 import { glob } from 'glob';
-import { Delivery, Extractor } from '@chronicle.app/etl';
+import { Delivery, Extractor, type Locator } from '@chronicle.app/etl';
 import { createLogger } from '@chronicle.app/logging';
 import { isShared } from './sharedModules.js';
 
@@ -82,6 +82,9 @@ export async function isWorkspaceRoot(dir: string): Promise<boolean> {
 
 /** Where a plugin was found, in discovery order. */
 export type PluginOrigin = 'local' | 'workspace' | 'installed' | 'beside-cli' | 'bundled';
+
+/** How {@link PluginScanner.scanAllLocators} keys a source's strategy. */
+export const locatorKey = (source: string, strategy: string) => `${source}/${strategy}`;
 
 export interface FoundPlugin {
   name: string;
@@ -382,6 +385,40 @@ export class PluginScanner {
     }
 
     return extractors;
+  }
+
+  /** The locator classes a plugin module exports. */
+  static locatorsOf(pluginModule: any): Array<typeof Locator> {
+    return Object.values(pluginModule).filter(
+      (value: any): value is typeof Locator =>
+        typeof value === 'function' &&
+        typeof value.source === 'string' &&
+        typeof value.strategy === 'string' &&
+        typeof value.prototype?.locate === 'function'
+    );
+  }
+
+  /**
+   * Every installed plugin's locators, keyed by source and strategy. The
+   * first plugin found for a source and strategy wins, as a local plugin
+   * wins over an installed one.
+   */
+  static async scanAllLocators(): Promise<Map<string, typeof Locator>> {
+    const locators = new Map<string, typeof Locator>();
+    for (const plugin of await this.findChroniclePlugins()) {
+      let pluginModule: any;
+      try {
+        pluginModule = await this.importPlugin(plugin);
+      } catch (error) {
+        logger.warn(`Failed to scan plugin ${plugin.name}`, { error: String(error) });
+        continue;
+      }
+      for (const locator of this.locatorsOf(pluginModule)) {
+        const key = locatorKey(locator.source, locator.strategy);
+        if (!locators.has(key)) locators.set(key, locator);
+      }
+    }
+    return locators;
   }
 
   /**

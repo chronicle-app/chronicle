@@ -13,7 +13,7 @@ import {
   symlinkSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
 
 const bin = process.env.CHRONICLE_TEST_BIN || resolve(import.meta.dirname, '../bin/run.js');
@@ -721,6 +721,121 @@ test('plugins new scaffolds a plugin for the source kind that reads it and passe
   assert.notEqual(onFile.status, 0);
   assert.match(onFile.stderr, /isn't a folder/);
 });
+
+/**
+ * A home folder holding what sources scan looks for: shell histories, Chrome
+ * profiles with the folder Chrome keeps beside them, and an Obsidian vault
+ * the registry lists beside one that's gone. Chrome and Obsidian sit where
+ * each looks on macOS and on Linux.
+ */
+function scanHome(dir) {
+  const home = join(dir, 'home');
+  const plant = (file, content = 'synthetic') => {
+    mkdirSync(dirname(join(home, file)), { recursive: true });
+    writeFileSync(join(home, file), content);
+  };
+  plant('.zsh_history', ': 1700000000:0;echo synthetic\n');
+  plant('.bash_history', '');
+  for (const userData of ['Library/Application Support/Google/Chrome', '.config/google-chrome']) {
+    for (const profile of ['Default', 'Profile 1', 'System Profile']) {
+      plant(`${userData}/${profile}/History`);
+    }
+    plant(
+      `${userData}/Local State`,
+      JSON.stringify({
+        profile: { info_cache: { Default: { name: 'Personal' }, 'Profile 1': { name: 'Work' } } },
+      })
+    );
+  }
+  const vault = join(dir, 'My Vault');
+  mkdirSync(join(vault, '.obsidian'), { recursive: true });
+  writeFileSync(join(vault, 'note.md'), '# Synthetic\n');
+  for (const config of ['Library/Application Support/obsidian', '.config/obsidian']) {
+    plant(
+      `${config}/obsidian.json`,
+      JSON.stringify({ vaults: { a: { path: vault }, b: { path: join(dir, 'gone') } } })
+    );
+  }
+  return { home, vault };
+}
+
+test('sources scan finds what a home folder holds, with a command that extracts each', t => {
+  const { dir, run } = fixture(t);
+  const { home, vault } = scanHome(dir);
+  const scan = run.with({ HOME: home, GH_TOKEN: 'synthetic-token' });
+  const rows = JSON.parse(success(scan('sources', 'scan', '--format', 'json')));
+  const row = (source, label) => rows.find(r => r.source === source && r.label === label);
+
+  // Shell's defaults find zsh first; bash needs its flag, and an empty history says so.
+  assert.equal(row('shell', '~/.zsh_history').command, 'chronicle extract shell');
+  assert.equal(row('shell', '~/.bash_history').command, 'chronicle extract shell --shell bash');
+  assert.equal(row('shell', '~/.bash_history').status, 'empty');
+  // Chrome's profiles by the names its menu shows; its Default needs no flag.
+  const chrome = rows.filter(r => r.source === 'chrome');
+  assert.deepEqual(chrome.map(r => r.label).sort(), ['Personal', 'Work']);
+  assert.equal(row('chrome', 'Personal').command, 'chronicle extract chrome');
+  assert.equal(row('chrome', 'Work').command, 'chronicle extract chrome --profile "Profile 1"');
+  // Only the vault that's still there, its folder the input.
+  const vaults = rows.filter(r => r.source === 'obsidian');
+  assert.equal(vaults.length, 1);
+  assert.deepEqual(vaults[0].config, { input: vault });
+  // A credential says where it came from, never what it is.
+  assert.equal(row('github', 'GH_TOKEN').evidence.credential, 'GH_TOKEN');
+  assert.equal(row('github', 'GH_TOKEN').status, 'ready');
+  assert.doesNotMatch(JSON.stringify(rows), /synthetic-token/);
+
+  // The commands it prints run (Chrome's need a real History database).
+  for (const command of [row('shell', '~/.zsh_history').command, vaults[0].command]) {
+    const args = command.match(/"[^"]*"|\S+/g).map(word => word.replaceAll('"', ''));
+    const extracted = scan(...args.slice(1).map(w => w.replace(/^~/, home)), '--limit', '1');
+    assert.equal(extracted.status, 0, `${command}: ${extracted.stderr}`);
+  }
+
+  // The table, with the next step under it.
+  const table = scan('sources', 'scan');
+  assert.match(table.stdout, /^chrome +app-db +Work +ready$/m);
+  assert.match(table.stderr, /Run `chronicle extract \S+/);
+
+  // A profile its permissions close is there, but can't be read.
+  const closed = ['.config/google-chrome', 'Library/Application Support/Google/Chrome'].map(
+    userData => join(home, userData, 'Profile 1')
+  );
+  for (const folder of closed) chmodSync(folder, 0o000);
+  try {
+    const rows = JSON.parse(success(scan('sources', 'scan', 'chrome', '--format', 'json')));
+    const work = rows.find(r => r.label === 'Work');
+    assert.equal(work.status, 'unreadable');
+    assert.equal(work.command, 'chronicle extract chrome --profile "Profile 1"');
+  } finally {
+    for (const folder of closed) chmodSync(folder, 0o755);
+  }
+
+  // One source with nothing there says where it looked, and isn't an error.
+  const zotero = scan('sources', 'scan', 'zotero');
+  assert.equal(zotero.status, 0, zotero.stderr);
+  assert.match(zotero.stderr, /Nothing found for zotero/);
+  assert.match(zotero.stderr, /Looked in ~\/Zotero\/zotero\.sqlite/);
+  const unknown = scan('sources', 'scan', 'nope');
+  assert.notEqual(unknown.status, 0);
+  assert.match(unknown.stderr, /chronicle sources --all/);
+});
+
+test(
+  'sources scan finds a source whose plugin is not installed, from the catalog',
+  { skip: process.env.CHRONICLE_TEST_BIN && 'every plugin is installed in the packed check' },
+  t => {
+    const { dir, run } = fixture(t);
+    const { home } = scanHome(dir);
+    const scan = run.with({ HOME: home, CHRONICLE_WORKSPACE_PLUGINS: '0' });
+    const rows = JSON.parse(success(scan('sources', 'scan', '--format', 'json')));
+    // Without its locator, each profile folder that matched is a row, by its path.
+    const chrome = rows.filter(r => r.source === 'chrome');
+    assert.ok(chrome.length >= 2);
+    assert.ok(chrome.every(r => !r.installed && r.plugin === 'chrome'));
+    assert.ok(rows.some(r => r.source === 'shell' && r.installed));
+    assert.match(scan('sources', 'scan').stderr, /chronicle plugins install \S+/);
+  }
+);
 
 test(
   'a catalog source that is not installed points at plugins install',

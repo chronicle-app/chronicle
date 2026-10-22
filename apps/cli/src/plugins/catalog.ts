@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { Delivery } from '@chronicle.app/etl';
+import { Delivery, type Location } from '@chronicle.app/etl';
 import {
   PluginScanner,
   cliRoot,
@@ -28,6 +28,8 @@ export interface ManifestStrategy {
   delivery: Delivery;
   recordTypes: string[];
   default?: boolean;
+  /** Where its material lives on a computer, for `sources scan`. */
+  locations?: Location[];
 }
 
 export interface ManifestSource {

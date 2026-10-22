@@ -33,7 +33,8 @@ export class FlagManager {
     return false;
   }
 
-  private static getDefault(type: any): any {
+  /** A schema field's default, from its zod definition; undefined when it has none. */
+  static getDefault(type: any): any {
     if (type.typeName === 'ZodDefault') return type.defaultValue();
     if (type.typeName === 'ZodOptional') return this.getDefault(type.innerType._def);
     return undefined;

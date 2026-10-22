@@ -1,7 +1,8 @@
 import { closeSync, openSync } from 'node:fs';
 import { InputNotFound, PermissionDenied } from '@chronicle.app/logging';
 
-const FULL_DISK_ACCESS =
+/** How to let the terminal read what macOS guards, as a hint. */
+export const FULL_DISK_ACCESS =
   'Give your terminal app Full Disk Access in System Settings → Privacy & Security, then restart it.';
 
 /**
