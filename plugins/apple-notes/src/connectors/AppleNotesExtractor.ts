@@ -114,6 +114,8 @@ interface AttachmentRow {
   generation: string | null;
   /** The folder Notes' image of a drawing is in. */
   fallbackGeneration: string | null;
+  /** The folder Notes' PDF of a document you can mark up is in. */
+  fallbackPdfGeneration: string | null;
   filename: string | null;
   accountId: string | null;
 }
@@ -301,7 +303,7 @@ abstract class AppleNotesBaseExtractor extends SqliteExtractor<typeof AppleNotes
         `SELECT a.ZNOTE AS note, a.ZIDENTIFIER AS id, a.ZTYPEUTI AS uti, a.ZTITLE AS title,
                 a.ZCREATIONDATE AS created, m.ZIDENTIFIER AS mediaId, m.ZGENERATION1 AS generation,
                 m.ZFILENAME AS filename, a.ZFALLBACKIMAGEGENERATION AS fallbackGeneration,
-                acct.ZIDENTIFIER AS accountId
+                a.ZFALLBACKPDFGENERATION AS fallbackPdfGeneration, acct.ZIDENTIFIER AS accountId
          FROM ZICCLOUDSYNCINGOBJECT a
          LEFT JOIN ZICCLOUDSYNCINGOBJECT m ON m.Z_PK = a.ZMEDIA
          LEFT JOIN ZICCLOUDSYNCINGOBJECT acct ON acct.Z_PK = a.ZACCOUNT1
@@ -315,7 +317,7 @@ abstract class AppleNotesBaseExtractor extends SqliteExtractor<typeof AppleNotes
           uti: a.uti,
           title: a.title || null,
           created: a.created ? iso(a.created) : null,
-          file: kindOf(a.uti) === 'drawing' ? this.drawingImage(a) : this.mediaFile(a),
+          file: rendered(a.uti) ? this.rendering(a) : this.mediaFile(a),
         });
         this.attachmentsByNote.set(a.note, list);
       }
@@ -351,19 +353,20 @@ abstract class AppleNotesBaseExtractor extends SqliteExtractor<typeof AppleNotes
   }
 
   /**
-   * A drawing has no file of its own, but Notes keeps an image of it, for
-   * wherever it can't draw it, in
-   * Accounts/<account>/FallbackImages/<attachment>/<generation>/.
+   * A drawing, or a document you can mark up, has no file of its own, but
+   * Notes keeps one it renders, with any markup, for wherever it can't show
+   * it: an image of a drawing, in
+   * Accounts/<account>/FallbackImages/<attachment>/<generation>/, and a PDF of
+   * a document, in FallbackPDFs.
    */
-  private drawingImage({ accountId, id, fallbackGeneration }: AttachmentRow) {
-    if (!accountId || !fallbackGeneration) return null;
-    return this.accountFile(
-      accountId,
-      'FallbackImages',
-      id,
-      fallbackGeneration,
-      'FallbackImage.png'
-    );
+  private rendering(a: AttachmentRow) {
+    const { accountId, id } = a;
+    if (!accountId) return null;
+    const [folder, generation, name] =
+      kindOf(a.uti) === 'drawing'
+        ? ['FallbackImages', a.fallbackGeneration, 'FallbackImage.png']
+        : ['FallbackPDFs', a.fallbackPdfGeneration, 'FallbackPDF.pdf'];
+    return generation ? this.accountFile(accountId, folder, id, generation, name) : null;
   }
 
   /** A file under the account's folder, when it's downloaded to this Mac. */
@@ -387,10 +390,10 @@ abstract class AppleNotesBaseExtractor extends SqliteExtractor<typeof AppleNotes
       const attachment = byId.get(identifier);
       if (!attachment) return '[attachment]';
       const kind = kindOf(attachment.uti);
-      // A drawing's file is Notes' image of it, whose name says nothing.
+      // Notes' rendering of an attachment has a name that says nothing.
       const name =
         attachment.title ??
-        (attachment.file && kind !== 'drawing' ? path.basename(attachment.file) : null);
+        (attachment.file && !rendered(attachment.uti) ? path.basename(attachment.file) : null);
       const media = mediaObject(attachment);
       if (!media) return `[${kind}${name ? `: ${name}` : ''}]`;
       const text = (name ?? kind).replaceAll(/[\\[\]]/g, '\\$&');
@@ -414,6 +417,11 @@ function kindOf(uti: string | null): string {
   if (/movie|video|mpeg-4|quicktime/.test(uti)) return 'video';
   if (/url/.test(uti)) return 'link';
   return 'attachment';
+}
+
+/** A drawing, or a Paper document, such as a PDF you can mark up, which Notes renders a file of. */
+function rendered(uti: string | null): boolean {
+  return kindOf(uti) === 'drawing' || Boolean(uti?.startsWith('com.apple.paper.doc'));
 }
 
 /**

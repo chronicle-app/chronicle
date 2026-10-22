@@ -33,6 +33,13 @@ const sketch = `![drawing](cid:${nodeKey({
   source: 'apple-notes',
   sourceId: 'SKETCH-1',
 })})`;
+/** The soup's PDF, a link to its document. */
+const stock = `[Stock.pdf](cid:${nodeKey({
+  '@type': 'DocumentObject',
+  '@key': ['@type', 'source', 'sourceId'],
+  source: 'apple-notes',
+  sourceId: 'PDF-1',
+})})`;
 
 function fixture(t) {
   const dir = mkdtempSync(join(tmpdir(), 'apple-notes-fixture-'));
@@ -218,10 +225,10 @@ test('each note is its last edit, with the note as it is now, and when it was ma
 
   // Made by Sam in Sam's folder. Its newest text, from a replica the note maps
   // to no one, synced in after Notes last saved it, so it was last edited
-  // then, by no one known. A table isn't a file, so the note contains nothing.
+  // then, by no one known.
   assert.deepEqual(soupMade.agent, sam);
   assert.deepEqual([soup.timestamp, soup.agent], [at(86_900), undefined]);
-  assert.equal(soup.object.body, '# Soup\nCarrots, leeks\n[table]\nMore salt\nBay leaf');
+  assert.equal(soup.object.body, `# Soup\nCarrots, leeks\n[table]\n${stock}\nMore salt\nBay leaf`);
   assert.deepEqual(soup.object.isPartOf, [folder('FOLDER-KITCHEN', 'Kitchen', sam)]);
   // Notes names its own folders the same in every account, so a folder is
   // keyed within its owner's.
@@ -229,7 +236,18 @@ test('each note is its last edit, with the note as it is now, and when it was ma
     nodeKey(folder('DefaultFolder-CloudKit', 'Notes', patInNotes)),
     nodeKey(folder('DefaultFolder-CloudKit', 'Notes', sam))
   );
-  assert.equal(soup.object.contains, undefined);
+  // A table isn't a file, so the note contains only its PDF, whose file is the
+  // PDF Notes keeps of it.
+  assert.deepEqual(soup.object.contains, [
+    {
+      '@type': 'DocumentObject',
+      '@key': key,
+      source: 'apple-notes',
+      sourceId: 'PDF-1',
+      name: 'Stock.pdf',
+      contentPath: join(dir, 'Accounts/ACCOUNT-1/FallbackPDFs/PDF-1/GENERATION-1/FallbackPDF.pdf'),
+    },
+  ]);
 
   // With no text that says when it was written, a note was last edited when
   // Notes last saved it, or else when it was made, by the one person it maps
@@ -295,7 +313,7 @@ test("what the database doesn't say, or says in a form that can't be read, doesn
   assert.deepEqual(lastEdit('NOTE-OLD').timestamp, made('NOTE-OLD').timestamp);
   assert.equal(
     lastEdit('NOTE-SOUP').object.body,
-    '# Soup\nCarrots, leeks\n[attachment]\nMore salt\nBay leaf'
+    `# Soup\nCarrots, leeks\n[attachment]\n${stock}\nMore salt\nBay leaf`
   );
 });
 
@@ -350,7 +368,7 @@ test("each person's writing is its own edit, with the text from it that's still 
       by: '_sam',
       start: at(86_400),
       end: at(86_440),
-      text: '# Soup\nCarrots, leeks\n[table]',
+      text: `# Soup\nCarrots, leeks\n[table]\n${stock}`,
     },
     {
       note: 'NOTE-GARDEN',

@@ -24,7 +24,7 @@ UpdateAction key(object.sourceId, timestamp) {
         sameAs[]: Agent | Person key(handle) / key(sourceId) { handle?*, sourceId?*, name? }
       }
     }
-    contains[]?: ImageObject key(sourceId) { sourceId, contentPath }
+    contains[]?: DocumentObject | ImageObject key(sourceId) { sourceId, name?, contentPath }
   }
   agent?: Person key(sourceId) { sourceId, handle, sameAs[] }
 }

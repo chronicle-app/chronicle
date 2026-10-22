@@ -60,9 +60,10 @@ export const lookupContact = handle =>
  *   which leaves only a tombstone. Notes saved it a moment after the last
  *   text, to a fraction of a second, as it does.
  * - NOTE-SOUP is in Sam's Kitchen folder, made by Sam. Sam wrote most of it,
- *   leaving spaces at the end of a line, you added a line, and a replica the note doesn't map to anyone added the
- *   last, which synced in without moving when Notes last saved the note. It
- *   holds a table, which isn't a file.
+ *   leaving spaces at the end of a line, you added a line, and a replica the
+ *   note doesn't map to anyone added the last, which synced in without moving
+ *   when Notes last saved the note. It holds a table, which isn't a file, and
+ *   a PDF you can mark up, which Notes keeps a PDF of.
  * - NOTE-OLD predates write times and was never synced, so it was made here.
  * - NOTE-LOCKED is password protected, so its text can't be read. It was made
  *   before the garden note and last edited after it.
@@ -81,7 +82,8 @@ export function writeNotesFixture(dir) {
       ZUSERRECORDNAME VARCHAR, ZNOTE INTEGER, ZTYPEUTI VARCHAR, ZTITLE VARCHAR,
       ZCREATIONDATE TIMESTAMP, ZMEDIA INTEGER, ZACCOUNT1 INTEGER, ZFILENAME VARCHAR,
       ZALTTEXT VARCHAR, ZTYPEUTI1 VARCHAR, ZNOTE1 INTEGER, ZZONEOWNERNAME VARCHAR,
-      ZGENERATION1 VARCHAR, ZFALLBACKIMAGEGENERATION VARCHAR);
+      ZGENERATION1 VARCHAR, ZFALLBACKIMAGEGENERATION VARCHAR,
+      ZFALLBACKPDFGENERATION VARCHAR);
     CREATE TABLE ZICNOTEDATA (Z_PK INTEGER PRIMARY KEY, ZNOTE INTEGER, ZDATA BLOB);
     INSERT INTO Z_PRIMARYKEY VALUES (5, 'ICAttachment'), (9, 'ICInlineAttachment'),
       (11, 'ICMedia'), (12, 'ICNote'), (14, 'ICAccount'), (15, 'ICFolder');
@@ -175,6 +177,8 @@ export function writeNotesFixture(dir) {
         { text: 'Soup\n', replica: 1, at: NOON + 86_400, style: 0 },
         { text: 'Carrots, leeks  \n', replica: 1, at: NOON + 86_400 + 30 },
         { text: '￼', replica: 1, at: NOON + 86_400 + 40, attachment: 'TABLE-1' },
+        { text: '\n', replica: 1, at: NOON + 86_400 + 40 },
+        { text: '￼', replica: 1, at: NOON + 86_400 + 40, attachment: 'PDF-1' },
         { text: '\nMore salt\n', replica: 2, at: NOON + 86_400 + 400 },
         { text: 'Bay leaf', replica: 3, at: NOON + 86_400 + 500 },
       ]
@@ -260,6 +264,18 @@ export function writeNotesFixture(dir) {
     ZTYPEUTI: 'com.apple.notes.table',
     ZACCOUNT1: 1,
   });
+  // A PDF you can mark up has no media either, only the PDF Notes keeps of it.
+  insert(db, {
+    Z_PK: 24,
+    Z_ENT: 5,
+    ZIDENTIFIER: 'PDF-1',
+    ZNOTE: 11,
+    ZTYPEUTI: 'com.apple.paper.doc.pdf',
+    ZTITLE: 'Stock.pdf',
+    ZCREATIONDATE: apple(NOON + 86_400 + 40),
+    ZACCOUNT1: 1,
+    ZFALLBACKPDFGENERATION: 'GENERATION-1',
+  });
   insert(db, {
     Z_PK: 30,
     Z_ENT: 9,
@@ -281,6 +297,9 @@ export function writeNotesFixture(dir) {
   const drawing = join(dir, 'Accounts', 'ACCOUNT-1', 'FallbackImages', 'SKETCH-1', 'GENERATION-1');
   mkdirSync(drawing, { recursive: true });
   writeFileSync(join(drawing, 'FallbackImage.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+  const pdf = join(dir, 'Accounts', 'ACCOUNT-1', 'FallbackPDFs', 'PDF-1', 'GENERATION-1');
+  mkdirSync(pdf, { recursive: true });
+  writeFileSync(join(pdf, 'FallbackPDF.pdf'), '%PDF-1.3\n');
   return input;
 }
 
