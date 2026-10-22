@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { mkdtempSync, rmSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { nodeKey } from '@chronicle.app/schema';
@@ -9,7 +10,14 @@ import {
   AppleNotesExtractor,
   AppleNotesTransformer,
 } from '../dist/index.js';
-import { ACCOUNT, NOON, lookupContact, writeNotesFixture } from './fixture.test-helper.js';
+import {
+  ACCOUNT,
+  NOON,
+  REPLICA,
+  lookupContact,
+  noteData,
+  writeNotesFixture,
+} from './fixture.test-helper.js';
 
 /** The garden note's photo, as its body shows it: an image of the identity its node in `contains` has. */
 const seedlings = `![seedlings.jpeg](cid:${nodeKey({
@@ -174,7 +182,7 @@ test('each note is its last edit, with the note as it is now, and when it was ma
           '@key': key,
           source: 'apple-notes',
           sourceId: 'IMAGE-1',
-          contentPath: join(dir, 'Accounts/ACCOUNT-1/Media/MEDIA-1/GENERATION-1/seedlings.jpeg'),
+          contentPath: join(dir, 'Accounts/ACCOUNT-1/Media/MEDIA-1/GENERATION-2/seedlings.jpeg'),
         },
       ],
     },
@@ -213,11 +221,63 @@ test('each note is its last edit, with the note as it is now, and when it was ma
   assert.equal(old.object.body, '# Old list\n- Milk');
   assert.deepEqual([old.timestamp, old.agent, oldMade.agent], [oldMade.timestamp, pat, pat]);
 
+  // A note can lose all its text, its last hashtag, or its last attachment, so
+  // it says it has none, but not of the text it can't read.
+  const asserts = (await payloads(AppleNotesExtractor, { input }))
+    .filter(({ data }) => data['@type'] === 'UpdateAction')
+    .map(({ data }) => [data.object.sourceId, data.object['@asserts']]);
+  assert.deepEqual(asserts, [
+    ['NOTE-SOUP', ['body', 'tags', 'contains', '*']],
+    ['NOTE-LOCKED', ['contains', '*']],
+    ['NOTE-GARDEN', ['body', 'tags', 'contains', '*']],
+    ['NOTE-OLD', ['body', 'tags', 'contains', '*']],
+  ]);
+
   // With no Apple Account signed in, you're who Notes knows you as.
   const gardenHere = (await nodes(AppleNotesExtractor, { input }, { account: null })).find(
     action => action['@type'] === 'CreateAction' && action.sourceId === 'NOTE-GARDEN'
   );
   assert.deepEqual(gardenHere.agent, patInNotes);
+});
+
+test("what the database doesn't say, or says in a form that can't be read, doesn't stop a run", async t => {
+  const { input } = fixture(t);
+  const db = new DatabaseSync(input);
+  // Who edited the garden, cut off partway through a number.
+  db.prepare(
+    "UPDATE ZICCLOUDSYNCINGOBJECT SET ZREPLICAIDTOUSERIDDICTDATA = ? WHERE ZIDENTIFIER = 'NOTE-GARDEN'"
+  ).run(Buffer.from([0x08, 0x80]));
+  // The old list's title, stamped with a time no date can hold.
+  db.prepare('UPDATE ZICNOTEDATA SET ZDATA = ? WHERE ZNOTE = 12').run(
+    noteData(
+      [REPLICA.mac],
+      [
+        { text: 'Old list\n', replica: 1, style: 0, at: 2 ** 60 },
+        { text: 'Milk', replica: 1, style: 100 },
+      ]
+    )
+  );
+  // The soup's table, with no type in the database.
+  db.prepare(
+    "UPDATE ZICCLOUDSYNCINGOBJECT SET ZTYPEUTI = NULL WHERE ZIDENTIFIER = 'TABLE-1'"
+  ).run();
+  db.close();
+
+  const actions = await nodes(AppleNotesExtractor, { input });
+  const lastEdit = id =>
+    actions.find(action => action['@type'] === 'UpdateAction' && action.object.sourceId === id);
+  const made = id =>
+    actions.find(action => action['@type'] === 'CreateAction' && action.sourceId === id);
+  // The garden's text reads, but not who wrote it.
+  assert.match(lastEdit('NOTE-GARDEN').object.body, /^# Garden plan\n/);
+  assert.equal(lastEdit('NOTE-GARDEN').agent, undefined);
+  // The old list has no time it was written, so it was last edited when made.
+  assert.equal(lastEdit('NOTE-OLD').object.body, '# Old list\n- Milk');
+  assert.deepEqual(lastEdit('NOTE-OLD').timestamp, made('NOTE-OLD').timestamp);
+  assert.equal(
+    lastEdit('NOTE-SOUP').object.body,
+    '# Soup\nCarrots, leeks\n[attachment]\nMore salt\nBay leaf'
+  );
 });
 
 test('notes are bounded by when they were last edited', async t => {

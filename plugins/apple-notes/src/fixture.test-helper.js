@@ -53,13 +53,14 @@ export const lookupContact = handle =>
  * and each share lists Sam at a different email:
  *
  * - NOTE-GARDEN is yours and shared with Sam. You wrote a title, a line with
- *   bold and a link, and a ticked checklist item; two minutes later Sam added
+ *   a link and a bold word you typed across two seconds, and a ticked
+ *   checklist item; two minutes later Sam added
  *   to the end of that item and added another from a phone; three hours
  *   later you added an image and a hashtag. Some of your text was deleted,
  *   which leaves only a tombstone. Notes saved it a moment after the last
  *   text, to a fraction of a second, as it does.
  * - NOTE-SOUP is in Sam's Kitchen folder, made by Sam. Sam wrote most of it,
- *   you added a line, and a replica the note doesn't map to anyone added the
+ *   leaving spaces at the end of a line, you added a line, and a replica the note doesn't map to anyone added the
  *   last, which synced in without moving when Notes last saved the note. It
  *   holds a table, which isn't a file.
  * - NOTE-OLD predates write times and was never synced, so it was made here.
@@ -79,7 +80,8 @@ export function writeNotesFixture(dir) {
       ZSERVERRECORDDATA BLOB, ZSERVERSHAREDATA BLOB, ZTITLE2 VARCHAR, ZFOLDERTYPE INTEGER,
       ZUSERRECORDNAME VARCHAR, ZNOTE INTEGER, ZTYPEUTI VARCHAR, ZTITLE VARCHAR,
       ZCREATIONDATE TIMESTAMP, ZMEDIA INTEGER, ZACCOUNT1 INTEGER, ZFILENAME VARCHAR,
-      ZALTTEXT VARCHAR, ZTYPEUTI1 VARCHAR, ZNOTE1 INTEGER, ZZONEOWNERNAME VARCHAR);
+      ZALTTEXT VARCHAR, ZTYPEUTI1 VARCHAR, ZNOTE1 INTEGER, ZZONEOWNERNAME VARCHAR,
+      ZGENERATION1 VARCHAR);
     CREATE TABLE ZICNOTEDATA (Z_PK INTEGER PRIMARY KEY, ZNOTE INTEGER, ZDATA BLOB);
     INSERT INTO Z_PRIMARYKEY VALUES (5, 'ICAttachment'), (9, 'ICInlineAttachment'),
       (11, 'ICMedia'), (12, 'ICNote'), (14, 'ICAccount'), (15, 'ICFolder');
@@ -130,7 +132,8 @@ export function writeNotesFixture(dir) {
       [
         { text: 'Garden plan\n', replica: 1, at: NOON, style: 0 },
         { text: 'Order ', replica: 1, at: NOON + 60 },
-        { text: 'seeds', replica: 1, at: NOON + 60, weight: 1 },
+        { text: 'se', replica: 1, at: NOON + 60, weight: 1 },
+        { text: 'eds', replica: 1, at: NOON + 61, weight: 1 },
         { text: ' from ', replica: 1, at: NOON + 60 },
         { text: 'the catalog', replica: 1, at: NOON + 60, link: 'https://seeds.example.com' },
         { deleted: 9 },
@@ -168,7 +171,7 @@ export function writeNotesFixture(dir) {
       [REPLICA.samPhone, REPLICA.mac, REPLICA.stranger],
       [
         { text: 'Soup\n', replica: 1, at: NOON + 86_400, style: 0 },
-        { text: 'Carrots, leeks\n', replica: 1, at: NOON + 86_400 + 30 },
+        { text: 'Carrots, leeks  \n', replica: 1, at: NOON + 86_400 + 30 },
         { text: '￼', replica: 1, at: NOON + 86_400 + 40, attachment: 'TABLE-1' },
         { text: '\nMore salt\n', replica: 2, at: NOON + 86_400 + 400 },
         { text: 'Bay leaf', replica: 3, at: NOON + 86_400 + 500 },
@@ -229,7 +232,13 @@ export function writeNotesFixture(dir) {
     ZMEDIA: 21,
     ZACCOUNT1: 1,
   });
-  insert(db, { Z_PK: 21, Z_ENT: 11, ZIDENTIFIER: 'MEDIA-1', ZFILENAME: 'seedlings.jpeg' });
+  insert(db, {
+    Z_PK: 21,
+    Z_ENT: 11,
+    ZIDENTIFIER: 'MEDIA-1',
+    ZFILENAME: 'seedlings.jpeg',
+    ZGENERATION1: 'GENERATION-2',
+  });
   insert(db, {
     Z_PK: 22,
     Z_ENT: 5,
@@ -248,9 +257,14 @@ export function writeNotesFixture(dir) {
   });
   db.close();
 
-  const media = join(dir, 'Accounts', 'ACCOUNT-1', 'Media', 'MEDIA-1', 'GENERATION-1');
-  mkdirSync(media, { recursive: true });
-  writeFileSync(join(media, 'seedlings.jpeg'), Buffer.from([0xff, 0xd8, 0xff, 0xd9]));
+  // The image was edited once, which left its first generation beside the one
+  // the media names, and Finder left a file of its own.
+  const media = join(dir, 'Accounts', 'ACCOUNT-1', 'Media', 'MEDIA-1');
+  for (const generation of ['GENERATION-1', 'GENERATION-2']) {
+    mkdirSync(join(media, generation), { recursive: true });
+    writeFileSync(join(media, generation, 'seedlings.jpeg'), Buffer.from([0xff, 0xd8, 0xff, 0xd9]));
+  }
+  writeFileSync(join(media, '.DS_Store'), '');
   return input;
 }
 
@@ -283,7 +297,7 @@ const uuidBytes = uuid => Buffer.from(uuid.replaceAll('-', ''), 'hex');
  * stamped with when it was written; `{ deleted: n }` is a tombstone for n
  * characters of deleted text.
  */
-function noteData(replicas, pieces) {
+export function noteData(replicas, pieces) {
   const live = pieces.filter(piece => !piece.deleted);
   const substrings = [
     message(3, message(1, int(1, 0), int(2, 0)), int(2, 0)),

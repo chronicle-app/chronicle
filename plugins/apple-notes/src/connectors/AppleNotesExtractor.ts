@@ -1,4 +1,4 @@
-import { readdirSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { Record } from '@chronicle.app/etl';
 import { nodeKey } from '@chronicle.app/schema';
@@ -62,7 +62,8 @@ export interface AppleNote {
 
 export interface Attachment {
   id: string;
-  uti: string;
+  /** Its type, when the database has one. */
+  uti: string | null;
   title: string | null;
   created: string | null;
   file: string | null;
@@ -105,16 +106,18 @@ interface NoteRow {
 interface AttachmentRow {
   note: number;
   id: string;
-  uti: string;
+  uti: string | null;
   title: string | null;
   created: number | null;
   mediaId: string | null;
+  /** The folder under the media's that its current file is in. */
+  generation: string | null;
   filename: string | null;
   accountId: string | null;
 }
 
 interface InlineAttachment {
-  uti: string;
+  uti: string | null;
   alt: string | null;
 }
 
@@ -294,8 +297,8 @@ abstract class AppleNotesBaseExtractor extends SqliteExtractor<typeof AppleNotes
       this.attachmentsByNote = new Map();
       const rows = this.db!.prepare(
         `SELECT a.ZNOTE AS note, a.ZIDENTIFIER AS id, a.ZTYPEUTI AS uti, a.ZTITLE AS title,
-                a.ZCREATIONDATE AS created, m.ZIDENTIFIER AS mediaId, m.ZFILENAME AS filename,
-                acct.ZIDENTIFIER AS accountId
+                a.ZCREATIONDATE AS created, m.ZIDENTIFIER AS mediaId, m.ZGENERATION1 AS generation,
+                m.ZFILENAME AS filename, acct.ZIDENTIFIER AS accountId
          FROM ZICCLOUDSYNCINGOBJECT a
          LEFT JOIN ZICCLOUDSYNCINGOBJECT m ON m.Z_PK = a.ZMEDIA
          LEFT JOIN ZICCLOUDSYNCINGOBJECT acct ON acct.Z_PK = a.ZACCOUNT1
@@ -309,7 +312,7 @@ abstract class AppleNotesBaseExtractor extends SqliteExtractor<typeof AppleNotes
           uti: a.uti,
           title: a.title || null,
           created: a.created ? iso(a.created) : null,
-          file: this.mediaFile(a.accountId, a.mediaId, a.filename),
+          file: this.mediaFile(a),
         });
         this.attachmentsByNote.set(a.note, list);
       }
@@ -326,7 +329,7 @@ abstract class AppleNotesBaseExtractor extends SqliteExtractor<typeof AppleNotes
            FROM ZICCLOUDSYNCINGOBJECT WHERE Z_ENT = ?`
         ).all(this.entity('ICInlineAttachment')) as Array<{
           id: string;
-          uti: string;
+          uti: string | null;
           alt: string | null;
         }>
       ).map(row => [row.id, { uti: row.uti, alt: row.alt }])
@@ -334,18 +337,24 @@ abstract class AppleNotesBaseExtractor extends SqliteExtractor<typeof AppleNotes
     return this.inline;
   }
 
-  /** Media sits in Accounts/<account>/Media/<media>/<generation>/<file name>. */
-  private mediaFile(account: string | null, media: string | null, filename: string | null) {
-    if (!account || !media || !filename) return null;
-    const dir = path.join(path.dirname(this.config.input), 'Accounts', account, 'Media', media);
-    try {
-      for (const generation of readdirSync(dir))
-        if (readdirSync(path.join(dir, generation)).includes(filename))
-          return path.join(dir, generation, filename);
-    } catch {
-      /* Not downloaded to this Mac. */
-    }
-    return null;
+  /**
+   * Media sits in Accounts/<account>/Media/<media>/<generation>/<file name>.
+   * Editing it adds a generation and can leave the earlier ones, so the file is
+   * the one in the generation the media names.
+   */
+  private mediaFile({ accountId, mediaId, generation, filename }: AttachmentRow) {
+    if (!accountId || !mediaId || !generation || !filename) return null;
+    const file = path.join(
+      path.dirname(this.config.input),
+      'Accounts',
+      accountId,
+      'Media',
+      mediaId,
+      generation,
+      filename
+    );
+    // Not there when it isn't downloaded to this Mac.
+    return existsSync(file) ? file : null;
   }
 
   /**
@@ -373,7 +382,8 @@ abstract class AppleNotesBaseExtractor extends SqliteExtractor<typeof AppleNotes
   }
 }
 
-function kindOf(uti: string): string {
+function kindOf(uti: string | null): string {
+  if (!uti) return 'attachment';
   if (/jpeg|png|heic|image|gif|tiff/.test(uti)) return 'image';
   if (uti === 'com.apple.paper' || uti.startsWith('com.apple.paper.doc')) return 'scan';
   if (uti === 'com.apple.drawing.2' || uti === 'com.apple.drawing') return 'drawing';
@@ -437,7 +447,7 @@ export class AppleNotesExtractor extends AppleNotesBaseExtractor {
               ...new Set(
                 body.runs
                   .map(run => run.attachment && inline.get(run.attachment))
-                  .filter(tag => tag && tag.uti.endsWith('.hashtag') && tag.alt)
+                  .filter(tag => tag && tag.uti?.endsWith('.hashtag') && tag.alt)
                   .map(tag => (tag as InlineAttachment).alt!.replace(/^#/, ''))
               ),
             ]

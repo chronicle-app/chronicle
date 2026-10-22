@@ -74,6 +74,10 @@ export default class AppleNotesTransformer extends ChronicleTransformer {
     }
     const media = note.attachments.map(a => mediaObject(a)).filter(m => m !== null);
     if (media.length > 0) work.contains = media;
+    // A snapshot's `'*'` closes only what's still there, so the note names
+    // what can go: its last attachment, and, when its text could be read, all
+    // its text or its last hashtag.
+    work['@asserts'] = note.body === null ? ['contains'] : ['body', 'tags', 'contains'];
     const { at, author } = note.lastEdit;
     return {
       '@type': 'UpdateAction',
@@ -99,6 +103,7 @@ export default class AppleNotesTransformer extends ChronicleTransformer {
 
   private edited(edit: Edit, me: Person | null): UpdateAction {
     const work = noteWork(edit.note.id, edit.note.title);
+    const body = tidyText(edit.text);
     // The changeset is the session's, so it's keyed by the session.
     const changeset: Changeset = {
       '@type': 'Changeset',
@@ -110,7 +115,7 @@ export default class AppleNotesTransformer extends ChronicleTransformer {
         'action.startTime',
       ],
       source: SOURCE,
-      body: edit.text,
+      ...(body && { body }),
       isPartOf: [noteWork(edit.note.id, edit.note.title)],
     };
     return {
@@ -251,7 +256,8 @@ const MEDIA: Array<[RegExp, MediaObjectAndChildren['@type']]> = [
  * drawings, and link previews aren't files, so they have none.
  */
 export function mediaObject(a: Attachment): MediaObjectAndChildren | null {
-  const type = MEDIA.find(([pattern]) => pattern.test(a.uti))?.[1];
+  const { uti } = a;
+  const type = uti && MEDIA.find(([pattern]) => pattern.test(uti))?.[1];
   if (!type) return null;
   return {
     '@type': type,

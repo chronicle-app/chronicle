@@ -56,12 +56,13 @@ interface Field {
 function varint(buf: Uint8Array, at: number): [number, number] {
   let value = 0;
   let scale = 1;
-  for (let i = at; ; i++) {
+  for (let i = at; i < buf.length; i++) {
     const byte = buf[i];
     value += (byte % 0x80) * scale;
     if (byte < 0x80) return [value, i + 1];
     scale *= 128;
   }
+  throw new Error('A protobuf varint runs past the end of its message');
 }
 
 /** Read one protobuf message's fields, without a schema. */
@@ -113,6 +114,9 @@ const all = (fs: Field[], n: number) =>
   fs.filter(f => f.n === n && f.value instanceof Uint8Array).map(f => f.value as Uint8Array);
 const utf8 = (value: Uint8Array | undefined) =>
   value ? new TextDecoder().decode(value) : undefined;
+/** Unix seconds, when they're a time a Date can hold. */
+const unixSeconds = (value: number | undefined) =>
+  value !== undefined && value <= 8.64e12 ? value : undefined;
 
 function uuid(value: Uint8Array): string {
   const hex = Buffer.from(value).toString('hex').toUpperCase();
@@ -157,7 +161,7 @@ export function decodeNoteBody(data: Uint8Array): NoteBody {
       strikethrough: Boolean(num(run, 7)),
       link: utf8(bytes(run, 9)),
       attachment: utf8(bytes(fields(bytes(run, 12)), 1)),
-      writtenAt: num(run, 13),
+      writtenAt: unixSeconds(num(run, 13)),
     });
     start += length;
   }
@@ -287,27 +291,36 @@ function withAttachment(text: string, attachment: string, attachmentText: Attach
 
 /** One paragraph's text with its emphasis, links, and attachments. */
 function inline(body: NoteBody, from: number, to: number, attachmentText: AttachmentText): string {
+  // Notes starts a run wherever the second the text was written changes, so
+  // runs with the same emphasis and link are joined before they're marked:
+  // Markdown can't close an emphasis and open the same one in one word.
+  const spans: Array<{ text: string; marks: string; link?: string }> = [];
+  for (const { run, text } of runsBetween(body, from, to)) {
+    const span: (typeof spans)[number] = run.attachment
+      ? { text: withAttachment(text, run.attachment, attachmentText), marks: '' }
+      : run.style === STYLE.title || run.style === STYLE.heading
+        ? { text, marks: '' }
+        : {
+            text,
+            marks:
+              (run.weight === 1 ? '**' : run.weight === 2 ? '*' : run.weight === 3 ? '***' : '') +
+              (run.strikethrough ? '~~' : ''),
+            link: run.link,
+          };
+    const last = spans.at(-1);
+    if (last && last.marks === span.marks && last.link === span.link) last.text += span.text;
+    else spans.push(span);
+  }
   let out = '';
-  for (const slice of runsBetween(body, from, to)) {
-    const { run } = slice;
-    let { text } = slice;
-    if (run.attachment) {
-      out += withAttachment(text, run.attachment, attachmentText);
-      continue;
-    }
-    if (run.style === STYLE.title || run.style === STYLE.heading) {
-      out += text;
-      continue;
-    }
-    const marks =
-      (run.weight === 1 ? '**' : run.weight === 2 ? '*' : run.weight === 3 ? '***' : '') +
-      (run.strikethrough ? '~~' : '');
+  for (const span of spans) {
+    const { marks, link } = span;
+    let { text } = span;
     if (marks && text.trim()) {
       // Markdown emphasis can't open or close on a space.
       const [, lead, core, trail] = text.match(/^(\s*)([\s\S]*?)(\s*)$/)!;
       text = `${lead}${marks}${core}${[...marks].reverse().join('')}${trail}`;
     }
-    if (run.link && text.trim()) text = `[${text}](${run.link})`;
+    if (link && text.trim()) text = `[${text}](${link})`;
     out += text;
   }
   return out;
