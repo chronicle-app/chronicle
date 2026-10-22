@@ -31,7 +31,7 @@ export {
   type SummaryFields,
   type TableInput,
 } from './blocks.js';
-export { progress, LiveView, type ProgressFields } from './live.js';
+export { progress, LiveRegion, LiveView, type ProgressFields } from './live.js';
 // The prompts (`./prompts.js`) are imported on their own, only where a
 // question is asked, so other commands don't load what draws them.
 export {
