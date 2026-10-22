@@ -17,7 +17,13 @@ UpdateAction key(object.sourceId, timestamp) {
   timestamp
   object: Note key(sourceId) {
     sourceId, name, body?, tags[]?
-    isPartOf[]: Collection key(sourceId) { sourceId, name }
+    isPartOf[]: Collection key(inAccount[*].sourceId, sourceId) {
+      sourceId, name
+      inAccount[]: Person key(sourceId) {
+        sourceId, name
+        sameAs[]: Agent | Person key(handle) / key(sourceId) { handle?*, sourceId?*, name? }
+      }
+    }
     contains[]?: ImageObject key(sourceId) { sourceId, contentPath }
   }
   agent?: Person key(sourceId) { sourceId, handle, sameAs[] }

@@ -79,7 +79,7 @@ export function writeNotesFixture(dir) {
       ZSERVERRECORDDATA BLOB, ZSERVERSHAREDATA BLOB, ZTITLE2 VARCHAR, ZFOLDERTYPE INTEGER,
       ZUSERRECORDNAME VARCHAR, ZNOTE INTEGER, ZTYPEUTI VARCHAR, ZTITLE VARCHAR,
       ZCREATIONDATE TIMESTAMP, ZMEDIA INTEGER, ZACCOUNT1 INTEGER, ZFILENAME VARCHAR,
-      ZALTTEXT VARCHAR, ZTYPEUTI1 VARCHAR, ZNOTE1 INTEGER);
+      ZALTTEXT VARCHAR, ZTYPEUTI1 VARCHAR, ZNOTE1 INTEGER, ZZONEOWNERNAME VARCHAR);
     CREATE TABLE ZICNOTEDATA (Z_PK INTEGER PRIMARY KEY, ZNOTE INTEGER, ZDATA BLOB);
     INSERT INTO Z_PRIMARYKEY VALUES (5, 'ICAttachment'), (9, 'ICInlineAttachment'),
       (11, 'ICMedia'), (12, 'ICNote'), (14, 'ICAccount'), (15, 'ICFolder');
@@ -90,7 +90,14 @@ export function writeNotesFixture(dir) {
 
   insert(db, { Z_PK: 1, Z_ENT: 14, ZIDENTIFIER: 'ACCOUNT-1', ZUSERRECORDNAME: USER.you });
   insert(db, { Z_PK: 2, Z_ENT: 15, ZIDENTIFIER: 'FOLDER-NOTES', ZTITLE2: 'Notes', ZFOLDERTYPE: 0 });
-  insert(db, { Z_PK: 3, Z_ENT: 15, ZIDENTIFIER: 'FOLDER-KITCHEN', ZTITLE2: 'Kitchen' });
+  // A folder someone shared with you is in their zone, which names them.
+  insert(db, {
+    Z_PK: 3,
+    Z_ENT: 15,
+    ZIDENTIFIER: 'FOLDER-KITCHEN',
+    ZTITLE2: 'Kitchen',
+    ZZONEOWNERNAME: USER.sam,
+  });
 
   const note = (pk, row, body) => {
     insert(db, { Z_PK: pk, Z_ENT: 12, ZACCOUNT7: 1, ZISPASSWORDPROTECTED: 0, ...row });

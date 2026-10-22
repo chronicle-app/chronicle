@@ -68,7 +68,10 @@ export default class AppleNotesTransformer extends ChronicleTransformer {
     const body = note.body && tidyText(note.body);
     if (body) work.body = body;
     if (note.hashtags.length > 0) work.tags = note.hashtags;
-    if (note.folder) work.isPartOf = [folder(note.folder)];
+    if (note.folder) {
+      const { owner } = note.folder;
+      work.isPartOf = [folder(note.folder, owner?.id ? this.person(owner, null) : null)];
+    }
     const media = note.attachments.map(a => mediaObject(a)).filter(m => m !== null);
     if (media.length > 0) work.contains = media;
     const { at, author } = note.lastEdit;
@@ -220,13 +223,19 @@ function noteWork(id: string, title: string | null): Note {
   };
 }
 
-function folder({ id, title }: NonNullable<AppleNote['folder']>): Collection {
+/**
+ * A folder, in the account of whoever owns it, as Notes knows them. Notes
+ * names its own folders the same in every account, such as
+ * `DefaultFolder-CloudKit`, so an ID is unique only within its owner's.
+ */
+function folder({ id, title }: NonNullable<AppleNote['folder']>, owner: Person | null): Collection {
   return {
     '@type': 'Collection',
-    '@key': ['@type', 'source', 'sourceId'],
+    '@key': ['@type', 'source', 'inAccount[*].sourceId', 'sourceId'],
     source: SOURCE,
     sourceId: id,
     ...(title && { name: title }),
+    ...(owner && { inAccount: [owner] }),
   };
 }
 

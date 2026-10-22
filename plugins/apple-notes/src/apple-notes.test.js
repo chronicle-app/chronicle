@@ -82,6 +82,15 @@ const pat = {
   handle: ACCOUNT.email,
   sameAs: ['@me'],
 };
+// You, as Notes knows you: by your CloudKit user ID, with the name the shares list.
+const patInNotes = {
+  '@type': 'Person',
+  '@key': key,
+  source: 'apple-notes',
+  sourceId: '_you',
+  name: 'Pat Doe',
+  sameAs: ['@me'],
+};
 // Sam, by both emails the shares list, and the number and card Contacts finds
 // for one of them.
 const sam = {
@@ -110,12 +119,13 @@ const note = (sourceId, name) => ({
   sourceId,
   name,
 });
-const folder = (sourceId, name) => ({
+const folder = (sourceId, name, owner) => ({
   '@type': 'Collection',
-  '@key': key,
+  '@key': ['@type', 'source', 'inAccount[*].sourceId', 'sourceId'],
   source: 'apple-notes',
   sourceId,
   name,
+  inAccount: [owner],
 });
 const at = seconds => new Date((NOON + seconds) * 1000);
 
@@ -157,7 +167,7 @@ test('each note is its last edit, with the note as it is now, and when it was ma
         'See #garden',
       ].join('\n'),
       tags: ['garden'],
-      isPartOf: [folder('FOLDER-NOTES', 'Notes')],
+      isPartOf: [folder('FOLDER-NOTES', 'Notes', patInNotes)],
       contains: [
         {
           '@type': 'ImageObject',
@@ -185,7 +195,13 @@ test('each note is its last edit, with the note as it is now, and when it was ma
   assert.deepEqual(soupMade.agent, sam);
   assert.deepEqual([soup.timestamp, soup.agent], [at(86_900), undefined]);
   assert.equal(soup.object.body, '# Soup\nCarrots, leeks\n[table]\nMore salt\nBay leaf');
-  assert.deepEqual(soup.object.isPartOf, [folder('FOLDER-KITCHEN', 'Kitchen')]);
+  assert.deepEqual(soup.object.isPartOf, [folder('FOLDER-KITCHEN', 'Kitchen', sam)]);
+  // Notes names its own folders the same in every account, so a folder is
+  // keyed within its owner's.
+  assert.notEqual(
+    nodeKey(folder('DefaultFolder-CloudKit', 'Notes', patInNotes)),
+    nodeKey(folder('DefaultFolder-CloudKit', 'Notes', sam))
+  );
   assert.equal(soup.object.contains, undefined);
 
   // With no text that says when it was written, a note was last edited when
@@ -201,14 +217,7 @@ test('each note is its last edit, with the note as it is now, and when it was ma
   const gardenHere = (await nodes(AppleNotesExtractor, { input }, { account: null })).find(
     action => action['@type'] === 'CreateAction' && action.sourceId === 'NOTE-GARDEN'
   );
-  assert.deepEqual(gardenHere.agent, {
-    '@type': 'Person',
-    '@key': key,
-    source: 'apple-notes',
-    sourceId: '_you',
-    name: 'Pat Doe',
-    sameAs: ['@me'],
-  });
+  assert.deepEqual(gardenHere.agent, patInNotes);
 });
 
 test('notes are bounded by when they were last edited', async t => {

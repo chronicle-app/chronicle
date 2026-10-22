@@ -51,7 +51,8 @@ export interface AppleNote {
    * with none, the one person it maps any replica to.
    */
   lastEdit: { at: string; author: Author | null };
-  folder: { id: string; title: string | null; trash: boolean } | null;
+  /** Its folder, and whoever owns the folder, which is you unless it was shared with you. */
+  folder: { id: string; title: string | null; trash: boolean; owner: Author | null } | null;
   locked: boolean;
   pinned: boolean;
   body: string | null;
@@ -91,6 +92,8 @@ interface NoteRow {
   folderId: string | null;
   folderTitle: string | null;
   folderType: number | null;
+  /** The CloudKit user ID of whoever shared the folder with you; null for your own. */
+  folderOwner: string | null;
   accountId: string | null;
   /** The account's own CloudKit user ID, which is you. */
   accountUser: string | null;
@@ -171,6 +174,7 @@ abstract class AppleNotesBaseExtractor extends SqliteExtractor<typeof AppleNotes
              n.ZCREATIONDATE3 AS created, n.ZMODIFICATIONDATE1 AS modified,
              n.ZISPASSWORDPROTECTED AS locked, n.ZISPINNED AS pinned,
              f.ZIDENTIFIER AS folderId, f.ZTITLE2 AS folderTitle, f.ZFOLDERTYPE AS folderType,
+             f.ZZONEOWNERNAME AS folderOwner,
              a.ZIDENTIFIER AS accountId, a.ZUSERRECORDNAME AS accountUser, d.ZDATA AS data,
              n.ZREPLICAIDTOUSERIDDICTDATA AS replicaUsers, n.ZSERVERRECORDDATA AS serverRecord
       FROM ZICCLOUDSYNCINGOBJECT n
@@ -417,7 +421,12 @@ export class AppleNotesExtractor extends AppleNotesBaseExtractor {
         modified: row.modified ? iso(row.modified) : null,
         lastEdit,
         folder: row.folderId
-          ? { id: row.folderId, title: row.folderTitle, trash: row.folderType === 1 }
+          ? {
+              id: row.folderId,
+              title: row.folderTitle,
+              trash: row.folderType === 1,
+              owner: this.author(row, row.folderOwner ?? CURRENT_USER),
+            }
           : null,
         locked: Boolean(row.locked),
         pinned: Boolean(row.pinned),
