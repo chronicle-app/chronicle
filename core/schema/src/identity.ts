@@ -26,9 +26,13 @@ export const URL_SOURCE = 'url';
 /**
  * Deep, recursive, stable-key canonicalization: object keys are sorted at
  * every level and undefined values dropped, so equal content always produces
- * identical bytes. Array order is kept, since it means something.
+ * identical bytes. Array order is kept, since it means something. A `Date` is
+ * the ISO string a store gets for it, once it's serialized.
  */
 export function canonicalize(value: unknown): unknown {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
   if (Array.isArray(value)) {
     return value.map(v => canonicalize(v));
   }

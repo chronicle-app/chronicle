@@ -68,6 +68,24 @@ test("a node's identity is the hash of the keyset its key names", () => {
   );
 });
 
+const edit = timestamp => ({
+  '@type': 'UpdateAction',
+  '@key': ['@type', 'source', 'timestamp'],
+  timestamp,
+});
+
+// A store gets a record serialized, but a plugin can name a node it made.
+test('a time is hashed as the ISO string a store gets for it', () => {
+  assert.equal(
+    nodeKey(edit(new Date('2026-10-01T12:00:00Z')), 'apple-notes'),
+    nodeKey(edit('2026-10-01T12:00:00.000Z'), 'apple-notes')
+  );
+  assert.notEqual(
+    nodeKey(edit(new Date('2026-10-01T12:00:00Z')), 'apple-notes'),
+    nodeKey(edit(new Date('2026-10-02T12:00:00Z')), 'apple-notes')
+  );
+});
+
 test('a URL names the same node whichever source saw it', () => {
   const url = 'https://example.com/x';
   const byUrl = { '@type': 'WebPage', '@key': ['url'], url };
