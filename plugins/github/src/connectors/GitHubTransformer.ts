@@ -41,19 +41,25 @@ const HANDLE_KEY: ['@type', 'source', 'handle'] = ['@type', 'source', 'handle'];
  * A repository is its owner's, by name: the `owner/name` in its URL and its
  * git remotes, which a clone can see without asking GitHub.
  */
-const REPOSITORY_KEY = ['@type', 'source', 'creator.handle', 'handle'];
+const REPOSITORY_KEY = ['@type', 'source', 'creator[*].handle', 'handle'];
 /**
  * An issue or pull request is its repository's, by number: the #12 in its URL.
  * Issues and pull requests share one sequence, so a number is never both.
  */
-const THREAD_KEY = ['@type', 'source', 'isPartOf.creator.handle', 'isPartOf.handle', 'handle'];
+const THREAD_KEY = [
+  '@type',
+  'source',
+  'isPartOf[*].creator[*].handle',
+  'isPartOf[*].handle',
+  'handle',
+];
 /**
  * A commit is named by its hash wherever it's seen, with no source: a clone
  * and its forge share the node.
  */
 const REVISION_KEY = ['@type', 'sourceId'];
 /** You star a repository once, so the repository identifies the star. */
-const STAR_KEY = ['@type', 'source', 'object.creator.handle', 'object.handle'];
+const STAR_KEY = ['@type', 'source', 'object.creator[*].handle', 'object.handle'];
 
 /** GitHub's visibilities, in the schema's buckets. An enterprise's internal repository is private. */
 const VISIBILITY = { PUBLIC: 'public', PRIVATE: 'private', INTERNAL: 'private' } as const;
