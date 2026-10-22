@@ -1,7 +1,14 @@
-import { Record } from '@chronicle.app/etl';
-import { iterateRows } from '@chronicle.app/etl-sqlite';
+import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
+import { getRow, iterateRows } from '@chronicle.app/etl-sqlite';
 import TimingAppTransformer from './TimingAppTransformer.js';
-import { TimingDbExtractor, TimingDevice, TimingProject } from './TimingDbExtractor.js';
+import {
+  TimingDbExtractor,
+  TimingDevice,
+  TimingProject,
+  startsByMonth,
+  timeSurvey,
+  type SpanRow,
+} from './TimingDbExtractor.js';
 
 /**
  * Automatic app/screen usage from Timing's `AppActivity` table (6M+ rows),
@@ -28,19 +35,7 @@ export class AppUsageExtractor extends TimingDbExtractor<typeof AppUsageExtracto
   }
 
   private rows(): Iterable<any> {
-    const since = this.sinceSeconds();
-    const until = this.untilSeconds();
-    const conditions = ['a.isDeleted = 0'];
-    const params: any[] = [];
-    if (since !== null) {
-      conditions.push('a.startDate > ?');
-      params.push(since);
-    }
-    if (until !== null) {
-      conditions.push('a.startDate < ?');
-      params.push(until);
-    }
-
+    const { conditions, params } = this.windowFilter('a');
     const limit = this.getEffectiveLimit();
     let sql = `
       SELECT CAST(a.id AS TEXT) AS id, a.startDate, a.endDate,
@@ -96,5 +91,27 @@ export class AppUsageExtractor extends TimingDbExtractor<typeof AppUsageExtracto
     } catch {
       return null;
     }
+  }
+
+  /**
+   * The activities an uncapped run reads, when, and the time they span. The
+   * run's joins are left out: each is to a primary key, so it keeps every row.
+   */
+  override async survey(options: SurveyOptions = {}): Promise<Survey | null> {
+    if (!this.db) return null;
+    const { conditions, params } = this.windowFilter('a', this.sinceSeconds(null));
+    const rows = `FROM AppActivity a WHERE ${conditions.join(' AND ')}`;
+    const row = getRow<SpanRow>(
+      this.db.prepare(
+        `SELECT COUNT(*) AS n, MIN(a.startDate) AS first, MAX(a.startDate) AS last,
+          COALESCE(SUM(a.endDate - a.startDate), 0) AS seconds
+        ${rows}`
+      ),
+      ...params
+    )!;
+    const byMonth = options.byMonth
+      ? startsByMonth(this.db, 'a.startDate', rows, params)
+      : undefined;
+    return { 'app-activities': timeSurvey(row, 'activities', byMonth) };
   }
 }

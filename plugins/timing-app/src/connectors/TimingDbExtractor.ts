@@ -1,4 +1,6 @@
-import { SqliteExtractor } from '@chronicle.app/etl-sqlite';
+import type { KindSurvey } from '@chronicle.app/etl';
+import { SqliteExtractor, allRows, countsByMonth, monthSql } from '@chronicle.app/etl-sqlite';
+import type { DatabaseSync, SQLInputValue } from 'node:sqlite';
 import { z } from 'zod';
 
 export const DEFAULT_DB = `${process.env.HOME}/Library/Application Support/info.eurocomp.Timing2/SQLite.db`;
@@ -42,14 +44,33 @@ export abstract class TimingDbExtractor<
    * none. An unbounded `--limit 0` also drops the window — asking for "no cap"
    * is a request for a full backfill, not the newest 90 days without a count cap.
    */
-  protected sinceSeconds(): number | null {
+  protected sinceSeconds(limit = this.getEffectiveLimit()): number | null {
     if (this.config.since) return this.config.since.getTime() / 1000;
-    if ((this.config as any).all || this.getEffectiveLimit() === null) return null;
+    if ((this.config as any).all || limit === null) return null;
     return (Date.now() - DEFAULT_WINDOW_DAYS * 86_400_000) / 1000;
   }
 
   protected untilSeconds(): number | null {
     return this.config.until ? this.config.until.getTime() / 1000 : null;
+  }
+
+  /** Rows of `alias` not deleted that start after `since` and before `until`. */
+  protected windowFilter(
+    alias: string,
+    since = this.sinceSeconds()
+  ): { conditions: string[]; params: number[] } {
+    const until = this.untilSeconds();
+    const conditions = [`${alias}.isDeleted = 0`];
+    const params: number[] = [];
+    if (since !== null) {
+      conditions.push(`${alias}.startDate > ?`);
+      params.push(since);
+    }
+    if (until !== null) {
+      conditions.push(`${alias}.startDate < ?`);
+      params.push(until);
+    }
+    return { conditions, params };
   }
 
   protected loadDevices(): Map<string, TimingDevice> {
@@ -125,6 +146,51 @@ export abstract class TimingDbExtractor<
       }
     ).n;
   }
+}
+
+/**
+ * One aggregate over a kind's rows: how many, their first and last start in
+ * epoch seconds, and the seconds they span.
+ */
+export interface SpanRow {
+  n: number;
+  first: number | null;
+  last: number | null;
+  seconds: number;
+}
+
+/** A kind's survey from its aggregate, with its months when asked. */
+export function timeSurvey(
+  row: SpanRow,
+  label: string,
+  byMonth?: KindSurvey['byMonth']
+): KindSurvey {
+  return {
+    count: row.n,
+    ...(row.first !== null && { earliest: new Date(row.first * 1000) }),
+    ...(row.last !== null && { latest: new Date(row.last * 1000) }),
+    ...(byMonth && { byMonth }),
+    measures: [{ key: 'duration', label, value: row.seconds, unit: 'seconds' }],
+  };
+}
+
+/**
+ * How many of a kind's rows start in each month, over the FROM and WHERE of
+ * its aggregate.
+ * @param start A trusted SQL expression for the start, in epoch seconds
+ */
+export function startsByMonth(
+  db: DatabaseSync,
+  start: string,
+  rows: string,
+  params: SQLInputValue[]
+): { [month: string]: number } {
+  return countsByMonth(
+    allRows<{ month: string | null; n: number }>(
+      db.prepare(`SELECT ${monthSql(start)} AS month, COUNT(*) AS n ${rows} GROUP BY month`),
+      ...params
+    )
+  );
 }
 
 /** A project's ancestry, leaf-first: [self, parent, grandparent, ...]. */

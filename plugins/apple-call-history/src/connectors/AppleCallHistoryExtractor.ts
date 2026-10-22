@@ -1,6 +1,9 @@
-import { Record } from '@chronicle.app/etl';
+import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
 import {
+  APPLE_EPOCH_OFFSET_SECONDS,
   SqliteExtractor,
+  countsByMonth,
+  monthSql,
   safariToUnixTimestamp,
   timeRangeConditions,
   unixToSafariTimestamp,
@@ -34,6 +37,15 @@ export class AppleCallHistoryExtractor extends SqliteExtractor<typeof AppleCallH
     input: z.string().describe('Path to CallHistory.storedata').default(DEFAULT_DB),
   }) as any;
 
+  // Calls with an id, within since/until. ZDATE is seconds since the Apple epoch.
+  private callFilter(): { where: string; values: Array<number | string> } {
+    const range = timeRangeConditions('ZDATE', this.config, {
+      convert: date => unixToSafariTimestamp(date.getTime() / 1000),
+    });
+    const conditions = ['ZUNIQUE_ID IS NOT NULL', ...range.conditions];
+    return { where: conditions.join(' AND '), values: range.values };
+  }
+
   /** call Z_PK → remote handle values (phone/email). */
   private loadParticipants(): Map<number, string[]> {
     const rows = this.db!.prepare(
@@ -56,21 +68,14 @@ export class AppleCallHistoryExtractor extends SqliteExtractor<typeof AppleCallH
 
     const participants = this.loadParticipants();
 
-    const conditions = ['ZUNIQUE_ID IS NOT NULL'];
-    const params: any[] = [];
-    const range = timeRangeConditions('ZDATE', this.config, {
-      convert: date => unixToSafariTimestamp(date.getTime() / 1000),
-    });
-    conditions.push(...range.conditions);
-    params.push(...range.values);
-
+    const { where, values: params } = this.callFilter();
     const limit = this.getEffectiveLimit();
     let sql = `
       SELECT Z_PK AS pk, ZUNIQUE_ID AS uuid, ZDATE AS zdate, ZDURATION AS duration,
              ZORIGINATED AS originated, ZADDRESS AS address, ZNAME AS name,
              hex(ZPARTICIPANTGROUPUUID) AS groupUuid
       FROM ZCALLRECORD
-      WHERE ${conditions.join(' AND ')}
+      WHERE ${where}
       ORDER BY ZDATE DESC`;
     if (limit !== null) {
       sql += ` LIMIT ?`;
@@ -109,6 +114,37 @@ export class AppleCallHistoryExtractor extends SqliteExtractor<typeof AppleCallH
     } catch {
       return null;
     }
+  }
+
+  /** The calls a run reads and when, with how long they lasted, to the second. */
+  override async survey(options: SurveyOptions = {}): Promise<Survey | null> {
+    if (!this.db) return null;
+    const { where, values } = this.callFilter();
+    const row = this.db
+      .prepare(
+        `SELECT COUNT(*) AS n, MIN(ZDATE) AS first, MAX(ZDATE) AS last,
+          COALESCE(ROUND(SUM(ZDURATION)), 0) AS seconds FROM ZCALLRECORD WHERE ${where}`
+      )
+      .get(...values) as { n: number; first: number | null; last: number | null; seconds: number };
+    const byMonth =
+      options.byMonth &&
+      countsByMonth(
+        this.db
+          .prepare(
+            `SELECT ${monthSql(`ZDATE + ${APPLE_EPOCH_OFFSET_SECONDS}`)} AS month, COUNT(*) AS n
+            FROM ZCALLRECORD WHERE ${where} GROUP BY month`
+          )
+          .all(...values) as Array<{ month: string | null; n: number }>
+      );
+    return {
+      calls: {
+        count: row.n,
+        ...(row.first !== null && { earliest: new Date(safariToUnixTimestamp(row.first) * 1000) }),
+        ...(row.last !== null && { latest: new Date(safariToUnixTimestamp(row.last) * 1000) }),
+        ...(byMonth && { byMonth }),
+        measures: [{ key: 'callSeconds', label: 'calls', value: row.seconds, unit: 'seconds' }],
+      },
+    };
   }
 }
 

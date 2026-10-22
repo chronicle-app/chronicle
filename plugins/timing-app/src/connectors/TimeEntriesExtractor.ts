@@ -1,7 +1,13 @@
-import { Record } from '@chronicle.app/etl';
-import { iterateRows } from '@chronicle.app/etl-sqlite';
+import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
+import { getRow, iterateRows } from '@chronicle.app/etl-sqlite';
 import TimingAppTransformer from './TimingAppTransformer.js';
-import { TimingDbExtractor, TimingProject } from './TimingDbExtractor.js';
+import {
+  TimingDbExtractor,
+  TimingProject,
+  startsByMonth,
+  timeSurvey,
+  type SpanRow,
+} from './TimingDbExtractor.js';
 
 /**
  * Manually-logged time entries from Timing's `TaskActivity` table. Timing calls
@@ -28,19 +34,7 @@ export class TimeEntriesExtractor extends TimingDbExtractor<typeof TimeEntriesEx
   }
 
   private rows(): Iterable<any> {
-    const since = this.sinceSeconds();
-    const until = this.untilSeconds();
-    const conditions = ['isDeleted = 0', 'isRunning = 0'];
-    const params: any[] = [];
-    if (since !== null) {
-      conditions.push('startDate > ?');
-      params.push(since);
-    }
-    if (until !== null) {
-      conditions.push('startDate < ?');
-      params.push(until);
-    }
-
+    const { conditions, params } = this.entryFilter();
     const limit = this.getEffectiveLimit();
     let sql = `
       SELECT CAST(id AS TEXT) AS id, startDate, endDate,
@@ -79,5 +73,28 @@ export class TimeEntriesExtractor extends TimingDbExtractor<typeof TimeEntriesEx
     } catch {
       return null;
     }
+  }
+
+  /** The entries an uncapped run reads, when, and the time they span. */
+  override async survey(options: SurveyOptions = {}): Promise<Survey | null> {
+    if (!this.db) return null;
+    const { conditions, params } = this.entryFilter(this.sinceSeconds(null));
+    const rows = `FROM TaskActivity WHERE ${conditions.join(' AND ')}`;
+    const row = getRow<SpanRow>(
+      this.db.prepare(
+        `SELECT COUNT(*) AS n, MIN(startDate) AS first, MAX(startDate) AS last,
+          COALESCE(SUM(endDate - startDate), 0) AS seconds
+        ${rows}`
+      ),
+      ...params
+    )!;
+    const byMonth = options.byMonth ? startsByMonth(this.db, 'startDate', rows, params) : undefined;
+    return { 'time-entries': timeSurvey(row, 'entries', byMonth) };
+  }
+
+  /** Finished entries within the window. */
+  private entryFilter(since = this.sinceSeconds()): { conditions: string[]; params: number[] } {
+    const { conditions, params } = this.windowFilter('TaskActivity', since);
+    return { conditions: [...conditions, 'TaskActivity.isRunning = 0'], params };
   }
 }

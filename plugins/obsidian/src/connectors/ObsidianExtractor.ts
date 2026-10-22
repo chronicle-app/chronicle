@@ -1,6 +1,6 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { Extractor, Record } from '@chronicle.app/etl';
+import { Extractor, Record, countMonth, type Survey, type SurveyOptions } from '@chronicle.app/etl';
 import { load, CORE_SCHEMA } from 'js-yaml';
 import { z } from 'zod';
 import ObsidianTransformer from './ObsidianTransformer.js';
@@ -119,6 +119,21 @@ export class ObsidianExtractor extends Extractor<typeof ObsidianExtractor> {
   override async determineCount(): Promise<number | null> {
     const limit = this.getEffectiveLimit();
     return limit === null ? this.entries.length : Math.min(limit, this.entries.length);
+  }
+
+  /** The notes a run reads and when they were last edited, from the file list setup made. */
+  override async survey(options: SurveyOptions = {}): Promise<Survey> {
+    // Newest first, so the ends are the latest and earliest edits.
+    const [newest, oldest] = [this.entries[0], this.entries.at(-1)];
+    const byMonth: { [month: string]: number } = {};
+    if (options.byMonth) for (const entry of this.entries) countMonth(byMonth, entry.mtime);
+    return {
+      notes: {
+        count: this.entries.length,
+        ...(newest && oldest && { earliest: oldest.mtime, latest: newest.mtime }),
+        ...(options.byMonth && { byMonth }),
+      },
+    };
   }
 
   async *extract(): AsyncGenerator<Record> {

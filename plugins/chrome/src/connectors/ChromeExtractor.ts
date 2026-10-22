@@ -2,13 +2,22 @@ import { constants as fsConstants, copyFileSync, mkdtempSync, rmSync, statSync }
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import type { StatementSync } from 'node:sqlite';
-import { EXIT_CODES, ExtractorError, Record, delay } from '@chronicle.app/etl';
+import {
+  EXIT_CODES,
+  ExtractorError,
+  Record,
+  delay,
+  type Survey,
+  type SurveyOptions,
+} from '@chronicle.app/etl';
 import {
   SqliteExtractor,
   allRows,
   chromeToUnixMsSql,
+  countsByMonth,
   getRow,
   iterateRows,
+  monthSql,
   timeRangeConditions,
   unixMsToChromeTimestamp,
 } from '@chronicle.app/etl-sqlite';
@@ -303,6 +312,37 @@ export class ChromeExtractor extends SqliteExtractor<typeof ChromeExtractor> {
     } catch {
       return null;
     }
+  }
+
+  /** The visits a run reads and when, with how many pages they were to. */
+  override async survey(options: SurveyOptions = {}): Promise<Survey | null> {
+    if (!this.db) return null;
+    const { where, values } = this.visitFilter();
+    const row = this.db
+      .prepare(
+        `SELECT COUNT(*) AS n, MIN(${visitTime}) AS first, MAX(${visitTime}) AS last,
+          COUNT(DISTINCT urls.id) AS pages ${ChromeExtractor.FROM} WHERE ${where}`
+      )
+      .get(...values) as { n: number; first: number | null; last: number | null; pages: number };
+    const byMonth =
+      options.byMonth &&
+      countsByMonth(
+        this.db
+          .prepare(
+            `SELECT ${monthSql(`${visitTime} / 1000`)} AS month, COUNT(*) AS n
+            ${ChromeExtractor.FROM} WHERE ${where} GROUP BY month`
+          )
+          .all(...values) as Array<{ month: string | null; n: number }>
+      );
+    return {
+      views: {
+        count: row.n,
+        ...(row.first !== null && { earliest: new Date(row.first) }),
+        ...(row.last !== null && { latest: new Date(row.last) }),
+        ...(byMonth && { byMonth }),
+        measures: [{ key: 'pages', label: 'pages', value: row.pages }],
+      },
+    };
   }
 }
 

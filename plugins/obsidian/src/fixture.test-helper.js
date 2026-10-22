@@ -34,7 +34,8 @@ export async function extract(input, limit = 0) {
   try {
     await extractor.setup();
     const records = await Array.fromAsync(extractor.extract());
-    return { extractor, records, count: await extractor.determineCount() };
+    const count = await extractor.determineCount();
+    return { extractor, records, count, survey: await extractor.survey() };
   } finally {
     await extractor.teardown();
   }

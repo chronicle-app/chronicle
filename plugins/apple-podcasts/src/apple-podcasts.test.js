@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { monthKey } from '@chronicle.app/etl';
 import { ApplePodcastsExtractor, ApplePodcastsTransformer } from '../dist/index.js';
 import { account, writeApplePodcastsFixture } from './fixture.test-helper.js';
 
@@ -237,6 +238,71 @@ test('extraction honours the time range and counts what it extracts', async t =>
     ['subscriptions', 'Example Conversations'],
   ]);
   assert.equal(saved.count, 2);
+});
+
+async function survey(t, config = {}, options = {}) {
+  const input = writeApplePodcastsFixture(tempDir(t));
+  const extractor = new ApplePodcastsExtractor({ input, account, ...config });
+  try {
+    await extractor.setup();
+    return await extractor.survey(options);
+  } finally {
+    await extractor.teardown();
+  }
+}
+
+const ofType = (records, recordType) =>
+  records.filter(record => record.extraction.recordType === recordType);
+
+// The time a run gives each record: its first action's.
+async function timesOf(records) {
+  const transformer = new ApplePodcastsTransformer();
+  const actions = await Promise.all(records.map(record => transformer.performTransform(record)));
+  return actions.map(([first]) => first.data.timestamp);
+}
+
+// The first and last time a run gives the records.
+async function span(records) {
+  const times = await timesOf(records);
+  return { earliest: new Date(Math.min(...times)), latest: new Date(Math.max(...times)) };
+}
+
+// How many of the records each month holds, by the time a run gives each.
+async function monthsOf(records) {
+  const months = {};
+  for (const time of await timesOf(records))
+    months[monthKey(new Date(time))] = (months[monthKey(new Date(time))] ?? 0) + 1;
+  return months;
+}
+
+test('a survey counts the listens and follows a run reads, when, and of how many shows', async t => {
+  const { records } = await extract(t);
+  const listens = ofType(records, 'listens');
+  const follows = ofType(records, 'subscriptions');
+  assert.deepEqual(await survey(t, { limit: 1 }), {
+    listens: {
+      count: listens.length,
+      ...(await span(listens)),
+      measures: [
+        {
+          key: 'shows',
+          label: 'shows',
+          value: new Set(listens.map(record => record.data.storeCollectionId)).size,
+        },
+      ],
+    },
+    subscriptions: { count: follows.length, ...(await span(follows)) },
+  });
+  // By month when asked, by the same times.
+  const byMonth = await survey(t, {}, { byMonth: true });
+  assert.deepEqual(byMonth.listens.byMonth, await monthsOf(listens));
+  assert.deepEqual(byMonth.subscriptions.byMonth, await monthsOf(follows));
+
+  const since = new Date('2025-01-01T00:50:00Z');
+  const surveyed = await survey(t, { since });
+  const extracted = (await extract(t, { since })).records;
+  assert.equal(surveyed.listens.count, ofType(extracted, 'listens').length);
+  assert.equal(surveyed.subscriptions.count, ofType(extracted, 'subscriptions').length);
 });
 
 test('the limit counts followed shows with the episodes', async t => {

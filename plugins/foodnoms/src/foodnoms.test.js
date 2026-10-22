@@ -4,6 +4,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { monthKey } from '@chronicle.app/etl';
 import { FoodNomsExtractor, FoodNomsTransformer } from '../dist/index.js';
 
 const account = {
@@ -116,6 +117,17 @@ async function records(input, config = {}) {
   }
 }
 
+async function survey(input, config = {}, options = {}) {
+  const extractor = new FoodNomsExtractor({ input, account, ...config });
+  try {
+    await extractor.setup();
+    return await extractor.survey(options);
+  } finally {
+    await extractor.teardown();
+  }
+}
+const surveyBy = input => survey(input, {}, { byMonth: true });
+
 test('food entries become schema-valid EatActions and DrinkActions, newest first', async t => {
   const input = fixture(t);
   const rows = await records(input);
@@ -204,5 +216,29 @@ test('food entries become schema-valid EatActions and DrinkActions, newest first
   assert.deepEqual(
     (await records(input, { since, until })).map(r => r.data.id),
     [3, 2]
+  );
+});
+
+test('a survey counts the items a run reads, and when they were eaten', async t => {
+  const input = fixture(t);
+  const rows = await records(input);
+  const times = rows.map(r => Date.parse(r.data.date));
+  assert.deepEqual(await survey(input, { limit: 1 }), {
+    meals: {
+      count: rows.length,
+      label: 'items',
+      earliest: new Date(Math.min(...times)),
+      latest: new Date(Math.max(...times)),
+    },
+  });
+  // By month when asked, by when each item was eaten, in local time.
+  const months = {};
+  for (const time of times)
+    months[monthKey(new Date(time))] = (months[monthKey(new Date(time))] ?? 0) + 1;
+  assert.deepEqual((await surveyBy(input)).meals.byMonth, months);
+  const since = new Date('2025-01-02T14:05:00Z');
+  assert.equal(
+    (await survey(input, { since })).meals.count,
+    (await records(input, { since })).length
   );
 });

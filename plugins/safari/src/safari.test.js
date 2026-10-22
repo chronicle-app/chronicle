@@ -5,6 +5,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { SafariExtractor, SafariTransformer } from '../dist/index.js';
+import { monthKey } from '@chronicle.app/etl';
 
 const account = {
   accountID: 'you@example.com',
@@ -47,6 +48,17 @@ async function records(input, config = {}) {
   }
 }
 
+async function survey(input, config = {}, options = {}) {
+  const extractor = new SafariExtractor({ input, account, ...config });
+  try {
+    await extractor.setup();
+    return await extractor.survey(options);
+  } finally {
+    await extractor.teardown();
+  }
+}
+const surveyBy = input => survey(input, {}, { byMonth: true });
+
 test('visits become schema-valid ViewActions, newest first', async t => {
   const input = fixture(t);
   const rows = await records(input);
@@ -85,5 +97,29 @@ test('visits become schema-valid ViewActions, newest first', async t => {
   assert.deepEqual(
     (await records(input, { since })).map(r => r.data.visit_id),
     [4]
+  );
+});
+
+test('a survey counts the visits a run reads, when, and to how many pages', async t => {
+  const input = fixture(t);
+  const rows = await records(input);
+  const times = rows.map(r => r.data.unix_timestamp * 1000);
+  assert.deepEqual(await survey(input, { limit: 1 }), {
+    views: {
+      count: rows.length,
+      earliest: new Date(Math.min(...times)),
+      latest: new Date(Math.max(...times)),
+      measures: [{ key: 'pages', label: 'pages', value: new Set(rows.map(r => r.data.url)).size }],
+    },
+  });
+  // By month when asked, by the time of each visit, in local time.
+  const months = {};
+  for (const time of times)
+    months[monthKey(new Date(time))] = (months[monthKey(new Date(time))] ?? 0) + 1;
+  assert.deepEqual((await surveyBy(input)).views.byMonth, months);
+  const since = new Date('2025-01-01T00:00:01.500Z');
+  assert.equal(
+    (await survey(input, { since })).views.count,
+    (await records(input, { since })).length
   );
 });

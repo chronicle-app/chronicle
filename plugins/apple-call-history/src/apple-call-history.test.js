@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ContactCache } from '@chronicle.app/apple';
+import { monthKey } from '@chronicle.app/etl';
 import { AppleCallHistoryExtractor, CallHistoryTransformer } from '../dist/index.js';
 import { writeCallHistoryFixture, writeContactsFixture } from './fixture.test-helper.js';
 
@@ -34,6 +35,17 @@ async function extract(input, config = {}) {
     await extractor.teardown();
   }
 }
+
+async function survey(input, config = {}, options = {}) {
+  const extractor = new AppleCallHistoryExtractor({ input, ...config });
+  try {
+    await extractor.setup();
+    return await extractor.survey(options);
+  } finally {
+    await extractor.teardown();
+  }
+}
+const surveyBy = input => survey(input, {}, { byMonth: true });
 
 async function actions(dir) {
   const { records } = await extract(writeCallHistoryFixture(dir));
@@ -177,4 +189,29 @@ test('extraction honours the time range and counts calls with an id', async t =>
     ['CALL-MISSED']
   );
   assert.equal(count, 5);
+});
+
+test('a survey counts the calls a run reads, when, and how long they lasted', async t => {
+  const input = writeCallHistoryFixture(tempDir(t));
+  const { records } = await extract(input);
+  const starts = records.map(r => r.context.startSec * 1000);
+  const seconds = records.reduce((sum, r) => sum + r.context.durationSec, 0);
+  assert.deepEqual(await survey(input, { limit: 1 }), {
+    calls: {
+      count: records.length,
+      earliest: new Date(Math.min(...starts)),
+      latest: new Date(Math.max(...starts)),
+      measures: [{ key: 'callSeconds', label: 'calls', value: seconds, unit: 'seconds' }],
+    },
+  });
+  // By month when asked, by when each call started, in local time.
+  const months = {};
+  for (const start of starts)
+    months[monthKey(new Date(start))] = (months[monthKey(new Date(start))] ?? 0) + 1;
+  assert.deepEqual((await surveyBy(input)).calls.byMonth, months);
+  const since = new Date('2025-01-01T00:02:00Z');
+  assert.equal(
+    (await survey(input, { since })).calls.count,
+    (await extract(input, { since })).records.length
+  );
 });

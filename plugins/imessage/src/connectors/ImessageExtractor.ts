@@ -1,7 +1,9 @@
-import { Record } from '@chronicle.app/etl';
+import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
 import {
   SqliteExtractor,
+  countsByMonth,
   iosToUnixTimestamp,
+  monthSql,
   timeRangeConditions,
   APPLE_EPOCH_OFFSET_SECONDS,
 } from '@chronicle.app/etl-sqlite';
@@ -71,6 +73,64 @@ export class ImessageExtractor extends SqliteExtractor<typeof ImessageExtractor>
     }
   }
 
+  /** The messages a run reads, one per chat they're in, and when, from three aggregates. */
+  override async survey(options: SurveyOptions = {}): Promise<Survey> {
+    const { conditions, values } = this.messageFilter();
+    const inRange = conditions.map(condition => ` AND ${condition}`).join('');
+    // A message's chats, as the run joins them, and only those in range.
+    const read = `SELECT 1 FROM message AS m INNER JOIN chat_message_join AS cm ON m.ROWID = cm.message_id`;
+    const messages = this.db!.prepare(
+      `SELECT COUNT(*) AS n, MIN(m.date) AS first, MAX(m.date) AS last
+      FROM message AS m INNER JOIN chat_message_join AS cm ON m.ROWID = cm.message_id
+      WHERE 1${inRange}`
+    );
+    messages.setReadBigInts(true);
+    const { n, first, last } = messages.get(...values) as { [column: string]: bigint | null };
+    const { chats } = this.db!.prepare(
+      `SELECT COUNT(*) AS chats FROM chat WHERE EXISTS (${read} WHERE cm.chat_id = chat.ROWID${inRange})`
+    ).get(...values) as { chats: number };
+    const { bytes } = this.db!.prepare(
+      `SELECT COALESCE(SUM(a.total_bytes), 0) AS bytes
+      FROM message_attachment_join AS maj INNER JOIN attachment AS a ON maj.attachment_id = a.ROWID
+      WHERE a.filename IS NOT NULL AND EXISTS (${read} WHERE m.ROWID = maj.message_id${inRange})`
+    ).get(...values) as { bytes: number };
+    const at = (date: bigint | null) =>
+      date === null ? undefined : new Date(iosToUnixTimestamp(Number(date)));
+    const count = Number(n);
+    const month = monthSql(`m.date / 1000000000 + ${APPLE_EPOCH_OFFSET_SECONDS}`);
+    const byMonth =
+      options.byMonth &&
+      countsByMonth(
+        this.db!.prepare(
+          `SELECT ${month} AS month, COUNT(*) AS n
+          FROM message AS m INNER JOIN chat_message_join AS cm ON m.ROWID = cm.message_id
+          WHERE 1${inRange} GROUP BY month`
+        ).all(...values) as Array<{ month: string | null; n: number }>
+      );
+    return {
+      messages: {
+        count,
+        ...(count > 0 && { earliest: at(first), latest: at(last) }),
+        ...(byMonth && { byMonth }),
+        measures: [
+          { key: 'conversations', label: 'conversations', value: chats },
+          { key: 'attachmentBytes', label: 'attachments', value: bytes, unit: 'bytes' },
+        ],
+      },
+    };
+  }
+
+  /** Messages within since and until. chat.db stores message.date as nanoseconds since the Apple epoch. */
+  private messageFilter(): { conditions: string[]; values: Array<number | string> } {
+    return timeRangeConditions('m.date', this.config, {
+      convert: date =>
+        (
+          BigInt(date.getTime()) * 1_000_000n -
+          BigInt(APPLE_EPOCH_OFFSET_SECONDS) * 1_000_000_000n
+        ).toString(),
+    });
+  }
+
   private queryMessages() {
     let sql = `
       SELECT
@@ -82,15 +142,7 @@ export class ImessageExtractor extends SqliteExtractor<typeof ImessageExtractor>
         LEFT OUTER JOIN handle AS h ON m.handle_id = h.ROWID
         INNER JOIN chat_message_join AS cm ON m.ROWID = cm.message_id`;
 
-    // chat.db stores message.date as nanoseconds since the Apple epoch
-    const { conditions, values } = timeRangeConditions('m.date', this.config, {
-      convert: date =>
-        (
-          BigInt(date.getTime()) * 1_000_000n -
-          BigInt(APPLE_EPOCH_OFFSET_SECONDS) * 1_000_000_000n
-        ).toString(),
-    });
-
+    const { conditions, values } = this.messageFilter();
     if (conditions.length > 0) {
       sql += ` WHERE ${conditions.join(' AND ')}`;
     }

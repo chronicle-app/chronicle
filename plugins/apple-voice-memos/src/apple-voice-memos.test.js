@@ -3,17 +3,27 @@ import { test } from 'node:test';
 import { mkdtempSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, isAbsolute, join, relative } from 'node:path';
+import { monthKey } from '@chronicle.app/etl';
 import { AppleVoiceMemosExtractor, AppleVoiceMemosTransformer } from '../dist/index.js';
 import { account, ids, writeAppleVoiceMemosFixture } from './fixture.test-helper.js';
 
-// An explicit account keeps the host's iCloud account out of the test.
-async function extract(t) {
+function fixture(t) {
   const dir = mkdtempSync(join(tmpdir(), 'apple-voice-memos-fixture-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const input = writeAppleVoiceMemosFixture(dir);
+  return writeAppleVoiceMemosFixture(dir);
+}
+
+// An explicit account keeps the host's iCloud account out of the test.
+async function extract(t, config = {}) {
+  const input = fixture(t);
   // A relative path to the library still gives each file's absolute path.
   const relativeInput = relative(process.cwd(), input);
-  const extractor = new AppleVoiceMemosExtractor({ input: relativeInput, account, limit: 0 });
+  const extractor = new AppleVoiceMemosExtractor({
+    input: relativeInput,
+    account,
+    limit: 0,
+    ...config,
+  });
   const events = [];
   extractor.useOutput({ emit: event => events.push(event) });
   try {
@@ -28,6 +38,17 @@ async function extract(t) {
     await extractor.teardown();
   }
 }
+
+async function survey(t, config = {}, options = {}) {
+  const extractor = new AppleVoiceMemosExtractor({ input: fixture(t), account, ...config });
+  try {
+    await extractor.setup();
+    return await extractor.survey(options);
+  } finally {
+    await extractor.teardown();
+  }
+}
+const surveyBy = t => survey(t, {}, { byMonth: true });
 
 const transformer = new AppleVoiceMemosTransformer();
 const transform = async record => (await transformer.performTransform(record))[0].data;
@@ -155,4 +176,35 @@ test('a recording names the OS release and the kind of device its file says it w
   for (const id of [ids.old, ids.qta, ids.noPath, ids.notDownloaded]) {
     assert.equal(instruments.get(id), undefined, id);
   }
+});
+
+test('a survey counts the recordings a run reads, when, and how long they last', async t => {
+  const { records } = await extract(t);
+  const times = records.map(record => Date.parse(record.data.date));
+  const seconds = records.reduce((sum, record) => sum + (record.data.duration ?? 0), 0);
+  assert.deepEqual(await survey(t, { limit: 1 }), {
+    recordings: {
+      count: records.length,
+      earliest: new Date(Math.min(...times)),
+      latest: new Date(Math.max(...times)),
+      measures: [
+        {
+          key: 'recordingSeconds',
+          label: 'recordings',
+          value: Math.round(seconds),
+          unit: 'seconds',
+        },
+      ],
+    },
+  });
+  // By month when asked, by when each recording started, in local time.
+  const months = {};
+  for (const time of times)
+    months[monthKey(new Date(time))] = (months[monthKey(new Date(time))] ?? 0) + 1;
+  assert.deepEqual((await surveyBy(t)).recordings.byMonth, months);
+  const since = new Date(Math.min(...times));
+  assert.equal(
+    (await survey(t, { since })).recordings.count,
+    (await extract(t, { since })).records.length
+  );
 });

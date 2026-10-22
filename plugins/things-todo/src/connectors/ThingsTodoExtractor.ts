@@ -1,5 +1,17 @@
-import { Record, fileError } from '@chronicle.app/etl';
-import { SqliteExtractor, timeRangeConditions } from '@chronicle.app/etl-sqlite';
+import {
+  Record,
+  fileError,
+  type KindSurvey,
+  type Survey,
+  type SurveyOptions,
+} from '@chronicle.app/etl';
+import {
+  SqliteExtractor,
+  allRows,
+  countsByMonth,
+  monthSql,
+  timeRangeConditions,
+} from '@chronicle.app/etl-sqlite';
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
@@ -58,6 +70,25 @@ interface TMTaskRow {
   trashed?: number;
   tag_ids?: string;
   tag_titles?: string;
+}
+
+/** One kind's aggregate row in a survey. */
+interface KindRow {
+  kind: string;
+  n: number;
+  first: number | null;
+  last: number | null;
+  completed: number;
+}
+
+/** A kind's count and the first and last creation of its records, when there are any. */
+function created(row: KindRow | undefined): KindSurvey {
+  if (!row) return { count: 0 };
+  return {
+    count: row.n,
+    ...(row.first !== null && { earliest: new Date(row.first * 1000) }),
+    ...(row.last !== null && { latest: new Date(row.last * 1000) }),
+  };
 }
 
 export class ThingsTodoExtractor extends SqliteExtractor<typeof ThingsTodoExtractor> {
@@ -125,16 +156,12 @@ export class ThingsTodoExtractor extends SqliteExtractor<typeof ThingsTodoExtrac
     }
 
     const limit = this.getEffectiveLimit();
-    const { conditions, values } = timeRangeConditions('task.userModificationDate', this.config, {
-      sinceOp: '>=',
-      untilOp: '<=',
-    });
+    const { conditions, values } = this.taskFilter();
     let sql = `SELECT task.*, group_concat(DISTINCT tag.uuid) AS tag_ids,
       group_concat(DISTINCT tag.title) AS tag_titles FROM TMTask task
       LEFT JOIN TMTaskTag tagging ON task.uuid = tagging.tasks
       LEFT JOIN TMTag tag ON tagging.tags = tag.uuid
-      WHERE task.type IN (0, 1, 2)`;
-    if (conditions.length > 0) sql += ' AND ' + conditions.join(' AND ');
+      WHERE ${conditions.join(' AND ')}`;
     sql += ' GROUP BY task.uuid ORDER BY task.userModificationDate DESC, task.uuid';
     if (limit !== null) {
       sql += ' LIMIT ?';
@@ -229,6 +256,58 @@ export class ThingsTodoExtractor extends SqliteExtractor<typeof ThingsTodoExtrac
         agent: { name: agentName },
       });
     }
+  }
+
+  /**
+   * The tasks and projects a run reads, by when each was created, and how
+   * many of the tasks are completed. A run groups its tag joins back to one
+   * row per task, and `uuid` is the key, so counting tasks counts its rows.
+   */
+  override async survey(options: SurveyOptions = {}): Promise<Survey | null> {
+    if (!this.db) return null;
+    const { conditions, values } = this.taskFilter();
+    const kind = `CASE WHEN task.type IN (1, 2) THEN 'projects' ELSE 'tasks' END`;
+    const from = `FROM TMTask task WHERE ${conditions.join(' AND ')}`;
+    const rows = allRows<KindRow>(
+      this.db.prepare(
+        `SELECT ${kind} AS kind,
+          COUNT(*) AS n, MIN(task.creationDate) AS first, MAX(task.creationDate) AS last,
+          COUNT(*) FILTER (WHERE task.status = 3) AS completed
+        ${from} GROUP BY kind`
+      ),
+      ...values
+    );
+    const months =
+      options.byMonth &&
+      allRows<{ kind: string; month: string | null; n: number }>(
+        this.db.prepare(
+          `SELECT ${kind} AS kind, ${monthSql('task.creationDate')} AS month, COUNT(*) AS n
+          ${from} GROUP BY kind, month`
+        ),
+        ...values
+      );
+    // A kind's survey, with its months when asked.
+    const ofKind = (name: string): KindSurvey => ({
+      ...created(rows.find(row => row.kind === name)),
+      ...(months && { byMonth: countsByMonth(months.filter(row => row.kind === name)) }),
+    });
+    const tasks = rows.find(row => row.kind === 'tasks');
+    return {
+      tasks: {
+        ...ofKind('tasks'),
+        measures: [{ key: 'completed', label: 'completed', value: tasks?.completed ?? 0 }],
+      },
+      projects: ofKind('projects'),
+    };
+  }
+
+  /** Tasks, projects and headings last modified within since and until, inclusive. */
+  private taskFilter(): { conditions: string[]; values: Array<number | string> } {
+    const { conditions, values } = timeRangeConditions('task.userModificationDate', this.config, {
+      sinceOp: '>=',
+      untilOp: '<=',
+    });
+    return { conditions: ['task.type IN (0, 1, 2)', ...conditions], values };
   }
 
   private async getEnrichedAreas(areaIds: string[]): Promise<Map<string, any>> {

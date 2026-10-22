@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
+import { countMonth } from '@chronicle.app/etl';
 import { ArcTimelineExtractor, ArcTimelineTransformer } from '../dist/index.js';
 
 // An explicit identity keeps the host's iCloud account out of the test.
@@ -129,6 +130,43 @@ async function transform(record) {
   const [node] = await new ArcTimelineTransformer().performTransform(record);
   return node.data;
 }
+
+async function survey(input, config = {}, options = {}) {
+  const extractor = new ArcTimelineExtractor({ input, identity, ...config });
+  return extractor.survey(options);
+}
+
+test('a survey counts the visits and travels a run reads, whatever its limit, and when', async t => {
+  const input = fixture(t);
+  const rows = await records(input);
+  const expected = {};
+  for (const kind of ['visits', 'travels']) {
+    const starts = rows
+      .filter(row => row.extraction.recordType === kind)
+      .map(row => Date.parse(row.data.base.startDate));
+    expected[kind] = {
+      count: starts.length,
+      ...(starts.length > 0 && {
+        earliest: new Date(Math.min(...starts)),
+        latest: new Date(Math.max(...starts)),
+      }),
+    };
+  }
+  assert.deepEqual(await survey(input, { limit: 1 }), expected);
+  // By month when asked, by when each started, in local time.
+  const months = await survey(input, {}, { byMonth: true });
+  for (const kind of ['visits', 'travels']) {
+    const tally = {};
+    for (const row of rows.filter(row => row.extraction.recordType === kind))
+      countMonth(tally, new Date(row.data.base.startDate));
+    assert.deepEqual(months[kind].byMonth, tally);
+  }
+  const since = new Date(Math.max(...rows.map(row => Date.parse(row.data.base.startDate))));
+  const later = await survey(input, { since });
+  const kept = await records(input, { since });
+  for (const kind of ['visits', 'travels'])
+    assert.equal(later[kind].count, kept.filter(row => row.extraction.recordType === kind).length);
+});
 
 test('visits and trips become schema-valid actions, newest first', async t => {
   const input = fixture(t);

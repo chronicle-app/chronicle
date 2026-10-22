@@ -2,7 +2,7 @@ import { createReadStream, promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import readline from 'node:readline';
-import { Extractor, Record } from '@chronicle.app/etl';
+import { Extractor, Record, countMonth, type Survey, type SurveyOptions } from '@chronicle.app/etl';
 import { z } from 'zod';
 import ClaudeCodeTransformer from './ClaudeCodeTransformer.js';
 
@@ -194,6 +194,41 @@ export class ClaudeCodeExtractor extends Extractor<typeof ClaudeCodeExtractor> {
         count++;
       }
     }
+  }
+
+  /**
+   * The messages a run reads, when, and in how many sessions, from reading
+   * every transcript: nothing else in them says how many messages they hold.
+   */
+  override async survey(options: SurveyOptions = {}): Promise<Survey> {
+    // Every message in range, whatever the run's limit.
+    const all = new ClaudeCodeExtractor({ ...this.config, limit: undefined });
+    let count = 0;
+    let earliest: Date | undefined;
+    let latest: Date | undefined;
+    const sessions = new Set<string>();
+    const byMonth: { [month: string]: number } = {};
+    await all.setup();
+    try {
+      for await (const { data, context } of all.extract()) {
+        count++;
+        sessions.add(context.sessionId);
+        const time = new Date(data.timestamp);
+        if (!earliest || time < earliest) earliest = time;
+        if (!latest || time > latest) latest = time;
+        if (options.byMonth) countMonth(byMonth, time);
+      }
+    } finally {
+      await all.teardown();
+    }
+    return {
+      messages: {
+        count,
+        ...(earliest && { earliest, latest }),
+        measures: [{ key: 'sessions', label: 'sessions', value: sessions.size }],
+        ...(options.byMonth && { byMonth }),
+      },
+    };
   }
 
   /** Apply the assistant and tools flags to a parsed session, in file order. */

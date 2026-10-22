@@ -1,8 +1,16 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { Record } from '@chronicle.app/etl';
+import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
 import { nodeKey } from '@chronicle.app/schema';
-import { SqliteExtractor, iterateRows, safariToUnixTimestamp } from '@chronicle.app/etl-sqlite';
+import {
+  SqliteExtractor,
+  allRows,
+  countsByMonth,
+  iterateRows,
+  monthSql,
+  safariToUnixTimestamp,
+  APPLE_EPOCH_OFFSET_SECONDS,
+} from '@chronicle.app/etl-sqlite';
 import { z } from 'zod';
 import { CURRENT_USER, recordCreator, shareParticipants, type Participant } from '../cloudKit.js';
 import {
@@ -484,6 +492,43 @@ export class AppleNotesExtractor extends AppleNotesBaseExtractor {
       };
       yield this.createRecord(note, { recordType: 'notes', occurredAt: lastEdit.at });
     }
+  }
+
+  /**
+   * The notes a run reads, and when they were made. Null with since or
+   * until: those keep notes by their last edit, which can be in their text,
+   * so only reading every note says which.
+   */
+  override async survey(options: SurveyOptions = {}): Promise<Survey | null> {
+    if (!this.db || this.config.since || this.config.until) return null;
+    const notes = `FROM ZICCLOUDSYNCINGOBJECT n
+        LEFT JOIN ZICNOTEDATA d ON d.ZNOTE = n.Z_PK
+        WHERE n.Z_ENT = ? AND n.ZCREATIONDATE3 IS NOT NULL
+          AND coalesce(n.ZMARKEDFORDELETION, 0) = 0`;
+    const entity = this.entity('ICNote');
+    const row = this.db
+      .prepare(
+        `SELECT COUNT(*) AS n, MIN(n.ZCREATIONDATE3) AS first, MAX(n.ZCREATIONDATE3) AS last
+        ${notes}`
+      )
+      .get(entity) as { n: number; first: number | null; last: number | null };
+    const month = monthSql(`n.ZCREATIONDATE3 + ${APPLE_EPOCH_OFFSET_SECONDS}`);
+    const byMonth =
+      options.byMonth &&
+      countsByMonth(
+        allRows<{ month: string | null; n: number }>(
+          this.db.prepare(`SELECT ${month} AS month, COUNT(*) AS n ${notes} GROUP BY month`),
+          entity
+        )
+      );
+    return {
+      notes: {
+        count: row.n,
+        ...(row.first !== null && { earliest: new Date(iso(row.first)) }),
+        ...(row.last !== null && { latest: new Date(iso(row.last)) }),
+        ...(byMonth && { byMonth }),
+      },
+    };
   }
 
   private lastEdit(row: NoteRow, body: NoteBody | null): AppleNote['lastEdit'] {

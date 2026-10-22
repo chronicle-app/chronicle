@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { monthKey } from '@chronicle.app/etl';
 import { ShellHistoryExtractor, ShellHistoryTransformer } from '../dist/index.js';
 
 async function extract(t, content, config = {}) {
@@ -18,6 +19,40 @@ async function extract(t, content, config = {}) {
     await extractor.teardown();
   }
 }
+async function survey(t, content, config = {}, options = {}) {
+  const dir = mkdtempSync(join(tmpdir(), 'shell-fixture-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const input = join(dir, 'history');
+  writeFileSync(input, content);
+  const extractor = new ShellHistoryExtractor({ input, ...config });
+  try {
+    await extractor.setup();
+    return await extractor.survey(options);
+  } finally {
+    await extractor.teardown();
+  }
+}
+test('a survey counts the commands a run reads, and when, whatever its limit', async t => {
+  const content = ': 0:0;echo first\n: 2:0;echo second\n: 5:0;echo first\n';
+  const rows = await extract(t, content);
+  assert.deepEqual(await survey(t, content, { limit: 1 }), {
+    commands: {
+      count: rows.length,
+      earliest: new Date(0),
+      latest: new Date(5000),
+      measures: [{ key: 'distinctCommands', label: 'different', value: 2 }],
+    },
+  });
+  assert.equal((await survey(t, content, { since: new Date(1000) })).commands.count, 2);
+  // By month when asked, in local time.
+  assert.deepEqual((await survey(t, content, {}, { byMonth: true })).commands.byMonth, {
+    [monthKey(new Date(0))]: 3,
+  });
+  // Commands without a time count, but date nothing.
+  assert.deepEqual(await survey(t, 'echo unknown\n', { shell: 'bash' }), {
+    commands: { count: 1, measures: [{ key: 'distinctCommands', label: 'different', value: 1 }] },
+  });
+});
 for (const [shell, content] of [
   ['zsh', ': 0:0;echo first\n: 2:0;echo second\n'],
   ['bash', '#0\necho first\n#2\necho second\n'],

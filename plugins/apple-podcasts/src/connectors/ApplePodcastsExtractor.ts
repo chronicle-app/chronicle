@@ -1,12 +1,22 @@
-import { AuthRequired, Record, htmlToText } from '@chronicle.app/etl';
+import {
+  AuthRequired,
+  Record,
+  htmlToText,
+  type Survey,
+  type SurveyOptions,
+} from '@chronicle.app/etl';
 import { getICloudAccount } from '@chronicle.app/apple';
 import {
   SqliteExtractor,
   TimeRange,
+  allRows,
+  countsByMonth,
   iterateRows,
+  monthSql,
   safariToUnixTimestamp,
   timeRangeConditions,
   unixToSafariTimestamp,
+  APPLE_EPOCH_OFFSET_SECONDS,
 } from '@chronicle.app/etl-sqlite';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -37,6 +47,9 @@ const LISTENED_AT =
 // When a saved episode was saved, as the transformer dates its bookmark.
 const SAVED_AT = `COALESCE(e.ZLASTBOOKMARKEDDATE, ${LISTENED_AT})`;
 
+// Whether an episode was played, as the transformer decides it.
+const PLAYED = '(e.ZPLAYCOUNT > 0 OR e.ZPLAYHEAD > 10)';
+
 // Episodes and shows are keyed by Apple's catalog ID, which is the same on each
 // device. The library's own UUIDs differ from one device to the next, so what
 // isn't in the catalog has no key and is left out.
@@ -59,6 +72,15 @@ function inRange(column: string, range: TimeRange) {
 // Core Data timestamps are seconds since 2001-01-01, same epoch as Safari.
 function toUnix(appleTimestamp: number | null | undefined): number | null {
   return appleTimestamp ? safariToUnixTimestamp(appleTimestamp) : null;
+}
+
+// The earliest and latest of a survey, from the first and last Apple timestamps.
+function span({ first, last }: { first: number | null; last: number | null }) {
+  const [earliest, latest] = [toUnix(first), toUnix(last)];
+  return {
+    ...(earliest !== null && { earliest: new Date(earliest * 1000) }),
+    ...(latest !== null && { latest: new Date(latest * 1000) }),
+  };
 }
 
 export class ApplePodcastsExtractor extends SqliteExtractor<typeof ApplePodcastsExtractor> {
@@ -163,7 +185,7 @@ export class ApplePodcastsExtractor extends SqliteExtractor<typeof ApplePodcasts
   private episodeFilter(): { where: string; values: Array<number | string> } {
     const listened = inRange(LISTENED_AT, this.config);
     const saved = inRange(SAVED_AT, this.config);
-    const played = ['(e.ZPLAYCOUNT > 0 OR e.ZPLAYHEAD > 10)', ...listened.conditions];
+    const played = [PLAYED, ...listened.conditions];
     const bookmarked = ['e.ZISBOOKMARKED = 1', ...saved.conditions];
     return {
       where: `((${played.join(' AND ')}) OR (${bookmarked.join(' AND ')}))`,
@@ -343,5 +365,57 @@ export class ApplePodcastsExtractor extends SqliteExtractor<typeof ApplePodcasts
     } catch {
       return null;
     }
+  }
+
+  /**
+   * The episodes and followed shows a run reads, and when: an episode by its
+   * listen, or by its save when it wasn't played, and a show by when it was
+   * followed. With how many shows the episodes are of.
+   */
+  override async survey(options: SurveyOptions = {}): Promise<Survey | null> {
+    if (!this.db) return null;
+    const { where, values } = this.episodeFilter();
+    const listenedAt = `CASE WHEN ${PLAYED} THEN ${LISTENED_AT} ELSE ${SAVED_AT} END`;
+    const episodeRows = `FROM ZMTEPISODE e ${EPISODE_SYNC}
+         WHERE ${where} AND ${EPISODE_IN_CATALOG}`;
+    const showRows = `FROM ZMTPODCAST WHERE ZSUBSCRIBED = 1 AND ${SHOW_IN_CATALOG}`;
+    const episodes = this.db
+      .prepare(
+        `SELECT COUNT(*) AS n, MIN(${listenedAt}) AS first, MAX(${listenedAt}) AS last,
+           COUNT(DISTINCT e.ZPODCASTUUID) AS shows
+         ${episodeRows}`
+      )
+      .get(...values) as { n: number; first: number | null; last: number | null; shows: number };
+    const shows = this.db
+      .prepare(
+        `SELECT COUNT(*) AS n, MIN(ZADDEDDATE) AS first, MAX(ZADDEDDATE) AS last ${showRows}`
+      )
+      .get() as { n: number; first: number | null; last: number | null };
+    const listenMonths = options.byMonth && this.byMonth(listenedAt, episodeRows, values);
+    const showMonths = options.byMonth && this.byMonth('ZADDEDDATE', showRows);
+    return {
+      listens: {
+        count: episodes.n,
+        ...span(episodes),
+        ...(listenMonths && { byMonth: listenMonths }),
+        measures: [{ key: 'shows', label: 'shows', value: episodes.shows }],
+      },
+      subscriptions: {
+        count: shows.n,
+        ...span(shows),
+        ...(showMonths && { byMonth: showMonths }),
+      },
+    };
+  }
+
+  /** How many rows each month holds, by an Apple timestamp, over a survey's FROM and WHERE. */
+  private byMonth(appleTime: string, rows: string, values: Array<number | string> = []) {
+    const month = monthSql(`${appleTime} + ${APPLE_EPOCH_OFFSET_SECONDS}`);
+    return countsByMonth(
+      allRows<{ month: string | null; n: number }>(
+        this.db!.prepare(`SELECT ${month} AS month, COUNT(*) AS n ${rows} GROUP BY month`),
+        ...values
+      )
+    );
   }
 }

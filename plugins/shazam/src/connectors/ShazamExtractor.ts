@@ -1,9 +1,12 @@
-import { Record } from '@chronicle.app/etl';
+import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
 import {
   APPLE_EPOCH_OFFSET_SECONDS,
   SqliteExtractor,
+  allRows,
+  countsByMonth,
   getRow,
   iterateRows,
+  monthSql,
   timeRangeConditions,
   unixToSafariTimestamp,
 } from '@chronicle.app/etl-sqlite';
@@ -230,6 +233,48 @@ export class ShazamExtractor extends SqliteExtractor<typeof ShazamExtractor> {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * The Shazams a run reads and when, of how many songs, by how many artists:
+   * by Shazam's artist line, as a run without linkArtists keys them.
+   */
+  override async survey(options: SurveyOptions = {}): Promise<Survey | null> {
+    if (!this.db) return null;
+    const { sql, values } = this.query(
+      `COUNT(*) AS n, MIN(ZDATE) AS first, MAX(ZDATE) AS last,
+       COUNT(DISTINCT ZSHAZAMKEY) AS songs, COUNT(DISTINCT ZSUBTITLE) AS artists`
+    );
+    const row = getRow<{
+      n: number;
+      first: number | null;
+      last: number | null;
+      songs: number;
+      artists: number;
+    }>(this.db.prepare(sql), ...values)!;
+    const months = this.query(
+      `${monthSql(`ZDATE + ${APPLE_EPOCH_OFFSET_SECONDS}`)} AS month, COUNT(*) AS n`
+    );
+    const byMonth =
+      options.byMonth &&
+      countsByMonth(
+        allRows<{ month: string | null; n: number }>(
+          this.db.prepare(`${months.sql} GROUP BY month`),
+          ...months.values
+        )
+      );
+    return {
+      listens: {
+        count: row.n,
+        ...(row.first !== null && { earliest: new Date(appleDate(row.first)) }),
+        ...(row.last !== null && { latest: new Date(appleDate(row.last)) }),
+        ...(byMonth && { byMonth }),
+        measures: [
+          { key: 'songs', label: 'songs', value: row.songs },
+          { key: 'artists', label: 'artists', value: row.artists },
+        ],
+      },
+    };
   }
 }
 

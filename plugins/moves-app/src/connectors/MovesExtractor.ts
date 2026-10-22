@@ -1,4 +1,12 @@
-import { Extractor, Record, selfAgent } from '@chronicle.app/etl';
+import {
+  Extractor,
+  Record,
+  countMonth,
+  selfAgent,
+  type KindSurvey,
+  type Survey,
+  type SurveyOptions,
+} from '@chronicle.app/etl';
 import { AgentAndChildren } from '@chronicle.app/schema';
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -87,26 +95,47 @@ export class MovesExtractor extends Extractor<typeof MovesExtractor> {
   }
 
   override async determineCount(): Promise<number | null> {
-    const config = this.config as z.infer<typeof MovesExtractor.schema>;
-
     try {
-      const seen = new Set<string>();
-      for await (const day of this.readDays(config.input)) {
-        for (const segment of day.segments ?? []) {
-          for (const item of this.selectFrom(segment)) {
-            const start = parseMovesTime(item.data.startTime);
-            if (!start) continue;
-            if (config.since && start < config.since) continue;
-            if (config.until && start > config.until) continue;
-            seen.add(`${item.recordType}:${start.toISOString()}`);
-          }
-        }
-      }
+      const { places, moves } = await this.survey();
+      const total = places.count + moves.count;
       const limit = this.getEffectiveLimit();
-      return limit === null ? seen.size : Math.min(seen.size, limit);
+      return limit === null ? total : Math.min(total, limit);
     } catch {
       return null;
     }
+  }
+
+  /**
+   * The places and moves a run reads, and when they started, from every day
+   * in range: the export has no index, so each day is read. A segment that
+   * spans midnight is in both days' files, and counts once, as a run reads it.
+   */
+  override async survey(
+    options: SurveyOptions = {}
+  ): Promise<{ places: KindSurvey; moves: KindSurvey } & Survey> {
+    const config = this.config as z.infer<typeof MovesExtractor.schema>;
+    const kind = (): KindSurvey => ({ count: 0, ...(options.byMonth && { byMonth: {} }) });
+    const kinds = { places: kind(), moves: kind() };
+    const seen = new Set<string>();
+    for await (const day of this.readDays(config.input)) {
+      for (const segment of day.segments ?? []) {
+        for (const item of this.selectFrom(segment)) {
+          const start = parseMovesTime(item.data.startTime);
+          if (!start) continue;
+          if (config.since && start < config.since) continue;
+          if (config.until && start > config.until) continue;
+          const marker = `${item.recordType}:${start.toISOString()}`;
+          if (seen.has(marker)) continue;
+          seen.add(marker);
+          const counted = kinds[item.recordType];
+          counted.count++;
+          if (!counted.earliest || start < counted.earliest) counted.earliest = start;
+          if (!counted.latest || start > counted.latest) counted.latest = start;
+          if (counted.byMonth) countMonth(counted.byMonth, start);
+        }
+      }
+    }
+    return kinds;
   }
 
   // The records a segment yields. A stay is one record. Movement splits into

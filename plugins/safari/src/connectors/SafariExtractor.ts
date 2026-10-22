@@ -1,7 +1,9 @@
-import { Record } from '@chronicle.app/etl';
+import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
 import {
   APPLE_EPOCH_OFFSET_SECONDS,
   SqliteExtractor,
+  countsByMonth,
+  monthSql,
   timeRangeConditions,
   unixToSafariTimestamp,
   iterateRows,
@@ -12,6 +14,9 @@ import SafariTransformer from './SafariTransformer.js';
 
 // since/until bounds land on visit_time, which is seconds since the Apple epoch
 const safariBound = (date: Date) => unixToSafariTimestamp(Math.floor(date.getTime() / 1000));
+
+// A visit's time as a record gives it: whole Unix seconds.
+const visitTime = `cast(history_visits.visit_time + ${APPLE_EPOCH_OFFSET_SECONDS} as integer)`;
 
 export class SafariExtractor extends SqliteExtractor<typeof SafariExtractor> {
   static override source = 'safari';
@@ -71,7 +76,7 @@ export class SafariExtractor extends SqliteExtractor<typeof SafariExtractor> {
              history_visits.visit_time,
              history_visits.title,
              history_items.url,
-             cast(history_visits.visit_time + ${APPLE_EPOCH_OFFSET_SECONDS} as integer) AS unix_timestamp,
+             ${visitTime} AS unix_timestamp,
              datetime(history_visits.visit_time + ${APPLE_EPOCH_OFFSET_SECONDS}, 'unixepoch') AS visit_datetime,
              history_visits.origin
       FROM history_visits
@@ -128,5 +133,39 @@ export class SafariExtractor extends SqliteExtractor<typeof SafariExtractor> {
     } catch {
       return null;
     }
+  }
+
+  /** The visits a run reads and when, with how many pages they were to. */
+  override async survey(options: SurveyOptions = {}): Promise<Survey | null> {
+    if (!this.db) return null;
+    const { where, values } = this.visitFilter();
+    const row = this.db
+      .prepare(
+        `SELECT COUNT(*) AS n, MIN(${visitTime}) AS first, MAX(${visitTime}) AS last,
+          COUNT(DISTINCT history_items.id) AS pages FROM history_visits
+         LEFT JOIN history_items ON history_items.id = history_visits.history_item
+         WHERE ${where}`
+      )
+      .get(...values) as { n: number; first: number | null; last: number | null; pages: number };
+    const byMonth =
+      options.byMonth &&
+      countsByMonth(
+        this.db
+          .prepare(
+            `SELECT ${monthSql(visitTime)} AS month, COUNT(*) AS n FROM history_visits
+             LEFT JOIN history_items ON history_items.id = history_visits.history_item
+             WHERE ${where} GROUP BY month`
+          )
+          .all(...values) as Array<{ month: string | null; n: number }>
+      );
+    return {
+      views: {
+        count: row.n,
+        ...(row.first !== null && { earliest: new Date(row.first * 1000) }),
+        ...(row.last !== null && { latest: new Date(row.last * 1000) }),
+        ...(byMonth && { byMonth }),
+        measures: [{ key: 'pages', label: 'pages', value: row.pages }],
+      },
+    };
   }
 }

@@ -1,5 +1,10 @@
-import { Record } from '@chronicle.app/etl';
-import { SqliteExtractor, timeRangeConditions } from '@chronicle.app/etl-sqlite';
+import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
+import {
+  SqliteExtractor,
+  countsByMonth,
+  monthSql,
+  timeRangeConditions,
+} from '@chronicle.app/etl-sqlite';
 import { getICloudAccount } from '@chronicle.app/apple';
 import { z } from 'zod';
 import FoodNomsTransformer from './FoodNomsTransformer.js';
@@ -68,21 +73,22 @@ export class FoodNomsExtractor extends SqliteExtractor<typeof FoodNomsExtractor>
     return date.toISOString().replace('T', ' ').replace('Z', '');
   }
 
-  async *extract(): AsyncGenerator<Record> {
-    if (!this.db) {
-      throw new Error('Database not initialized');
-    }
-
-    const conditions = [`1=1`];
-    const values: any[] = [];
-
+  /** Entries within since and until, both inclusive. */
+  private entryFilter(): { where: string; values: Array<number | string> } {
     const range = timeRangeConditions('f.date', this.config, {
       convert: date => this.toDbDate(date),
       sinceOp: '>=',
       untilOp: '<=',
     });
-    conditions.push(...range.conditions);
-    values.push(...range.values);
+    return { where: [`1=1`, ...range.conditions].join(' AND '), values: range.values };
+  }
+
+  async *extract(): AsyncGenerator<Record> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    const { where, values } = this.entryFilter();
 
     const limit = this.getEffectiveLimit();
     if (limit !== null) {
@@ -123,7 +129,7 @@ export class FoodNomsExtractor extends SqliteExtractor<typeof FoodNomsExtractor>
         END as mealSortIndex
       FROM foodEntryRecord f
       LEFT JOIN mealTypeRecord m ON f.mealTypeID = m.mealTypeID
-      WHERE ${conditions.join(' AND ')}
+      WHERE ${where}
       ORDER BY f.date DESC
       ${limit === null ? '' : 'LIMIT ?'}
     `;
@@ -179,5 +185,42 @@ export class FoodNomsExtractor extends SqliteExtractor<typeof FoodNomsExtractor>
         account,
       });
     }
+  }
+
+  /** The items a run reads, each one food or drink logged, and when they were eaten. */
+  override async survey(options: SurveyOptions = {}): Promise<Survey | null> {
+    if (!this.db) return null;
+    const { where, values } = this.entryFilter();
+    const row = this.db
+      .prepare(
+        `SELECT COUNT(*) AS n, MIN(f.date) AS first, MAX(f.date) AS last
+        FROM foodEntryRecord f
+        LEFT JOIN mealTypeRecord m ON f.mealTypeID = m.mealTypeID
+        WHERE ${where}`
+      )
+      .get(...values) as { n: number; first: string | null; last: string | null };
+    // strftime reads the naive date strings as UTC too.
+    const byMonth =
+      options.byMonth &&
+      countsByMonth(
+        this.db
+          .prepare(
+            `SELECT ${monthSql(`CAST(strftime('%s', f.date) AS INTEGER)`)} AS month, COUNT(*) AS n
+            FROM foodEntryRecord f
+            LEFT JOIN mealTypeRecord m ON f.mealTypeID = m.mealTypeID
+            WHERE ${where} GROUP BY month`
+          )
+          .all(...values) as Array<{ month: string | null; n: number }>
+      );
+    // Naive UTC date strings, read as the UTC instants they are, as extract() does.
+    return {
+      meals: {
+        count: row.n,
+        label: 'items',
+        ...(row.first !== null && { earliest: new Date(row.first + 'Z') }),
+        ...(row.last !== null && { latest: new Date(row.last + 'Z') }),
+        ...(byMonth && { byMonth }),
+      },
+    };
   }
 }

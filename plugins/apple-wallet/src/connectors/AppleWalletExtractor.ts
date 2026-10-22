@@ -1,12 +1,14 @@
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { Record } from '@chronicle.app/etl';
+import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
 import {
   APPLE_EPOCH_OFFSET_SECONDS,
   SqliteExtractor,
   allRows,
+  countsByMonth,
   getRow,
   iterateRows,
+  monthSql,
   timeRangeConditions,
   unixToSafariTimestamp,
 } from '@chronicle.app/etl-sqlite';
@@ -306,6 +308,37 @@ export class AppleWalletExtractor extends SqliteExtractor<typeof AppleWalletExtr
     } catch {
       return null;
     }
+  }
+
+  /** The transactions a run reads, and when they were made. */
+  override async survey(options: SurveyOptions = {}): Promise<Survey | null> {
+    if (!this.db) return null;
+    const { sql, values } = this.query(
+      'COUNT(*) AS n, MIN(transaction_date) AS first, MAX(transaction_date) AS last'
+    );
+    const { n, first, last } = getRow<{ n: number; first: number | null; last: number | null }>(
+      this.db.prepare(sql),
+      ...values
+    )!;
+    const months = this.query(
+      `${monthSql(`transaction_date + ${APPLE_EPOCH_OFFSET_SECONDS}`)} AS month, COUNT(*) AS n`
+    );
+    const byMonth =
+      options.byMonth &&
+      countsByMonth(
+        allRows<{ month: string | null; n: number }>(
+          this.db.prepare(`${months.sql} GROUP BY month`),
+          ...months.values
+        )
+      );
+    return {
+      transactions: {
+        count: n,
+        ...(first !== null && { earliest: new Date(appleDate(first)) }),
+        ...(last !== null && { latest: new Date(appleDate(last)) }),
+        ...(byMonth && { byMonth }),
+      },
+    };
   }
 }
 
