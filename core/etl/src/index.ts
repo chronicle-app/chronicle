@@ -7,6 +7,15 @@ export {
   type Location,
   type LocationMatch,
 } from './locator.js';
+export {
+  countMonth,
+  mergeSurveys,
+  monthKey,
+  type KindSurvey,
+  type Measure,
+  type Survey,
+  type SurveyOptions,
+} from './survey.js';
 export { Transformer } from './transformer.js';
 export { ChronicleTransformer } from './ChronicleTransformer.js';
 export { NullTransformer } from './null-transformer.js';
