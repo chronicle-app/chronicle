@@ -18,7 +18,8 @@ styled. Commands, loaders, and sinks build their text from this module.
   readable columns hiding schema properties). See
   [Writing messages](#writing-messages).
 - **No boxes, no `====` underlines, no emoji.** One glyph set (`glyphs`):
-  `✓ ✗ ! · → ↳ ━ ─ …`, braille spinner frames, and `❯ ◉ ○` for pickers.
+  `✓ ✗ ! · → ↳ ━ ─ …`, braille spinner frames, `❯ ◉ ○` for pickers, and
+  `▏▎▍▌▋▊▉█` for bars measured in eighths of a character.
 - **Color only carries meaning** (`tokens`): status (`success`, `danger`,
   `warning`), emphasis (`strong`), de-emphasis (`muted`), one `accent` (the
   brand red) for live elements, and cyan for something to type (`code`,
@@ -97,8 +98,8 @@ redacted.
   color detection, `NO_COLOR`, and `--theme` handled once. `plainTokens` style
   nothing. `jsonColors(theme)`: the JSON loader's syntax colors.
 - `glyphs`: the glyph set.
-- Formatters: `count`, `duration`, `clock`, `plural`, `date`, `truncate`,
-  `relativePath`.
+- Formatters: `count`, `bytes`, `duration`, `clock`, `plural`, `date`,
+  `truncate`, `relativePath`.
 - Blocks, each returning strings cut to a width: `line`, `summary`, `hint`,
   `guide`, `heading`, `paragraph`, `definitions` (terms and their text, as
   help lists flags and commands), `list`, `caption`, `card`, `table`, and

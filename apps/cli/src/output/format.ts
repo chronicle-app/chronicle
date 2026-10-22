@@ -16,6 +16,17 @@ export function duration(ms: number): string {
   return `${Math.floor(m / 60)}h ${pad2(m % 60)}m`;
 }
 
+/** A size in the units Finder shows, by thousands: 812 B, 4.2 MB, 107 GB. */
+export function bytes(n: number): string {
+  const units = ['B', 'kB', 'MB', 'GB', 'TB', 'PB'];
+  let i = 0;
+  while (n >= 1000 && i < units.length - 1) {
+    n /= 1000;
+    i++;
+  }
+  return `${i > 0 && n < 10 ? n.toFixed(1) : Math.round(n)} ${units[i]}`;
+}
+
 /** A running clock: 0:07, 12:31, 1:02:09. */
 export function clock(ms: number): string {
   const s = Math.floor(ms / 1000);

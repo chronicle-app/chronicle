@@ -820,6 +820,132 @@ test('sources scan finds what a home folder holds, with a command that extracts 
   assert.match(unknown.stderr, /chronicle sources --all/);
 });
 
+test('survey counts what each ready source holds, and says what it left out', t => {
+  const { dir, run } = fixture(t);
+  const { home } = scanHome(dir);
+  const survey = run.with({ HOME: home, GH_TOKEN: 'synthetic-token' });
+  const surveyed = JSON.parse(success(survey('survey', '--format', 'json')));
+  const of = (source, label) => surveyed.find(r => r.source === source && r.label === label);
+  assert.equal(of('shell', '~/.zsh_history').command, 'chronicle extract shell');
+  assert.deepEqual(of('shell', '~/.zsh_history').survey, {
+    commands: {
+      count: 1,
+      earliest: '2023-11-14T22:13:20.000Z',
+      latest: '2023-11-14T22:13:20.000Z',
+      measures: [{ key: 'distinctCommands', label: 'different', value: 1 }],
+    },
+  });
+  assert.equal(surveyed.find(r => r.source === 'obsidian').survey.notes.count, 1);
+  // A History that isn't a database fails its survey, and says why.
+  assert.equal(of('chrome', 'Personal').survey, null);
+  assert.ok(of('chrome', 'Personal').error);
+  // A source online is listed but not counted; one that isn't ready isn't listed.
+  assert.equal(of('github', 'GH_TOKEN').survey, null);
+  assert.equal(of('github', 'GH_TOKEN').online, true);
+  assert.equal(of('shell', '~/.bash_history'), undefined);
+
+  const shown = survey('survey');
+  assert.equal(shown.status, 0, shown.stderr);
+  assert.match(shown.stdout, /^source +found +records +years +more$/m);
+  assert.match(shown.stdout, /~\/\.zsh_history +1 command +2023 +1 different/);
+  assert.match(shown.stderr, /Couldn't count 2 sources/);
+  assert.match(shown.stdout, /^github +GH_TOKEN +online, not counted/m);
+  assert.match(shown.stderr, /1 source found isn't ready/);
+  // One source: what it is and where it was read from, then its records' count, first and last.
+  const detail = success(survey('survey', 'shell'));
+  assert.match(detail, /^shell {2}Shell history/m);
+  assert.match(detail, /^`~\/\.zsh_history` {2}\d+ B · changed /m);
+  assert.match(detail, /^1 command$/m);
+  assert.match(detail, /^ {2}first +2023-11-1\d \d\d:\d\d$/m);
+  assert.match(detail, /^ {2}different +1$/m);
+  // A single year has no bars: its count says it all.
+  assert.doesNotMatch(detail, /█/);
+  const [zsh] = JSON.parse(success(survey('survey', 'shell', '--format', 'json')));
+  assert.deepEqual(zsh.survey.commands.byMonth, { '2023-11': 1 });
+  // Every source's survey leaves months out; a scan points to it.
+  assert.match(survey('sources', 'scan').stderr, /chronicle survey/);
+  assert.notEqual(survey('survey', 'no-such-source').status, 0);
+});
+
+test('survey takes the options extract does, and counts an export it is pointed at', t => {
+  const { dir, run } = fixture(t);
+  const { home } = scanHome(dir);
+  const survey = run.with({ HOME: home });
+  const storyline = join(dir, 'moves', 'json', 'daily', 'storyline');
+  mkdirSync(storyline, { recursive: true });
+  const place = { id: 1, name: 'Somewhere', type: 'user', location: { lat: 1, lon: 2 } };
+  writeFileSync(
+    join(storyline, 'storyline_20150101.json'),
+    JSON.stringify([
+      {
+        date: '20150101',
+        segments: [
+          {
+            type: 'place',
+            startTime: '20150101T090000-0300',
+            endTime: '20150101T100000-0300',
+            place,
+          },
+        ],
+      },
+    ])
+  );
+  writeFileSync(
+    join(storyline, 'storyline_20140509.json'),
+    JSON.stringify([
+      {
+        date: '20140509',
+        segments: [
+          {
+            type: 'place',
+            startTime: '20140509T090000-0300',
+            endTime: '20140509T100000-0300',
+            place,
+          },
+        ],
+      },
+    ])
+  );
+  const input = join(dir, 'moves');
+  const [counted] = JSON.parse(
+    success(survey('survey', 'moves-app', '--input', input, '--format', 'json'))
+  );
+  assert.equal(counted.label, input);
+  assert.match(counted.command, /^chronicle extract moves-app --input /);
+  assert.deepEqual(counted.survey, {
+    places: {
+      count: 2,
+      earliest: '2014-05-09T12:00:00.000Z',
+      latest: '2015-01-01T12:00:00.000Z',
+      byMonth: { '2014-05': 1, '2015-01': 1 },
+    },
+    moves: { count: 0, byMonth: {} },
+  });
+  // Years when there are several, each a bar against the busiest.
+  const years = success(survey('survey', 'moves-app', '--input', input));
+  assert.match(years, /^2 places$/m);
+  assert.match(years, /^ {2}2014 {2}█{30} {2}1$/m);
+  assert.match(years, /^ {2}2015 {2}█{30} {2}1$/m);
+  // Without one: where to point it.
+  const bare = survey('survey', 'moves-app');
+  assert.equal(bare.status, 2);
+  assert.match(bare.stderr, /moves-app reads an export you point it at/);
+  assert.match(bare.stderr, /chronicle survey moves-app --input <path>/);
+  assert.match(survey('survey', 'moves-app', '--input', join(dir, 'gone')).stderr, /Nothing at/);
+  // A source's own help lists its options beside survey's.
+  const help = success(survey('survey', 'moves-app', '--help'));
+  assert.match(help, /chronicle survey moves-app/);
+  assert.match(help, /--input/);
+  assert.match(help, /--format/);
+  assert.doesNotMatch(help, /--loader|--output/);
+  // Options alone are one run: since a date, and in the command that extracts it.
+  const [since] = JSON.parse(
+    success(survey('survey', 'shell', '--since', '2024-01-01', '--format', 'json'))
+  );
+  assert.equal(since.command, 'chronicle extract shell --since 2024-01-01');
+  assert.equal(since.survey.commands.count, 0);
+});
+
 test(
   'sources scan finds a source whose plugin is not installed, from the catalog',
   { skip: process.env.CHRONICLE_TEST_BIN && 'every plugin is installed in the packed check' },

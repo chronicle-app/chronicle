@@ -132,6 +132,8 @@ export default class SourcesScan extends BaseCommand<typeof SourcesScan> {
   private hints(rows: ScanRow[], source?: string): void {
     const ready = rows.filter(row => row.installed && row.status === 'ready');
     if (ready.length > 0) {
+      const survey = ['chronicle survey', source].filter(Boolean).join(' ');
+      this.hint(`Run \`${survey}\` to see how much ${ready.length === 1 ? 'it' : 'each'} holds.`);
       this.hint(extractHint(ready));
     }
     const blocked = rows.filter(row => row.status === 'blocked');

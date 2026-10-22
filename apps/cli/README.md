@@ -25,7 +25,9 @@ Run `chronicle sources` to list sources and any that aren't installed (`--all`
 adds sources for services that no longer exist), `chronicle sources scan` to
 find the ones on this computer and the command that extracts each,
 `chronicle sources info <source>` to see one, and `chronicle extract <source> --help`
-for options. The CLI bundles `shell`, `imessage`, `safari`, `things-todo`, and
+for options. `chronicle survey` counts what each source found holds and over
+which years; `chronicle survey <source>` takes the options `extract` does, so
+`chronicle survey moves-app --input ~/moves_export` counts an export first. The CLI bundles `shell`, `imessage`, `safari`, `things-todo`, and
 `claude-code`; `chronicle plugins install <name>` adds any other catalog source.
 
 JSON is the default; use `--loader csv`, `yaml`, or `table`, and `--output <file>`
