@@ -245,15 +245,16 @@ function folder({ id, title }: NonNullable<AppleNote['folder']>, owner: Person |
 }
 
 const MEDIA: Array<[RegExp, MediaObjectAndChildren['@type']]> = [
-  [/jpeg|png|heic|gif|tiff|image/, 'ImageObject'],
-  [/pdf|com\.apple\.paper/, 'DocumentObject'],
+  [/jpeg|png|heic|gif|tiff|image|^com\.apple\.(paper|drawing(\.2)?)$/, 'ImageObject'],
+  [/pdf|^com\.apple\.paper\.doc/, 'DocumentObject'],
   [/audio|m4a/, 'AudioObject'],
   [/movie|video|mpeg-4|quicktime/, 'VideoObject'],
 ];
 
 /**
- * A file attachment, as the note `contains` it and its text names it. Tables,
- * drawings, and link previews aren't files, so they have none.
+ * A file attachment, as the note `contains` it and its text names it. A
+ * drawing is an image, Notes' own of it. Tables and link previews aren't
+ * files, so they have none.
  */
 export function mediaObject(a: Attachment): MediaObjectAndChildren | null {
   const { uti } = a;

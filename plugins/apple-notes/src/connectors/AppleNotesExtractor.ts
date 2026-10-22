@@ -112,6 +112,8 @@ interface AttachmentRow {
   mediaId: string | null;
   /** The folder under the media's that its current file is in. */
   generation: string | null;
+  /** The folder Notes' image of a drawing is in. */
+  fallbackGeneration: string | null;
   filename: string | null;
   accountId: string | null;
 }
@@ -298,7 +300,8 @@ abstract class AppleNotesBaseExtractor extends SqliteExtractor<typeof AppleNotes
       const rows = this.db!.prepare(
         `SELECT a.ZNOTE AS note, a.ZIDENTIFIER AS id, a.ZTYPEUTI AS uti, a.ZTITLE AS title,
                 a.ZCREATIONDATE AS created, m.ZIDENTIFIER AS mediaId, m.ZGENERATION1 AS generation,
-                m.ZFILENAME AS filename, acct.ZIDENTIFIER AS accountId
+                m.ZFILENAME AS filename, a.ZFALLBACKIMAGEGENERATION AS fallbackGeneration,
+                acct.ZIDENTIFIER AS accountId
          FROM ZICCLOUDSYNCINGOBJECT a
          LEFT JOIN ZICCLOUDSYNCINGOBJECT m ON m.Z_PK = a.ZMEDIA
          LEFT JOIN ZICCLOUDSYNCINGOBJECT acct ON acct.Z_PK = a.ZACCOUNT1
@@ -312,7 +315,7 @@ abstract class AppleNotesBaseExtractor extends SqliteExtractor<typeof AppleNotes
           uti: a.uti,
           title: a.title || null,
           created: a.created ? iso(a.created) : null,
-          file: this.mediaFile(a),
+          file: kindOf(a.uti) === 'drawing' ? this.drawingImage(a) : this.mediaFile(a),
         });
         this.attachmentsByNote.set(a.note, list);
       }
@@ -344,16 +347,28 @@ abstract class AppleNotesBaseExtractor extends SqliteExtractor<typeof AppleNotes
    */
   private mediaFile({ accountId, mediaId, generation, filename }: AttachmentRow) {
     if (!accountId || !mediaId || !generation || !filename) return null;
-    const file = path.join(
-      path.dirname(this.config.input),
-      'Accounts',
+    return this.accountFile(accountId, 'Media', mediaId, generation, filename);
+  }
+
+  /**
+   * A drawing has no file of its own, but Notes keeps an image of it, for
+   * wherever it can't draw it, in
+   * Accounts/<account>/FallbackImages/<attachment>/<generation>/.
+   */
+  private drawingImage({ accountId, id, fallbackGeneration }: AttachmentRow) {
+    if (!accountId || !fallbackGeneration) return null;
+    return this.accountFile(
       accountId,
-      'Media',
-      mediaId,
-      generation,
-      filename
+      'FallbackImages',
+      id,
+      fallbackGeneration,
+      'FallbackImage.png'
     );
-    // Not there when it isn't downloaded to this Mac.
+  }
+
+  /** A file under the account's folder, when it's downloaded to this Mac. */
+  private accountFile(account: string, ...parts: string[]) {
+    const file = path.join(path.dirname(this.config.input), 'Accounts', account, ...parts);
     return existsSync(file) ? file : null;
   }
 
@@ -372,7 +387,10 @@ abstract class AppleNotesBaseExtractor extends SqliteExtractor<typeof AppleNotes
       const attachment = byId.get(identifier);
       if (!attachment) return '[attachment]';
       const kind = kindOf(attachment.uti);
-      const name = attachment.title ?? (attachment.file ? path.basename(attachment.file) : null);
+      // A drawing's file is Notes' image of it, whose name says nothing.
+      const name =
+        attachment.title ??
+        (attachment.file && kind !== 'drawing' ? path.basename(attachment.file) : null);
       const media = mediaObject(attachment);
       if (!media) return `[${kind}${name ? `: ${name}` : ''}]`;
       const text = (name ?? kind).replaceAll(/[\\[\]]/g, '\\$&');
@@ -385,10 +403,13 @@ abstract class AppleNotesBaseExtractor extends SqliteExtractor<typeof AppleNotes
 function kindOf(uti: string | null): string {
   if (!uti) return 'attachment';
   if (/jpeg|png|heic|image|gif|tiff/.test(uti)) return 'image';
-  if (uti === 'com.apple.paper' || uti.startsWith('com.apple.paper.doc')) return 'scan';
-  if (uti === 'com.apple.drawing.2' || uti === 'com.apple.drawing') return 'drawing';
+  // Notes' current drawings are Paper, and its documents, such as a PDF you
+  // can mark up or a scan, are Paper documents.
+  if (uti === 'com.apple.paper' || uti === 'com.apple.drawing.2' || uti === 'com.apple.drawing')
+    return 'drawing';
   if (uti === 'com.apple.notes.table') return 'table';
   if (/pdf/.test(uti)) return 'pdf';
+  if (uti.startsWith('com.apple.paper.doc')) return 'scan';
   if (/audio|m4a/.test(uti)) return 'audio';
   if (/movie|video|mpeg-4|quicktime/.test(uti)) return 'video';
   if (/url/.test(uti)) return 'link';

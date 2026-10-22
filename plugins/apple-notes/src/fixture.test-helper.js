@@ -48,7 +48,7 @@ export const lookupContact = handle =>
   ) ?? null;
 
 /**
- * A synthetic NoteStore.sqlite, with one image under Accounts/ beside it, in
+ * A synthetic NoteStore.sqlite, with an image and a drawing under Accounts/ beside it, in
  * the columns current macOS uses. Pat (you) and Sam share notes both ways,
  * and each share lists Sam at a different email:
  *
@@ -56,7 +56,7 @@ export const lookupContact = handle =>
  *   a link and a bold word you typed across two seconds, and a ticked
  *   checklist item; two minutes later Sam added
  *   to the end of that item and added another from a phone; three hours
- *   later you added an image and a hashtag. Some of your text was deleted,
+ *   later you added an image, a drawing, and a hashtag. Some of your text was deleted,
  *   which leaves only a tombstone. Notes saved it a moment after the last
  *   text, to a fraction of a second, as it does.
  * - NOTE-SOUP is in Sam's Kitchen folder, made by Sam. Sam wrote most of it,
@@ -81,7 +81,7 @@ export function writeNotesFixture(dir) {
       ZUSERRECORDNAME VARCHAR, ZNOTE INTEGER, ZTYPEUTI VARCHAR, ZTITLE VARCHAR,
       ZCREATIONDATE TIMESTAMP, ZMEDIA INTEGER, ZACCOUNT1 INTEGER, ZFILENAME VARCHAR,
       ZALTTEXT VARCHAR, ZTYPEUTI1 VARCHAR, ZNOTE1 INTEGER, ZZONEOWNERNAME VARCHAR,
-      ZGENERATION1 VARCHAR);
+      ZGENERATION1 VARCHAR, ZFALLBACKIMAGEGENERATION VARCHAR);
     CREATE TABLE ZICNOTEDATA (Z_PK INTEGER PRIMARY KEY, ZNOTE INTEGER, ZDATA BLOB);
     INSERT INTO Z_PRIMARYKEY VALUES (5, 'ICAttachment'), (9, 'ICInlineAttachment'),
       (11, 'ICMedia'), (12, 'ICNote'), (14, 'ICAccount'), (15, 'ICFolder');
@@ -143,6 +143,8 @@ export function writeNotesFixture(dir) {
         { text: '\n', replica: 1, at: NOON + 120, style: 103, checked: true },
         { text: 'Basil\n', replica: 2, at: NOON + 240, style: 103, checked: false },
         { text: '￼', replica: 1, at: NOON + 3 * 3600, attachment: 'IMAGE-1' },
+        { text: '\n', replica: 1, at: NOON + 3 * 3600 + 10 },
+        { text: '￼', replica: 1, at: NOON + 3 * 3600 + 10, attachment: 'SKETCH-1' },
         { text: '\nSee ', replica: 1, at: NOON + 3 * 3600 + 30 },
         { text: '￼', replica: 1, at: NOON + 3 * 3600 + 30, attachment: 'TAG-GARDEN' },
       ]
@@ -239,6 +241,17 @@ export function writeNotesFixture(dir) {
     ZFILENAME: 'seedlings.jpeg',
     ZGENERATION1: 'GENERATION-2',
   });
+  // A drawing has no media, only the image Notes keeps of it.
+  insert(db, {
+    Z_PK: 23,
+    Z_ENT: 5,
+    ZIDENTIFIER: 'SKETCH-1',
+    ZNOTE: 10,
+    ZTYPEUTI: 'com.apple.paper',
+    ZCREATIONDATE: apple(NOON + 3 * 3600 + 10),
+    ZACCOUNT1: 1,
+    ZFALLBACKIMAGEGENERATION: 'GENERATION-1',
+  });
   insert(db, {
     Z_PK: 22,
     Z_ENT: 5,
@@ -265,6 +278,9 @@ export function writeNotesFixture(dir) {
     writeFileSync(join(media, generation, 'seedlings.jpeg'), Buffer.from([0xff, 0xd8, 0xff, 0xd9]));
   }
   writeFileSync(join(media, '.DS_Store'), '');
+  const drawing = join(dir, 'Accounts', 'ACCOUNT-1', 'FallbackImages', 'SKETCH-1', 'GENERATION-1');
+  mkdirSync(drawing, { recursive: true });
+  writeFileSync(join(drawing, 'FallbackImage.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47]));
   return input;
 }
 

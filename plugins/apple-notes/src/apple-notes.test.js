@@ -26,6 +26,13 @@ const seedlings = `![seedlings.jpeg](cid:${nodeKey({
   source: 'apple-notes',
   sourceId: 'IMAGE-1',
 })})`;
+/** Its drawing, an image as its photo is. */
+const sketch = `![drawing](cid:${nodeKey({
+  '@type': 'ImageObject',
+  '@key': ['@type', 'source', 'sourceId'],
+  source: 'apple-notes',
+  sourceId: 'SKETCH-1',
+})})`;
 
 function fixture(t) {
   const dir = mkdtempSync(join(tmpdir(), 'apple-notes-fixture-'));
@@ -172,6 +179,7 @@ test('each note is its last edit, with the note as it is now, and when it was ma
         '- [x] Tomatoes, cherry',
         '- [ ] Basil',
         seedlings,
+        sketch,
         'See #garden',
       ].join('\n'),
       tags: ['garden'],
@@ -183,6 +191,17 @@ test('each note is its last edit, with the note as it is now, and when it was ma
           source: 'apple-notes',
           sourceId: 'IMAGE-1',
           contentPath: join(dir, 'Accounts/ACCOUNT-1/Media/MEDIA-1/GENERATION-2/seedlings.jpeg'),
+        },
+        // A drawing's file is the image Notes keeps of it.
+        {
+          '@type': 'ImageObject',
+          '@key': key,
+          source: 'apple-notes',
+          sourceId: 'SKETCH-1',
+          contentPath: join(
+            dir,
+            'Accounts/ACCOUNT-1/FallbackImages/SKETCH-1/GENERATION-1/FallbackImage.png'
+          ),
         },
       ],
     },
@@ -338,7 +357,7 @@ test("each person's writing is its own edit, with the text from it that's still 
       by: ACCOUNT.dsid,
       start: at(3 * 3600),
       end: at(3 * 3600 + 30),
-      text: `${seedlings}\nSee #garden`,
+      text: `${seedlings}\n${sketch}\nSee #garden`,
     },
     // Sam wrote while you were writing, and it's Sam's own edit. Sam's words at
     // the end of your item aren't an item of their own.
@@ -422,7 +441,7 @@ test('edits are bounded by when they ended, and the session gap splits them', as
   assert.deepEqual(
     garden.map(edit => edit.result.body),
     [
-      `${seedlings}\nSee #garden`,
+      `${seedlings}\n${sketch}\nSee #garden`,
       '- [x] Tomatoes',
       'Order **seeds** from [the catalog](https://seeds.example.com)',
       '# Garden plan',
