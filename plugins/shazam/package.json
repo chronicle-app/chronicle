@@ -68,7 +68,12 @@
             "recordTypes": [
               "listens"
             ],
-            "default": true
+            "default": true,
+            "locations": [
+              {
+                "path": "~/Library/Application Support/com.apple.shazamd/ShazamLibrary.sqlite"
+              }
+            ]
           }
         },
         "platforms": [

@@ -69,7 +69,12 @@
             "recordTypes": [
               "transactions"
             ],
-            "default": true
+            "default": true,
+            "locations": [
+              {
+                "path": "~/Library/Passes/passes23.sqlite"
+              }
+            ]
           }
         },
         "platforms": [

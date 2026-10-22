@@ -69,7 +69,12 @@
               "notes",
               "edits"
             ],
-            "default": true
+            "default": true,
+            "locations": [
+              {
+                "path": "~/Library/Group Containers/group.com.apple.notes/NoteStore.sqlite"
+              }
+            ]
           }
         },
         "platforms": [

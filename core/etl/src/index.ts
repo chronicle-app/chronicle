@@ -1,4 +1,12 @@
 export { Extractor } from './extractor.js';
+export {
+  Locator,
+  type Candidate,
+  type CandidateStatus,
+  type LocateContext,
+  type Location,
+  type LocationMatch,
+} from './locator.js';
 export { Transformer } from './transformer.js';
 export { ChronicleTransformer } from './ChronicleTransformer.js';
 export { NullTransformer } from './null-transformer.js';

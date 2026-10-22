@@ -63,7 +63,12 @@
             "recordTypes": [
               "views"
             ],
-            "default": true
+            "default": true,
+            "locations": [
+              {
+                "path": "~/Library/Safari/History.db"
+              }
+            ]
           }
         },
         "platforms": [

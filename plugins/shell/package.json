@@ -61,7 +61,24 @@
             "recordTypes": [
               "commands"
             ],
-            "default": true
+            "default": true,
+            "locations": [
+              {
+                "path": "~/.zsh_history"
+              },
+              {
+                "path": "~/.bash_history",
+                "options": {
+                  "shell": "bash"
+                }
+              },
+              {
+                "path": "~/.local/share/fish/fish_history",
+                "options": {
+                  "shell": "fish"
+                }
+              }
+            ]
           }
         }
       }

@@ -68,7 +68,12 @@
             "recordTypes": [
               "recordings"
             ],
-            "default": true
+            "default": true,
+            "locations": [
+              {
+                "path": "~/Library/Group Containers/group.com.apple.VoiceMemos.shared/Recordings/CloudRecordings.db"
+              }
+            ]
           }
         },
         "platforms": [

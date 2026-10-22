@@ -68,10 +68,53 @@ test('each manifest matches its plugin’s exported extractor classes', async ()
     for (const [name, source] of Object.entries(pkg.chronicle.sources ?? {})) {
       declared[name] = {};
       for (const [strategyName, strategy] of Object.entries(source.strategies)) {
-        declared[name][strategyName] = { ...strategy, default: Boolean(strategy.default) };
+        // Where it's found isn't something the extractor classes say.
+        const { locations: _locations, ...declaredStrategy } = strategy;
+        declared[name][strategyName] = { ...declaredStrategy, default: Boolean(strategy.default) };
       }
     }
     assert.deepEqual(normalized(declared), normalized(derived), `${pkg.name}: manifest disagrees`);
+  }
+});
+
+test('each locator and declared location belongs to a strategy, and binds only its options', async () => {
+  for (const { dir, pkg } of workspace) {
+    const exported = Object.values(
+      await import(new URL(`plugins/${dir}/dist/index.js`, root).href)
+    ).filter(value => typeof value === 'function' && typeof value.source === 'string');
+    const sources = pkg.chronicle.sources ?? {};
+    for (const locator of exported.filter(value => typeof value.prototype?.locate === 'function')) {
+      assert.ok(
+        sources[locator.source]?.strategies[locator.strategy],
+        `${pkg.name}: ${locator.name} locates ${locator.source} ${locator.strategy}, which its manifest lacks`
+      );
+    }
+    for (const [source, { strategies }] of Object.entries(sources)) {
+      for (const [name, { locations = [] }] of Object.entries(strategies)) {
+        const readers = exported.filter(
+          value => value.source === source && value.strategy === name && value.schema?.shape
+        );
+        for (const location of locations) {
+          assert.match(
+            location.path,
+            /^~\//,
+            `${pkg.name}: ${location.path} isn't in the home folder`
+          );
+          const bound = [
+            ...Object.keys(location.options ?? {}),
+            ...[...location.path.matchAll(/\{(\w+)\}/g)].map(match => match[1]),
+          ];
+          for (const option of bound) {
+            for (const reader of readers) {
+              assert.ok(
+                option in reader.schema.shape,
+                `${pkg.name}: ${reader.name} has no "${option}"`
+              );
+            }
+          }
+        }
+      }
+    }
   }
 });
 

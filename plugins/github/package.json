@@ -73,7 +73,16 @@
               "resolutions",
               "stars"
             ],
-            "default": false
+            "default": false,
+            "locations": [
+              {
+                "path": "~/.config/gh/hosts.yml",
+                "platforms": [
+                  "darwin",
+                  "linux"
+                ]
+              }
+            ]
           }
         }
       }
