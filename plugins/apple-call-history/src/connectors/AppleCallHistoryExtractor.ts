@@ -107,10 +107,13 @@ export class AppleCallHistoryExtractor extends SqliteExtractor<typeof AppleCallH
   override async determineCount(): Promise<number | null> {
     if (!this.db) return null;
     try {
+      // The calls a run reads: those with an id, within since and until.
+      const { where, values } = this.callFilter();
       const row = this.db
-        .prepare(`SELECT COUNT(*) AS n FROM ZCALLRECORD WHERE ZUNIQUE_ID IS NOT NULL`)
-        .get() as { n: number };
-      return row.n;
+        .prepare(`SELECT COUNT(*) AS n FROM ZCALLRECORD WHERE ${where}`)
+        .get(...values) as { n: number };
+      const limit = this.getEffectiveLimit();
+      return limit === null ? row.n : Math.min(row.n, limit);
     } catch {
       return null;
     }

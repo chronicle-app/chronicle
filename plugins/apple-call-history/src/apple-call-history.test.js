@@ -183,12 +183,13 @@ test('extraction honours the time range and counts calls with an id', async t =>
     since: new Date('2025-01-01T00:02:00Z'),
     until: new Date('2025-01-01T00:04:00Z'),
   });
-  // Both bounds are exclusive.
+  // Both bounds are exclusive, and the count follows them.
   assert.deepEqual(
     records.map(r => r.context.uuid),
     ['CALL-MISSED']
   );
-  assert.equal(count, 5);
+  assert.equal(count, 1);
+  assert.equal((await extract(input)).count, 5);
 });
 
 test('a survey counts the calls a run reads, when, and how long they lasted', async t => {
