@@ -206,6 +206,11 @@ test('raw extraction, four output loaders, file output and stream mode', t => {
   // A kind named after the source reads just that kind.
   const named = run('extract', 'shell', 'commands', '--input', input, '--raw', '--limit', '1');
   assert.equal(JSON.parse(success(named)).command, 'printf fixture');
+  // `-t all` and `-t defaults` read the kinds they stand for, as `all` after the source does.
+  for (const kinds of ['all', 'defaults']) {
+    const typed = run('extract', 'shell', '-t', kinds, '--input', input, '--raw', '--limit', '1');
+    assert.equal(JSON.parse(success(typed)).command, 'printf fixture', `-t ${kinds}`);
+  }
   // A supervisor reads the same run as JSON events on stderr. --delay slows
   // each extracted record, for watching a run while debugging.
   const events = run(

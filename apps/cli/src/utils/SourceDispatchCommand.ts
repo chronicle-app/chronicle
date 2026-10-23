@@ -323,10 +323,11 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     this.selection = selector.selection;
     this.announce(selector.selection, positional, verb);
     // When the extractor reads kinds beyond those chosen, the Runner keeps
-    // only the chosen ones, however they were chosen.
+    // only the chosen ones, however they were chosen. `--type` always names
+    // them, so `-t all` and `-t defaults` aren't kept as kinds of those names.
     const emitted: string[] = this.selectedExtractor?.recordTypes ?? [];
     const kinds = selector.selection?.kinds ?? [];
-    if (emitted.some(kind => !kinds.includes(kind))) parsed.type = kinds.join(',');
+    if (parsed.type || emitted.some(kind => !kinds.includes(kind))) parsed.type = kinds.join(',');
     this.dispatching = true;
   }
 
