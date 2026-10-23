@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { ImessageExtractor, ImessageTransformer } from '../dist/index.js';
 import { ContactCache } from '@chronicle.app/apple';
 import { Runner, JsonLoader, monthKey } from '@chronicle.app/etl';
+import { writeSchemaDatabase } from '@chronicle.app/etl-sqlite';
 
 const account = {
   accountID: 'me@example.com',
@@ -71,6 +72,24 @@ async function survey(input, config = {}, options = {}) {
   }
 }
 const surveyBy = input => survey(input, {}, { byMonth: true });
+test('its declared schema is all its queries read, and a chat.db without it is refused', async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'imessage-schema-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const [schema] = ImessageExtractor.databases;
+  const input = join(dir, 'chat.db');
+  writeSchemaDatabase(input, schema, { optional: false });
+  assert.deepEqual(await extract(input, { includeContactNames: false }), []);
+  assert.equal((await surveyBy(input)).messages.count, 0);
+
+  // An older Messages', say, without a column its queries read.
+  const older = join(dir, 'older.db');
+  const attachment = schema.tables.attachment.filter(column => column !== 'uti');
+  writeSchemaDatabase(older, { tables: { ...schema.tables, attachment } });
+  await assert.rejects(extract(older), {
+    message: /version of the database/,
+    fields: { path: older, missing: ['attachment.uti'] },
+  });
+});
 test('a survey counts the messages a run reads, when, in how many conversations', async t => {
   const { input } = fixture(t);
   const rows = await extract(input);

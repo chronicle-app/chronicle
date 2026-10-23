@@ -18,6 +18,38 @@ export class ImessageExtractor extends SqliteExtractor<typeof ImessageExtractor>
   static override delivery = 'local' as const;
   static override strategy = 'app-db';
   static override default = true;
+  // What extract() and survey() read, which a chat.db must have.
+  static override databases = [
+    {
+      tables: {
+        message: [
+          'ROWID',
+          'guid',
+          'text',
+          'service',
+          'date',
+          'is_from_me',
+          'handle_id',
+          'attributedBody',
+        ],
+        handle: ['ROWID', 'id', 'service'],
+        chat: ['ROWID'],
+        chat_message_join: ['chat_id', 'message_id'],
+        chat_handle_join: ['chat_id', 'handle_id'],
+        message_attachment_join: ['message_id', 'attachment_id'],
+        attachment: [
+          'ROWID',
+          'guid',
+          'filename',
+          'mime_type',
+          'uti',
+          'total_bytes',
+          'transfer_name',
+          'is_outgoing',
+        ],
+      },
+    },
+  ];
   static override schema = SqliteExtractor.schema.omit({ input: true }).extend({
     input: z
       .string()
