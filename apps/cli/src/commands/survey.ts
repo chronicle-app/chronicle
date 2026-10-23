@@ -53,6 +53,11 @@ interface Found {
   online: ScanRow[];
   /** Not ready: listed with what's in the way. */
   waiting: ScanRow[];
+  /**
+   * Whether a target that can't say how much it holds is listed, as not
+   * surveyable: in a survey of a path or a source, not of this computer.
+   */
+  showsUncounted: boolean;
 }
 
 /** A status as a sentence starts it: `Needs Full Disk Access`. */
@@ -335,12 +340,10 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
     );
     // Not ready: listed with what's in the way.
     const waiting = rows.filter(row => !targets.includes(row) && !online.includes(row));
+    const showsUncounted = source !== undefined || path !== undefined;
+    const found: Found = { targets, online, waiting, showsUncounted };
     const started = Date.now();
-    const surveys = await this.surveyAll(
-      { targets, online, waiting },
-      survey,
-      path ? undefined : SURVEY_TIMEOUT_MS
-    );
+    const surveys = await this.surveyAll(found, survey, path ? undefined : SURVEY_TIMEOUT_MS);
     const answer = (i: number) => {
       const state = surveys[i];
       return state.state === 'done' ? state.survey : null;
@@ -391,7 +394,6 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
     const t = tokens({ stream: 'stdout', theme: this.flags.theme });
     // One source gets its details; every source, a row each.
     const summary = source && (await listSources()).find(s => s.source === source)?.summary;
-    const found = { targets, online, waiting };
     const lines = source
       ? this.details(found, surveys, t, stdoutWidth(), summary)
       : this.table(found, surveys, t, stdoutWidth());
@@ -405,7 +407,7 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
         source ? `Nothing of ${source}'s to survey` : 'Nothing to survey on this computer'
       );
     }
-    this.hints(rows, { targets, online, waiting }, surveys);
+    this.hints(rows, found, surveys);
   }
 
   /** The table's outcome: how many sources, or exports and databases, were counted, and their records. */
@@ -591,12 +593,13 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
   /**
    * A row per record type of each source surveyed, the source and where its
    * records come from on its first; one with a spinner for a survey under
-   * way, one that says `empty` for a place with no records, and one that's
-   * not surveyable for a source that can't say how much it holds. Then those
-   * online, not surveyable either, and those not ready, with what's in their way.
+   * way, one that says `empty` for a place with no records, and, outside a
+   * survey of this computer, one that's not surveyable for a source that
+   * can't say how much it holds. Then those online, not surveyable either,
+   * and those not ready, with what's in their way.
    */
   private table(
-    { targets, online, waiting }: Found,
+    { targets, online, waiting, showsUncounted }: Found,
     states: Surveyed[],
     t: Tokens,
     width: number,
@@ -624,7 +627,7 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
             k === 0 ? row.label : '',
           ]);
         }
-      } else say(row, '-', 'not surveyable');
+      } else if (showsUncounted) say(row, '-', 'not surveyable');
     }
     for (const row of online) say(row, '-', 'not surveyable');
     for (const row of waiting) say(row, statusText(row));
@@ -643,16 +646,20 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
   }
 
   /**
-   * What to do next: extract what has records, or isn't surveyable, see why
-   * one failed, or clear what's in the way.
+   * What to do next: extract what has records, or is listed as not
+   * surveyable, see why one failed, or clear what's in the way.
    */
-  private hints(rows: ScanRow[], { targets, online }: Found, states: Surveyed[]): void {
+  private hints(
+    rows: ScanRow[],
+    { targets, online, showsUncounted }: Found,
+    states: Surveyed[]
+  ): void {
     const records = (row: ScanRow) => total(this.surveyOf(row, targets, states));
     const counted = targets.filter(row => records(row) > 0);
     const unsurveyable = [
       ...targets.filter((_, i) => {
         const state = states[i];
-        return state.state === 'done' && !state.survey;
+        return showsUncounted && state.state === 'done' && !state.survey;
       }),
       ...online,
     ];
