@@ -66,6 +66,36 @@ export class ShazamExtractor extends SqliteExtractor<typeof ShazamExtractor> {
   static override default = true;
   static override defaultTransformer = ShazamTransformer;
   static override newestFirst = true;
+  // What extract() and survey() read, which a ShazamLibrary.sqlite must have.
+  static override databases = [
+    {
+      tables: {
+        ZSHTRACKMO: [
+          'Z_PK',
+          'ZRECOGNITIONID',
+          'ZSYNCID',
+          'ZDATE',
+          'ZMODIFIEDDATE',
+          'ZTITLE',
+          'ZSUBTITLE',
+          'ZSHAZAMKEY',
+          'ZSHAZAMURL',
+          'ZPROVIDERNAME',
+          'ZLATITUDE',
+          'ZLONGITUDE',
+          'ZARTWORKURL',
+          'ZAPPLEMUSICID',
+          'ZAPPLEMUSICURL',
+          'ZISRC',
+          'ZALBUMNAME',
+          'ZRELEASEDATE',
+          'ZEXPLICIT',
+          'ZGENRES',
+          'ZRAWSONGRESPONSE',
+        ],
+      },
+    },
+  ];
 
   static override schema = SqliteExtractor.schema.omit({ input: true }).extend({
     input: z.string().describe('Path to ShazamLibrary.sqlite').default(DEFAULT_DB),

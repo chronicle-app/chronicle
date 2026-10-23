@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { monthKey } from '@chronicle.app/etl';
+import { writeSchemaDatabase } from '@chronicle.app/etl-sqlite';
 import { ShazamExtractor, ShazamTransformer } from '../dist/index.js';
 import { account, writeShazamFixture } from './fixture.test-helper.js';
 
@@ -38,6 +39,35 @@ async function survey(t, config = {}, options = {}) {
   }
 }
 const surveyBy = t => survey(t, {}, { byMonth: true });
+
+test('its declared schema is all its queries read, and a ShazamLibrary.sqlite without it is refused', async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'shazam-schema-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const [schema] = ShazamExtractor.databases;
+  const run = async (input, read) => {
+    const extractor = new ShazamExtractor({ input, account, limit: 0 });
+    try {
+      await extractor.setup();
+      return await read(extractor);
+    } finally {
+      await extractor.teardown();
+    }
+  };
+  const records = input => run(input, extractor => Array.fromAsync(extractor.extract()));
+  const input = join(dir, 'ShazamLibrary.sqlite');
+  writeSchemaDatabase(input, schema, { optional: false });
+  assert.deepEqual(await records(input), []);
+  assert.equal((await run(input, extractor => extractor.survey())).listens.count, 0);
+
+  // An older Shazam's, say, without a column its queries read.
+  const older = join(dir, 'older.sqlite');
+  const tracks = schema.tables.ZSHTRACKMO.filter(column => column !== 'ZRAWSONGRESPONSE');
+  writeSchemaDatabase(older, { tables: { ZSHTRACKMO: tracks } });
+  await assert.rejects(records(older), {
+    message: /version of the database/,
+    fields: { path: older, missing: ['ZSHTRACKMO.ZRAWSONGRESPONSE'] },
+  });
+});
 
 const distinct = values => new Set(values.filter(value => value !== null)).size;
 
