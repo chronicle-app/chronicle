@@ -18,6 +18,20 @@ const safariBound = (date: Date) => unixToSafariTimestamp(Math.floor(date.getTim
 // A visit's time as a record gives it: whole Unix seconds.
 const visitTime = `cast(history_visits.visit_time + ${APPLE_EPOCH_OFFSET_SECONDS} as integer)`;
 
+/**
+ * The Apple Account whose history and bookmarks these are. Omitted, it's the
+ * one signed in to this Mac; null, there's no one to name.
+ */
+export const accountOption = z
+  .object({
+    accountID: z.string(),
+    email: z.string(),
+    displayName: z.string(),
+    dsid: z.string().optional(),
+  })
+  .nullable()
+  .optional();
+
 export class SafariExtractor extends SqliteExtractor<typeof SafariExtractor> {
   static override source = 'safari';
   static override delivery = 'local' as const;
@@ -50,15 +64,7 @@ export class SafariExtractor extends SqliteExtractor<typeof SafariExtractor> {
       .string()
       .describe('Path to Safari History.db file')
       .default(`${process.env.HOME}/Library/Safari/History.db`),
-    account: z
-      .object({
-        accountID: z.string(),
-        email: z.string(),
-        displayName: z.string(),
-        dsid: z.string().optional(),
-      })
-      .nullable()
-      .optional(),
+    account: accountOption,
   }) as any;
 
   static override defaultTransformer = SafariTransformer;
@@ -67,6 +73,10 @@ export class SafariExtractor extends SqliteExtractor<typeof SafariExtractor> {
   override keyOf(record: Record): string | null {
     const visitId = (record.data as { visit_id?: number }).visit_id;
     return visitId === null || visitId === undefined ? null : String(visitId);
+  }
+
+  override occurredAt(record: Record): Date | undefined {
+    return new Date((record.data as { unix_timestamp: number }).unix_timestamp * 1000);
   }
 
   // Visits that landed on a page (redirect hops excluded), within since/until.

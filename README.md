@@ -47,7 +47,7 @@ other source by name, for example `chronicle plugins install lastfm`, or let
 | -------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------- |
 | Claude Code transcripts                                                                | [claude-code](plugins/claude-code/README.md)               | transcripts (local)             |
 | iMessage/SMS, with iCloud and contact enrichment                                       | [imessage](plugins/imessage/README.md)                     | app-db (local)                  |
-| Safari browsing history                                                                | [safari](plugins/safari/README.md)                         | app-db (local)                  |
+| Safari browsing history, bookmarks, and Reading List                                   | [safari](plugins/safari/README.md)                         | app-db (local)                  |
 | Shell history (bash, zsh, fish)                                                        | [shell](plugins/shell/README.md)                           | history (local)                 |
 | Things 3                                                                               | [things-todo](plugins/things-todo/README.md)               | app-db (local)                  |
 | Phone and FaceTime calls (Apple Call History)                                          | [apple-call-history](plugins/apple-call-history/README.md) | app-db (local)                  |

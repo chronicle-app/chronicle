@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { SafariExtractor, SafariTransformer } from '../dist/index.js';
+import { SafariBookmarksExtractor, SafariExtractor, SafariTransformer } from '../dist/index.js';
 import { monthKey } from '@chronicle.app/etl';
 import { writeSchemaDatabase } from '@chronicle.app/etl-sqlite';
+import { writeBookmarksFixture } from './fixture.test-helper.js';
 
 const account = {
   accountID: 'you@example.com',
@@ -142,4 +143,99 @@ test('its declared schema is all its queries read, and a History.db without it i
     message: /version of the database/,
     fields: { path: older, missing: ['history_visits.origin'] },
   });
+});
+
+async function bookmarks(t, config = {}) {
+  const dir = mkdtempSync(join(tmpdir(), 'safari-fixture-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const bookmarksFile = writeBookmarksFixture(dir);
+  utimesSync(bookmarksFile, new Date('2025-02-01T00:00:00Z'), new Date('2025-02-01T00:00:00Z'));
+  const extractor = new SafariBookmarksExtractor({ bookmarksFile, account, ...config });
+  try {
+    await extractor.setup();
+    return await Array.fromAsync(extractor.extract());
+  } finally {
+    await extractor.teardown();
+  }
+}
+
+test('bookmarks are dated by Safari, else by iCloud, newest first', async t => {
+  const rows = await bookmarks(t);
+  assert.deepEqual(
+    rows.map(r => [r.data.id, r.data.addedAt, r.data.folders.map(f => f.name)]),
+    [
+      // Safari's own dates win over when iCloud made the record.
+      ['F-1', '2025-01-01T03:00:00.000Z', ['Favorites']],
+      ['R-1', '2025-01-01T02:00:00.000Z', ['Reading List']],
+      ['B-2', '2025-01-01T01:00:00.000Z', ['Favorites', 'Design']],
+      // Made in iCloud by the move from its older sync, or with another in the
+      // same second, or never synced: no date.
+      ['DAV-abc', null, []],
+      ['B-3', null, []],
+      ['B-4', null, []],
+      ['LOCAL-UUID', null, []],
+    ]
+  );
+
+  // A bound leaves out what has no date.
+  const since = new Date('2025-01-01T01:30:00Z');
+  assert.deepEqual(
+    (await bookmarks(t, { since })).map(r => r.data.id),
+    ['F-1', 'R-1']
+  );
+});
+
+test('a bookmark is a BookmarkAction whose target is its folder', async t => {
+  const rows = await bookmarks(t);
+  const transformer = new SafariTransformer();
+  const [action] = await transformer.performTransform(rows.find(r => r.data.id === 'B-2'));
+  const favorites = {
+    '@type': 'Collection',
+    '@key': ['@type', 'source', 'sourceId'],
+    source: 'safari',
+    sourceId: 'Favorites Bar',
+    name: 'Favorites',
+    '@asserts': ['*'],
+  };
+  assert.deepEqual(action.data, {
+    '@type': 'BookmarkAction',
+    '@key': ['@type', 'source', 'sourceId'],
+    source: 'safari',
+    sourceId: 'B-2',
+    timestamp: new Date('2025-01-01T01:00:00Z'),
+    agent: {
+      '@type': 'Person',
+      '@key': ['@type', 'source', 'sourceId'],
+      source: 'icloud',
+      sourceId: '1234567890',
+      handle: 'you@example.com',
+      sameAs: ['@me'],
+      '@asserts': ['*'],
+    },
+    object: {
+      '@type': 'Entity',
+      '@key': ['url'],
+      url: 'https://example.com/design',
+      name: 'Design',
+      '@asserts': ['*'],
+    },
+    target: {
+      '@type': 'Collection',
+      '@key': ['@type', 'source', 'sourceId'],
+      source: 'safari',
+      sourceId: 'D-1',
+      name: 'Design',
+      isPartOf: [favorites],
+      '@asserts': ['*'],
+    },
+    // Bookmarks are as of when the file last changed.
+    '@assertedAt': '2025-02-01T00:00:00.000Z',
+    '@asserts': ['*'],
+  });
+
+  // Without a date or a folder, there's neither; without a title, the URL names the page.
+  const [undated] = await transformer.performTransform(rows.find(r => r.data.id === 'B-4'));
+  assert.equal(undated.data.timestamp, undefined);
+  assert.equal(undated.data.target, undefined);
+  assert.equal(undated.data.object.name, 'https://example.com/four');
 });
