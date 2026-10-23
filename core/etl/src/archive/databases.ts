@@ -1,5 +1,8 @@
+import { constants, copyFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { open } from 'node:fs/promises';
-import { DatabaseSync } from 'node:sqlite';
+import { tmpdir } from 'node:os';
+import { basename, join } from 'node:path';
+import type { DatabaseSync } from 'node:sqlite';
 import { pathToFileURL } from 'node:url';
 
 /**
@@ -51,15 +54,63 @@ export async function isSqlite(path: string): Promise<boolean> {
  * A database's columns, read without writing beside it. Opened immutable, it
  * takes no lock and makes no `-shm` or `-wal`, so a running app holding it
  * doesn't matter. What's still only in a `-wal` isn't seen, which for its
- * tables is nothing but a table made since the app last saved.
+ * tables is nothing but a table made since the app last saved. A Node that
+ * can't open it so reads a copy of it instead.
  */
 export function readColumns(path: string): DatabaseColumns {
-  const db = new DatabaseSync(`${pathToFileURL(path).href}?immutable=1`, { readOnly: true });
+  if (!opensUris()) return readColumnsOfCopy(path);
+  const { DatabaseSync } = sqlite();
+  return columnsAt(new DatabaseSync(`${pathToFileURL(path).href}?immutable=1`, { readOnly: true }));
+}
+
+/** A database's columns, from a copy of it: a clone where the filesystem can make one, as APFS can. */
+function readColumnsOfCopy(path: string): DatabaseColumns {
+  const dir = mkdtempSync(join(tmpdir(), 'chronicle-columns-'));
+  try {
+    const copy = join(dir, basename(path));
+    copyFileSync(path, copy, constants.COPYFILE_FICLONE);
+    const { DatabaseSync } = sqlite();
+    return columnsAt(new DatabaseSync(copy));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+/** The columns of an open database, which it then closes. */
+function columnsAt(db: DatabaseSync): DatabaseColumns {
   try {
     return columnsOf(db);
   } finally {
     db.close();
   }
+}
+
+/**
+ * `node:sqlite`, loaded when a database is read rather than with this
+ * module, since Node 22 warns on stderr that it's experimental as it loads.
+ */
+function sqlite(): typeof import('node:sqlite') {
+  return process.getBuiltinModule('node:sqlite');
+}
+
+let urisOpen: boolean | undefined;
+
+/**
+ * Whether this Node opens a `file:` URI as SQLite does, as it does from 22.15
+ * and 23.11 on. An older one takes it as a file's name, so an in-memory
+ * database by URI won't open read-only.
+ */
+function opensUris(): boolean {
+  if (urisOpen === undefined) {
+    const { DatabaseSync } = sqlite();
+    try {
+      new DatabaseSync('file::memory:', { readOnly: true }).close();
+      urisOpen = true;
+    } catch {
+      urisOpen = false;
+    }
+  }
+  return urisOpen;
 }
 
 /** The columns of every table and view in an open database. */

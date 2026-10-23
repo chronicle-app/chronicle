@@ -434,7 +434,13 @@ export interface PathScanResult {
  */
 function exportLabel(exported: FoundExport, match: LayoutMatch, scanned: string): string {
   // A folder on disk, rather than a zip, a folder in one, or a database.
-  const folder = statSync(exported.root, { throwIfNoEntry: false })?.isDirectory();
+  let folder = false;
+  try {
+    folder = statSync(exported.root).isDirectory();
+  } catch {
+    // Not on disk. A folder in a zip is ENOTDIR, which older Node 22s throw
+    // even with throwIfNoEntry false.
+  }
   const base = scanned.toLowerCase().endsWith('.zip') ? path.dirname(scanned) : scanned;
   const relative = path.relative(base, exported.root);
   const where = !relative || relative.startsWith('..') ? path.basename(exported.root) : relative;
