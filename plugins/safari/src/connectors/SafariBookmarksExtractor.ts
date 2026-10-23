@@ -1,6 +1,5 @@
 import { readFile, stat } from 'node:fs/promises';
 import { Extractor, Record, fileError } from '@chronicle.app/etl';
-import { APPLE_EPOCH_OFFSET_SECONDS } from '@chronicle.app/etl-sqlite';
 import { getICloudAccount, parseBinaryPlist, Uid, type PlistValue } from '@chronicle.app/apple';
 import { z } from 'zod';
 import { accountOption } from './SafariExtractor.js';
@@ -46,38 +45,6 @@ const text = (value: PlistValue | undefined) =>
 const date = (value: PlistValue | undefined) => (value instanceof Date ? value : null);
 
 const savedAt = (bookmark: Bookmark) => (bookmark.addedAt ? Date.parse(bookmark.addedAt) : null);
-
-/** Follow keys from an NSKeyedArchiver archive's `$top`, through its references. */
-function unarchive(bytes: Uint8Array, ...keys: string[]): PlistValue | undefined {
-  const plist = parseBinaryPlist(bytes);
-  if (!isNode(plist) || !Array.isArray(plist.$objects)) return undefined;
-  const objects = plist.$objects;
-  const deref = (value: PlistValue | undefined) =>
-    value instanceof Uid ? objects[value.index] : value;
-  let value: PlistValue | undefined = plist.$top;
-  for (const key of keys) {
-    const object = deref(value);
-    if (!isNode(object)) return undefined;
-    value = object[key];
-  }
-  return deref(value);
-}
-
-/**
- * When iCloud made the record of a bookmark, from the CloudKit record Safari
- * keeps in its `Sync.Data`. Null without iCloud, or if it doesn't read.
- */
-function recordCreated(data: PlistValue | undefined): Date | null {
-  if (!(data instanceof Uint8Array)) return null;
-  try {
-    const fields = unarchive(data, 'root', 'EncodedCKRecordSystemFields', 'NS.data');
-    if (!(fields instanceof Uint8Array)) return null;
-    const time = unarchive(fields, 'RecordCtime', 'NS.time');
-    return typeof time === 'number' ? new Date((time + APPLE_EPOCH_OFFSET_SECONDS) * 1000) : null;
-  } catch {
-    return null;
-  }
-}
 
 export class SafariBookmarksExtractor extends Extractor<typeof SafariBookmarksExtractor> {
   static override source = 'safari';
@@ -156,7 +123,7 @@ export class SafariBookmarksExtractor extends Extractor<typeof SafariBookmarksEx
 
   /** Every bookmark in the file, with when it was saved where Safari says. */
   private read(root: PlistValue): Bookmark[] {
-    const found: { node: Node; folders: BookmarkFolder[]; created: Date | null }[] = [];
+    const bookmarks: Bookmark[] = [];
     const walk = (node: Node, folders: BookmarkFolder[]) => {
       for (const child of Array.isArray(node.Children) ? node.Children : []) {
         if (!isNode(child)) continue;
@@ -164,42 +131,22 @@ export class SafariBookmarksExtractor extends Extractor<typeof SafariBookmarksEx
           const title = text(child.Title) ?? '';
           walk(child, [...folders, { id: this.idOf(child), name: FOLDER_NAMES[title] ?? title }]);
         } else if (child.WebBookmarkType === 'WebBookmarkTypeLeaf' && text(child.URLString)) {
-          found.push({
-            node: child,
+          const readingList = isNode(child.ReadingList) ? child.ReadingList : {};
+          const uri = isNode(child.URIDictionary) ? child.URIDictionary : {};
+          // Safari dates bookmarks it saves now, but not those from before.
+          const addedAt = date(readingList.DateAdded) ?? date(child.dateAdded);
+          bookmarks.push({
+            id: this.idOf(child),
+            url: text(child.URLString)!,
+            title: text(uri.title),
+            addedAt: addedAt?.toISOString() ?? null,
             folders,
-            created: recordCreated(isNode(child.Sync) ? child.Sync.Data : undefined),
           });
         }
       }
     };
     if (isNode(root)) walk(root, []);
-
-    // iCloud makes records together when it uploads bookmarks it already had,
-    // such as on a new Mac or after a reset, and then that time isn't when any
-    // of them was saved. Pages saved one at a time never share a second.
-    const second = (at: Date) => Math.floor(at.getTime() / 1000);
-    const together = new Map<number, number>();
-    for (const { created } of found) {
-      if (created) together.set(second(created), (together.get(second(created)) ?? 0) + 1);
-    }
-
-    return found.map(({ node, folders, created }) => {
-      const id = this.idOf(node);
-      const readingList = isNode(node.ReadingList) ? node.ReadingList : {};
-      // A record named `DAV-` came over from iCloud's older bookmark sync, and
-      // was made when it did.
-      const madeInICloud =
-        created && !id.startsWith('DAV-') && together.get(second(created)) === 1 ? created : null;
-      const addedAt = date(readingList.DateAdded) ?? date(node.dateAdded) ?? madeInICloud;
-      const uri = isNode(node.URIDictionary) ? node.URIDictionary : {};
-      return {
-        id,
-        url: text(node.URLString)!,
-        title: text(uri.title),
-        addedAt: addedAt?.toISOString() ?? null,
-        folders,
-      };
-    });
+    return bookmarks;
   }
 
   private idOf(node: Node): string {

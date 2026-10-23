@@ -159,20 +159,17 @@ async function bookmarks(t, config = {}) {
   }
 }
 
-test('bookmarks are dated by Safari, else by iCloud, newest first', async t => {
+test('bookmarks are dated when Safari added them, newest first', async t => {
   const rows = await bookmarks(t);
   assert.deepEqual(
     rows.map(r => [r.data.id, r.data.addedAt, r.data.folders.map(f => f.name)]),
     [
-      // Safari's own dates win over when iCloud made the record.
       ['F-1', '2025-01-01T03:00:00.000Z', ['Favorites']],
       ['R-1', '2025-01-01T02:00:00.000Z', ['Reading List']],
       ['B-2', '2025-01-01T01:00:00.000Z', ['Favorites', 'Design']],
-      // Made in iCloud by the move from its older sync, or with another in the
-      // same second, or never synced: no date.
-      ['DAV-abc', null, []],
+      // Those Safari didn't date come last, in the order of the file.
+      ['F-2', null, ['Favorites']],
       ['B-3', null, []],
-      ['B-4', null, []],
       ['LOCAL-UUID', null, []],
     ]
   );
@@ -234,8 +231,8 @@ test('a bookmark is a BookmarkAction whose target is its folder', async t => {
   });
 
   // Without a date or a folder, there's neither; without a title, the URL names the page.
-  const [undated] = await transformer.performTransform(rows.find(r => r.data.id === 'B-4'));
+  const [undated] = await transformer.performTransform(rows.find(r => r.data.id === 'B-3'));
   assert.equal(undated.data.timestamp, undefined);
   assert.equal(undated.data.target, undefined);
-  assert.equal(undated.data.object.name, 'https://example.com/four');
+  assert.equal(undated.data.object.name, 'https://example.com/three');
 });
