@@ -1,3 +1,4 @@
+import { statSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { open, readdir, stat } from 'node:fs/promises';
@@ -410,7 +411,8 @@ export interface PathScanResult {
  * the path is in, or is, goes by its own name.
  */
 function exportLabel(exported: FoundExport, match: LayoutMatch, scanned: string): string {
-  const inZip = exported.parts || exported.file || /\.zip(\/|$)/i.test(exported.root);
+  // A folder on disk, rather than a zip, a folder in one, or a database.
+  const folder = statSync(exported.root, { throwIfNoEntry: false })?.isDirectory();
   const base = scanned.toLowerCase().endsWith('.zip') ? path.dirname(scanned) : scanned;
   const relative = path.relative(base, exported.root);
   const where = !relative || relative.startsWith('..') ? path.basename(exported.root) : relative;
@@ -418,7 +420,7 @@ function exportLabel(exported: FoundExport, match: LayoutMatch, scanned: string)
     exported.parts && `${exported.parts.length} parts`,
     match.layout.name && `${match.layout.name} layout`,
   ].filter(Boolean);
-  return `${where}${inZip ? '' : '/'}${notes.length > 0 ? ` (${notes.join(', ')})` : ''}`;
+  return `${where}${folder ? '/' : ''}${notes.length > 0 ? ` (${notes.join(', ')})` : ''}`;
 }
 
 /**
