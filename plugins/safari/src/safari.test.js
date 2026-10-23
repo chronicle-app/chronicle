@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { SafariExtractor, SafariTransformer } from '../dist/index.js';
 import { monthKey } from '@chronicle.app/etl';
+import { writeSchemaDatabase } from '@chronicle.app/etl-sqlite';
 
 const account = {
   accountID: 'you@example.com',
@@ -122,4 +123,23 @@ test('a survey counts the visits a run reads, when, and to how many pages', asyn
     (await survey(input, { since })).views.count,
     (await records(input, { since })).length
   );
+});
+
+test('its declared schema is all its queries read, and a History.db without it is refused', async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'safari-schema-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const [schema] = SafariExtractor.databases;
+  const input = join(dir, 'History.db');
+  writeSchemaDatabase(input, schema, { optional: false });
+  assert.deepEqual(await records(input), []);
+  assert.equal((await surveyBy(input)).views.count, 0);
+
+  // An older Safari's, say, without a column its queries read.
+  const older = join(dir, 'older.db');
+  const visits = schema.tables.history_visits.filter(column => column !== 'origin');
+  writeSchemaDatabase(older, { tables: { ...schema.tables, history_visits: visits } });
+  await assert.rejects(records(older), {
+    message: /version of the database/,
+    fields: { path: older, missing: ['history_visits.origin'] },
+  });
 });

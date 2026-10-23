@@ -14,6 +14,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { test } from 'node:test';
 import { writeZip } from '@chronicle.app/etl';
 
@@ -1056,6 +1057,54 @@ test('scan finds the exports in a folder or zip, with the command that reads eac
   assert.match(surveyBare.stderr, /chronicle survey \.\/EXPORT_FILES/);
   assert.equal(success(scan('survey', join(root, 'misc'), '--format', 'json')).trim(), '[]');
 });
+
+/** A copy of Safari's history, in WAL mode as Safari keeps it, with one visit; or an older one's. */
+function safariHistory(file, { older = false } = {}) {
+  mkdirSync(dirname(file), { recursive: true });
+  const db = new DatabaseSync(file);
+  db.exec(`
+    PRAGMA journal_mode = WAL;
+    CREATE TABLE history_items (id INTEGER PRIMARY KEY, url TEXT);
+    CREATE TABLE history_visits (id INTEGER PRIMARY KEY, history_item INTEGER, visit_time REAL,
+      title TEXT, redirect_destination INTEGER${older ? '' : ', origin INTEGER'});
+    INSERT INTO history_items VALUES (1, 'https://example.com/');
+    INSERT INTO history_visits VALUES (1, 1, 757382400, 'Example', NULL${older ? '' : ', 0'});
+  `);
+  db.close();
+}
+
+test(
+  'scan finds a database by its schema, and survey counts a copy without writing beside it',
+  { skip: process.platform !== 'darwin' && 'safari only runs on macOS' },
+  t => {
+    const { dir, run } = fixture(t);
+    const root = join(dir, 'data');
+    const history = join(root, 'safari', '2026-08-06', 'History.db');
+    safariHistory(history);
+    safariHistory(join(root, 'safari', '2019', 'History.db'), { older: true });
+    const scan = run.with({ HOME: join(dir, 'home') });
+
+    const rows = JSON.parse(success(scan('scan', root, '--format', 'json')));
+    assert.deepEqual(
+      rows.map(r => [r.source, r.label, r.status, r.evidence.missing]),
+      [
+        ['safari', 'safari/2026-08-06/History.db', 'ready', undefined],
+        ['safari', 'safari/2019/History.db', 'unsupported', ['history_visits.origin']],
+      ]
+    );
+    assert.equal(rows[0].command, `chronicle extract safari --input ${history}`);
+    const table = scan('scan', root);
+    assert.match(
+      table.stdout,
+      /^safari +app-db +safari\/2019\/History\.db +version not supported$/m
+    );
+    assert.match(table.stderr, /Chronicle recognizes 1 more but can't read it yet/);
+
+    const [surveyed] = JSON.parse(success(scan('survey', history, '--format', 'json')));
+    assert.equal(surveyed.survey.views.count, 1);
+    assert.deepEqual(readdirSync(dirname(history)), ['History.db']);
+  }
+);
 
 test(
   'scan and survey find an export whose plugin is not installed',

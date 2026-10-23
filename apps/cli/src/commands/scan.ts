@@ -21,7 +21,9 @@ import { PLATFORM_NAMES } from '../utils/sourcesTable.js';
 export function statusText(row: ScanRow): string {
   if (row.status === 'blocked') return 'needs Full Disk Access';
   // Installing its plugin wouldn't help.
-  if (row.status === 'unsupported') return 'layout not supported';
+  if (row.status === 'unsupported') {
+    return row.evidence.tables ? 'version not supported' : 'layout not supported';
+  }
   if (!row.installed) return 'plugin not installed';
   switch (row.status) {
     case 'ready':
@@ -208,8 +210,8 @@ export default class Scan extends BaseCommand<typeof Scan> {
     const unsupported = rows.filter(row => row.status === 'unsupported').length;
     if (unsupported > 0) {
       this.hint(
-        `${count(unsupported)} ${plural('exports', unsupported)} ${unsupported === 1 ? 'is' : 'are'} ` +
-          "in a layout Chronicle recognizes but can't read yet."
+        `Chronicle recognizes ${count(unsupported)} more but can't read ` +
+          `${unsupported === 1 ? 'it' : 'them'} yet.`
       );
     }
   }
@@ -264,11 +266,18 @@ export default class Scan extends BaseCommand<typeof Scan> {
           `${names(['EPERM'])}. ${FULL_DISK_ACCESS}`
       );
     }
-    const closed = refused.filter(r => r.code !== 'EZIP' && !blocked.includes(r));
+    const closed = refused.filter(r => !['EZIP', 'EDB'].includes(r.code) && !blocked.includes(r));
     if (closed.length > 0) {
       const codes = [...new Set(closed.map(r => r.code))];
       this.hint(
         `Couldn't look in ${count(closed.length)} ${plural('folders', closed.length)}: ${names(codes)}.`
+      );
+    }
+    const databases = refused.filter(r => r.code === 'EDB');
+    if (databases.length > 0) {
+      this.hint(
+        `Couldn't read ${count(databases.length)} ${plural('databases', databases.length)}: ` +
+          `${names(['EDB'])}. Each may be encrypted or damaged.`
       );
     }
     const zips = refused.filter(r => r.code === 'EZIP');

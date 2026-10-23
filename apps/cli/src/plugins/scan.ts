@@ -3,10 +3,14 @@ import path from 'node:path';
 import { open, readdir, stat } from 'node:fs/promises';
 import {
   findExports,
+  isSqlite,
+  matchSchema,
+  readColumns,
   segmentPattern,
   toKebabCase,
   type Candidate,
   type CandidateStatus,
+  type DatabaseSchema,
   type FoundExport,
   type LayoutMatch,
   type LocateContext,
@@ -50,6 +54,10 @@ export interface ScanRow {
     credential?: string;
     /** For an export in a path: the files its layout matched, from where it starts. */
     files?: string[];
+    /** For a database in a path: the tables its schema names. */
+    tables?: string[];
+    /** For a database in a path: the columns a run needs that it lacks. */
+    missing?: string[];
   };
 }
 
@@ -150,6 +158,27 @@ export async function check(
     const refused = refusal(error, platform);
     return refused ? { status: refused } : null;
   }
+}
+
+/**
+ * Whether a database is in a schema its reader reads, from its tables and
+ * columns, read without writing beside it. One in none of them can't be read.
+ */
+async function checkSchema(
+  file: string,
+  schemas: DatabaseSchema[]
+): Promise<{ status: CandidateStatus; tables?: string[]; missing?: string[] }> {
+  if (!(await isSqlite(file))) return { status: 'unreadable' };
+  let match;
+  try {
+    match = matchSchema(readColumns(file), schemas);
+  } catch {
+    return { status: 'unreadable' };
+  }
+  if (!match) return { status: 'unreadable' };
+  const tables = Object.keys(match.schema.tables);
+  if (match.missing.length > 0) return { status: 'unsupported', tables, missing: match.missing };
+  return { status: match.schema.supported === false ? 'unsupported' : 'ready', tables };
 }
 
 /** A word for the shell: bare when it needs no quoting, else in double quotes. */
@@ -265,6 +294,11 @@ async function scanStrategy(
         : null;
     if (!checked) continue;
     const { modifiedAt, bytes } = checked as { modifiedAt?: Date; bytes?: number };
+    // A database is ready only when its reader reads its schema, as a run checks.
+    const schema =
+      checked.status === 'ready' && candidate.path && strategy.databases?.length
+        ? await checkSchema(candidate.path, strategy.databases)
+        : null;
     const config = withoutDefaults(candidate.config, extractors);
     rows.push({
       source: listing.source,
@@ -272,7 +306,7 @@ async function scanStrategy(
       label:
         candidate.label ??
         (candidate.path ? fromHome(candidate.path, context.home) : strategy.name),
-      status: checked.status,
+      status: schema?.status ?? checked.status,
       installed: listing.installed,
       plugin: listing.plugin,
       config,
@@ -284,6 +318,8 @@ async function scanStrategy(
         ...(modifiedAt && { modifiedAt: modifiedAt.toISOString() }),
         ...(bytes !== undefined && { bytes }),
         ...(candidate.credential && { credential: candidate.credential }),
+        ...(schema?.tables && { tables: schema.tables }),
+        ...(schema?.missing && { missing: schema.missing }),
       },
     });
   }
@@ -374,7 +410,7 @@ export interface PathScanResult {
  * the path is in, or is, goes by its own name.
  */
 function exportLabel(exported: FoundExport, match: LayoutMatch, scanned: string): string {
-  const inZip = exported.parts || /\.zip(\/|$)/i.test(exported.root);
+  const inZip = exported.parts || exported.file || /\.zip(\/|$)/i.test(exported.root);
   const base = scanned.toLowerCase().endsWith('.zip') ? path.dirname(scanned) : scanned;
   const relative = path.relative(base, exported.root);
   const where = !relative || relative.startsWith('..') ? path.basename(exported.root) : relative;
@@ -400,11 +436,14 @@ export async function scanPath(
   const listings = (await listSources()).filter(l => l.supported);
   const sets = listings.flatMap(listing =>
     listing.strategies
-      .filter(strategy => strategy.layouts?.length)
+      .filter(strategy => strategy.layouts?.length || strategy.databases?.length)
       .map(strategy => ({
         source: listing.source,
         strategy: strategy.name,
-        layouts: strategy.layouts!,
+        layouts: strategy.layouts ?? [],
+        databases: strategy.databases,
+        // A copy keeps the name its app gave it.
+        names: strategy.locations?.map(location => path.basename(location.path)),
       }))
   );
   const found = await findExports(scanned, sets, { onFolder: options.onFolder });
@@ -422,7 +461,7 @@ export async function scanPath(
         source: listing.source,
         strategy: match.strategy,
         label: exportLabel(exported, match, scanned),
-        status: match.layout.supported === false ? 'unsupported' : 'ready',
+        status: match.layout.supported === false || match.missing ? 'unsupported' : 'ready',
         installed: listing.installed,
         plugin: listing.plugin,
         config,
@@ -431,7 +470,12 @@ export async function scanPath(
         ...(match.layout.name && { layout: match.layout.name }),
         ...(exported.parts && { parts: exported.parts.length }),
         ...(listing.version && { pluginVersion: listing.version }),
-        evidence: { path: exported.root, files: match.files },
+        evidence: {
+          path: exported.root,
+          files: match.files,
+          ...(match.tables && { tables: match.tables }),
+          ...(match.missing && { missing: match.missing }),
+        },
       });
     }
   }

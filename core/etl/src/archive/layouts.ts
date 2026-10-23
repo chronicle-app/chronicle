@@ -2,6 +2,7 @@ import { readdir, stat } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
 import { fileError } from '../fileErrors.js';
 import { segmentPattern } from '../locator.js';
+import { type DatabaseSchema, isSqlite, matchSchema, readColumns } from './databases.js';
 import { isZip, openExport, partsOf } from './exportFiles.js';
 
 /**
@@ -24,22 +25,33 @@ export interface Layout {
   supported?: boolean;
 }
 
-/** A strategy's layouts, for {@link findExports} to look for. */
+/** A strategy's layouts and databases, for {@link findExports} to look for. */
 export interface LayoutSet {
   source: string;
   strategy: string;
   layouts: Layout[];
+  /** The schemas of the SQLite databases it reads. */
+  databases?: DatabaseSchema[];
+  /**
+   * The names its databases go by, like `History.db`, which a walk opens
+   * files by. A file passed as the path is opened whatever its name.
+   */
+  names?: string[];
 }
 
-/** A strategy's layout that matched where an export starts. */
+/** A strategy's layout that matched where an export starts, or its database's schema. */
 export interface LayoutMatch {
   source: string;
   strategy: string;
-  layout: Layout;
+  layout: Layout | DatabaseSchema;
   /** The paths that matched, from where the export starts. */
   files: string[];
   /** What each `{name}` matched. */
   options: { [option: string]: string };
+  /** For a database: the schema's tables, which it has. */
+  tables?: string[];
+  /** For a database: the needed columns it lacks, as `table.column`, when a run can't read it. */
+  missing?: string[];
 }
 
 /** An export found, and every strategy whose layout says it reads it. */
@@ -51,13 +63,18 @@ export interface FoundExport {
   root: string;
   /** The zips it's in, when it's a split Takeout's parts. */
   parts?: string[];
+  /** True when it's one file, a database, rather than a folder or zip. */
+  file?: boolean;
   matches: LayoutMatch[];
 }
 
 /** A folder or zip that couldn't be looked in, and why. */
 export interface Refused {
   path: string;
-  /** The error's code, like `EPERM`, or `EZIP` for a zip that won't open. */
+  /**
+   * The error's code, like `EPERM`, `EZIP` for a zip that won't open, or
+   * `EDB` for a database whose schema can't be read, as an encrypted one.
+   */
   code: string;
 }
 
@@ -114,6 +131,8 @@ interface Tree {
   children(dir: string): Promise<Map<string, Kind> | null>;
   /** Done with a folder and what's in it. */
   forget(dir: string): void;
+  /** Where a path from the top is on disk, for a tree that's a folder on disk. */
+  onDisk?(path: string): string;
 }
 
 const within = (dir: string, name: string) => (dir ? `${dir}/${name}` : name);
@@ -155,6 +174,7 @@ function folderTree(base: string, refused: Refused[]): Tree {
         if (key === dir || key.startsWith(`${dir}/`)) listed.delete(key);
       }
     },
+    onDisk: path => join(base, path),
   };
 }
 
@@ -257,6 +277,9 @@ const nothingFound = (): FoundExports => ({
  */
 function walker(base: string, sets: LayoutSet[], options: FindOptions, found: FoundExports) {
   const depth = options.depth ?? DEPTH;
+  const named = sets
+    .flatMap(set => (set.databases ? (set.names ?? []) : []))
+    .map(name => segmentPattern(name));
 
   /**
    * Whether `dir` in `tree`, or anything in it, is an export. At the top of
@@ -281,8 +304,15 @@ function walker(base: string, sets: LayoutSet[], options: FindOptions, found: Fo
     let any = false;
     const grouped = new Set<string>();
     for (const [name, kind] of names) {
-      if (skipped(name) || kind === 'link' || kind === 'file') continue;
+      if (skipped(name) || kind === 'link') continue;
       const child = within(dir, name);
+      if (kind === 'file') {
+        // A file is opened only on disk, and only when it's named as a database is.
+        if (tree.onDisk && named.some(pattern => pattern.test(name))) {
+          any = (await searchFile(tree.onDisk(child))) || any;
+        }
+        continue;
+      }
       // Null for a zip that won't open, which is refused rather than unrecognized.
       let held: boolean | null = false;
       if (kind === 'folder') {
@@ -324,6 +354,40 @@ function walker(base: string, sets: LayoutSet[], options: FindOptions, found: Fo
   };
 
   /**
+   * Whether a file is a database a strategy reads, by its schema: its
+   * tables, and whether it has every column a run needs. It's read without
+   * writing beside it.
+   */
+  const searchFile = async (file: string): Promise<boolean> => {
+    const databases = sets.filter(set => set.databases?.length);
+    if (databases.length === 0 || !(await isSqlite(file))) return false;
+    let columns;
+    try {
+      columns = readColumns(file);
+    } catch {
+      found.refused.push({ path: file, code: 'EDB' });
+      return false;
+    }
+    const matches: LayoutMatch[] = [];
+    for (const { source, strategy, databases: schemas } of databases) {
+      const match = matchSchema(columns, schemas!);
+      if (!match) continue;
+      matches.push({
+        source,
+        strategy,
+        layout: match.schema,
+        files: [],
+        options: {},
+        tables: Object.keys(match.schema.tables),
+        ...(match.missing.length > 0 && { missing: match.missing }),
+      });
+    }
+    if (matches.length === 0) return false;
+    found.exports.push({ root: file, file: true, matches });
+    return true;
+  };
+
+  /**
    * Whether a path is in an export, as an export's `export.xml` or one of its
    * folders is: the nearest folder above it where a layout matches. A folder
    * above that can't be listed ends the search, unreported.
@@ -343,7 +407,7 @@ function walker(base: string, sets: LayoutSet[], options: FindOptions, found: Fo
     return false;
   };
 
-  return { search, searchZip, searchAbove };
+  return { search, searchZip, searchFile, searchAbove };
 }
 
 /**
@@ -352,8 +416,10 @@ function walker(base: string, sets: LayoutSet[], options: FindOptions, found: Fo
  * doesn't go into it, though other strategies' layouts can match it too, as
  * several sources share a Takeout. The walk opens each zip it finds, reading
  * only its index, and reads a split Takeout's parts as one. It reads no file,
- * follows no link, and doesn't go into hidden folders or macOS bundles. A
- * file, or a folder with no export in it, is looked for in the export it's in.
+ * follows no link, and doesn't go into hidden folders or macOS bundles. It
+ * opens a file only when it's named as a strategy's database is, to read its
+ * schema. A file passed as the path is a database, or is looked for in the
+ * export it's in, as is a folder with no export in it.
  */
 export async function findExports(
   path: string,
@@ -361,7 +427,7 @@ export async function findExports(
   options: FindOptions = {}
 ): Promise<FoundExports> {
   const found = nothingFound();
-  const { search, searchZip, searchAbove } = walker(path, sets, options, found);
+  const { search, searchZip, searchFile, searchAbove } = walker(path, sets, options, found);
   let stats;
   try {
     stats = await stat(path);
@@ -375,7 +441,7 @@ export async function findExports(
     if (!held && (await searchAbove(path))) found.unrecognized = [];
   } else if (isZip(path)) {
     if ((await searchZip(path, 0)) === false) found.unrecognized.push(basename(path));
-  } else if (!(await searchAbove(path))) {
+  } else if (!(await searchFile(path)) && !(await searchAbove(path))) {
     found.unrecognized.push(basename(path));
   }
   found.exports.sort((a, b) => byName(a.root, b.root));

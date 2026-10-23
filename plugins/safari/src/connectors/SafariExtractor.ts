@@ -28,6 +28,23 @@ export class SafariExtractor extends SqliteExtractor<typeof SafariExtractor> {
   // extract() orders by history_visits.visit_time desc, which with keyOf opts
   // this extractor into the frontier cursor (incremental catch-up import).
   static override newestFirst = true;
+  // What extract() and survey() read, which a History.db must have.
+  static override databases = [
+    {
+      tables: {
+        history_items: ['id', 'url'],
+        history_visits: [
+          'id',
+          'history_item',
+          'visit_time',
+          'title',
+          'redirect_destination',
+          'origin',
+        ],
+      },
+    },
+  ];
+
   static override schema = SqliteExtractor.schema.omit({ input: true }).extend({
     input: z
       .string()

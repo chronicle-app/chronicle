@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { test } from 'node:test';
 import { renderReadme } from './sources-table.js';
 
@@ -63,6 +65,7 @@ test('each manifest matches its plugin’s exported extractor classes', async ()
       assert.equal(strategy.delivery, value.delivery, `${pkg.name}: ${value.strategy} deliveries`);
       strategy.recordTypes.push(...value.recordTypes);
       strategy.default ||= Boolean(value.default);
+      if (value.databases) strategy.databases = value.databases;
     }
     const declared = {};
     for (const [name, source] of Object.entries(pkg.chronicle.sources ?? {})) {
@@ -178,6 +181,46 @@ test('each layout is paths from where its export starts, and matches only its ow
         [],
         `${plugin}: ${source} ${strategy}'s export also matches another strategy's layout`
       );
+    }
+  }
+});
+
+test('each database schema names columns, and a database in it is no other strategy’s', async t => {
+  const { matchSchema, readColumns } = await import(new URL('core/etl/dist/index.js', root).href);
+  const { writeSchemaDatabase } = await import(new URL('core/etl-sqlite/dist/index.js', root).href);
+  const dir = mkdtempSync(join(tmpdir(), 'catalog-databases-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const sets = [];
+  for (const { pkg } of workspace) {
+    for (const [source, { strategies }] of Object.entries(pkg.chronicle.sources ?? {})) {
+      for (const [name, strategy] of Object.entries(strategies)) {
+        const { databases = [] } = strategy;
+        for (const schema of databases) {
+          const tables = Object.entries(schema.tables ?? {});
+          assert.ok(tables.length > 0, `${pkg.name}: a database of ${name} names no tables`);
+          for (const [table, columns] of tables) {
+            assert.ok(columns.length > 0, `${pkg.name}: ${table} names no columns`);
+          }
+        }
+        if (databases.length > 0)
+          sets.push({ source, strategy: name, databases, plugin: pkg.name });
+      }
+    }
+  }
+  // A database with only a schema's needed columns is in no other strategy's.
+  for (const { source, strategy, databases, plugin } of sets) {
+    for (const [i, schema] of databases.entries()) {
+      const file = join(dir, `${source}-${strategy}-${i}.db`);
+      writeSchemaDatabase(file, schema, { optional: false });
+      const columns = readColumns(file);
+      for (const other of sets) {
+        if (other.source === source && other.strategy === strategy) continue;
+        assert.equal(
+          matchSchema(columns, other.databases),
+          null,
+          `${plugin}: ${source} ${strategy}'s database is also in ${other.source} ${other.strategy}'s`
+        );
+      }
     }
   }
 });

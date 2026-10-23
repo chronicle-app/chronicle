@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
@@ -209,4 +210,67 @@ test('a list of paths, as a package manifest lists them, without a disk', async 
     whole.exports.map(e => e.root),
     ['']
   );
+});
+
+const SAFARI = {
+  source: 'safari',
+  strategy: 'app-db',
+  layouts: [],
+  names: ['History.db'],
+  databases: [
+    { tables: { history_items: ['id', 'url'], history_visits: ['id', 'visit_time', 'origin?'] } },
+  ],
+};
+
+function database(path, sql, { wal = false } = {}) {
+  mkdirSync(dirname(path), { recursive: true });
+  const db = new DatabaseSync(path);
+  if (wal) db.exec('PRAGMA journal_mode = WAL');
+  db.exec(sql);
+  db.close();
+}
+
+const HISTORY =
+  'CREATE TABLE history_items (id, url); CREATE TABLE history_visits (id, visit_time, origin);';
+
+test('a database is found by its schema, and read without writing beside it', async t => {
+  const dir = join(scratch(t), 'data');
+  database(join(dir, 'safari/History.db'), HISTORY, { wal: true });
+  // Without a column it does without, it's still read; without one it needs, it's a version it can't read.
+  database(join(dir, 'safari/2026-08-06/History.db'), HISTORY.replace(', origin', ''));
+  database(join(dir, 'safari/2019/History.db'), HISTORY.replace(', visit_time', ''));
+  // Named otherwise, the walk doesn't open it; with only one of its tables, it isn't one.
+  database(join(dir, 'safari/History copy.db'), HISTORY);
+  database(join(dir, 'other/History.db'), 'CREATE TABLE history_items (id, url);');
+  plant(dir, {
+    'notes/History.db': 'not a database',
+    'safari/encrypted/History.db': `SQLite format 3\0${'x'.repeat(200)}`,
+  });
+  const before = readdirSync(dir, { recursive: true }).sort();
+
+  const found = await findExports(dir, [SAFARI]);
+  assert.deepEqual(
+    found.exports.map(e => [e.root.slice(dir.length + 1), e.file, e.matches[0].missing]),
+    [
+      ['safari/2019/History.db', true, ['history_visits.visit_time']],
+      ['safari/2026-08-06/History.db', true, undefined],
+      ['safari/History.db', true, undefined],
+    ]
+  );
+  assert.deepEqual(found.exports[0].matches[0].tables, ['history_items', 'history_visits']);
+  assert.deepEqual(found.refused, [
+    { path: join(dir, 'safari/encrypted/History.db'), code: 'EDB' },
+  ]);
+  assert.deepEqual(found.unrecognized, ['notes', 'other']);
+  // Not even a -shm beside the one in WAL mode.
+  assert.deepEqual(readdirSync(dir, { recursive: true }).sort(), before);
+
+  // Passed as the path, a database is opened whatever its name.
+  const copy = await findExports(join(dir, 'safari/History copy.db'), [SAFARI]);
+  assert.deepEqual(
+    copy.exports.map(e => e.root),
+    [join(dir, 'safari/History copy.db')]
+  );
+  const notOne = await findExports(join(dir, 'notes/History.db'), [SAFARI]);
+  assert.deepEqual(notOne.unrecognized, ['History.db']);
 });

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
-import { copyFileSync, mkdtempSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { copyFileSync, mkdtempSync, readFileSync, readdirSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setFlagsFromString } from 'node:v8';
@@ -12,6 +12,7 @@ import {
   isSqliteBusy,
   iterateRows,
   timeRangeConditions,
+  writeSchemaDatabase,
 } from '../dist/index.js';
 
 class FixtureExtractor extends SqliteExtractor {
@@ -34,6 +35,15 @@ class FixtureExtractor extends SqliteExtractor {
 
   connection() {
     return this.db;
+  }
+}
+
+/** A reader that says what it reads: a column it does without, and one more it needs. */
+class DeclaredExtractor extends FixtureExtractor {
+  static databases = [{ tables: { events: ['id', 'at', 'note?'] } }];
+
+  hasNote() {
+    return this.has('events.note');
   }
 }
 
@@ -158,4 +168,52 @@ test('iterateRows keeps an inline statement alive through garbage collection', (
     seen.push(row.n);
   }
   assert.deepEqual(seen, [0, 1, 2, 3, 4]);
+});
+
+test('a reader that declares its schema reads a snapshot, and nothing is written beside a copy', async t => {
+  const { input } = fixture(t, true);
+  // A copy taken while its app has it open, so far with its rows only in the -wal.
+  const copies = mkdtempSync(join(tmpdir(), 'chronicle-copy-'));
+  t.after(() => rmSync(copies, { recursive: true, force: true }));
+  const copy = join(copies, 'fixture.db');
+  copyFileSync(input, copy);
+  copyFileSync(`${input}-wal`, `${copy}-wal`);
+
+  const extractor = new DeclaredExtractor({ input: copy });
+  try {
+    await extractor.setup();
+    assert.deepEqual(await collect(extractor), [1, 2, 3]);
+    assert.equal(extractor.hasNote(), false);
+  } finally {
+    await extractor.teardown();
+  }
+  // Opened in place, even read-only, SQLite would have made a -shm here.
+  assert.deepEqual(readdirSync(copies).sort(), ['fixture.db', 'fixture.db-wal']);
+});
+
+test('a reader that declares its schema reads only a database in it', async t => {
+  const { dir } = fixture(t);
+  const run = async input => {
+    const extractor = new DeclaredExtractor({ input });
+    try {
+      await extractor.setup();
+      return await collect(extractor);
+    } finally {
+      await extractor.teardown();
+    }
+  };
+  // Its schema's own tables, and none of the columns it does without, are enough.
+  const bare = join(dir, 'bare.db');
+  writeSchemaDatabase(bare, DeclaredExtractor.databases[0], { optional: false });
+  assert.deepEqual(await run(bare), []);
+
+  const older = join(dir, 'older.db');
+  writeSchemaDatabase(older, { tables: { events: ['id'] } });
+  await assert.rejects(run(older), {
+    code: 'input-not-found',
+    message: /version of the database this can’t read/,
+  });
+  const other = join(dir, 'other.db');
+  writeSchemaDatabase(other, { tables: { things: ['id', 'at'] } });
+  await assert.rejects(run(other), /isn’t the database/);
 });

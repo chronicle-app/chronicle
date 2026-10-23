@@ -108,5 +108,14 @@ export {
   type LayoutSet,
   type Refused,
 } from './archive/layouts.js';
+export {
+  columnsOf,
+  isSqlite,
+  matchSchema,
+  readColumns,
+  type DatabaseColumns,
+  type DatabaseSchema,
+  type SchemaMatch,
+} from './archive/databases.js';
 export { writeZip } from './archive/writeZip.js';
 export { SystemInfo } from './system/SystemInfo.js';
