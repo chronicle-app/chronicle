@@ -1,4 +1,5 @@
 import type { KindSurvey, Measure, Survey } from '@chronicle.app/etl';
+import { Args } from '@oclif/core';
 import { BaseCommand } from '../baseCommand.js';
 import { existsSync } from 'node:fs';
 import os from 'node:os';
@@ -83,11 +84,23 @@ export function measureValue(measure: Measure): string {
   return count(measure.value);
 }
 
-/** A measure as a person reads it: `1,514 conversations`, `107 GB of attachments`. */
+/**
+ * A measure as a person reads it beside its records: `1,514 conversations`,
+ * `107 GB of attachments`, or for the time they take, just `18 hours`.
+ */
 export function measureText(measure: Measure): string {
   const amount = measureValue(measure);
+  if (measure.unit === 'seconds') return amount;
   return measure.unit ? `${amount} of ${measure.label}` : `${amount} ${measure.label}`;
 }
+
+/** What a kind's records are, as extract's summary says them: `app activities`. */
+const recordsText = (kind: string, part: KindSurvey) =>
+  `${count(part.count)} ${plural(part.label ?? kind.replaceAll('-', ' '), part.count)}`;
+
+/** How many records a survey counted, of every kind. */
+const total = (survey: Survey | null) =>
+  Object.values(survey ?? {}).reduce((n, kind) => n + kind.count, 0);
 
 /** Longest a year's bar is: the busiest year's. */
 const BAR_WIDTH = 30;
@@ -148,6 +161,18 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
     "Run `chronicle survey moves-app --help` to see a source's options.";
 
   static override usage = 'survey [source|path] [type...] [flags]';
+
+  // For help only: the dispatcher parses its own.
+  static override args = {
+    source: Args.string({
+      description: 'A source, like shell, or a folder or zip of exports',
+      required: false,
+    }),
+    type: Args.string({ description: 'Record types to count, like calls', required: false }),
+  };
+
+  /** How help names each argument. */
+  static argTerms = { source: '<source|path>', type: '[type...]' };
 
   static override examples = [
     'chronicle survey',
@@ -319,6 +344,7 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
     );
     // Not ready: listed with what's in the way.
     const waiting = rows.filter(row => !targets.includes(row) && !online.includes(row));
+    const started = Date.now();
     const surveys = await this.surveyAll(
       { targets, online, waiting },
       survey,
@@ -342,7 +368,7 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
                 };
               }),
               ...online.map(row => ({ ...this.described(row), survey: null, online: true })),
-              ...waiting.map(row => ({ ...this.described(row), survey: null, status: row.status })),
+              ...waiting.map(row => ({ ...this.described(row), survey: null })),
             ],
             null,
             2
@@ -382,12 +408,40 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
       for (const line of lines) this.log(line);
       // A source's details end apart from the hints under them.
       if (source) this.log('');
+      else this.counted(targets, surveys, Date.now() - started, path !== undefined);
     } else {
       this.logger.info(
         source ? `Nothing of ${source}'s to survey` : 'Nothing to survey on this computer'
       );
     }
-    this.hints(rows, targets, surveys);
+    this.hints(rows, { targets, online, waiting }, surveys);
+  }
+
+  /** The table's outcome: how many sources, or exports, were counted, and their records. */
+  private counted(targets: ScanRow[], states: Surveyed[], durationMs: number, exports: boolean) {
+    const answered = targets.filter((_, i) => {
+      const state = states[i];
+      return state.state === 'done' && state.survey;
+    });
+    if (answered.length === 0) return;
+    const n = exports ? answered.length : new Set(answered.map(row => row.source)).size;
+    const title = `Counted ${count(n)} ${plural(exports ? 'exports' : 'sources', n)}`;
+    const records = answered.reduce(
+      (sum, row) => sum + total(this.surveyOf(row, targets, states)),
+      0
+    );
+    this.logger.emit({
+      level: 'info',
+      kind: 'summary',
+      message: `${title}: ${count(records)} ${plural('records', records)}`,
+      fields: { title, counts: records > 0 ? { records } : {}, records, durationMs },
+    });
+  }
+
+  /** A target's survey, once it answered. */
+  private surveyOf(row: ScanRow, targets: ScanRow[], states: Surveyed[]): Survey | null {
+    const state = states[targets.indexOf(row)];
+    return state?.state === 'done' ? state.survey : null;
   }
 
   /**
@@ -410,22 +464,30 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
     const block = (row: ScanRow, sections: string[][]) => {
       if (lines.length > 0) lines.push('');
       const what = places === 1 ? summary : row.label;
-      lines.push(line([[row.source, t.strong], [what ? `  ${what}` : '']], width));
       const { path: file, bytes: size, modifiedAt } = row.evidence;
       const facts = [
         size !== undefined && bytes(size),
         modifiedAt && `changed ${date(new Date(modifiedAt))}`,
-      ].filter(Boolean);
-      if (file || facts.length > 0) {
-        lines.push(
-          line(
-            [
-              [file ? t.code(fromHome(file, home)) : ''],
-              [facts.length > 0 ? `${file ? '  ' : ''}${facts.join(' · ')}` : '', t.muted],
-            ],
-            width
-          )
-        );
+      ]
+        .filter(Boolean)
+        .join(' · ');
+      // A title that names the file takes its facts. Otherwise the file, or
+      // the place when the title doesn't say it (an account), goes under it.
+      const where = file && fromHome(file, home);
+      const titled = Boolean(where) && what === where;
+      lines.push(
+        line(
+          [
+            [row.source, t.strong],
+            [what ? `  ${what}` : ''],
+            [titled && facts ? `  ${facts}` : '', t.muted],
+          ],
+          width
+        )
+      );
+      const place = where ? t.code(where) : what === row.label ? '' : row.label;
+      if (!titled && (place || facts)) {
+        lines.push(line([[place], [facts ? `${place ? '  ' : ''}${facts}` : '', t.muted]], width));
       }
       for (const section of sections) lines.push('', ...section);
     };
@@ -453,10 +515,7 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
           ]);
         }
         const section = [
-          line(
-            [[`${count(part.count)} ${plural(part.label ?? kind, part.count)}`, t.strong]],
-            width
-          ),
+          line([[recordsText(kind, part), t.strong]], width),
           ...card(undefined, facts, t, width - 2).map(fact => `  ${fact}`),
         ];
         const years = yearBars(part.byMonth ?? {}, t, width - 2);
@@ -465,15 +524,21 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
       });
       block(row, sections);
     }
-    for (const row of online) block(row, [note('Online, not counted')]);
+    for (const row of online) {
+      block(row, [
+        note(
+          `Not counted, since ${row.source} is read online and counting it means downloading it.`
+        ),
+      ]);
+    }
     for (const row of waiting) block(row, [note(capitalized(statusText(row)))]);
     return lines;
   }
 
-  /** A row as JSON names it: where it is, and the command that extracts it. */
+  /** A row as JSON names it: where it is, the command that extracts it, and its status in a scan. */
   private described(row: ScanRow) {
-    const { source, strategy, label, config, command } = row;
-    return { source, strategy, label, config, command };
+    const { source, strategy, label, config, command, status } = row;
+    return { source, strategy, label, config, command, status };
   }
 
   /**
@@ -527,8 +592,9 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
   /**
    * A row per record type of each source surveyed, the source and where its
    * records come from on its first; one with a spinner for a survey under
-   * way. Then those online, and those not ready, with what's in their way.
-   * A source that can't say how much it holds is left out.
+   * way, and one that says `empty` for a place with no records. Then those
+   * online, and those not ready, with what's in their way. A source that
+   * can't say how much it holds is left out.
    */
   private table(
     { targets, online, waiting }: Found,
@@ -547,10 +613,13 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
       if (state.state === 'pending') say(row, spinner);
       else if (state.state === 'failed') say(row, "couldn't count");
       else if (state.survey) {
-        for (const [k, [kind, part]] of Object.entries(state.survey).entries()) {
+        // The kinds it has none of are left out, and a place with none at all says so.
+        const kinds = Object.entries(state.survey).filter(([, part]) => part.count > 0);
+        if (kinds.length === 0) say(row, 'empty');
+        for (const [k, [kind, part]] of kinds.entries()) {
           cells.push([
             k === 0 ? row.source : '',
-            `${count(part.count)} ${plural(part.label ?? kind, part.count)}`,
+            recordsText(kind, part),
             yearsText(part),
             (part.measures ?? []).map(measure => measureText(measure)).join(' · '),
             k === 0 ? row.label : '',
@@ -563,7 +632,7 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
     if (cells.length === 0) return [];
     return table(
       {
-        headings: ['source', 'records', 'years', 'more', 'from'],
+        headings: ['source', 'records', 'years', 'details', 'from'],
         cells,
         numeric: [false, true, false, false, false],
         muted: [false, false, true, true, true],
@@ -574,21 +643,18 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
     ).lines;
   }
 
-  /** What to do next: extract what was counted, see why one failed, or clear what's in the way. */
-  private hints(rows: ScanRow[], targets: ScanRow[], states: Surveyed[]): void {
-    const counted = targets.filter((_, i) => {
-      const state = states[i];
-      return state.state === 'done' && state.survey;
-    });
-    if (counted.length > 0) {
+  /**
+   * What to do next: extract what has records, or is online, see why one
+   * failed, or clear what's in the way.
+   */
+  private hints(rows: ScanRow[], { targets, online }: Found, states: Surveyed[]): void {
+    const records = (row: ScanRow) => total(this.surveyOf(row, targets, states));
+    const counted = targets.filter(row => records(row) > 0);
+    if (counted.length > 0 || online.length > 0) {
       // The example is the source with the most to extract.
-      const records = (row: ScanRow) => {
-        const state = states[targets.indexOf(row)];
-        const survey = state.state === 'done' ? state.survey : null;
-        return Object.values(survey ?? {}).reduce((n, kind) => n + kind.count, 0);
-      };
-      const most = counted.reduce((a, b) => (records(b) > records(a) ? b : a));
-      this.hint(extractHint(counted, most));
+      const most =
+        counted.length > 0 && counted.reduce((a, b) => (records(b) > records(a) ? b : a));
+      this.hint(extractHint([...counted, ...online], most || online[0]));
     }
     const failed = states.filter(state => state.state === 'failed').length;
     if (failed > 0) {

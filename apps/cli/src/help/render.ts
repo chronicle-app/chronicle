@@ -260,9 +260,11 @@ export function commandHelp(
   width: number
 ) {
   const own = summaryOf(command);
-  // Whether one is optional is the usage line's to say.
+  // Whether one is optional is the usage line's to say, unless the command
+  // names its arguments itself, like survey's `<source|path>`.
+  const terms: { [arg: string]: string } = (command as { argTerms?: {} }).argTerms ?? {};
   const args = Object.values(command.args ?? {}).map(arg => ({
-    term: [[`<${arg.name}>`, t.command]] as Segment[],
+    term: [[terms[arg.name] ?? `<${arg.name}>`, t.command]] as Segment[],
     text: arg.description,
   }));
   const aliases = (command.aliases ?? []).filter(alias => alias !== command.id);

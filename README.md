@@ -81,7 +81,7 @@ other source by name, for example `chronicle plugins install lastfm`, or let
 | Twitter/X archive tweets, likes, and DMs                                               | [twitter](plugins/twitter/README.md)                       | archive (export)                |
 | WhatsApp messages                                                                      | [whatsapp](plugins/whatsapp/README.md)                     | app-db (local), backup (export) |
 | YouTube likes, subscriptions, playlists, uploads, and Takeout history                  | [youtube](plugins/youtube/README.md)                       | api, takeout (export)           |
-| Zotero works, highlights, notes, and reading                                           | [zotero](plugins/zotero/README.md)                         | app-db (local)                  |
+| Zotero works, highlights, notes, and reading activity                                  | [zotero](plugins/zotero/README.md)                         | app-db (local)                  |
 
 For services that no longer exist, shown by `chronicle sources --all`:
 

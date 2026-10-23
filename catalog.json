@@ -238,7 +238,7 @@
       "name": "zotero",
       "package": "@chronicle.app/zotero",
       "tier": "official",
-      "summary": "Zotero works, highlights, notes, and reading"
+      "summary": "Zotero works, highlights, notes, and reading activity"
     }
   ]
 }

@@ -12,9 +12,13 @@ const {
 
 /** What `survey` takes beside a source's own options: the run's filters, and how to print. */
 export const SURVEY_FLAGS = {
-  since,
-  until,
-  type,
+  since: {
+    ...since,
+    helpGroup: 'RECORD',
+    summary: 'Count records from this date on, or this long ago, like 30d',
+  },
+  until: { ...until, helpGroup: 'RECORD', summary: 'Count records up to this date' },
+  type: { ...type, helpGroup: 'RECORD', summary: 'Record types to count, comma-separated' },
   format: Flags.string({
     summary: 'How to print what was counted',
     options: ['table', 'json', 'csv'],

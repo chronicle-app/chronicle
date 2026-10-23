@@ -26,7 +26,7 @@ export class ObsidianLocator extends Locator {
           ? `~${vault.path.slice(home.length)}`
           : vault.path;
         yield {
-          label: `${path.basename(vault.path)}, ${where}`,
+          label: where,
           config: { input: vault.path },
           path: vault.path,
         };

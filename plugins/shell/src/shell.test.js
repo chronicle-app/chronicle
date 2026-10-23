@@ -40,7 +40,6 @@ test('a survey counts the commands a run reads, and when, whatever its limit', a
       count: rows.length,
       earliest: new Date(0),
       latest: new Date(5000),
-      measures: [{ key: 'distinctCommands', label: 'different', value: 2 }],
     },
   });
   assert.equal((await survey(t, content, { since: new Date(1000) })).commands.count, 2);
@@ -50,7 +49,7 @@ test('a survey counts the commands a run reads, and when, whatever its limit', a
   });
   // Commands without a time count, but date nothing.
   assert.deepEqual(await survey(t, 'echo unknown\n', { shell: 'bash' }), {
-    commands: { count: 1, measures: [{ key: 'distinctCommands', label: 'different', value: 1 }] },
+    commands: { count: 1 },
   });
 });
 for (const [shell, content] of [

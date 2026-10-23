@@ -316,11 +316,9 @@ export class ShellHistoryExtractor extends Extractor<typeof ShellHistoryExtracto
     let count = 0;
     let earliest: Date | undefined;
     let latest: Date | undefined;
-    const commands = new Set<string>();
     const byMonth: { [month: string]: number } = {};
     for await (const { data } of all.extract()) {
       count++;
-      commands.add(data.command);
       if (!data.timestamp) continue;
       const time = new Date(data.timestamp);
       if (!earliest || time < earliest) earliest = time;
@@ -331,7 +329,6 @@ export class ShellHistoryExtractor extends Extractor<typeof ShellHistoryExtracto
       commands: {
         count,
         ...(earliest && { earliest, latest }),
-        measures: [{ key: 'distinctCommands', label: 'different', value: commands.size }],
         ...(options.byMonth && { byMonth }),
       },
     };

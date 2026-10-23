@@ -39,18 +39,26 @@ export function statusText(row: ScanRow): string {
 
 /**
  * How to extract what a table lists: the command for its one row, or, for
- * several, `example`'s, as one of them.
+ * several, `example`'s, as one of them. A command that's just the source's
+ * name is said as that. Any other is followed by where it reads, unless it
+ * names that itself, as an export's `--input` does, and by where to see
+ * each row's.
  */
 export function extractHint(rows: ScanRow[], example = rows[0]): string {
   if (rows.length === 1) return `Run \`${example.command}\` to extract it.`;
-  // An export goes by where it is; a source by its name, and where when it's found twice.
   const twin = rows.some(row => row !== example && row.source === example.source);
-  let what = example.source;
-  if (example.root) what = example.label;
-  else if (twin) what = `${example.label} from ${example.source}`;
+  if (!twin && example.command === `chronicle extract ${example.source}`) {
+    return `To extract a source, run \`chronicle extract\` with its name, like \`${example.command}\`.`;
+  }
+  const one = example.root
+    ? 'an export'
+    : rows.every(row => row.source === example.source)
+      ? 'one'
+      : 'a source';
+  const named = example.root || typeof example.config.input === 'string';
   return (
-    `To extract ${example.root ? 'an export' : 'a source'}, run its command. ` +
-    `For example, \`${example.command}\` extracts ${what}.`
+    `To extract ${one}, run its command, like \`${example.command}\`` +
+    `${named ? '' : ` for ${example.label}`}. Use \`--format json\` to see each one's command.`
   );
 }
 
@@ -190,6 +198,11 @@ export default class Scan extends BaseCommand<typeof Scan> {
     }
 
     this.table(rows);
+    const sources = new Set(rows.map(row => row.source)).size;
+    this.summary(
+      `Found ${count(sources)} ${plural('sources', sources)}` +
+        (rows.length > sources ? ` in ${count(rows.length)} places` : '')
+    );
     this.hints(rows, ['chronicle survey', source].filter(Boolean).join(' '));
   }
 
@@ -231,6 +244,7 @@ export default class Scan extends BaseCommand<typeof Scan> {
       this.hint('Run `chronicle sources --all` to see what Chronicle reads.');
     } else {
       this.table(rows);
+      this.summary(`Found ${count(rows.length)} ${plural('exports', rows.length)}`);
       if (unrecognized.length > 0) {
         const names = [...unrecognized].sort((a, b) => a.localeCompare(b));
         this.hint(`Didn't recognize ${foldersAndZips(names)}: ${named(names)}.`);
@@ -271,13 +285,18 @@ export default class Scan extends BaseCommand<typeof Scan> {
     }
   }
 
-  /** The rows, each with the strategy that reads it. */
+  /**
+   * The rows, each with the strategy that reads it, those that aren't ready
+   * last, just above the hints that say what to do about them.
+   */
   private table(rows: ScanRow[]): void {
     const t = tokens({ stream: 'stdout', theme: this.flags.theme });
+    const ready = (row: ScanRow) => row.installed && row.status === 'ready';
+    const ordered = [...rows.filter(row => ready(row)), ...rows.filter(row => !ready(row))];
     const { lines } = table(
       {
         headings: ['source', 'strategy', 'found', 'status'],
-        cells: rows.map(row => [row.source, row.strategy, row.label, statusText(row)]),
+        cells: ordered.map(row => [row.source, row.strategy, row.label, statusText(row)]),
         muted: [false, false, false, true],
         paths: [false, false, true, false],
       },
