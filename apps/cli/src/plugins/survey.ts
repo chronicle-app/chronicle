@@ -81,6 +81,7 @@ export async function rowFor(
     plugin: listing.plugin,
     config,
     command: commandFor(listing, strategy, config, home, kinds),
+    ...(listing.version && { pluginVersion: listing.version }),
     evidence: { ...(input && { path: input }) },
   };
 }

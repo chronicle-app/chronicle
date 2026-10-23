@@ -860,6 +860,16 @@ test('the extract hint names a source, or gives a command and where it reads', a
   );
 });
 
+test('a measure beside a count is plural only when it counts more than one', async () => {
+  const { measureText } = await import('../dist/commands/survey.js');
+  assert.equal(measureText({ key: 'c', label: 'conversations', value: 1 }), '1 conversation');
+  assert.equal(measureText({ key: 'c', label: 'conversations', value: 2 }), '2 conversations');
+  assert.equal(
+    measureText({ key: 'b', label: 'attachments', value: 1, unit: 'bytes' }),
+    '1 B of attachments'
+  );
+});
+
 test('a sparkline has a column per year, as high as its records against the busiest', async () => {
   const { sparkline } = await import('../dist/commands/survey.js');
   assert.equal(sparkline({ '2015-01': 4, '2015-06': 4, '2017-03': 2 }), '2015 █ ▂ 2017');
@@ -978,6 +988,7 @@ test('survey takes the options extract does, and counts an export it is pointed 
   );
   assert.equal(counted.label, input);
   assert.match(counted.command, /^chronicle extract moves-app --input /);
+  assert.match(counted.pluginVersion, /^\d+\.\d+\.\d+/);
   assert.deepEqual(counted.survey, {
     places: {
       count: 2,
@@ -1133,7 +1144,15 @@ test('scan finds the exports in a folder or zip, with the command that reads eac
   const surveyBare = scan('survey', 'EXPORT_FILES');
   assert.notEqual(surveyBare.status, 0);
   assert.match(surveyBare.stderr, /chronicle survey \.\/EXPORT_FILES/);
+  const unknown = scan('survey', join(root, 'misc'));
+  assert.equal(unknown.status, 0, unknown.stderr);
+  assert.match(unknown.stderr, /chronicle sources --all/);
+  assert.doesNotMatch(unknown.stderr, /chronicle scan/);
   assert.equal(success(scan('survey', join(root, 'misc'), '--format', 'json')).trim(), '[]');
+  // Each export's counts say where it starts and which plugin version made them.
+  const [counts] = JSON.parse(success(scan('survey', root, '--format', 'json')));
+  assert.equal(counts.root, join(root, 'export.zip', 'apple_health_export'));
+  assert.match(counts.pluginVersion, /^\d+\.\d+\.\d+/);
   // An export with no records is one row that says so, and isn't offered to extract.
   const empty = scan('survey', root);
   assert.equal(empty.status, 0, empty.stderr);

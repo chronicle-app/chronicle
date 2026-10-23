@@ -91,7 +91,9 @@ export function measureValue(measure: Measure): string {
 export function measureText(measure: Measure): string {
   const amount = measureValue(measure);
   if (measure.unit === 'seconds') return amount;
-  return measure.unit ? `${amount} of ${measure.label}` : `${amount} ${measure.label}`;
+  return measure.unit
+    ? `${amount} of ${measure.label}`
+    : `${amount} ${plural(measure.label, measure.value)}`;
 }
 
 /** What a kind's records are, as extract's summary says them: `app activities`. */
@@ -230,11 +232,8 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
       this.logger.info(
         `Didn't recognize ${folder ? 'anything in ' : ''}${fromHome(scanned, os.homedir())}`
       );
-      this.hint(
-        folder
-          ? `Run \`chronicle scan ${where}\` to see what it holds.`
-          : 'Run `chronicle sources --all` to see what Chronicle reads.'
-      );
+      // Its scan would say the same, so the next step is what Chronicle reads.
+      this.hint('Run `chronicle sources --all` to see what Chronicle reads.');
       if (this.flags.format === 'json') this.log('[]');
       return;
     }
@@ -520,10 +519,23 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
     return lines;
   }
 
-  /** A row as JSON names it: where it is, the command that extracts it, and its status in a scan. */
+  /**
+   * A row as JSON names it: where it is (and where an export starts), the
+   * command that extracts it, its status in a scan, and the plugin version
+   * that counted it.
+   */
   private described(row: ScanRow) {
-    const { source, strategy, label, config, command, status } = row;
-    return { source, strategy, label, config, command, status };
+    const { source, strategy, label, root, config, command, status, pluginVersion } = row;
+    return {
+      source,
+      strategy,
+      label,
+      ...(root && { root }),
+      config,
+      command,
+      status,
+      ...(pluginVersion && { pluginVersion }),
+    };
   }
 
   /**
