@@ -99,11 +99,13 @@ redacted.
   nothing. `jsonColors(theme)`: the JSON loader's syntax colors.
 - `glyphs`: the glyph set.
 - Formatters: `count`, `bytes`, `duration`, `clock`, `plural`, `date`,
-  `truncate`, `relativePath`.
+  `truncate`, `truncatePath` (a path cut in the middle, keeping its file),
+  `relativePath`.
 - Blocks, each returning strings cut to a width: `line`, `summary`, `hint`,
   `guide`, `heading`, `paragraph`, `definitions` (terms and their text, as
-  help lists flags and commands), `list`, `caption`, `card`, `table`, and
-  `progress` (the live line).
+  help lists flags and commands), `list`, `caption`, `card`, `table` (whose
+  `paths` columns are cut with `truncatePath`), and `progress` (the live
+  line).
 - Help: every help screen (`src/help/render.ts`), drawn from these blocks by
   the help class oclif loads (`src/help/Help.ts`).
 - Prompts (`prompts.ts`): `confirm`, `select`, `multiSelect`, and `input`,

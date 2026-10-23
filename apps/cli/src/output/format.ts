@@ -49,6 +49,30 @@ export const date = (d: Date) =>
 export const truncate = (text: string, width: number) =>
   text.length > width ? `${text.slice(0, Math.max(0, width - 1))}…` : text;
 
+/**
+ * A path at most `width` characters, cut in the middle: its first folder,
+ * then as many of its last parts as fit, so it still says where it is and
+ * the file it names, like `~/Library/…/NoteStore.sqlite`. Too narrow for
+ * that, just the file: `…/NoteStore.sqlite`. Text that isn't a path, or a
+ * file too long even so, is cut at the end.
+ */
+export function truncatePath(text: string, width: number): string {
+  if (text.length <= width) return text;
+  const slash = text.endsWith('/') ? '/' : '';
+  const parts = text.slice(0, text.length - slash.length).split('/');
+  if (parts.length < 4) return truncate(text, width);
+  const head = `${parts.slice(0, 2).join('/')}/…/`;
+  let tail = `${parts.at(-1)}${slash}`;
+  if (head.length + tail.length > width) {
+    return tail.length + 2 <= width ? `…/${tail}` : truncate(text, width);
+  }
+  for (const part of parts.slice(2, -1).reverse()) {
+    if (head.length + part.length + 1 + tail.length > width) break;
+    tail = `${part}/${tail}`;
+  }
+  return head + tail;
+}
+
 /** A file path relative to here, unless that climbs out. */
 export function relativePath(file: string): string {
   const relative = path.relative(process.cwd(), file);

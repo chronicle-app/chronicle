@@ -795,8 +795,8 @@ test('scan finds what a home folder holds, with a command that extracts each', t
 
   // The table, with the next step under it.
   const table = scan('scan');
-  assert.match(table.stdout, /^chrome +app-db +Work +ready$/m);
-  assert.match(table.stderr, /Run `chronicle extract \S+/);
+  assert.match(table.stdout, /^chrome +Work +ready$/m);
+  assert.match(table.stderr, /For example, `chronicle extract [^`]+` extracts /);
 
   // A profile its permissions close is there, but can't be read.
   const closed = ['.config/google-chrome', 'Library/Application Support/Google/Chrome'].map(
@@ -822,7 +822,7 @@ test('scan finds what a home folder holds, with a command that extracts each', t
   assert.match(unknown.stderr, /chronicle sources --all/);
 });
 
-test('survey counts what each ready source holds, and says what it left out', t => {
+test('survey counts what each ready source holds, and lists the rest with what is in the way', t => {
   const { dir, run } = fixture(t);
   const { home } = scanHome(dir);
   const survey = run.with({ HOME: home, GH_TOKEN: 'synthetic-token' });
@@ -841,22 +841,33 @@ test('survey counts what each ready source holds, and says what it left out', t 
   // A History that isn't a database fails its survey, and says why.
   assert.equal(of('chrome', 'Personal').survey, null);
   assert.ok(of('chrome', 'Personal').error);
-  // A source online is listed but not counted; one that isn't ready isn't listed.
+  // A source online is listed but not counted, and one that isn't ready with why.
   assert.equal(of('github', 'GH_TOKEN').survey, null);
   assert.equal(of('github', 'GH_TOKEN').online, true);
-  assert.equal(of('shell', '~/.bash_history'), undefined);
+  assert.equal(of('shell', '~/.bash_history').survey, null);
+  assert.equal(of('shell', '~/.bash_history').status, 'empty');
 
+  // The counts first, then where each comes from.
   const shown = survey('survey');
   assert.equal(shown.status, 0, shown.stderr);
-  assert.match(shown.stdout, /^source +found +records +years +more$/m);
-  assert.match(shown.stdout, /~\/\.zsh_history +1 command +2023 +1 different/);
+  assert.match(shown.stdout, /^source +records +years +more +from$/m);
+  assert.match(shown.stdout, /^shell +1 command +2023 +1 different +~\/\.zsh_history$/m);
+  assert.match(shown.stdout, /^chrome +couldn't count +Personal$/m);
   assert.match(shown.stderr, /Couldn't count 2 sources/);
-  assert.match(shown.stdout, /^github +GH_TOKEN +online, not counted/m);
-  assert.match(shown.stderr, /1 source found isn't ready/);
-  // One source: what it is and where it was read from, then its records' count, first and last.
+  assert.match(shown.stdout, /^github +online, not counted +GH_TOKEN$/m);
+  assert.match(shown.stdout, /^shell +empty +~\/\.bash_history$/m);
+  assert.doesNotMatch(shown.stderr, /chronicle scan/);
+  // One source's command, as an example of each's.
+  assert.match(
+    shown.stderr,
+    /To extract a source, run its command\. For example, `chronicle extract [^`]+` extracts \S+\./
+  );
+  // One source: each place it was found, where it was read from, then its
+  // records' count, first and last, or what's in the way.
   const detail = success(survey('survey', 'shell'));
-  assert.match(detail, /^shell {2}Shell history/m);
+  assert.match(detail, /^shell {2}~\/\.zsh_history$/m);
   assert.match(detail, /^`~\/\.zsh_history` {2}\d+ B · changed /m);
+  assert.match(detail, /^shell {2}~\/\.bash_history\n`~\/\.bash_history` .*\n\nEmpty$/m);
   assert.match(detail, /^1 command$/m);
   assert.match(detail, /^ {2}first +2023-11-1\d \d\d:\d\d$/m);
   assert.match(detail, /^ {2}different +1$/m);
@@ -864,8 +875,11 @@ test('survey counts what each ready source holds, and says what it left out', t 
   assert.doesNotMatch(detail, /█/);
   const [zsh] = JSON.parse(success(survey('survey', 'shell', '--format', 'json')));
   assert.deepEqual(zsh.survey.commands.byMonth, { '2023-11': 1 });
-  // Every source's survey leaves months out; a scan points to it.
-  assert.match(survey('scan').stderr, /chronicle survey/);
+  // Every source's survey leaves months out; a scan points to it, and names
+  // strategies only when a source is found by more than one.
+  const scanned = survey('scan');
+  assert.match(scanned.stderr, /chronicle survey/);
+  assert.match(scanned.stdout, /^source +found +status$/m);
   assert.notEqual(survey('survey', 'no-such-source').status, 0);
 });
 
@@ -925,6 +939,8 @@ test('survey takes the options extract does, and counts an export it is pointed 
   });
   // Years when there are several, each a bar against the busiest.
   const years = success(survey('survey', 'moves-app', '--input', input));
+  // A source found in one place is titled with what it is.
+  assert.match(years, /^moves-app {2}Moves export places and moves$/m);
   assert.match(years, /^2 places$/m);
   assert.match(years, /^ {2}2014 {2}█{30} {2}1$/m);
   assert.match(years, /^ {2}2015 {2}█{30} {2}1$/m);
@@ -1014,7 +1030,12 @@ test('scan finds the exports in a folder or zip, with the command that reads eac
   // The table, with what it didn't recognize, couldn't open, and what to run next.
   const table = scan('scan', root);
   assert.equal(table.status, 0, table.stderr);
-  assert.match(table.stdout, /^apple-health +archive +old\/apple_health_export\/ +ready$/m);
+  assert.match(table.stdout, /^apple-health +old\/apple_health_export\/ +ready$/m);
+  // An export's command is an example of each one's, and names it by where it is.
+  assert.match(
+    table.stderr,
+    /To extract an export, run its command\. For example, `chronicle extract apple-health --input \S+` extracts export\.zip\/apple_health_export\./
+  );
   assert.match(
     table.stderr,
     /Didn't recognize 2 folders: misc and Photos Library\.photoslibrary\./
@@ -1034,7 +1055,7 @@ test('scan finds the exports in a folder or zip, with the command that reads eac
   const health = join(root, 'old', 'apple_health_export');
   const file = scan('scan', join(health, 'export_cda.xml'));
   assert.equal(file.status, 0, file.stderr);
-  assert.match(file.stdout, /^apple-health +archive +apple_health_export\/ +ready$/m);
+  assert.match(file.stdout, /^apple-health +apple_health_export\/ +ready$/m);
   assert.match(file.stderr, /Run `chronicle survey \S+old\/apple_health_export` to see how much/);
   const note = scan('scan', join(root, 'misc', 'notes.txt'));
   assert.equal(note.status, 0, note.stderr);
@@ -1094,10 +1115,7 @@ test(
     );
     assert.equal(rows[0].command, `chronicle extract safari --input ${history}`);
     const table = scan('scan', root);
-    assert.match(
-      table.stdout,
-      /^safari +app-db +safari\/2019\/History\.db +version not supported$/m
-    );
+    assert.match(table.stdout, /^safari +safari\/2019\/History\.db +version not supported$/m);
     assert.match(table.stderr, /Chronicle recognizes 1 more but can't read it yet/);
 
     const [surveyed] = JSON.parse(success(scan('survey', history, '--format', 'json')));
@@ -1120,11 +1138,11 @@ test(
     assert.match(table.stdout, /plugin not installed/);
     assert.match(table.stderr, /chronicle plugins install apple-health/);
 
-    // Survey lists what it can't count yet, and where to see why.
+    // Survey lists what it can't count yet, and how to add its plugin.
     const surveyed = scan('survey', root);
     assert.equal(surveyed.status, 0, surveyed.stderr);
-    assert.match(surveyed.stderr, /2 sources found aren't ready/);
-    assert.match(surveyed.stderr, /Run `chronicle scan \S+EXPORT_FILES` to see why/);
+    assert.match(surveyed.stdout, /^apple-health +plugin not installed +\S/m);
+    assert.match(surveyed.stderr, /chronicle plugins install apple-health/);
   }
 );
 

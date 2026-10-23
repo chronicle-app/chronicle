@@ -33,7 +33,7 @@ import { FlagManager } from '../utils/FlagManager.js';
 import { ALL_KINDS } from '../utils/recordKinds.js';
 import { PLATFORM_NAMES } from '../utils/sourcesTable.js';
 import { SURVEY_FLAGS } from '../utils/surveyFlags.js';
-import { extractHint } from './scan.js';
+import { blockerHints, extractHint, statusText } from './scan.js';
 
 /** Longest a survey may take before its source gives up on it. */
 const SURVEY_TIMEOUT_MS = 30_000;
@@ -43,6 +43,19 @@ type Surveyed =
   | { state: 'pending' }
   | { state: 'done'; survey: Survey | null }
   | { state: 'failed'; error: string };
+
+/** The rows a scan found, by what a survey does with each. */
+interface Found {
+  /** Counted. */
+  targets: ScanRow[];
+  /** Ready, but read over the network: listed, not counted. */
+  online: ScanRow[];
+  /** Not ready: listed with what's in the way. */
+  waiting: ScanRow[];
+}
+
+/** A status as a sentence starts it: `Needs Full Disk Access`. */
+const capitalized = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 const years = (dates: (Date | undefined)[]) =>
   dates.filter((d): d is Date => d !== undefined).map(d => d.getFullYear());
@@ -117,12 +130,6 @@ function within<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
-/** A list in a sentence: `a`, `a and b`, `a, b, and c`. */
-function listed(names: string[]): string {
-  if (names.length <= 2) return names.join(' and ');
-  return `${names.slice(0, -1).join(', ')}, and ${names.at(-1)}`;
-}
-
 /** Flags that say how to print a survey, not what to count. */
 const OUTPUT_FLAGS = new Set([...Object.keys(BaseCommand.baseFlags), 'format']);
 
@@ -132,7 +139,7 @@ const OUTPUT_FLAGS = new Set([...Object.keys(BaseCommand.baseFlags), 'format']);
  * source's options as `extract` does, through {@link SourceDispatchCommand}.
  */
 export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCommand> {
-  static override summary = 'Count what a source holds, and over which years';
+  static override summary = 'Count what each source holds and when, before you extract it';
 
   static override description =
     'With no source, counts each source `chronicle scan` finds on this computer. ' +
@@ -310,9 +317,10 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
     const online = rows.filter(
       row => row.installed && row.status === 'ready' && !targets.includes(row)
     );
+    // Not ready: listed with what's in the way.
+    const waiting = rows.filter(row => !targets.includes(row) && !online.includes(row));
     const surveys = await this.surveyAll(
-      targets,
-      online,
+      { targets, online, waiting },
       survey,
       path ? undefined : SURVEY_TIMEOUT_MS
     );
@@ -334,6 +342,7 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
                 };
               }),
               ...online.map(row => ({ ...this.described(row), survey: null, online: true })),
+              ...waiting.map(row => ({ ...this.described(row), survey: null, status: row.status })),
             ],
             null,
             2
@@ -365,39 +374,38 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
     const t = tokens({ stream: 'stdout', theme: this.flags.theme });
     // One source gets its details; every source, a row each.
     const summary = source && (await listSources()).find(s => s.source === source)?.summary;
+    const found = { targets, online, waiting };
     const lines = source
-      ? this.details(targets, surveys, online, t, stdoutWidth(), summary)
-      : this.table(targets, surveys, online, t, stdoutWidth());
+      ? this.details(found, surveys, t, stdoutWidth(), summary)
+      : this.table(found, surveys, t, stdoutWidth());
     if (lines.length > 0) {
       for (const line of lines) this.log(line);
       // A source's details end apart from the hints under them.
       if (source) this.log('');
-    } else if (targets.length === 0) {
+    } else {
       this.logger.info(
         source ? `Nothing of ${source}'s to survey` : 'Nothing to survey on this computer'
       );
-    } else {
-      this.logger.info(`Couldn't count ${source ?? 'any source'}`);
     }
-    this.hints(rows, targets, surveys, path ? `chronicle scan ${path}` : undefined, source);
+    this.hints(rows, targets, surveys);
   }
 
   /**
    * Each place a source was found, and what it holds. A title (the source,
    * and what it is, or which place when there are several), where it was
    * read from, then each record type: its count, its first and last and
-   * measures, and its years when it spans more than one.
+   * measures, and its years when it spans more than one. A place that isn't
+   * ready says what's in its way.
    */
   private details(
-    targets: ScanRow[],
+    { targets, online, waiting }: Found,
     states: Surveyed[],
-    online: ScanRow[],
     t: Tokens,
     width: number,
     summary?: string
   ): string[] {
     const home = os.homedir();
-    const places = targets.length + online.length;
+    const places = targets.length + online.length + waiting.length;
     const lines: string[] = [];
     const block = (row: ScanRow, sections: string[][]) => {
       if (lines.length > 0) lines.push('');
@@ -458,6 +466,7 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
       block(row, sections);
     }
     for (const row of online) block(row, [note('Online, not counted')]);
+    for (const row of waiting) block(row, [note(capitalized(statusText(row)))]);
     return lines;
   }
 
@@ -474,15 +483,15 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
    * then prints on stdout.
    */
   private async surveyAll(
-    targets: ScanRow[],
-    online: ScanRow[],
+    found: Found,
     survey: (row: ScanRow) => Promise<Survey | null>,
     timeout?: number
   ): Promise<Surveyed[]> {
+    const { targets } = found;
     const states: Surveyed[] = targets.map(() => ({ state: 'pending' }));
     const live =
       this.flags.format === 'table' && process.stderr.isTTY && !this.flags.quiet
-        ? new LiveRegion((width, frame) => this.live(targets, states, online, width, frame))
+        ? new LiveRegion((width, frame) => this.live(found, states, width, frame))
         : undefined;
     live?.start();
     try {
@@ -506,15 +515,9 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
   }
 
   /** The table while surveys run, or a line counting them when it's taller than the terminal. */
-  private live(
-    targets: ScanRow[],
-    states: Surveyed[],
-    online: ScanRow[],
-    width: number,
-    frame: number
-  ): string[] {
+  private live(found: Found, states: Surveyed[], width: number, frame: number): string[] {
     const t = tokens({ stream: 'stderr', theme: this.flags.theme });
-    const lines = this.table(targets, states, online, t, width, frame);
+    const lines = this.table(found, states, t, width, frame);
     if (lines.length < (process.stderr.rows || 24)) return lines;
     const answered = states.filter(state => state.state !== 'pending').length;
     const spinner = glyphs.spinner[frame % glyphs.spinner.length];
@@ -522,63 +525,57 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
   }
 
   /**
-   * A row per record type of each source surveyed, the source named on its
-   * first; one with a spinner for a survey under way; then those online.
-   * Sources that can't say are left out, for the hints to name.
+   * A row per record type of each source surveyed, the source and where its
+   * records come from on its first; one with a spinner for a survey under
+   * way. Then those online, and those not ready, with what's in their way.
+   * A source that can't say how much it holds is left out.
    */
   private table(
-    targets: ScanRow[],
+    { targets, online, waiting }: Found,
     states: Surveyed[],
-    online: ScanRow[],
     t: Tokens,
     width: number,
     frame = 0
   ): string[] {
     const spinner = glyphs.spinner[frame % glyphs.spinner.length];
     const cells: string[][] = [];
+    const say = (row: ScanRow, text: string) => {
+      cells.push([row.source, text, '', '', row.label]);
+    };
     for (const [i, row] of targets.entries()) {
       const state = states[i];
-      if (state.state === 'pending') {
-        cells.push([row.source, row.label, spinner, '', '']);
-        continue;
-      }
-      if (state.state !== 'done' || !state.survey) continue;
-      for (const [k, [kind, part]] of Object.entries(state.survey).entries()) {
-        cells.push([
-          k === 0 ? row.source : '',
-          k === 0 ? row.label : '',
-          `${count(part.count)} ${plural(part.label ?? kind, part.count)}`,
-          yearsText(part),
-          (part.measures ?? []).map(measure => measureText(measure)).join(' · '),
-        ]);
+      if (state.state === 'pending') say(row, spinner);
+      else if (state.state === 'failed') say(row, "couldn't count");
+      else if (state.survey) {
+        for (const [k, [kind, part]] of Object.entries(state.survey).entries()) {
+          cells.push([
+            k === 0 ? row.source : '',
+            `${count(part.count)} ${plural(part.label ?? kind, part.count)}`,
+            yearsText(part),
+            (part.measures ?? []).map(measure => measureText(measure)).join(' · '),
+            k === 0 ? row.label : '',
+          ]);
+        }
       }
     }
-    for (const row of online) cells.push([row.source, row.label, '', '', 'online, not counted']);
+    for (const row of online) say(row, 'online, not counted');
+    for (const row of waiting) say(row, statusText(row));
     if (cells.length === 0) return [];
     return table(
       {
-        headings: ['source', 'found', 'records', 'years', 'more'],
+        headings: ['source', 'records', 'years', 'more', 'from'],
         cells,
-        numeric: [false, false, true, false, false],
-        muted: [false, false, false, true, true],
+        numeric: [false, true, false, false, false],
+        muted: [false, false, true, true, true],
+        paths: [false, false, false, false, true],
       },
       t,
       width
     ).lines;
   }
 
-  /**
-   * What to do next, and which sources the table leaves out and why:
-   * `found` is the command that found the rows, when it wasn't a scan of the
-   * computer.
-   */
-  private hints(
-    rows: ScanRow[],
-    targets: ScanRow[],
-    states: Surveyed[],
-    found?: string,
-    source?: string
-  ): void {
+  /** What to do next: extract what was counted, see why one failed, or clear what's in the way. */
+  private hints(rows: ScanRow[], targets: ScanRow[], states: Surveyed[]): void {
     const counted = targets.filter((_, i) => {
       const state = states[i];
       return state.state === 'done' && state.survey;
@@ -593,31 +590,12 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
       const most = counted.reduce((a, b) => (records(b) > records(a) ? b : a));
       this.hint(extractHint(counted, most));
     }
-    const silent = [
-      ...new Set(
-        targets
-          .filter((row, i) => states[i].state === 'done' && !counted.includes(row))
-          .map(row => row.source)
-      ),
-    ];
-    if (silent.length > 0) {
-      this.hint(
-        `${listed(silent)} can't say how much ${silent.length === 1 ? 'it holds' : 'they hold'}.`
-      );
-    }
     const failed = states.filter(state => state.state === 'failed').length;
     if (failed > 0) {
       this.hint(
         `Couldn't count ${count(failed)} ${plural('sources', failed)}. Use \`--verbose\` to see why.`
       );
     }
-    const waiting = rows.filter(row => !row.installed || row.status !== 'ready').length;
-    if (waiting > 0) {
-      const why = found ?? ['chronicle scan', source].filter(Boolean).join(' ');
-      this.hint(
-        `${count(waiting)} ${plural('sources', waiting)} found ${waiting === 1 ? "isn't" : "aren't"} ready. ` +
-          `Run \`${why}\` to see why.`
-      );
-    }
+    for (const hint of blockerHints(rows)) this.hint(hint);
   }
 }

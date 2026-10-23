@@ -14,7 +14,17 @@ export {
   type JsonColors,
 } from './tokens.js';
 export { glyphs } from './glyphs.js';
-export { bytes, count, duration, clock, plural, date, truncate, relativePath } from './format.js';
+export {
+  bytes,
+  count,
+  duration,
+  clock,
+  plural,
+  date,
+  truncate,
+  truncatePath,
+  relativePath,
+} from './format.js';
 export {
   line,
   summary,

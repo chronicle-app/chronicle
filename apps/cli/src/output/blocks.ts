@@ -1,5 +1,5 @@
 import type { SummaryFields } from '@chronicle.app/logging';
-import { count, duration, plural, truncate } from './format.js';
+import { count, duration, plural, truncate, truncatePath } from './format.js';
 import { glyphs } from './glyphs.js';
 import type { Style, Tokens } from './tokens.js';
 
@@ -369,6 +369,8 @@ export interface TableInput {
   numeric?: boolean[];
   /** Columns printed muted, such as dates. */
   muted?: boolean[];
+  /** Columns of paths, cut in the middle so each keeps the file it names. */
+  paths?: boolean[];
   /** A heading row and rule. Default true. */
   headers?: boolean;
 }
@@ -378,10 +380,10 @@ export interface TableInput {
  * still don't fit are dropped from the right; `hidden` names them.
  */
 export function table(input: TableInput, t: Tokens, width: number) {
-  const { headings, cells, numeric = [], muted = [], headers = true } = input;
+  const { headings, cells, numeric = [], muted = [], paths = [], headers = true } = input;
   const widths = fit(headings, cells, width);
   const cell = (text: string, i: number) => {
-    const cut = truncate(text, widths[i]);
+    const cut = paths[i] ? truncatePath(text, widths[i]) : truncate(text, widths[i]);
     return numeric[i] ? cut.padStart(widths[i]) : cut.padEnd(widths[i]);
   };
   const lines: string[] = [];

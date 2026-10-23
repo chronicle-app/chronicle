@@ -38,17 +38,51 @@ export function statusText(row: ScanRow): string {
 }
 
 /**
- * How to extract what a table lists: the command for its one row, or for
- * `example`, named, and where the others' commands are.
+ * How to extract what a table lists: the command for its one row, or, for
+ * several, `example`'s, as one of them.
  */
 export function extractHint(rows: ScanRow[], example = rows[0]): string {
   if (rows.length === 1) return `Run \`${example.command}\` to extract it.`;
+  // An export goes by where it is; a source by its name, and where when it's found twice.
   const twin = rows.some(row => row !== example && row.source === example.source);
-  const what = twin ? `${example.label} from ${example.source}` : example.source;
+  let what = example.source;
+  if (example.root) what = example.label;
+  else if (twin) what = `${example.label} from ${example.source}`;
   return (
-    `Run \`${example.command}\` to extract ${what}. ` +
-    "Use `--format json` to see the others' commands."
+    `To extract ${example.root ? 'an export' : 'a source'}, run its command. ` +
+    `For example, \`${example.command}\` extracts ${what}.`
   );
+}
+
+/** What to do about the rows that aren't ready: a hint for each kind of thing in the way. */
+export function blockerHints(rows: ScanRow[]): string[] {
+  const hints: string[] = [];
+  const blocked = rows.filter(row => row.status === 'blocked');
+  if (blocked.length > 0) {
+    hints.push(
+      `macOS blocked ${count(blocked.length)} ${plural('sources', blocked.length)}. ${FULL_DISK_ACCESS}`
+    );
+  }
+  const missing = [
+    ...new Set(
+      rows
+        .filter(row => !row.installed && row.status !== 'blocked' && row.status !== 'unsupported')
+        .map(r => r.plugin)
+    ),
+  ];
+  if (missing.length === 1) {
+    hints.push(`Run \`chronicle plugins install ${missing[0]}\` to add its plugin.`);
+  } else if (missing.length > 1) {
+    hints.push(
+      `${count(missing.length)} plugins aren't installed. ` +
+        `Run \`chronicle plugins install ${missing[0]}\` to add the first.`
+    );
+  }
+  const remedies = new Set(
+    rows.filter(row => row.installed && row.status !== 'ready' && row.remedy).map(r => r.remedy!)
+  );
+  hints.push(...remedies);
+  return hints;
 }
 
 /** Up to five names in a sentence, and how many more: `a/, b.zip, and 3 more`. */
@@ -73,7 +107,7 @@ function foldersAndZips(names: string[]): string {
 }
 
 export default class Scan extends BaseCommand<typeof Scan> {
-  static override summary = 'Find the sources on this computer, or the exports in a folder or zip';
+  static override summary = "Find your data and what's in its way, without reading it";
 
   static override description =
     'With no argument, looks where each source keeps its files on this computer. ' +
@@ -237,13 +271,21 @@ export default class Scan extends BaseCommand<typeof Scan> {
     }
   }
 
+  /** The rows, with their strategies only when a source is found by more than one. */
   private table(rows: ScanRow[]): void {
     const t = tokens({ stream: 'stdout', theme: this.flags.theme });
+    const strategies = new Map<string, Set<string>>();
+    for (const row of rows) {
+      strategies.set(row.source, (strategies.get(row.source) ?? new Set()).add(row.strategy));
+    }
+    const several = [...strategies.values()].some(names => names.size > 1);
+    const strategy = <T>(value: T): T[] => (several ? [value] : []);
     const { lines } = table(
       {
-        headings: ['source', 'strategy', 'found', 'status'],
-        cells: rows.map(row => [row.source, row.strategy, row.label, statusText(row)]),
-        muted: [false, false, false, true],
+        headings: ['source', ...strategy('strategy'), 'found', 'status'],
+        cells: rows.map(row => [row.source, ...strategy(row.strategy), row.label, statusText(row)]),
+        muted: [false, ...strategy(false), false, true],
+        paths: [false, ...strategy(false), true, false],
       },
       t,
       stdoutWidth()
@@ -296,30 +338,6 @@ export default class Scan extends BaseCommand<typeof Scan> {
       this.hint(`Run \`${survey}\` to see how much ${ready.length === 1 ? 'it' : 'each'} holds.`);
       this.hint(extractHint(ready));
     }
-    const blocked = rows.filter(row => row.status === 'blocked');
-    if (blocked.length > 0) {
-      this.hint(
-        `macOS blocked ${count(blocked.length)} ${plural('sources', blocked.length)}. ${FULL_DISK_ACCESS}`
-      );
-    }
-    const missing = [
-      ...new Set(
-        rows
-          .filter(row => !row.installed && row.status !== 'blocked' && row.status !== 'unsupported')
-          .map(r => r.plugin)
-      ),
-    ];
-    if (missing.length === 1) {
-      this.hint(`Run \`chronicle plugins install ${missing[0]}\` to add its plugin.`);
-    } else if (missing.length > 1) {
-      this.hint(
-        `${count(missing.length)} plugins aren't installed. ` +
-          `Run \`chronicle plugins install ${missing[0]}\` to add the first.`
-      );
-    }
-    const remedies = new Set(
-      rows.filter(row => row.installed && row.status !== 'ready' && row.remedy).map(r => r.remedy!)
-    );
-    for (const remedy of remedies) this.hint(remedy);
+    for (const hint of blockerHints(rows)) this.hint(hint);
   }
 }
