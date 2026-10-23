@@ -61,6 +61,14 @@
         "strategies": {
           "archive": {
             "delivery": "export",
+            "layouts": [
+              {
+                "files": [
+                  "channels.json",
+                  "users.json"
+                ]
+              }
+            ],
             "recordTypes": [
               "messages"
             ],

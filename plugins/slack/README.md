@@ -45,7 +45,7 @@ chronicle extract slack --input ./my-slack-export --since 2024-01-01
 
 ## Configuration
 
-- `--input` (required): path to the slackdump export directory
+- `--input` (required): the slackdump export, as a folder or zip
 - `--attachments`: include file attachments (default: false)
 - `--since`: only extract messages on or after this date
 - `--until`: only extract messages on or before this date

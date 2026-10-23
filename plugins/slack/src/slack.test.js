@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { findExports, writeZip } from '@chronicle.app/etl';
 import { SlackExtractor, SlackTransformer } from '../dist/index.js';
-import { writeSlackFixture } from './fixture.test-helper.js';
+import { slackFixtureFiles, writeSlackFixture } from './fixture.test-helper.js';
 
 function exportDir(t) {
   const dir = mkdtempSync(join(tmpdir(), 'slack-fixture-'));
@@ -168,4 +169,46 @@ test('since, until, and limit bound the extraction', async t => {
   const extractor = new SlackExtractor({ input });
   await extractor.setup();
   assert.equal(await extractor.determineCount(), 6);
+});
+
+/**
+ * A run's actions with attachments, each `contentPath` as its bytes and its
+ * path from the export, read while the run still has a zip's copies.
+ */
+async function readExport(input) {
+  const extractor = new SlackExtractor({ input, attachments: true });
+  try {
+    await extractor.setup();
+    const transformer = new SlackTransformer();
+    const out = [];
+    for (const record of await Array.fromAsync(extractor.extract())) {
+      for (const node of await transformer.performTransform(record)) out.push(node.data);
+    }
+    const read = (key, value) =>
+      key === 'contentPath'
+        ? `${readFileSync(value, 'utf8')} at ${value.split('/').slice(-3).join('/')}`
+        : value;
+    return JSON.parse(JSON.stringify(out, read));
+  } finally {
+    await extractor.teardown();
+  }
+}
+
+test('an export reads the same zipped, attachments too, and its layout finds it', async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'slack-zip-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const unzipped = writeSlackFixture(join(dir, 'slackdump_20240101_120000'));
+  const zip = join(dir, 'slackdump_20240101_120000.zip');
+  writeZip(zip, slackFixtureFiles());
+  const folder = await readExport(unzipped);
+  assert.match(JSON.stringify(folder), /"PNG at D1\/attachments\/F1-summit\.png"/);
+  assert.deepEqual(await readExport(zip), folder);
+
+  const { chronicle } = JSON.parse(readFileSync(join(import.meta.dirname, '../package.json')));
+  const { layouts } = chronicle.sources.slack.strategies.archive;
+  const { exports } = await findExports(dir, [{ source: 'slack', strategy: 'archive', layouts }]);
+  assert.deepEqual(
+    exports.map(e => e.root),
+    [unzipped, zip]
+  );
 });

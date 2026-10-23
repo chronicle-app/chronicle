@@ -47,7 +47,8 @@ export default class SlackTransformer extends ChronicleTransformer {
       const attachments = this.buildAttachments(
         msg.files,
         record.context.basePath,
-        conversation.dirName
+        conversation.dirName,
+        record.context.attachmentPaths
       );
       if (attachments.length > 0) {
         message.contains = attachments;
@@ -149,7 +150,12 @@ export default class SlackTransformer extends ChronicleTransformer {
     }
   }
 
-  private buildAttachments(files: SlackFile[], basePath: string, dirName: string): any[] {
+  private buildAttachments(
+    files: SlackFile[],
+    basePath: string,
+    dirName: string,
+    paths?: { [fileId: string]: string }
+  ): any[] {
     const attachments: any[] = [];
 
     for (const file of files) {
@@ -157,8 +163,12 @@ export default class SlackTransformer extends ChronicleTransformer {
       // conversation's own `attachments/` dir (and a top-level aggregate one).
       // When the bytes are on disk we emit a contentPath so ingest captures
       // them; otherwise the node stays metadata-only (the url-gated Slack file
-      // would need an auth token to fetch).
-      const localPath = this.resolveAttachmentPath(basePath, dirName, file.id);
+      // would need an auth token to fetch). The extractor says where each is,
+      // a copy when the export is a zip; a record without that is looked up
+      // on disk under `basePath`.
+      const localPath = paths
+        ? paths[file.id]
+        : this.resolveAttachmentPath(basePath, dirName, file.id);
 
       const mediaObject = createMediaObject({
         mimeType: file.mimetype,

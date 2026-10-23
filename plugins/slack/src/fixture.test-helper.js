@@ -14,14 +14,14 @@ const message = (user, text, hour, extra = {}) => ({
 });
 
 /**
- * A synthetic Slack export in the slackdump layout: users, a public channel, a
- * small private channel, a DM, and a group DM, each with one day file, plus one
- * downloaded attachment. Returns the export directory.
+ * The files of a synthetic Slack export in the slackdump layout, by their
+ * paths in it: users, a public channel, a small private channel, a DM, and a
+ * group DM, each with one day file, plus one downloaded attachment.
  */
-export function writeSlackFixture(dir) {
+export function slackFixtureFiles() {
+  const files = {};
   const json = (file, value) => {
-    mkdirSync(join(dir, file, '..'), { recursive: true });
-    writeFileSync(join(dir, file), JSON.stringify(value));
+    files[file] = JSON.stringify(value);
   };
 
   json('users.json', [
@@ -83,7 +83,15 @@ export function writeSlackFixture(dir) {
   ]);
   json('mpdm-alex--sam--riley-1/2024-01-01.json', [message('U3', 'See you there', 10)]);
 
-  mkdirSync(join(dir, 'D1', 'attachments'), { recursive: true });
-  writeFileSync(join(dir, 'D1', 'attachments', 'F1-summit.png'), 'PNG');
+  files['D1/attachments/F1-summit.png'] = 'PNG';
+  return files;
+}
+
+/** Write the synthetic export into `dir`, and return it. */
+export function writeSlackFixture(dir) {
+  for (const [file, content] of Object.entries(slackFixtureFiles())) {
+    mkdirSync(join(dir, file, '..'), { recursive: true });
+    writeFileSync(join(dir, file), content);
+  }
   return dir;
 }

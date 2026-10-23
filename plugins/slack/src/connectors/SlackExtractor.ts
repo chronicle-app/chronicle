@@ -1,6 +1,4 @@
-import { Extractor, Record } from '@chronicle.app/etl';
-import { readFile, readdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import { Extractor, Record, openExport, type ExportFiles } from '@chronicle.app/etl';
 import { z } from 'zod';
 import { UserResolver } from '../UserResolver.js';
 import type {
@@ -8,6 +6,7 @@ import type {
   ResolvedUser,
   SlackChannel,
   SlackDm,
+  SlackFile,
   SlackMessage,
   SlackMpim,
 } from '../types/slack.js';
@@ -30,21 +29,22 @@ export class SlackExtractor extends Extractor<typeof SlackExtractor> {
   static override defaultTransformer = SlackTransformer;
 
   static override schema = Extractor.schema.extend({
-    input: z.string().describe('Path to slackdump export directory'),
+    input: z.string().describe('The slackdump export, as a folder or zip'),
     attachments: z.boolean().optional().default(false).describe('Include file attachments'),
   });
 
+  private files!: ExportFiles;
   private conversations: ConversationMeta[] = [];
   private userMap = new Map<string, ResolvedUser>();
   private teamId: string | undefined;
 
   override async setup(): Promise<void> {
     const config = this.config as z.infer<typeof SlackExtractor.schema>;
-    const basePath = config.input;
+    this.files = await openExport(config.input, 'slackdump export');
 
     // Resolve users
     const resolver = new UserResolver();
-    this.userMap = await resolver.resolve(basePath);
+    this.userMap = await resolver.resolve(this.files);
 
     // Extract teamId from first user that has one
     for (const user of this.userMap.values()) {
@@ -55,7 +55,12 @@ export class SlackExtractor extends Extractor<typeof SlackExtractor> {
     }
 
     // Load conversation metadata
-    await this.loadConversations(basePath);
+    await this.loadConversations();
+  }
+
+  override async teardown(): Promise<void> {
+    await this.files?.close();
+    await super.teardown();
   }
 
   async *extract(): AsyncGenerator<Record> {
@@ -96,13 +101,24 @@ export class SlackExtractor extends Extractor<typeof SlackExtractor> {
       const head = heads[maxIndex];
       const { msg, conversation } = head.value;
 
+      // Where each attached file's bytes are, for the transformer to point at.
+      const attachmentPaths =
+        config.attachments && msg.files?.length
+          ? await this.attachmentPaths(msg.files, conversation.dirName)
+          : undefined;
       yield this.createRecord(
         {
           type: 'message',
           message: msg,
           includeAttachments: config.attachments,
         },
-        { conversation, userMap, teamId: this.teamId, basePath }
+        {
+          conversation,
+          userMap,
+          teamId: this.teamId,
+          basePath,
+          ...(attachmentPaths && { attachmentPaths }),
+        }
       );
       count++;
 
@@ -117,19 +133,39 @@ export class SlackExtractor extends Extractor<typeof SlackExtractor> {
     }
   }
 
+  /**
+   * Each downloaded file's path on disk, by its id. slackdump writes a file as
+   * `<fileId>-<name>`, in the conversation's own `attachments/` folder or a
+   * top-level aggregate one; a sanitized name still matches by its id. A file
+   * slackdump didn't download has none.
+   */
+  private async attachmentPaths(
+    files: SlackFile[],
+    dirName: string
+  ): Promise<{ [fileId: string]: string }> {
+    const paths: { [fileId: string]: string } = {};
+    for (const file of files) {
+      for (const dir of [`${dirName}/attachments`, 'attachments']) {
+        const match = (await this.files.children(dir)).find(entry =>
+          entry.startsWith(`${file.id}-`)
+        );
+        const path = match && (await this.files.localPath(`${dir}/${match}`));
+        if (path) {
+          paths[file.id] = path;
+          break;
+        }
+      }
+    }
+    return paths;
+  }
+
   /** Yield a single conversation's messages newest-first, applying filters. */
   private async *extractConversation(
     conversation: ConversationMeta,
     config: z.infer<typeof SlackExtractor.schema>
   ): AsyncGenerator<ConversationMessage> {
-    const dirPath = join(config.input, conversation.dirName);
-
-    let files: string[];
-    try {
-      files = await readdir(dirPath);
-    } catch {
-      return;
-    }
+    const dirPath = conversation.dirName;
+    const files = await this.files.children(dirPath);
 
     // Dated JSON files, newest first.
     const jsonFiles = files
@@ -147,7 +183,7 @@ export class SlackExtractor extends Extractor<typeof SlackExtractor> {
 
       let messages: SlackMessage[];
       try {
-        const raw = await readFile(join(dirPath, file), 'utf-8');
+        const raw = await this.files.readText(`${dirPath}/${file}`);
         messages = JSON.parse(raw);
       } catch {
         continue;
@@ -174,24 +210,17 @@ export class SlackExtractor extends Extractor<typeof SlackExtractor> {
   }
 
   override async determineCount(): Promise<number | null> {
-    const config = this.config as z.infer<typeof SlackExtractor.schema>;
-    const basePath = config.input;
     let total = 0;
 
     for (const conversation of this.conversations) {
-      const dirPath = join(basePath, conversation.dirName);
-      let files: string[];
-      try {
-        files = await readdir(dirPath);
-      } catch {
-        continue;
-      }
+      const dirPath = conversation.dirName;
+      const files = await this.files.children(dirPath);
 
       const jsonFiles = files.filter(f => /^\d{4}-\d{2}-\d{2}\.json$/.test(f));
 
       for (const file of jsonFiles) {
         try {
-          const raw = await readFile(join(dirPath, file), 'utf-8');
+          const raw = await this.files.readText(`${dirPath}/${file}`);
           const messages: SlackMessage[] = JSON.parse(raw);
           total += messages.filter(
             m =>
@@ -207,10 +236,10 @@ export class SlackExtractor extends Extractor<typeof SlackExtractor> {
     return total;
   }
 
-  private async loadConversations(basePath: string): Promise<void> {
+  private async loadConversations(): Promise<void> {
     // Load channels
     try {
-      const raw = await readFile(join(basePath, 'channels.json'), 'utf-8');
+      const raw = await this.files.readText('channels.json');
       const channels: SlackChannel[] = JSON.parse(raw);
       for (const ch of channels) {
         this.conversations.push({
@@ -228,7 +257,7 @@ export class SlackExtractor extends Extractor<typeof SlackExtractor> {
 
     // Load DMs
     try {
-      const raw = await readFile(join(basePath, 'dms.json'), 'utf-8');
+      const raw = await this.files.readText('dms.json');
       const dms: SlackDm[] = JSON.parse(raw);
       for (const dm of dms) {
         this.conversations.push({
@@ -244,7 +273,7 @@ export class SlackExtractor extends Extractor<typeof SlackExtractor> {
 
     // Load MPIMs
     try {
-      const raw = await readFile(join(basePath, 'mpims.json'), 'utf-8');
+      const raw = await this.files.readText('mpims.json');
       const mpims: SlackMpim[] = JSON.parse(raw);
       for (const mpim of mpims) {
         this.conversations.push({
@@ -259,9 +288,9 @@ export class SlackExtractor extends Extractor<typeof SlackExtractor> {
       // mpims.json may not exist
     }
 
-    // Filter to only conversations that have directories on disk
-    const entries = await readdir(basePath, { withFileTypes: true }).catch(() => []);
-    const dirNames = new Set(entries.filter(e => e.isDirectory()).map(e => e.name));
+    // Filter to only conversations that have folders in the export
+    const entries = await this.files.children('');
+    const dirNames = new Set(entries.filter(e => e.endsWith('/')).map(e => e.slice(0, -1)));
     this.conversations = this.conversations.filter(c => dirNames.has(c.dirName));
   }
 
