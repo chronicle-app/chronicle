@@ -234,17 +234,15 @@ class FolderExport extends BaseExport {
   async close(): Promise<void> {}
 }
 
-/** Every file under a folder, as paths relative to it with `/`. */
+/**
+ * Every file under a folder, as paths relative to it with `/`, however the
+ * folder was written (`./export`, `export/`).
+ */
 async function walk(root: string): Promise<string[]> {
   const entries = await readdir(root, { recursive: true, withFileTypes: true });
   return entries
     .filter(entry => entry.isFile())
-    .map(entry =>
-      join(entry.parentPath, entry.name)
-        .slice(root.length + 1)
-        .split('\\')
-        .join('/')
-    );
+    .map(entry => relative(root, join(entry.parentPath, entry.name)).split(sep).join('/'));
 }
 
 class ZipExport extends BaseExport {

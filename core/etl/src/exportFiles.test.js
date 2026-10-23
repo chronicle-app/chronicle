@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { test } from 'node:test';
 import { openExport, writeZip } from '../dist/index.js';
 
@@ -90,6 +90,17 @@ test('an export reads the same from a folder, a zip, or a split Takeout', async 
       assert.equal(text, BIG, kind);
 
       await assert.rejects(files.open('Takeout/nothing.txt'), { code: 'input-not-found' });
+    } finally {
+      await files.close();
+    }
+  }
+
+  // A folder reads the same however it's written: `./export`, or `export/` as tab completion has it.
+  const near = relative(process.cwd(), inputs.folder);
+  for (const written of [`./${near}`, `${near}/`]) {
+    const files = await openExport(written);
+    try {
+      assert.deepEqual(await files.list(), Object.keys(FILES).sort(), written);
     } finally {
       await files.close();
     }
