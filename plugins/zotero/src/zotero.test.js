@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { SystemInfo, monthKey } from '@chronicle.app/etl';
-import { ZoteroExtractor, ZoteroTransformer } from '../dist/index.js';
+import { ZoteroExtractor, ZoteroLocator, ZoteroTransformer, zoteroDataDir } from '../dist/index.js';
 import {
   DB_MTIME,
   LOCAL_USER_KEY,
@@ -502,6 +502,40 @@ test('a survey counts the items a run reads of each record type, and when they w
 function lockedCopies() {
   return readdirSync(tmpdir()).filter(f => /^zotero-[0-9a-f-]{36}\.sqlite$/.test(f));
 }
+
+/** A home folder whose Zotero profile names a data folder, or uses the default. */
+function home(t, prefs) {
+  const dir = mkdtempSync(join(tmpdir(), 'zotero-home-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const profile = join(dir, 'Library', 'Application Support', 'Zotero', 'Profiles', 'a1.default');
+  mkdirSync(profile, { recursive: true });
+  writeFileSync(join(profile, 'prefs.js'), prefs);
+  return dir;
+}
+
+test('the data folder is the one the preferences name, else ~/Zotero, and a scan finds it', async t => {
+  const moved = home(
+    t,
+    'user_pref("extensions.zotero.dataDir", "/Papers/Library");\n' +
+      'user_pref("extensions.zotero.useDataDir", true);\n'
+  );
+  assert.equal(zoteroDataDir(moved), '/Papers/Library');
+  // A folder named but not in use, or none named: the default.
+  const unused = home(t, 'user_pref("extensions.zotero.dataDir", "/Papers/Library");\n');
+  assert.equal(zoteroDataDir(unused), join(unused, 'Zotero'));
+  const none = mkdtempSync(join(tmpdir(), 'zotero-none-'));
+  t.after(() => rmSync(none, { recursive: true, force: true }));
+  assert.equal(zoteroDataDir(none), join(none, 'Zotero'));
+
+  // The locator offers the named library, and one left in ~/Zotero.
+  const locator = new ZoteroLocator({ home: moved, platform: 'darwin', env: {} });
+  const leftover = join(moved, 'Zotero', 'zotero.sqlite');
+  const found = await Array.fromAsync(locator.locate([{ path: leftover, options: {} }]));
+  assert.deepEqual(found, [
+    { config: { input: '/Papers/Library' }, path: '/Papers/Library/zotero.sqlite' },
+    { config: { input: join(moved, 'Zotero') }, path: leftover },
+  ]);
+});
 
 test('a library locked by a running Zotero is read from a copy', async t => {
   const dir = fixture(t);

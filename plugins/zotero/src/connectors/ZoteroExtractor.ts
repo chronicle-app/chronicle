@@ -16,10 +16,11 @@ import {
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 import { createHash, randomUUID } from 'node:crypto';
 import { constants as fsConstants, copyFileSync, readFileSync, rmSync, statSync } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
+import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join } from 'node:path';
 import { z } from 'zod';
 import ZoteroTransformer, { parseZoteroDate } from './ZoteroTransformer.js';
+import { zoteroDataDir } from '../dataDir.js';
 import type {
   ZoteroAnnotationRecord,
   ZoteroAttachment,
@@ -175,7 +176,7 @@ export class ZoteroExtractor extends SqliteExtractor<typeof ZoteroExtractor> {
     input: z
       .string()
       .describe('Path to the Zotero data directory (contains zotero.sqlite and storage/)')
-      .default(join(homedir(), 'Zotero')),
+      .default(() => zoteroDataDir()),
   }) as any;
 
   private dataDir!: string;
