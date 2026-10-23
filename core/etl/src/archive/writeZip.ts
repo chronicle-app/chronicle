@@ -12,12 +12,26 @@ const DEFLATE = 8;
 // change. A DOS date packs the years since 1980, the month, and the day into 16 bits.
 const DOS_TIME = 0;
 const DOS_DATE = 0x00_21;
+// Info-ZIP's extended timestamp, which dates an entry in UTC to the second.
+const UNIX_TIME = 0x54_55;
 
 /**
  * Write a zip of the given files, by their paths inside it, for test
- * fixtures: an export zipped the way a service hands it over.
+ * fixtures: an export zipped the way a service hands it over. With
+ * `modified`, each entry is dated then, as a service dates the files it exports.
  */
-export function writeZip(path: string, files: { [name: string]: string | Uint8Array }): void {
+export function writeZip(
+  path: string,
+  files: { [name: string]: string | Uint8Array },
+  { modified }: { modified?: Date } = {}
+): void {
+  const extra = Buffer.alloc(modified ? 9 : 0);
+  if (modified) {
+    extra.writeUInt16LE(UNIX_TIME, 0);
+    extra.writeUInt16LE(5, 2);
+    extra.writeUInt8(1, 4);
+    extra.writeUInt32LE(Math.floor(modified.getTime() / 1000), 5);
+  }
   const locals: Buffer[] = [];
   const centrals: Buffer[] = [];
   let offset = 0;
@@ -38,7 +52,8 @@ export function writeZip(path: string, files: { [name: string]: string | Uint8Ar
     local.writeUInt32LE(compressed.length, 18);
     local.writeUInt32LE(data.length, 22);
     local.writeUInt16LE(fileName.length, 26);
-    locals.push(local, fileName, compressed);
+    local.writeUInt16LE(extra.length, 28);
+    locals.push(local, fileName, extra, compressed);
 
     const central = Buffer.alloc(46);
     central.writeUInt32LE(CENTRAL_FILE, 0);
@@ -52,10 +67,11 @@ export function writeZip(path: string, files: { [name: string]: string | Uint8Ar
     central.writeUInt32LE(compressed.length, 20);
     central.writeUInt32LE(data.length, 24);
     central.writeUInt16LE(fileName.length, 28);
+    central.writeUInt16LE(extra.length, 30);
     central.writeUInt32LE(offset, 42);
-    centrals.push(central, fileName);
+    centrals.push(central, fileName, extra);
 
-    offset += local.length + fileName.length + compressed.length;
+    offset += local.length + fileName.length + extra.length + compressed.length;
   }
   const directory = Buffer.concat(centrals);
   const end = Buffer.alloc(22);

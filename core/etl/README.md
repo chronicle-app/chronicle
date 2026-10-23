@@ -158,8 +158,9 @@ Five extractor and system helpers are shared by several sources:
   numbered zips, which brings in its sibling parts, or a folder in a zip by a
   path through it, like `export.zip/apple_health_export`. It lists, finds, and
   streams files by their paths inside the export, and reads files in a zip in
-  place, decompressing them as they stream. `writeZip` writes a zip for test
-  fixtures.
+  place, decompressing them as they stream. `modified(path)` says when a file
+  was last changed, in a zip from its index. `writeZip` writes a zip for test
+  fixtures, its entries dated by `modified` when given.
 - `findExports(path, sets)` finds the exports in a folder or zip by each
   strategy's `layouts`, the paths a manifest says its exports hold from where
   they start. It opens zips by their indexes, reads no file, and doesn't go

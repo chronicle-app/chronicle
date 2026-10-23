@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { ApiAuthError } from '@chronicle.app/etl';
+import { ApiAuthError, findExports, writeZip } from '@chronicle.app/etl';
 import {
   YouTubeLikesExtractor,
   YouTubePlaylistsExtractor,
@@ -19,6 +19,7 @@ import {
   SELF_ID,
   UPLOADER_ID,
   fakeYouTubeApi,
+  takeoutFiles,
   writeTakeout,
 } from './fixture.test-helper.js';
 
@@ -436,6 +437,52 @@ test('without channels/channel.csv the owner is the per-source singleton', async
   assert.deepEqual(
     nodes[0].agent,
     complete({ '@type': 'Agent', '@key': ['@type', 'source'], source: 'youtube', sameAs: ['@me'] })
+  );
+});
+
+/** A Takeout run's records, without the transform: what it read and as of when. */
+async function readTakeout(input) {
+  const extractor = new YouTubeTakeoutExtractor({ input, quiet: true });
+  try {
+    await extractor.setup();
+    const rows = await Array.fromAsync(extractor.extract());
+    return rows.map(r => [r.extraction.recordType, r.extraction.assertedAt, r.data]);
+  } finally {
+    await extractor.teardown();
+  }
+}
+
+test('a Takeout reads the same as its folder, its zip, or its YouTube folder, where its layout finds it', async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'youtube-takeout-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const product = 'YouTube and YouTube Music';
+  // Unzipped and renamed, as a person keeps one; and zipped as Google hands it over.
+  const unzipped = join(dir, 'Takeout - 2026-07-25');
+  writeTakeout(join(unzipped, product));
+  const zip = join(dir, 'takeout-20260725T000000Z-001.zip');
+  const inZip = Object.entries(takeoutFiles()).map(([path, content]) => [
+    `Takeout/${product}/${path}`,
+    content,
+  ]);
+  writeZip(zip, Object.fromEntries(inZip), { modified: ARCHIVE_TIME });
+
+  const expected = await readTakeout(join(unzipped, product));
+  assert.equal(expected.length, 10);
+  // A zip's files are dated by its index, so its as-of time is the same.
+  for (const input of [unzipped, zip, `${zip}/Takeout`]) {
+    assert.deepEqual(await readTakeout(input), expected, input);
+  }
+  await assert.rejects(
+    readTakeout(join(unzipped, product, 'history')),
+    /No YouTube and YouTube Music folder/
+  );
+
+  const { chronicle } = JSON.parse(readFileSync(join(import.meta.dirname, '../package.json')));
+  const { layouts } = chronicle.sources.youtube.strategies.takeout;
+  const { exports } = await findExports(dir, [{ source: 'youtube', strategy: 'takeout', layouts }]);
+  assert.deepEqual(
+    exports.map(e => e.root),
+    [unzipped, `${zip}/Takeout`]
   );
 });
 

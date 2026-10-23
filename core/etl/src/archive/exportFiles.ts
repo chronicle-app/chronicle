@@ -28,6 +28,11 @@ export interface ExportFiles {
   /** The file as UTF-8 text, without a byte order mark. */
   readText(path: string): Promise<string>;
   readJson<T = unknown>(path: string): Promise<T>;
+  /**
+   * When the file was last changed: in a zip, as its index says, which is
+   * when the service wrote the export. Null when it isn't there.
+   */
+  modified(path: string): Promise<Date | null>;
   close(): Promise<void>;
 }
 
@@ -116,6 +121,7 @@ abstract class BaseExport implements ExportFiles {
   abstract readonly location: string;
   protected abstract paths(): Promise<string[]>;
   abstract open(path: string): Promise<Readable>;
+  abstract modified(path: string): Promise<Date | null>;
   abstract close(): Promise<void>;
 
   async list(prefix = ''): Promise<string[]> {
@@ -175,6 +181,14 @@ class FolderExport extends BaseExport {
         : fileError(error, file, 'export');
     }
     return createReadStream(file);
+  }
+
+  async modified(path: string): Promise<Date | null> {
+    try {
+      return (await stat(join(this.location, normalize(path)))).mtime;
+    } catch {
+      return null;
+    }
   }
 
   async close(): Promise<void> {}
@@ -244,6 +258,10 @@ class ZipExport extends BaseExport {
         error ? reject(unreadable(this.location, error)) : resolve(stream)
       );
     });
+  }
+
+  async modified(path: string): Promise<Date | null> {
+    return this.entries.get(normalize(path))?.entry.getLastModDate() ?? null;
   }
 
   async close(): Promise<void> {

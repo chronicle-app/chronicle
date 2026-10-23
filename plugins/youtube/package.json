@@ -75,6 +75,20 @@
           },
           "takeout": {
             "delivery": "export",
+            "layouts": [
+              {
+                "files": [
+                  "YouTube and YouTube Music/history/watch-history.html"
+                ]
+              },
+              {
+                "name": "JSON",
+                "files": [
+                  "YouTube and YouTube Music/history/watch-history.json"
+                ],
+                "supported": false
+              }
+            ],
             "recordTypes": [
               "watches",
               "searches",
