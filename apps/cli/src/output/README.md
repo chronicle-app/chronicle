@@ -19,7 +19,7 @@ styled. Commands, loaders, and sinks build their text from this module.
   [Writing messages](#writing-messages).
 - **No boxes, no `====` underlines, no emoji.** One glyph set (`glyphs`):
   `✓ ✗ ! · → ↳ ━ ─ …`, braille spinner frames, `❯ ◉ ○` for pickers, and
-  `▏▎▍▌▋▊▉█` for bars measured in eighths of a character.
+  `▁▂▃▄▅▆▇█` for sparklines, a column high by eighths of a row.
 - **Color only carries meaning** (`tokens`): status (`success`, `danger`,
   `warning`), emphasis (`strong`), de-emphasis (`muted`), one `accent` (the
   brand red) for live elements, and cyan for something to type (`code`,

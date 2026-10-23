@@ -102,37 +102,29 @@ const recordsText = (kind: string, part: KindSurvey) =>
 const total = (survey: Survey | null) =>
   Object.values(survey ?? {}).reduce((n, kind) => n + kind.count, 0);
 
-/** Longest a year's bar is: the busiest year's. */
-const BAR_WIDTH = 30;
-
 /**
- * A kind's years, a row each from its first to its last: the year, a bar as
- * long against the busiest year's as the records it holds, to an eighth of a
- * character, and its count. A year with none has no bar.
+ * A kind's years on one line, from its first to its last: `2015 ▂▃▆█ 2018`,
+ * a column per year as high against the busiest year's as the records it
+ * holds, to an eighth. A year with none is blank. Nothing for a single year,
+ * whose count says it all.
  */
-export function yearBars(byMonth: { [month: string]: number }, t: Tokens, width: number): string[] {
+export function sparkline(byMonth: { [month: string]: number }): string | undefined {
   const years = new Map<number, number>();
   for (const [month, n] of Object.entries(byMonth)) {
     const year = Number(month.slice(0, 4));
     years.set(year, (years.get(year) ?? 0) + n);
   }
-  if (years.size === 0) return [];
-  const rows: [number, number][] = [];
-  for (let year = Math.min(...years.keys()); year <= Math.max(...years.keys()); year++) {
-    rows.push([year, years.get(year) ?? 0]);
+  const first = Math.min(...years.keys());
+  const last = Math.max(...years.keys());
+  const top = Math.max(0, ...years.values());
+  if (years.size < 2 || top === 0) return undefined;
+  const levels = [...glyphs.levels];
+  let columns = '';
+  for (let year = first; year <= last; year++) {
+    const n = years.get(year) ?? 0;
+    columns += n === 0 ? ' ' : levels[Math.max(1, Math.round((n / top) * levels.length)) - 1];
   }
-  const top = Math.max(...rows.map(([, n]) => n));
-  const digits = Math.max(...rows.map(([, n]) => count(n).length));
-  const room = Math.max(1, Math.min(BAR_WIDTH, width - 4 - 2 - 2 - digits));
-  const eighths = [...glyphs.eighths];
-  return rows.map(([year, n]) => {
-    const length = n === 0 ? 0 : Math.max(1, Math.round((n / top) * room * 8));
-    const bar = eighths[7].repeat(Math.floor(length / 8)) + (eighths[(length % 8) - 1] ?? '');
-    return line(
-      [[String(year), t.muted], [`  ${bar.padEnd(room)}  `], [count(n).padStart(digits)]],
-      width
-    );
-  });
+  return `${first} ${columns} ${last}`;
 }
 
 function within<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -514,13 +506,12 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
             measureValue(measure),
           ]);
         }
-        const section = [
+        const years = sparkline(part.byMonth ?? {});
+        if (years) facts.push(['years', years]);
+        return [
           line([[recordsText(kind, part), t.strong]], width),
           ...card(undefined, facts, t, width - 2).map(fact => `  ${fact}`),
         ];
-        const years = yearBars(part.byMonth ?? {}, t, width - 2);
-        if (years.length > 1) section.push('', ...years.map(year => `  ${year}`));
-        return section;
       });
       block(row, sections);
     }

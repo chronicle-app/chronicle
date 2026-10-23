@@ -855,6 +855,13 @@ test('the extract hint names a source, or gives a command and where it reads', a
   );
 });
 
+test('a sparkline has a column per year, as high as its records against the busiest', async () => {
+  const { sparkline } = await import('../dist/commands/survey.js');
+  assert.equal(sparkline({ '2015-01': 4, '2015-06': 4, '2017-03': 2 }), '2015 █ ▂ 2017');
+  assert.equal(sparkline({ '2015-01': 4, '2015-06': 4 }), undefined);
+  assert.equal(sparkline({}), undefined);
+});
+
 test('survey counts what each ready source holds, and lists the rest with what is in the way', t => {
   const { dir, run } = fixture(t);
   const { home } = scanHome(dir);
@@ -912,8 +919,8 @@ test('survey counts what each ready source holds, and lists the rest with what i
     /^github {2}GitHub [^\n]+\nGH_TOKEN\n\nNot counted, since github is read online/m
   );
   assert.match(online.stderr, /Run `chronicle extract github` to extract it\./);
-  // A single year has no bars: its count says it all.
-  assert.doesNotMatch(detail, /█/);
+  // A single year has no sparkline: its count says it all.
+  assert.doesNotMatch(detail, /years|█/);
   const [zsh] = JSON.parse(success(survey('survey', 'shell', '--format', 'json')));
   assert.deepEqual(zsh.survey.commands.byMonth, { '2023-11': 1 });
   // Every source's survey leaves months out; a scan points to it, and names
@@ -978,13 +985,12 @@ test('survey takes the options extract does, and counts an export it is pointed 
     },
     moves: { count: 0, byMonth: {} },
   });
-  // Years when there are several, each a bar against the busiest.
+  // Years when there are several, on one line, each against the busiest.
   const years = success(survey('survey', 'moves-app', '--input', input));
   // A source found in one place is titled with what it is.
   assert.match(years, /^moves-app {2}Moves export places and moves$/m);
   assert.match(years, /^2 places$/m);
-  assert.match(years, /^ {2}2014 {2}█{30} {2}1$/m);
-  assert.match(years, /^ {2}2015 {2}█{30} {2}1$/m);
+  assert.match(years, /^ {2}years +2014 ██ 2015$/m);
   // Without one: where to point it.
   const bare = survey('survey', 'moves-app');
   assert.equal(bare.status, 2);
