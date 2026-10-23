@@ -1,15 +1,16 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { findExports, writeZip } from '@chronicle.app/etl';
 import {
   FacebookArchiveMessagesExtractor,
   FacebookArchiveReactionsExtractor,
   FacebookArchiveSearchHistoryExtractor,
   FacebookTransformer,
 } from '../dist/index.js';
-import { T0, writeFacebookExport } from './fixture.test-helper.js';
+import { T0, facebookExportFiles, writeFacebookExport } from './fixture.test-helper.js';
 
 // The export is written to a temp dir, so the tests read no host data.
 function tempDir(t) {
@@ -257,4 +258,35 @@ test('a segmented export is read across its facebook-* directories', async t => 
   // The limit applies across segments.
   const searches = await records(FacebookArchiveSearchHistoryExtractor, { input, limit: 1 });
   assert.equal(searches.records.length, 1);
+});
+
+test('an export reads the same zipped, and its layout finds it where it starts', async t => {
+  const dir = tempDir(t);
+  const unzipped = writeFacebookExport(join(dir, 'facebook-samrivera-11_08_2026-AbCd'));
+  const zip = join(dir, 'facebook-samrivera-11_08_2026-AbCd.zip');
+  writeZip(zip, facebookExportFiles());
+  for (const Extractor of [
+    FacebookArchiveMessagesExtractor,
+    FacebookArchiveReactionsExtractor,
+    FacebookArchiveSearchHistoryExtractor,
+  ]) {
+    const folder = await records(Extractor, { input: unzipped });
+    const zipped = await records(Extractor, { input: zip });
+    assert.ok(folder.records.length > 0, Extractor.name);
+    assert.deepEqual(
+      zipped.records.map(r => [r.data, r.context]),
+      folder.records.map(r => [r.data, r.context]),
+      Extractor.name
+    );
+  }
+
+  const { chronicle } = JSON.parse(readFileSync(join(import.meta.dirname, '../package.json')));
+  const { layouts } = chronicle.sources.facebook.strategies.archive;
+  const { exports } = await findExports(dir, [
+    { source: 'facebook', strategy: 'archive', layouts },
+  ]);
+  assert.deepEqual(
+    exports.map(e => e.root),
+    [unzipped, zip]
+  );
 });

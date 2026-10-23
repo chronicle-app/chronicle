@@ -32,21 +32,21 @@ export class InstagramArchivePostsExtractor extends InstagramArchiveExtractor {
     let index = 0;
 
     for (const entry of await this.loadPostEntries()) {
-      const media = this.mediaItems(entry)
-        .filter(m => typeof m?.uri === 'string' && m.uri.includes('/'))
-        .map(m => {
-          const id = this.extractIdFromUri(m.uri);
-          const kind = /\.mp4$/i.test(m.uri) ? 'video' : 'image';
-          return {
-            id,
-            kind,
-            path: this.archiveMediaPath(m.uri),
-            mimeType: kind === 'video' ? 'video/mp4' : 'image/jpeg',
-            creation_timestamp: m.creation_timestamp,
-            title: m.title,
-          };
-        })
-        .filter(m => m.path !== null);
+      const media = [];
+      for (const m of this.mediaItems(entry)) {
+        if (typeof m?.uri !== 'string' || !m.uri.includes('/')) continue;
+        const path = await this.archiveMediaPath(m.uri);
+        if (path === null) continue;
+        const kind = /\.mp4$/i.test(m.uri) ? 'video' : 'image';
+        media.push({
+          id: this.extractIdFromUri(m.uri),
+          kind,
+          path,
+          mimeType: kind === 'video' ? 'video/mp4' : 'image/jpeg',
+          creation_timestamp: m.creation_timestamp,
+          title: m.title,
+        });
+      }
       if (media.length === 0) continue;
 
       const { id } = media[0];
@@ -133,7 +133,7 @@ export class InstagramArchivePostsExtractor extends InstagramArchiveExtractor {
           m =>
             typeof m?.uri === 'string' &&
             m.uri.includes('/') &&
-            this.archiveMediaPath(m.uri) !== null
+            this.archiveMediaFile(m.uri) !== null
         );
         if (media.length === 0) continue;
         const id = this.extractIdFromUri(media[0].uri);

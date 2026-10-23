@@ -1,6 +1,5 @@
 import { Record } from '@chronicle.app/etl';
-import { stat } from 'node:fs/promises';
-import { join } from 'node:path';
+import { posix } from 'node:path';
 import { FacebookArchiveExtractor } from './FacebookArchiveExtractor.js';
 import FacebookTransformer from '../FacebookTransformer.js';
 
@@ -35,19 +34,14 @@ export class FacebookArchiveSearchHistoryExtractor extends FacebookArchiveExtrac
     segmentPath: string,
     processedSearches: Set<string>
   ): AsyncGenerator<Record> {
-    const searchHistoryPath = join(
+    const searchHistoryPath = posix.join(
       segmentPath,
       'logged_information',
       'search',
       'your_search_history.json'
     );
 
-    try {
-      await stat(searchHistoryPath);
-    } catch {
-      // No search history file found
-      return;
-    }
+    if (!(await this.exists(searchHistoryPath))) return; // No search history file found
 
     try {
       const data = await this.readFacebookJson(searchHistoryPath);

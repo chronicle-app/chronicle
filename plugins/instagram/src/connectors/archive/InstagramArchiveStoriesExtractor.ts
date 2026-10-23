@@ -46,7 +46,7 @@ export class InstagramArchiveStoriesExtractor extends InstagramArchiveExtractor 
 
       const id = this.extractIdFromUri(story.uri);
       const kind = this.mediaKind(story);
-      const path = this.archiveMediaPath(story.uri);
+      const path = await this.archiveMediaPath(story.uri);
       if (!path) continue;
 
       yield this.createRecordWithArchiveContext(

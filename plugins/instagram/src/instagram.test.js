@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { findExports, writeZip } from '@chronicle.app/etl';
 import {
   InstagramArchiveCommentsExtractor,
   InstagramArchiveFollowsExtractor,
@@ -17,6 +18,7 @@ import {
 import {
   SELF,
   SHARE_SUFFIX,
+  instagramExportFiles,
   writeInstagramExport,
   writeInstagramExport2026Saves,
 } from './fixture.test-helper.js';
@@ -455,5 +457,48 @@ test('an export with no username fails instead of inventing an owner', async t =
   await assert.rejects(
     actions(InstagramArchiveFollowsExtractor, { input: dir }),
     /no account username/
+  );
+});
+
+/** What a run reads, with each media file's path from the export's `media/` on. */
+async function readExport(Extractor, input) {
+  const extractor = new Extractor({ input });
+  try {
+    await extractor.setup();
+    const records = await Array.fromAsync(extractor.extract());
+    const read = JSON.stringify(records.map(r => [r.data, r.context]));
+    return JSON.parse(read.replaceAll(/"path":"[^"]*?\/(media\/[^"]+)"/g, '"path":"$1"'));
+  } finally {
+    await extractor.teardown();
+  }
+}
+
+test('an export reads the same zipped, and its layout finds it where it starts', async t => {
+  const dir = tempDir(t);
+  const unzipped = writeInstagramExport(join(dir, 'instagram-sam.rivera-2026-07-15-AbCd'));
+  const zip = join(dir, 'instagram-sam.rivera-2026-07-15-AbCd.zip');
+  writeZip(zip, instagramExportFiles());
+  for (const Extractor of [
+    InstagramArchivePostsExtractor,
+    InstagramArchiveStoriesExtractor,
+    InstagramArchiveMessagesExtractor,
+    InstagramArchiveLikesExtractor,
+    InstagramArchiveFollowsExtractor,
+    InstagramArchiveCommentsExtractor,
+    InstagramArchiveSearchesExtractor,
+  ]) {
+    const folder = await readExport(Extractor, unzipped);
+    assert.ok(folder.length > 0, Extractor.name);
+    assert.deepEqual(await readExport(Extractor, zip), folder, Extractor.name);
+  }
+
+  const { chronicle } = JSON.parse(readFileSync(join(import.meta.dirname, '../package.json')));
+  const { layouts } = chronicle.sources.instagram.strategies.archive;
+  const { exports } = await findExports(dir, [
+    { source: 'instagram', strategy: 'archive', layouts },
+  ]);
+  assert.deepEqual(
+    exports.map(e => e.root),
+    [unzipped, zip]
   );
 });

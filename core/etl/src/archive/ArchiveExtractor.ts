@@ -1,12 +1,14 @@
-import { readFile } from 'node:fs/promises';
 import { z } from 'zod';
 import { Extractor } from '../extractor.js';
 import { Record } from '../types.js';
+import { type ExportFiles, openExport } from './exportFiles.js';
 
 /**
  * Base for takeout-style export plugins (Facebook/Instagram archives, Twitter
  * exports, Google Takeout, …): a directory of JSON the platform wrote once,
- * read in place.
+ * read in place. `setup()` opens `input` with `openExport`, so it's the
+ * export however it was handed over, a folder or a zip, and a subclass reads
+ * its files by their paths in it.
  *
  * Shared here: the archive record context (strategy + the export's account
  * info), JSON reading, the since/until window check, and the mojibake repair
@@ -20,8 +22,13 @@ export abstract class ArchiveExtractor<
   static override delivery = 'export' as const;
 
   static override schema = Extractor.schema.extend({
-    input: z.string().describe('Path to the export directory'),
+    input: z.string().describe('The export, as a folder or zip'),
   });
+
+  /** The export's files, opened by `setup()`. */
+  protected files!: ExportFiles;
+  /** What a message calls the export, like `LinkedIn export`. */
+  protected readonly exportName: string = 'export';
 
   /**
    * The export's own record of whose archive this is, loaded by the
@@ -38,13 +45,22 @@ export abstract class ArchiveExtractor<
     return null;
   }
 
-  /** Parse one JSON file from the archive (absolute path). */
-  protected async readArchiveJson(filePath: string): Promise<any> {
+  override async setup(): Promise<void> {
+    await super.setup();
+    this.files = await openExport((this.config as { input: string }).input, this.exportName);
+  }
+
+  override async teardown(): Promise<void> {
+    await this.files?.close();
+    await super.teardown();
+  }
+
+  /** Parse one JSON file from the archive, by its path in the export. */
+  protected async readArchiveJson(path: string): Promise<any> {
     try {
-      const buffer = await readFile(filePath);
-      return JSON.parse(buffer.toString('utf-8'));
+      return JSON.parse(await this.files.readText(path));
     } catch {
-      throw new Error(`Failed to read archive JSON file ${filePath}`);
+      throw new Error(`Failed to read archive JSON file ${path}`);
     }
   }
 

@@ -1,7 +1,5 @@
-import { ArchiveExtractor, Extractor, InputNotFound, fileError } from '@chronicle.app/etl';
+import { ArchiveExtractor, Extractor } from '@chronicle.app/etl';
 import { parse } from 'csv-parse/sync';
-import { readdir, readFile, stat } from 'node:fs/promises';
-import { join } from 'node:path';
 import { z } from 'zod';
 import { profileHandle } from '../fields.js';
 
@@ -19,8 +17,8 @@ export interface LinkedInAccount {
 
 /**
  * Base for the LinkedIn member data export — the ZIP that Settings & Privacy →
- * Data Privacy → "Get a copy of your data" produces, unpacked to a directory of
- * CSVs.
+ * Data Privacy → "Get a copy of your data" produces: a folder of CSVs, read
+ * as the zip or unpacked.
  *
  * Shared here: reading a named CSV out of the export, the account info every
  * record carries, and the date window. One subclass per file, because the files
@@ -39,7 +37,7 @@ export abstract class LinkedInArchiveExtractor<
   static override strategy = 'archive';
 
   static override schema = Extractor.schema.extend({
-    input: z.string().describe('Path to the unpacked LinkedIn export directory'),
+    input: z.string().describe('The LinkedIn export, as a zip or its unpacked folder'),
     'profile-url': z
       .string()
       .optional()
@@ -49,6 +47,7 @@ export abstract class LinkedInArchiveExtractor<
   });
 
   protected override accountInfo: LinkedInAccount = {};
+  protected override readonly exportName = 'LinkedIn export';
 
   /** Lower-cased file name → real file name, so a renamed case still resolves. */
   private fileIndex?: Map<string, string>;
@@ -81,17 +80,13 @@ export abstract class LinkedInArchiveExtractor<
     return this.compiledAt ?? super.asOfTime();
   }
 
-  /** The newest mtime among the export's files, or none if it has none. */
+  /** The newest mtime among the export's files, or none if it has none; in a zip, from its index. */
   private async newestFileTime(): Promise<Date | undefined> {
-    const { input } = this.config as { input: string };
     let newest: number | undefined;
     for (const name of await this.fileNames()) {
-      try {
-        const { mtimeMs } = await stat(join(input, name));
-        if (newest === undefined || mtimeMs > newest) newest = mtimeMs;
-      } catch {
-        // A file that vanished between listing and stat tells us nothing.
-      }
+      // A file that vanished between listing and stat tells us nothing.
+      const mtimeMs = (await this.files.modified(name))?.getTime();
+      if (mtimeMs !== undefined && (newest === undefined || mtimeMs > newest)) newest = mtimeMs;
     }
     return newest === undefined ? undefined : new Date(newest);
   }
@@ -173,7 +168,7 @@ export abstract class LinkedInArchiveExtractor<
     const path = await this.resolveFile(fileName);
     if (!path) return [];
 
-    const text = stripPreamble(await readFile(path, 'utf8'));
+    const text = stripPreamble(await this.files.readText(path));
     if (!text.trim()) return [];
 
     return parse(text, {
@@ -185,27 +180,16 @@ export abstract class LinkedInArchiveExtractor<
     });
   }
 
-  /** The real path for a file name, matched case-insensitively, or none. */
+  /** The real name of a file in the export, matched case-insensitively, or none. */
   private async resolveFile(fileName: string): Promise<string | undefined> {
     await this.fileNames();
-    const resolved = this.fileIndex!.get(fileName.toLowerCase());
-    const { input } = this.config as { input: string };
-    return resolved ? join(input, resolved) : undefined;
+    return this.fileIndex!.get(fileName.toLowerCase());
   }
 
   /** Every file in the export, listed once and indexed for case-insensitive lookup. */
   private async fileNames(): Promise<string[]> {
     if (!this.fileIndex) {
-      const { input } = this.config as { input: string };
-      let entries: string[] = [];
-      try {
-        entries = await readdir(input);
-      } catch (error) {
-        const typed = fileError(error, input, 'LinkedIn export');
-        throw typed === error
-          ? new InputNotFound("Couldn't read the LinkedIn export", { path: input, cause: error })
-          : typed;
-      }
+      const entries = (await this.files.children('')).filter(name => !name.endsWith('/'));
       this.fileIndex = new Map(entries.map(name => [name.toLowerCase(), name]));
     }
     return [...this.fileIndex.values()];

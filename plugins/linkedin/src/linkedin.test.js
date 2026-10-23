@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdtempSync, rmSync, unlinkSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { findExports, writeZip } from '@chronicle.app/etl';
 import {
   LinkedInArchiveFollowsExtractor,
   LinkedInArchiveProfileExtractor,
@@ -18,7 +19,7 @@ import {
   parseSpaceStamp,
   profileHandle,
 } from '../dist/connectors/fields.js';
-import { COMPILED_AT, writeLinkedInExport } from './fixture.test-helper.js';
+import { COMPILED_AT, FILES, writeLinkedInExport } from './fixture.test-helper.js';
 
 const COMPILED = COMPILED_AT.toISOString();
 
@@ -436,4 +437,29 @@ test('field readers keep what LinkedIn wrote at its own precision', () => {
   assert.equal(parseSpaceStamp('N/A'), undefined);
   assert.equal(parseSlashStamp('2017/05/07 01:01:57 UTC'), '2017-05-07T01:01:57.000Z');
   assert.equal(parseLongStamp('Fri Jan 24 02:54:41 UTC 2025'), '2025-01-24T02:54:41.000Z');
+});
+
+test('an export reads the same zipped, and its layout finds it where it starts', async t => {
+  const dir = tempDir(t);
+  const unzipped = writeLinkedInExport(join(dir, 'Basic_LinkedInDataExport_08-08-2026'));
+  const zip = join(dir, 'Basic_LinkedInDataExport_08-08-2026.zip');
+  writeZip(zip, FILES, { modified: COMPILED_AT });
+  const folder = await records(LinkedInDefaultExtractor, { input: unzipped });
+  assert.ok(folder.length > 0);
+  const zipped = await records(LinkedInDefaultExtractor, { input: zip });
+  // A zip's files are dated by its index, so it's as of when LinkedIn compiled it too.
+  assert.deepEqual(
+    zipped.map(r => [r.extraction, r.data, r.context]),
+    folder.map(r => [r.extraction, r.data, r.context])
+  );
+
+  const { chronicle } = JSON.parse(readFileSync(join(import.meta.dirname, '../package.json')));
+  const { layouts } = chronicle.sources.linkedin.strategies.archive;
+  const { exports } = await findExports(dir, [
+    { source: 'linkedin', strategy: 'archive', layouts },
+  ]);
+  assert.deepEqual(
+    exports.map(e => e.root),
+    [unzipped, zip]
+  );
 });

@@ -1,5 +1,14 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -185,6 +194,34 @@ test('an export opens by a path through its zip, as the walk names it', async t 
     code: 'input-not-found',
   });
   await assert.rejects(openExport(join(dir, 'gone/inside')), { code: 'input-not-found' });
+});
+
+test('an export lists a folder, and gives a reader outside it a file on disk', async t => {
+  const dir = exportFiles(t);
+  const folder = await openExport(join(dir, 'twitter-2022-11-04'));
+  t.after(() => folder.close());
+  assert.deepEqual(await folder.children(''), ['assets/', 'data/']);
+  assert.deepEqual(await folder.children('data/'), ['account.js', 'tweets.js']);
+  assert.deepEqual(await folder.children('nothing'), []);
+  // In a folder, the file itself.
+  assert.equal(
+    await folder.localPath('data/tweets.js'),
+    join(dir, 'twitter-2022-11-04', 'data', 'tweets.js')
+  );
+
+  const zip = await openExport(join(dir, 'takeout-20250101T000000Z-001.zip'));
+  assert.deepEqual(await zip.children('Takeout'), ['Mail/', 'YouTube and YouTube Music/']);
+  // In a zip, a copy, until the export is closed.
+  const copy = await zip.localPath('Takeout/YouTube and YouTube Music/history/watch-history.html');
+  assert.equal(readFileSync(copy, 'utf8'), '<html/>');
+  assert.equal(await zip.localPath('Takeout/missing.html'), null);
+  await zip.close();
+  assert.equal(existsSync(copy), false);
+
+  // A reader names its export in the message for one that isn't there.
+  await assert.rejects(openExport(join(dir, 'gone'), 'Twitter archive'), {
+    message: 'No Twitter archive found',
+  });
 });
 
 test('a list of paths, as a package manifest lists them, without a disk', async () => {

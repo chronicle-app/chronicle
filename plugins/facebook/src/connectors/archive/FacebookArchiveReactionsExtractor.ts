@@ -1,6 +1,5 @@
 import { Record } from '@chronicle.app/etl';
-import { stat } from 'node:fs/promises';
-import { join } from 'node:path';
+import { posix } from 'node:path';
 import { FacebookArchiveExtractor } from './FacebookArchiveExtractor.js';
 import FacebookTransformer from '../FacebookTransformer.js';
 
@@ -41,14 +40,13 @@ export class FacebookArchiveReactionsExtractor extends FacebookArchiveExtractor 
     segmentPath: string,
     processedReactions: Set<string>
   ): AsyncGenerator<Record> {
-    const reactionsPath = join(segmentPath, 'your_facebook_activity', 'comments_and_reactions');
+    const reactionsPath = posix.join(
+      segmentPath,
+      'your_facebook_activity',
+      'comments_and_reactions'
+    );
 
-    try {
-      await stat(reactionsPath);
-    } catch {
-      // No reactions directory found
-      return;
-    }
+    if (!(await this.exists(reactionsPath))) return; // No reactions directory found
 
     // Process different reaction/comment files
     yield* this.extractFromReactionsFile(
@@ -69,13 +67,9 @@ export class FacebookArchiveReactionsExtractor extends FacebookArchiveExtractor 
     fileName: string,
     processedReactions: Set<string>
   ): AsyncGenerator<Record> {
-    const filePath = join(reactionsPath, fileName);
+    const filePath = posix.join(reactionsPath, fileName);
 
-    try {
-      await stat(filePath);
-    } catch {
-      return; // File doesn't exist
-    }
+    if (!(await this.exists(filePath))) return; // File doesn't exist
 
     try {
       const data = await this.readFacebookJson(filePath);
@@ -98,13 +92,9 @@ export class FacebookArchiveReactionsExtractor extends FacebookArchiveExtractor 
     fileName: string,
     processedReactions: Set<string>
   ): AsyncGenerator<Record> {
-    const filePath = join(reactionsPath, fileName);
+    const filePath = posix.join(reactionsPath, fileName);
 
-    try {
-      await stat(filePath);
-    } catch {
-      return; // File doesn't exist
-    }
+    if (!(await this.exists(filePath))) return; // File doesn't exist
 
     try {
       const data = await this.readFacebookJson(filePath);

@@ -33,8 +33,8 @@ chronicle extract instagram \
 
 The extractor supports the following options:
 
-- `--input` (required): Path to the Instagram export directory (the unzipped
-  JSON data export)
+- `--input` (required): The Instagram export (the JSON data export), as a
+  folder or zip
 - `--type`: The record type to extract, one per run: `posts`, `stories`,
   `messages`, `likes`, `follows`, `saves`, `comments` or `searches`. In a
   terminal, the CLI asks when it is left out.
@@ -54,7 +54,8 @@ npm test -w @chronicle.app/instagram
 
 ## File Format
 
-The input is an Instagram data export in JSON format, unzipped. The account
+The input is an Instagram data export in JSON format, unzipped or read from its
+zip in place. The account
 owner comes from
 `personal_information/personal_information/personal_information.json`; an
 export without a username fails rather than inventing one. Each record type

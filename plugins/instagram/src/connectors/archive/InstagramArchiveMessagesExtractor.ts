@@ -1,6 +1,5 @@
 import { Record } from '@chronicle.app/etl';
-import { readdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import { posix } from 'node:path';
 import { InstagramArchiveExtractor } from './InstagramArchiveExtractor.js';
 import InstagramTransformer from '../InstagramTransformer.js';
 
@@ -104,25 +103,24 @@ export class InstagramArchiveMessagesExtractor extends InstagramArchiveExtractor
   }
 
   private async loadMessages(messagesPath: string): Promise<any[]> {
-    const config = this.config as any;
-    const fullPath = join(config.input, messagesPath);
     const messages: any[] = [];
 
     try {
-      const conversationDirs = await readdir(fullPath, { withFileTypes: true });
+      const conversationDirs = (await this.files.children(messagesPath))
+        .filter(entry => entry.endsWith('/'))
+        .map(entry => entry.slice(0, -1));
+      if (conversationDirs.length === 0) throw new Error(`No ${messagesPath}`);
 
-      for (const dir of conversationDirs) {
-        if (!dir.isDirectory()) continue;
-
+      for (const name of conversationDirs) {
         try {
-          const conversationPath = join(fullPath, dir.name);
+          const conversationPath = posix.join(messagesPath, name);
 
           const conversationData = await this.readInstagramJson(
-            join(messagesPath, dir.name, 'message_1.json')
+            posix.join(conversationPath, 'message_1.json')
           );
 
           if (conversationData && conversationData.messages) {
-            const conversationId = dir.name;
+            const conversationId = name;
             const isMessageRequest = messagesPath.includes('message_requests');
 
             for (const message of conversationData.messages) {
@@ -139,7 +137,7 @@ export class InstagramArchiveMessagesExtractor extends InstagramArchiveExtractor
             }
           }
         } catch (error) {
-          this.logger.warn(`Could not process conversation ${dir.name}`, {
+          this.logger.warn(`Could not process conversation ${name}`, {
             error: error instanceof Error ? error.message : String(error),
           });
         }
@@ -171,19 +169,17 @@ export class InstagramArchiveMessagesExtractor extends InstagramArchiveExtractor
   }
 
   private async countMessagesInPath(messagesPath: string): Promise<number> {
-    const config = this.config as any;
-    const fullPath = join(config.input, messagesPath);
     let messageCount = 0;
 
     try {
-      const conversationDirs = await readdir(fullPath, { withFileTypes: true });
+      const conversationDirs = (await this.files.children(messagesPath))
+        .filter(entry => entry.endsWith('/'))
+        .map(entry => entry.slice(0, -1));
 
-      for (const dir of conversationDirs) {
-        if (!dir.isDirectory()) continue;
-
+      for (const name of conversationDirs) {
         try {
           const conversationData = await this.readInstagramJson(
-            join(messagesPath, dir.name, 'message_1.json')
+            posix.join(messagesPath, name, 'message_1.json')
           );
 
           if (conversationData && conversationData.messages) {

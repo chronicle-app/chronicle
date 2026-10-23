@@ -61,6 +61,14 @@
         "strategies": {
           "archive": {
             "delivery": "export",
+            "layouts": [
+              {
+                "files": [
+                  "personal_information/personal_information/personal_information.json",
+                  "your_instagram_activity"
+                ]
+              }
+            ],
             "recordTypes": [
               "comments",
               "follows",

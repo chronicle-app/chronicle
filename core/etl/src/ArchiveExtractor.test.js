@@ -12,7 +12,7 @@ class FixtureArchiveExtractor extends ArchiveExtractor {
   static recordTypes = ['posts'];
 
   async loadAccountInfo() {
-    return this.readArchiveJson(join(this.config.input, 'profile.json'));
+    return this.readArchiveJson('profile.json');
   }
 
   async setup() {
@@ -21,7 +21,7 @@ class FixtureArchiveExtractor extends ArchiveExtractor {
   }
 
   async *extract() {
-    const posts = await this.readArchiveJson(join(this.config.input, 'posts.json'));
+    const posts = await this.readArchiveJson('posts.json');
     for (const post of posts) {
       if (!this.isWithinDateRange(new Date(post.timestamp * 1000))) continue;
       yield this.createRecordWithArchiveContext(
@@ -80,7 +80,7 @@ test('reads a synthetic archive with its account context, date window and text r
     assert.equal(records[0].extraction.delivery, 'export');
 
     await assert.rejects(
-      extractor.readArchiveJson(join(directory, 'missing.json')),
+      extractor.readArchiveJson('missing.json'),
       /Failed to read archive JSON file/
     );
     assert.throws(() => new FixtureArchiveExtractor({}), /input/);

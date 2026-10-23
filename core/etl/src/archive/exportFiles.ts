@@ -1,7 +1,9 @@
-import { createReadStream } from 'node:fs';
-import { readdir, stat } from 'node:fs/promises';
-import { basename, dirname, join, relative, sep } from 'node:path';
+import { createReadStream, createWriteStream } from 'node:fs';
+import { mkdir, mkdtemp, readdir, rm, stat } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import type { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { InputNotFound } from '@chronicle.app/logging';
 import yauzl from 'yauzl';
 import { fileError } from '../fileErrors.js';
@@ -19,6 +21,12 @@ export interface ExportFiles {
   readonly location: string;
   /** Every file's path, sorted. With a prefix, only the paths that start with it. */
   list(prefix?: string): Promise<string[]>;
+  /**
+   * The names directly in a folder of the export, by its path from the root
+   * (`''` for the root), a folder's with a `/` after it, as `inbox/`. Sorted,
+   * and empty when there's no such folder.
+   */
+  children(folder: string): Promise<string[]>;
   has(path: string): Promise<boolean>;
   /** The path of the file with this name nearest the root, such as `export.xml`. */
   find(name: string): Promise<string | null>;
@@ -33,6 +41,13 @@ export interface ExportFiles {
    * when the service wrote the export. Null when it isn't there.
    */
   modified(path: string): Promise<Date | null>;
+  /**
+   * The file as a path on disk, for a reader outside the export to open, as
+   * a record's `contentPath`: in a folder, the file's own path, as the
+   * export names it; in a zip, a copy in a temporary folder that `close()`
+   * removes, or null when the zip doesn't have it.
+   */
+  localPath(path: string): Promise<string | null>;
   close(): Promise<void>;
 }
 
@@ -47,15 +62,16 @@ export const isZip = (path: string) => path.toLowerCase().endsWith('.zip');
  * unless all it holds is zips, which are then read as one export. A zip
  * that's one part of a split Takeout brings in its sibling parts. A path
  * through a zip, like `export.zip/apple_health_export`, is that folder in it.
+ * `what` names it in a message, like `LinkedIn export`.
  */
-export async function openExport(input: string): Promise<ExportFiles> {
+export async function openExport(input: string, what = 'export'): Promise<ExportFiles> {
   let stats;
   try {
     stats = await stat(input);
   } catch (error) {
     const inZip = await zipAlong(input);
     if (inZip) return ZipExport.open(await partsOf(inZip.zip), inZip.folder);
-    throw fileError(error, input, 'export');
+    throw fileError(error, input, what);
   }
   if (stats.isDirectory()) {
     const zips = await zipsIn(input);
@@ -120,13 +136,33 @@ function missing(path: string, location: string): InputNotFound {
 abstract class BaseExport implements ExportFiles {
   abstract readonly location: string;
   protected abstract paths(): Promise<string[]>;
+  /** Each folder's names, by its path, made from the paths when first asked. */
+  private folders: Promise<Map<string, string[]>> | null = null;
   abstract open(path: string): Promise<Readable>;
   abstract modified(path: string): Promise<Date | null>;
+  abstract localPath(path: string): Promise<string | null>;
   abstract close(): Promise<void>;
 
   async list(prefix = ''): Promise<string[]> {
     const want = normalize(prefix);
     return (await this.paths()).filter(path => path.startsWith(want));
+  }
+
+  async children(folder: string): Promise<string[]> {
+    this.folders ??= this.paths().then(paths => {
+      const names = new Map<string, Set<string>>();
+      for (const path of paths) {
+        const segments = path.split('/');
+        for (const [i, name] of segments.entries()) {
+          const dir = segments.slice(0, i).join('/');
+          if (!names.has(dir)) names.set(dir, new Set());
+          names.get(dir)!.add(i === segments.length - 1 ? name : `${name}/`);
+        }
+      }
+      return new Map([...names].map(([dir, set]) => [dir, [...set].sort()]));
+    });
+    const dir = normalize(folder).replace(/\/+$/, '');
+    return (await this.folders).get(dir === '.' ? '' : dir) ?? [];
   }
 
   async has(path: string): Promise<boolean> {
@@ -191,6 +227,10 @@ class FolderExport extends BaseExport {
     }
   }
 
+  async localPath(path: string): Promise<string | null> {
+    return resolve(this.location, normalize(path));
+  }
+
   async close(): Promise<void> {}
 }
 
@@ -208,6 +248,9 @@ async function walk(root: string): Promise<string[]> {
 }
 
 class ZipExport extends BaseExport {
+  /** Where `localPath` copies files out, once it has. */
+  private copies: string | null = null;
+
   private constructor(
     readonly location: string,
     private readonly zips: yauzl.ZipFile[],
@@ -264,8 +307,22 @@ class ZipExport extends BaseExport {
     return this.entries.get(normalize(path))?.entry.getLastModDate() ?? null;
   }
 
+  async localPath(path: string): Promise<string | null> {
+    const inside = normalize(path);
+    if (!this.entries.has(inside)) return null;
+    this.copies ??= await mkdtemp(join(tmpdir(), 'chronicle-export-'));
+    const file = join(this.copies, ...inside.split('/'));
+    if (!(await stat(file).catch(() => null))) {
+      await mkdir(dirname(file), { recursive: true });
+      await pipeline(await this.open(inside), createWriteStream(file));
+    }
+    return file;
+  }
+
   async close(): Promise<void> {
     for (const zip of this.zips) zip.close();
+    if (this.copies) await rm(this.copies, { recursive: true, force: true });
+    this.copies = null;
   }
 }
 

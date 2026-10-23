@@ -158,8 +158,11 @@ Five extractor and system helpers are shared by several sources:
   numbered zips, which brings in its sibling parts, or a folder in a zip by a
   path through it, like `export.zip/apple_health_export`. It lists, finds, and
   streams files by their paths inside the export, and reads files in a zip in
-  place, decompressing them as they stream. `modified(path)` says when a file
-  was last changed, in a zip from its index. `writeZip` writes a zip for test
+  place, decompressing them as they stream. `children(folder)` lists a
+  folder's names, `modified(path)` says when a file was last changed, in a zip
+  from its index, and `localPath(path)` gives a reader outside the export a
+  file on disk, as a record's `contentPath`: in a zip, a copy that `close()`
+  removes. `writeZip` writes a zip for test
   fixtures, its entries dated by `modified` when given.
 - `findExports(path, sets)` finds the exports in a folder or zip by each
   strategy's `layouts`, the paths a manifest says its exports hold from where
@@ -167,8 +170,9 @@ Five extractor and system helpers are shared by several sources:
   into hidden folders, macOS bundles, or links. Given a file or folder inside
   an export, it finds that export. `findExportsIn(paths, sets)` does the same
   over a list of paths, like a package's manifest.
-- `ArchiveExtractor` is a base for takeout-style exports read in place from an
-  `--input` directory. It reads JSON files, checks the since/until window,
+- `ArchiveExtractor` is a base for takeout-style exports read in place from
+  `--input`, which `setup()` opens with `openExport`, so it's a folder or a
+  zip. It reads JSON files by their paths in the export, checks the since/until window,
   repairs the mojibake these exports write, and attaches the export's account
   info to each record's context. Layout knowledge stays in each plugin.
 - `MergingExtractor` merges several child extractors' newest-first streams into
