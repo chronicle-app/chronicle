@@ -243,9 +243,11 @@ function help(t: Tokens, width: number): string[] {
         version: '1.2.3',
         summary: 'Extract your digital history into a shared vocabulary.',
         commands: [
-          { name: 'auth', summary: 'Sign in to providers and manage stored credentials' },
-          { name: 'extract', summary: 'Extract records from a source as Chronicle JSON-LD' },
-          { name: 'autocomplete', summary: 'Set up tab completion for your shell' },
+          [{ name: 'extract', summary: 'Extract records from a source as Chronicle JSON-LD' }],
+          [
+            { name: 'auth', summary: 'Sign in to providers and manage stored credentials' },
+            { name: 'autocomplete', summary: 'Set up tab completion for your shell' },
+          ],
         ],
       },
       t,

@@ -202,7 +202,26 @@ export function listedSummary(command: Pick<Command.Cached, 'summary' | 'descrip
 export interface RootInput {
   version: string;
   summary?: string;
-  commands: Entry[];
+  /** In groups, each apart from the next. */
+  commands: Entry[][];
+}
+
+/** Groups of entries, a blank line between them, their summaries lined up across groups. */
+function groupedEntries(groups: Entry[][], t: Tokens, width: number): string[] {
+  const widest = Math.max(0, ...groups.flat().map(({ name }) => name.length));
+  return groups
+    .filter(group => group.length > 0)
+    .flatMap((group, i) => [
+      ...(i > 0 ? [''] : []),
+      ...definitions(
+        group.map(({ name, summary }) => ({
+          term: [[name, t.command], [' '.repeat(widest - name.length)]],
+          text: summary,
+        })),
+        t,
+        width
+      ),
+    ]);
 }
 
 /** `chronicle --help`: what Chronicle is, and its commands. */
@@ -211,7 +230,7 @@ export function rootHelp({ version, summary, commands }: RootInput, t: Tokens, w
     heading(`Chronicle ${version}`, t, width),
     ...prose(summary, t, width),
     ...section('Usage', [commandLine(`${BIN} <command> [flags]`, t)], t, width),
-    ...section('Commands', entries(commands, t, width), t, width),
+    ...section('Commands', groupedEntries(commands, t, width), t, width),
     '',
     ...paragraph('Add `--help` to any command to see its flags.', t, width),
   ].join('\n');

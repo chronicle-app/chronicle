@@ -15,6 +15,18 @@ import {
   type Entry,
 } from './render.js';
 
+/**
+ * The top-level commands in the order they're listed, by group: what there
+ * is, getting it, finding and counting it first, then the rest. Commands not
+ * named here join the last group, then the plugins'.
+ */
+const ROOT_ORDER = [
+  ['sources'],
+  ['extract'],
+  ['scan', 'survey'],
+  ['auth', 'config', 'plugins', 'commands'],
+];
+
 // Verb (or its short alias) -> canonical verb for usage text.
 const SOURCE_VERBS = new Map<string, string>([
   ['extract', 'extract'],
@@ -114,12 +126,16 @@ export default class ChronicleHelp extends Help {
       if (command.pluginName === this.config.name) own.set(command.id, entry);
       else plugins.push(entry);
     }
+    // Every command, nested, is one list by name.
+    const byName = (a: Entry, b: Entry) => a.name.localeCompare(b.name);
+    const groups = nested
+      ? [[...own.values()].sort(byName)]
+      : ROOT_ORDER.map(names => names.flatMap(name => own.get(name) ?? []));
+    const listed = new Set(ROOT_ORDER.flat());
+    const rest = nested ? [] : [...own].filter(([name]) => !listed.has(name)).map(([, e]) => e);
+    groups.at(-1)!.push(...rest.sort(byName), ...plugins);
     return rootHelp(
-      {
-        version: this.config.version,
-        summary: this.config.pjson.description,
-        commands: [...[...own.values()].sort((a, b) => a.name.localeCompare(b.name)), ...plugins],
-      },
+      { version: this.config.version, summary: this.config.pjson.description, commands: groups },
       this.t,
       this.width
     );

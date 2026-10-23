@@ -351,6 +351,11 @@ test('every command has help, asked for any way, drawn by the help class', async
   const root = success(run('--help'));
   assert.equal(root.match(/^ {2}extract /gm)?.length, 1);
   assert.doesNotMatch(root, /^ {2}e /m);
+  // In groups: sources, extract, then scan and survey, then the rest.
+  assert.match(
+    root,
+    /^ {2}sources .*\n\n {2}extract .*\n\n {2}scan .*\n {2}survey .*\n\n {2}auth /m
+  );
   // `commands` lists them all the same way, oclif's in plain words.
   const commands = success(run('commands'));
   assert.match(commands, /^command +description\n/);
