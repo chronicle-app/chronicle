@@ -1,4 +1,12 @@
-import { ArchiveExtractor, Extractor } from '@chronicle.app/etl';
+import {
+  ArchiveExtractor,
+  Extractor,
+  Record,
+  countMonth,
+  type KindSurvey,
+  type Survey,
+  type SurveyOptions,
+} from '@chronicle.app/etl';
 import { posix } from 'node:path';
 import { z } from 'zod';
 
@@ -144,6 +152,33 @@ export abstract class FacebookArchiveExtractor extends ArchiveExtractor<
         }
       }
     }
+  }
+
+  /**
+   * A survey of records as a run reads them: each counted under its record
+   * type and dated by its `timestamp`, as the transformer dates its action.
+   * The export has no index, so every file is read, and only the tallies are kept.
+   */
+  protected async surveyOf(
+    records: AsyncIterable<Record>,
+    options: SurveyOptions,
+    each?: (record: Record) => void
+  ): Promise<Survey> {
+    const kind = (): KindSurvey => ({ count: 0, ...(options.byMonth && { byMonth: {} }) });
+    const { recordTypes } = this.constructor as typeof Extractor;
+    const survey: Survey = Object.fromEntries(recordTypes.map(recordType => [recordType, kind()]));
+    for await (const record of records) {
+      each?.(record);
+      // A record without a type is its extractor's first, as `createRecord` gives it.
+      const counted = survey[record.extraction.recordType ?? recordTypes[0]];
+      counted.count++;
+      if (!record.data.timestamp) continue;
+      const time = new Date(record.data.timestamp);
+      if (!counted.earliest || time < counted.earliest) counted.earliest = time;
+      if (!counted.latest || time > counted.latest) counted.latest = time;
+      if (counted.byMonth) countMonth(counted.byMonth, time);
+    }
+    return survey;
   }
 
   protected async readFacebookJson(filePath: string): Promise<any> {

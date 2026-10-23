@@ -1,4 +1,4 @@
-import { Record } from '@chronicle.app/etl';
+import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
 import { z } from 'zod';
 import TwitterTransformer from '../TwitterTransformer.js';
 import { TwitterArchiveExtractor } from './TwitterArchiveExtractor.js';
@@ -21,24 +21,12 @@ export class TwitterArchiveDirectMessagesExtractor extends TwitterArchiveExtract
   }
 
   async *extract(): AsyncGenerator<Record> {
-    const config = this.config as z.infer<typeof TwitterArchiveDirectMessagesExtractor.schema>;
-
     try {
       // Load account info first
       this.accountInfo = await this.loadAccountInfo();
 
       // Collect all messages from both sources
-      const allMessages: any[] = [];
-
-      // Process 1:1 direct messages
-      const oneOnOneMessages = await this.loadDirectMessages(`data/direct-messages.js`);
-      allMessages.push(...oneOnOneMessages);
-
-      // Process group direct messages (if enabled)
-      if (config['include-group-dms']) {
-        const groupMessages = await this.loadGroupDirectMessages(`data/direct-messages-group.js`);
-        allMessages.push(...groupMessages);
-      }
+      const allMessages = await this.loadMessages();
 
       // Sort by timestamp descending (newest first)
       allMessages.sort(
@@ -49,14 +37,27 @@ export class TwitterArchiveDirectMessagesExtractor extends TwitterArchiveExtract
       let count = 0;
       for (const message of allMessages) {
         if (this.shouldStopExtracting(count)) break;
-        if (this.isWithinDateRange(new Date(message.created_at))) {
-          yield this.createRecordWithArchiveContext(message.data, message.metadata);
-          count++;
-        }
+        yield this.createRecordWithArchiveContext(message.data, message.metadata);
+        count++;
       }
     } catch (error) {
       throw new Error(`Failed to process Twitter direct messages: ${error}`);
     }
+  }
+
+  /** The 1:1 messages, and group messages if enabled, within since and until. */
+  private async loadMessages(): Promise<any[]> {
+    const config = this.config as z.infer<typeof TwitterArchiveDirectMessagesExtractor.schema>;
+
+    // Process 1:1 direct messages
+    const messages = await this.loadDirectMessages(`data/direct-messages.js`);
+
+    // Process group direct messages (if enabled)
+    if (config['include-group-dms']) {
+      messages.push(...(await this.loadGroupDirectMessages(`data/direct-messages-group.js`)));
+    }
+
+    return messages.filter(message => this.isWithinDateRange(new Date(message.created_at)));
   }
 
   private async loadDirectMessages(filePath: string): Promise<any[]> {
@@ -218,5 +219,26 @@ export class TwitterArchiveDirectMessagesExtractor extends TwitterArchiveExtract
     } catch {
       return null;
     }
+  }
+
+  /** The messages a run reads, when they were sent, and in how many conversations. */
+  override async survey(options: SurveyOptions = {}): Promise<Survey> {
+    const config = this.config as z.infer<typeof TwitterArchiveDirectMessagesExtractor.schema>;
+    const messages = await this.loadMessages();
+    const survey: Survey = {};
+    for (const recordType of TwitterArchiveDirectMessagesExtractor.recordTypes) {
+      if (recordType === 'group-direct-messages' && !config['include-group-dms']) continue;
+      // A 1:1 message names no record type, so its record is the first, as in a run.
+      const sent = messages.filter(
+        message => (message.metadata.recordType ?? 'direct-messages') === recordType
+      );
+      const times = sent.map(message => new Date(message.created_at));
+      const conversations = new Set(sent.map(message => message.data.conversationId)).size;
+      survey[recordType] = {
+        ...this.surveyOf(times, options),
+        measures: [{ key: 'conversations', label: 'conversations', value: conversations }],
+      };
+    }
+    return survey;
   }
 }

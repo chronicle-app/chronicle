@@ -1,4 +1,4 @@
-import { Record } from '@chronicle.app/etl';
+import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
 import { posix } from 'node:path';
 import { FacebookArchiveExtractor } from './FacebookArchiveExtractor.js';
 import FacebookTransformer from '../FacebookTransformer.js';
@@ -10,23 +10,31 @@ export class FacebookArchiveSearchHistoryExtractor extends FacebookArchiveExtrac
   static override defaultTransformer = FacebookTransformer;
 
   async *extract(): AsyncGenerator<Record> {
+    let recordCount = 0;
+
+    for await (const record of this.searches()) {
+      yield record;
+      recordCount++;
+
+      if (this.shouldStopExtracting(recordCount)) {
+        return;
+      }
+    }
+  }
+
+  /** The searches a run reads, and when each was made. */
+  override async survey(options: SurveyOptions = {}): Promise<Survey> {
+    return this.surveyOf(this.searches(), options);
+  }
+
+  /** Every search in the export, in the order a run reads them, before its limit. */
+  private async *searches(): AsyncGenerator<Record> {
     await this.initialize();
 
     const processedSearches = new Set<string>();
-    let recordCount = 0;
 
     for await (const { fullPath } of this.iterateExportSegments()) {
-      for await (const record of this.extractSearchHistoryFromSegment(
-        fullPath,
-        processedSearches
-      )) {
-        yield record;
-        recordCount++;
-
-        if (this.shouldStopExtracting(recordCount)) {
-          return;
-        }
-      }
+      yield* this.extractSearchHistoryFromSegment(fullPath, processedSearches);
     }
   }
 

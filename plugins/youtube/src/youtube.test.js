@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { ApiAuthError, findExports, writeZip } from '@chronicle.app/etl';
+import { ApiAuthError, findExports, monthKey, writeZip } from '@chronicle.app/etl';
 import {
   YouTubeLikesExtractor,
   YouTubePlaylistsExtractor,
@@ -413,6 +413,54 @@ test('a Takeout archive maps to the same shapes as the API', async t => {
   );
   const limited = await run(YouTubeTakeoutExtractor, { input, limit: 2 });
   assert.equal(limited.rows.length, 2);
+});
+
+test('a Takeout survey counts what a run reads, whatever its limit, and when each happened', async t => {
+  const input = takeout(t);
+  // A run's extractor, and each kind it read with the times its actions carry.
+  const read = async config => {
+    const { extractor, rows, nodes } = await run(YouTubeTakeoutExtractor, { input, ...config });
+    const times = Object.fromEntries(YouTubeTakeoutExtractor.recordTypes.map(kind => [kind, []]));
+    for (const [i, row] of rows.entries()) {
+      times[row.extraction.recordType].push(nodes[i].timestamp);
+    }
+    return { extractor, times };
+  };
+
+  const { extractor, times } = await read();
+  const survey = await extractor.survey();
+  assert.deepEqual(Object.keys(survey), YouTubeTakeoutExtractor.recordTypes);
+  for (const [kind, dates] of Object.entries(times)) {
+    const dated = dates.filter(Boolean).sort((a, b) => a - b);
+    assert.equal(survey[kind].count, dates.length, kind);
+    assert.deepEqual([survey[kind].earliest, survey[kind].latest], [dated[0], dated.at(-1)], kind);
+  }
+  // Takeout doesn't date subscriptions, so they're as of the archive; the
+  // three watches are of three videos.
+  assert.deepEqual(survey.subscriptions, { count: 1, asOf: ARCHIVE_TIME });
+  assert.deepEqual(survey.watches.measures, [{ key: 'videos', label: 'videos', value: 3 }]);
+
+  const limited = await run(YouTubeTakeoutExtractor, { input, limit: 2 });
+  assert.deepEqual(await limited.extractor.survey(), survey);
+
+  // By month when asked, in local time, by the same times.
+  const monthly = await extractor.survey({ byMonth: true });
+  for (const [kind, dates] of Object.entries(times)) {
+    const months = {};
+    for (const date of dates.filter(Boolean)) {
+      months[monthKey(date)] = (months[monthKey(date)] ?? 0) + 1;
+    }
+    const byMonth = kind !== 'subscriptions' && { byMonth: months };
+    assert.deepEqual(monthly[kind], { ...survey[kind], ...byMonth }, kind);
+  }
+
+  // A run since a time reads fewer watches and searches, and so does its survey.
+  const recent = await read({ since: new Date('2026-07-22T20:56:45Z') });
+  const recentSurvey = await recent.extractor.survey();
+  for (const [kind, dates] of Object.entries(recent.times)) {
+    assert.equal(recentSurvey[kind].count, dates.length, kind);
+  }
+  assert.equal(recentSurvey.watches.count, 1);
 });
 
 test('Takeout and API playlist memberships share one key', async t => {

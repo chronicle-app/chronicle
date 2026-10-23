@@ -5,6 +5,7 @@ import AppleHealthExtractor, { type Found } from './AppleHealthExtractor.js';
 export default class AppleHealthBodyMeasurementsExtractor extends AppleHealthExtractor {
   static override description = 'Weight and sleeping wrist temperature';
   static override recordTypes = ['body-measurements'];
+  static override surveyLabel = 'body measurements';
 
   protected read(): AsyncGenerator<Found> {
     return this.readingsOf(BODY_MEASUREMENTS);

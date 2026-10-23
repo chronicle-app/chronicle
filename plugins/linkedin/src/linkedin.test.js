@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { mkdtempSync, readFileSync, rmSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { findExports, writeZip } from '@chronicle.app/etl';
+import { countMonth, findExports, writeZip } from '@chronicle.app/etl';
 import {
   LinkedInArchiveFollowsExtractor,
   LinkedInArchiveProfileExtractor,
@@ -12,6 +12,7 @@ import {
 } from '../dist/index.js';
 import {
   memberName,
+  occurrenceTime,
   parseCoarseDate,
   parseDayDate,
   parseLongStamp,
@@ -423,6 +424,69 @@ test('a missing file reads as empty, and since/until bound the dated records', a
     records(LinkedInArchiveFollowsExtractor, { input: join(empty, 'missing') }),
     { code: 'input-not-found', message: 'No LinkedIn export found' }
   );
+});
+
+/**
+ * What a survey should say of the records a run yielded: each kind's count,
+ * first and last by when each occurred, months when asked, the messages'
+ * conversations, and the profile as of the export.
+ */
+function surveyOf(rows, { byMonth = false } = {}) {
+  const survey = {};
+  for (const kind of LinkedInDefaultExtractor.recordTypes) {
+    const kept = rows.filter(r => r.extraction.recordType === kind);
+    const times = kept.flatMap(r => occurrenceTime(r.data.occurredAt) ?? []).sort((a, b) => a - b);
+    survey[kind] = { count: kept.length };
+    if (times.length > 0) Object.assign(survey[kind], { earliest: times[0], latest: times.at(-1) });
+    if (byMonth && kind !== 'profile') {
+      survey[kind].byMonth = {};
+      for (const time of times) countMonth(survey[kind].byMonth, time);
+    }
+  }
+  const conversations = new Set(
+    rows.filter(r => r.extraction.recordType === 'messages').map(r => r.data.conversationId)
+  );
+  survey.messages.measures = [
+    { key: 'conversations', label: 'conversations', value: conversations.size },
+  ];
+  if (survey.profile.count > 0) survey.profile.asOf = COMPILED_AT;
+  return survey;
+}
+
+test('a survey counts what a run yields of each kind, whatever its limit, and when', async t => {
+  const survey = async (config, options) => {
+    const extractor = new LinkedInDefaultExtractor(config);
+    await extractor.setup();
+    return extractor.survey(options);
+  };
+  const input = writeLinkedInExport(tempDir(t));
+  const all = await records(LinkedInDefaultExtractor, { input });
+  const surveyed = await survey({ input, limit: 1 });
+  assert.deepEqual(surveyed, surveyOf(all));
+  // A date LinkedIn wrote without a time is that year, month, or day where you are.
+  assert.deepEqual(surveyed.education, {
+    count: 1,
+    earliest: new Date(2003, 0, 1),
+    latest: new Date(2003, 0, 1),
+  });
+  assert.equal(surveyed.learning.count, 2, 'the unwatched course counts, undated');
+  assert.equal(surveyed.messages.measures[0].value, 3);
+
+  const window = {
+    since: new Date('2019-01-01T00:00:00Z'),
+    until: new Date('2026-01-01T00:00:00Z'),
+  };
+  assert.deepEqual(
+    await survey({ input, ...window }),
+    surveyOf(await records(LinkedInDefaultExtractor, { input, ...window }))
+  );
+
+  // By month when asked, in local time.
+  const months = await survey({ input }, { byMonth: true });
+  assert.deepEqual(months, surveyOf(all, { byMonth: true }));
+  assert.deepEqual(months.positions.byMonth, { '2022-08': 1, '2009-01': 1 });
+
+  assert.deepEqual(await survey({ input: tempDir(t) }), surveyOf([]));
 });
 
 test('field readers keep what LinkedIn wrote at its own precision', () => {

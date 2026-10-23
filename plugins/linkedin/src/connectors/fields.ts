@@ -108,6 +108,23 @@ export function parseCoarseDate(raw: string | undefined): string | undefined {
   return month ? `${match[2]}-${month}` : undefined;
 }
 
+/**
+ * A date one of these readers returned, as the moment a survey counts it at:
+ * an instant as itself, and a civil date (`2009`, `2022-08`, `2026-06-06`) at
+ * the start of its year, month, or day in local time. `new Date` would put a
+ * civil date at midnight UTC, which west of Greenwich is the day, month, or
+ * year before.
+ */
+export function occurrenceTime(value: string | undefined): Date | undefined {
+  if (!value) return undefined;
+  const civil = /^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$/.exec(value);
+  if (civil) {
+    return new Date(Number(civil[1]), Number(civil[2] ?? 1) - 1, Number(civil[3] ?? 1));
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
 const MONTHS: { [abbrev: string]: string } = {
   jan: '01',
   feb: '02',

@@ -1,7 +1,13 @@
-import { ArchiveExtractor, Extractor } from '@chronicle.app/etl';
+import {
+  ArchiveExtractor,
+  countMonth,
+  Extractor,
+  type KindSurvey,
+  type SurveyOptions,
+} from '@chronicle.app/etl';
 import { parse } from 'csv-parse/sync';
 import { z } from 'zod';
-import { profileHandle } from '../fields.js';
+import { occurrenceTime, profileHandle } from '../fields.js';
 
 /** What one export knows about the member who requested it. */
 export interface LinkedInAccount {
@@ -53,7 +59,7 @@ export abstract class LinkedInArchiveExtractor<
   private fileIndex?: Map<string, string>;
 
   /** When LinkedIn wrote this export — see {@link asOfTime}. */
-  private compiledAt?: Date;
+  protected compiledAt?: Date;
 
   /**
    * Read the export's own facts before extraction: who it belongs to, and when
@@ -205,6 +211,26 @@ export abstract class LinkedInArchiveExtractor<
     if (!date) return true;
     const parsed = new Date(date);
     return Number.isNaN(parsed.getTime()) ? true : this.isWithinDateRange(parsed);
+  }
+
+  /**
+   * One record type's survey, from the date of each record a run would read,
+   * undated ones too: kept or dropped by the same since/until window, and
+   * placed by {@link occurrenceTime}. An undated record counts, but has no
+   * time or month to add.
+   */
+  protected surveyDates(dates: Array<string | undefined>, options: SurveyOptions): KindSurvey {
+    const kind: KindSurvey = { count: 0, ...(options.byMonth && { byMonth: {} }) };
+    for (const date of dates) {
+      if (!this.withinWindow(date)) continue;
+      kind.count++;
+      const time = occurrenceTime(date);
+      if (!time) continue;
+      if (!kind.earliest || time < kind.earliest) kind.earliest = time;
+      if (!kind.latest || time > kind.latest) kind.latest = time;
+      if (kind.byMonth) countMonth(kind.byMonth, time);
+    }
+    return kind;
   }
 }
 

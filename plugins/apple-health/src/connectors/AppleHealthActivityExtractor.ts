@@ -5,6 +5,7 @@ import AppleHealthExtractor, { type Found } from './AppleHealthExtractor.js';
 export default class AppleHealthActivityExtractor extends AppleHealthExtractor {
   static override description = 'Steps and active energy';
   static override recordTypes = ['activity'];
+  static override surveyLabel = 'activity readings';
 
   protected read(): AsyncGenerator<Found> {
     return this.readingsOf(ACTIVITY);

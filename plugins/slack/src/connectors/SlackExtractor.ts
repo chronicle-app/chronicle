@@ -1,4 +1,13 @@
-import { Extractor, Record, openExport, type ExportFiles } from '@chronicle.app/etl';
+import {
+  Extractor,
+  Record,
+  countMonth,
+  openExport,
+  type ExportFiles,
+  type KindSurvey,
+  type Survey,
+  type SurveyOptions,
+} from '@chronicle.app/etl';
 import { z } from 'zod';
 import { UserResolver } from '../UserResolver.js';
 import type {
@@ -210,30 +219,32 @@ export class SlackExtractor extends Extractor<typeof SlackExtractor> {
   }
 
   override async determineCount(): Promise<number | null> {
-    let total = 0;
+    const { count } = (await this.survey()).messages;
+    const limit = this.getEffectiveLimit();
+    return limit === null ? count : Math.min(count, limit);
+  }
 
+  /**
+   * The messages a run reads, when they were sent, and in how many
+   * conversations, from every day file in range: the export has no index.
+   */
+  override async survey(options: SurveyOptions = {}): Promise<{ messages: KindSurvey } & Survey> {
+    const config = this.config as z.infer<typeof SlackExtractor.schema>;
+    const messages: KindSurvey = { count: 0, ...(options.byMonth && { byMonth: {} }) };
+    let conversations = 0;
     for (const conversation of this.conversations) {
-      const dirPath = conversation.dirName;
-      const files = await this.files.children(dirPath);
-
-      const jsonFiles = files.filter(f => /^\d{4}-\d{2}-\d{2}\.json$/.test(f));
-
-      for (const file of jsonFiles) {
-        try {
-          const raw = await this.files.readText(`${dirPath}/${file}`);
-          const messages: SlackMessage[] = JSON.parse(raw);
-          total += messages.filter(
-            m =>
-              m.type === 'message' &&
-              (!m.subtype || ['bot_message', 'thread_broadcast'].includes(m.subtype))
-          ).length;
-        } catch {
-          continue;
-        }
+      const before = messages.count;
+      for await (const { msg } of this.extractConversation(conversation, config)) {
+        const sent = this.tsToDate(msg.ts);
+        messages.count++;
+        if (!messages.earliest || sent < messages.earliest) messages.earliest = sent;
+        if (!messages.latest || sent > messages.latest) messages.latest = sent;
+        if (messages.byMonth) countMonth(messages.byMonth, sent);
       }
+      if (messages.count > before) conversations++;
     }
-
-    return total;
+    messages.measures = [{ key: 'conversations', label: 'conversations', value: conversations }];
+    return { messages };
   }
 
   private async loadConversations(): Promise<void> {

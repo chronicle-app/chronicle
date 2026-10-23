@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { findExports, writeZip } from '@chronicle.app/etl';
+import { findExports, monthKey, writeZip } from '@chronicle.app/etl';
 import { SlackExtractor, SlackTransformer } from '../dist/index.js';
 import { slackFixtureFiles, writeSlackFixture } from './fixture.test-helper.js';
 
@@ -169,6 +169,54 @@ test('since, until, and limit bound the extraction', async t => {
   const extractor = new SlackExtractor({ input });
   await extractor.setup();
   assert.equal(await extractor.determineCount(), 6);
+});
+
+/** Run an extractor with this config, and hand back what `use` makes of it. */
+async function withExtractor(config, use) {
+  const extractor = new SlackExtractor(config);
+  try {
+    await extractor.setup();
+    return await use(extractor);
+  } finally {
+    await extractor.teardown();
+  }
+}
+
+test('a survey counts the messages a run reads, whatever its limit, when, and in how many conversations', async t => {
+  const input = exportDir(t);
+  // When each message a run extracts was sent, as a run dates it.
+  const sent = config =>
+    withExtractor({ input, ...config }, async extractor =>
+      (await Array.fromAsync(extractor.extract())).map(
+        record => new Date(Number.parseFloat(record.data.message.ts) * 1000)
+      )
+    );
+  const survey = (config, options) =>
+    withExtractor({ input, ...config }, extractor => extractor.survey(options));
+  const surveyed = (times, conversations) => ({
+    messages: {
+      count: times.length,
+      earliest: new Date(Math.min(...times)),
+      latest: new Date(Math.max(...times)),
+      measures: [{ key: 'conversations', label: 'conversations', value: conversations }],
+    },
+  });
+
+  // Every message in general, hiking, the DM, and the group DM.
+  const times = await sent();
+  assert.deepEqual(await survey({ limit: 1 }), surveyed(times, 4));
+  // By month when asked, by when each was sent, in local time.
+  const months = {};
+  for (const time of times) months[monthKey(time)] = (months[monthKey(time)] ?? 0) + 1;
+  assert.deepEqual((await survey({}, { byMonth: true })).messages.byMonth, months);
+  // Since noon: hiking's message, then general's guest and bot.
+  const since = new Date('2024-01-01T12:00:00Z');
+  const kept = await sent({ since });
+  assert.equal(kept.length, 3);
+  assert.deepEqual(await survey({ since }), surveyed(kept, 2));
+  // A run's progress counts the same, up to its limit.
+  assert.equal(await withExtractor({ input, since }, e => e.determineCount()), 3);
+  assert.equal(await withExtractor({ input, limit: 2 }, e => e.determineCount()), 2);
 });
 
 /**

@@ -1,7 +1,17 @@
-import { Extractor, InputNotFound, Record, openExport, type ExportFiles } from '@chronicle.app/etl';
+import {
+  Extractor,
+  InputNotFound,
+  Record,
+  countMonth,
+  openExport,
+  type ExportFiles,
+  type Survey,
+  type SurveyOptions,
+} from '@chronicle.app/etl';
 import { z } from 'zod';
 import { parseTakeoutCsv } from '../takeout/csv.js';
 import { parseActivityHtml, videoIdFromUrl } from '../takeout/parseActivityHtml.js';
+import { ytTime } from '../utils/time.js';
 import YouTubeTakeoutTransformer from './YouTubeTakeoutTransformer.js';
 
 export interface TakeoutSelfChannel {
@@ -74,6 +84,17 @@ const FILES = {
   comments: 'comments/comments.csv',
   channel: 'channels/channel.csv',
 } as const;
+
+// The time the transformer dates each kind by. Takeout doesn't say when a
+// subscription began, so it has none.
+const DATED: { [recordType: string]: (data: unknown) => string } = {
+  watches: data => (data as TakeoutWatchRecord).time,
+  searches: data => (data as TakeoutSearchRecord).time,
+  playlists: data => (data as TakeoutPlaylistRecord).createdAt,
+  'playlist-items': data => (data as TakeoutPlaylistItemRecord).addedAt,
+  uploads: data => (data as TakeoutUploadRecord).publishedAt,
+  comments: data => (data as TakeoutCommentRecord).createdAt,
+};
 
 export class YouTubeTakeoutExtractor extends Extractor<typeof YouTubeTakeoutExtractor> {
   static override source = 'youtube';
@@ -214,20 +235,51 @@ export class YouTubeTakeoutExtractor extends Extractor<typeof YouTubeTakeoutExtr
     const emit = (recordType: string, data: unknown): Record =>
       this.createRecord(data, { recordType, selfChannel: self });
 
-    for (const section of [
-      this.extractWatches(),
-      this.extractSearches(),
-      this.extractSubscriptions(),
-      this.extractPlaylists(),
-      this.extractUploads(),
-      this.extractComments(),
-    ]) {
-      for await (const [recordType, data] of section) {
-        if (this.shouldStopExtracting(count)) return;
-        yield emit(recordType, data);
-        count++;
-      }
+    for await (const [recordType, data] of this.readSections()) {
+      if (this.shouldStopExtracting(count)) return;
+      yield emit(recordType, data);
+      count++;
     }
+  }
+
+  /**
+   * The records a run reads and when each happened, from every section: the
+   * archive has no index, so each file is read. Subscriptions are as of the
+   * archive, and watches say how many videos they were of.
+   */
+  override async survey(options: SurveyOptions = {}): Promise<Survey> {
+    const kinds: Survey = {};
+    for (const recordType of YouTubeTakeoutExtractor.recordTypes) {
+      kinds[recordType] = {
+        count: 0,
+        ...(options.byMonth && DATED[recordType] && { byMonth: {} }),
+      };
+    }
+    const videos = new Set<string>();
+    for await (const [recordType, data] of this.readSections()) {
+      const kind = kinds[recordType];
+      kind.count++;
+      if (recordType === 'watches') videos.add((data as TakeoutWatchRecord).videoId);
+      const dated = DATED[recordType];
+      if (!dated) continue;
+      const time = ytTime(dated(data));
+      if (!kind.earliest || time < kind.earliest) kind.earliest = time;
+      if (!kind.latest || time > kind.latest) kind.latest = time;
+      if (kind.byMonth) countMonth(kind.byMonth, time);
+    }
+    if (this.archiveAsOf) kinds.subscriptions.asOf = this.archiveAsOf;
+    kinds.watches.measures = [{ key: 'videos', label: 'videos', value: videos.size }];
+    return kinds;
+  }
+
+  /** Each section's records, in the order a run reads them, as `[record type, data]`. */
+  private async *readSections(): AsyncGenerator<[string, unknown]> {
+    yield* this.extractWatches();
+    yield* this.extractSearches();
+    yield* this.extractSubscriptions();
+    yield* this.extractPlaylists();
+    yield* this.extractUploads();
+    yield* this.extractComments();
   }
 
   private async *extractWatches(): AsyncGenerator<[string, unknown]> {

@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { test } from 'node:test';
-import { findExports, writeZip } from '@chronicle.app/etl';
+import { findExports, monthKey, writeZip } from '@chronicle.app/etl';
 import { METRIC_PROPERTIES } from '@chronicle.app/schema';
 import {
   AppleHealthActivityExtractor,
@@ -411,6 +411,54 @@ test('since, until, and limit pick the newest readings by when they started', as
   assert.deepEqual(
     records.map(record => record.data.start),
     ['2025-01-15T18:00:00.000Z']
+  );
+});
+
+async function survey(Extractor, config, options = {}) {
+  const extractor = new Extractor({ account, quiet: true, ...config });
+  await extractor.setup();
+  try {
+    return await extractor.survey(options);
+  } finally {
+    await extractor.teardown();
+  }
+}
+
+test('a survey counts what each kind reads, whatever its limit, by when each started', async t => {
+  const input = fixture(t);
+  const since = new Date('2025-01-15T12:00:00Z');
+  for (const Extractor of [
+    AppleHealthHeartExtractor,
+    AppleHealthRespiratoryExtractor,
+    AppleHealthBodyMeasurementsExtractor,
+    AppleHealthActivityExtractor,
+    AppleHealthSleepExtractor,
+  ]) {
+    const [kind] = Extractor.recordTypes;
+    const { records } = await extract(Extractor, { input });
+    const starts = records.map(record => new Date(record.data.start));
+    const times = starts.map(start => start.getTime());
+    // By month when asked, in local time.
+    const months = {};
+    for (const start of starts) months[monthKey(start)] = (months[monthKey(start)] ?? 0) + 1;
+    assert.deepEqual(await survey(Extractor, { input, limit: 1 }, { byMonth: true }), {
+      [kind]: {
+        count: records.length,
+        label: Extractor.surveyLabel,
+        earliest: new Date(Math.min(...times)),
+        latest: new Date(Math.max(...times)),
+        byMonth: months,
+      },
+    });
+    const kept = await extract(Extractor, { input, since });
+    assert.equal((await survey(Extractor, { input, since }))[kind].count, kept.records.length);
+  }
+
+  // A zip counts as its folder does, ECGs and all.
+  const zip = zipExport(input, join(dirname(input), 'export.zip'));
+  assert.deepEqual(
+    await survey(AppleHealthHeartExtractor, { input: zip }),
+    await survey(AppleHealthHeartExtractor, { input })
   );
 });
 

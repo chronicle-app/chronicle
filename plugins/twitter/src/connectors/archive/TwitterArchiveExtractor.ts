@@ -1,4 +1,10 @@
-import { ArchiveExtractor, Extractor } from '@chronicle.app/etl';
+import {
+  ArchiveExtractor,
+  countMonth,
+  Extractor,
+  type KindSurvey,
+  type SurveyOptions,
+} from '@chronicle.app/etl';
 import { z } from 'zod';
 
 export abstract class TwitterArchiveExtractor<
@@ -43,6 +49,17 @@ export abstract class TwitterArchiveExtractor<
     } catch (error) {
       throw new Error(`Invalid JSON in ${dataType} file: ${error}`);
     }
+  }
+
+  /** How many records a run reads and when, from the time it dates each by. */
+  protected surveyOf(times: Date[], options: SurveyOptions): KindSurvey {
+    const kind: KindSurvey = { count: times.length, ...(options.byMonth && { byMonth: {} }) };
+    for (const time of times) {
+      if (!kind.earliest || time < kind.earliest) kind.earliest = time;
+      if (!kind.latest || time > kind.latest) kind.latest = time;
+      if (kind.byMonth) countMonth(kind.byMonth, time);
+    }
+    return kind;
   }
 
   protected convertTwitterDateToISO(twitterDate: string): string {

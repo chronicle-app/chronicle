@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { findExports, writeZip } from '@chronicle.app/etl';
+import { countMonth, findExports, writeZip } from '@chronicle.app/etl';
 import {
   TwitterArchiveDirectMessagesExtractor,
   TwitterArchiveLikesExtractor,
@@ -31,6 +31,32 @@ async function count(Extractor, input, config = {}) {
   } finally {
     await extractor.teardown();
   }
+}
+
+/** What a run with `config` would read, surveyed as the CLI asks, after setup. */
+async function survey(Extractor, input, config = {}, options = {}) {
+  const extractor = new Extractor({ input, ...config });
+  await extractor.setup();
+  try {
+    return await extractor.survey(options);
+  } finally {
+    await extractor.teardown();
+  }
+}
+
+/** What a survey should say of each kind a run yielded `rows` of: how many, and when by `time`. */
+function surveyed(rows, kinds, time) {
+  const expected = {};
+  for (const kind of kinds) {
+    const of = rows.filter(row => row.extraction.recordType === kind);
+    const times = time ? of.map(row => time(row).getTime()) : [];
+    expected[kind] = { count: of.length };
+    if (times.length > 0) {
+      expected[kind].earliest = new Date(Math.min(...times));
+      expected[kind].latest = new Date(Math.max(...times));
+    }
+  }
+  return expected;
 }
 
 async function transform(record) {
@@ -235,4 +261,54 @@ test('an archive reads the same zipped, and its layout finds it where it starts'
     found.exports.map(e => e.root),
     [unzipped]
   );
+});
+
+test('a survey counts what a run reads, whatever its limit, and when each was posted or sent', async t => {
+  const input = archive(t);
+  const sent = row => new Date(row.data.created_at);
+
+  // Tweets by when they were posted, within since as a run reads them.
+  const since = new Date('2025-01-11T00:00:00Z');
+  for (const config of [{}, { since }]) {
+    const rows = await records(TwitterArchiveTweetsExtractor, input, config);
+    assert.deepEqual(
+      await survey(TwitterArchiveTweetsExtractor, input, { ...config, limit: 1 }),
+      surveyed(rows, ['tweets'], sent)
+    );
+  }
+  // By month when asked, in local time.
+  const months = {};
+  for (const row of await records(TwitterArchiveTweetsExtractor, input))
+    countMonth(months, sent(row));
+  const { tweets } = await survey(TwitterArchiveTweetsExtractor, input, {}, { byMonth: true });
+  assert.deepEqual(tweets.byMonth, months);
+
+  // The archive doesn't date likes, so a run reads every one and the survey only counts them.
+  assert.deepEqual(
+    await survey(TwitterArchiveLikesExtractor, input, { since, limit: 1 }),
+    surveyed(await records(TwitterArchiveLikesExtractor, input, { since }), ['likes'])
+  );
+
+  // DMs by when they were sent, each kind with its conversations, and group DMs when included.
+  const kinds = ['direct-messages', 'group-direct-messages'];
+  for (const [config, read] of [
+    [{}, kinds],
+    [{ since: new Date('2025-01-12T00:00:00Z') }, kinds],
+    [{ 'include-group-dms': false }, ['direct-messages']],
+  ]) {
+    const rows = await records(TwitterArchiveDirectMessagesExtractor, input, config);
+    const expected = surveyed(rows, read, sent);
+    for (const kind of read) {
+      const ids = rows
+        .filter(row => row.extraction.recordType === kind)
+        .map(row => row.data.conversationId);
+      expected[kind].measures = [
+        { key: 'conversations', label: 'conversations', value: new Set(ids).size },
+      ];
+    }
+    assert.deepEqual(
+      await survey(TwitterArchiveDirectMessagesExtractor, input, { ...config, limit: 1 }),
+      expected
+    );
+  }
 });

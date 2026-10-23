@@ -12,6 +12,7 @@ export default class AppleHealthHeartExtractor extends AppleHealthExtractor {
     'Heart rate, resting and walking heart rate, HRV, recovery, blood pressure, and ECG rhythm';
 
   static override recordTypes = ['heart'];
+  static override surveyLabel = 'heart readings';
 
   protected async *read(): AsyncGenerator<Found> {
     yield* this.readingsOf(HEART, [BLOOD_PRESSURE]);

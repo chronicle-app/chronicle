@@ -1,6 +1,14 @@
-import { Record } from '@chronicle.app/etl';
+import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
 import { InstagramArchiveExtractor } from './InstagramArchiveExtractor.js';
 import InstagramTransformer from '../InstagramTransformer.js';
+
+/** One save a run reads, before it's a record. */
+interface Save {
+  url: string;
+  ownerHandle?: string;
+  collectionName?: string;
+  timestamp: number;
+}
 
 /**
  * Extract saved posts (bookmarks, optionally into collections) from an
@@ -39,12 +47,36 @@ export class InstagramArchiveSavesExtractor extends InstagramArchiveExtractor {
 
   async *extract(): AsyncGenerator<Record> {
     let index = 0;
-    index = yield* this.extractCollections(index);
-    yield* this.extractUncollected(index);
+    for await (const { shortcode, save } of this.saves()) {
+      if (this.shouldStopExtracting(index)) return;
+      yield this.emitSave(shortcode, save);
+      index++;
+    }
   }
 
-  private async *extractCollections(startIndex: number): AsyncGenerator<Record, number> {
-    let index = startIndex;
+  /** The saves a run reads and when each was saved, or its collection last changed. */
+  override async survey(options: SurveyOptions = {}): Promise<Survey> {
+    const saves = this.emptySurvey(options);
+    for await (const { save } of this.saves()) {
+      this.tally(saves, new Date(save.timestamp * 1000));
+    }
+    return { saves };
+  }
+
+  /**
+   * The saves in collections, then the rest, in the run's window: those whose
+   * permalink gives the post's shortcode, with it.
+   */
+  private async *saves(): AsyncGenerator<{ shortcode: string; save: Save }> {
+    for (const part of [this.collected(), this.uncollected()]) {
+      for await (const save of part) {
+        const shortcode = this.shortcodeFromUrl(save.url);
+        if (shortcode) yield { shortcode, save };
+      }
+    }
+  }
+
+  private async *collected(): AsyncGenerator<Save> {
     const entries = await this.readInstagramArray(
       'your_instagram_activity/saved/saved_collections.json'
     );
@@ -62,16 +94,12 @@ export class InstagramArchiveSavesExtractor extends InstagramArchiveExtractor {
         if (!name || !timestamp) continue;
         if (!this.inRange(Number(timestamp))) continue;
         for (const saved of this.nestedItems(entry)) {
-          const rec = this.emitSave({
+          yield {
             url: saved.url,
             ownerHandle: saved.ownerHandle,
             collectionName: name,
             timestamp: Number(timestamp),
-          });
-          if (!rec) continue;
-          if (this.shouldStopExtracting(index)) return index;
-          yield rec;
-          index++;
+          };
         }
         continue;
       }
@@ -90,23 +118,17 @@ export class InstagramArchiveSavesExtractor extends InstagramArchiveExtractor {
       const timestamp = sm['Added Time']?.timestamp;
       if (!url || !timestamp) continue;
       if (!this.inRange(timestamp)) continue;
-      const rec = this.emitSave({
+      yield {
         url,
         ownerHandle: sm.Name?.value || undefined,
         collectionName: currentCollection,
         timestamp,
-      });
-      if (!rec) continue;
-      if (this.shouldStopExtracting(index)) return index;
-      yield rec;
-      index++;
+      };
     }
-    return index;
   }
 
   /** Saves outside any collection (`saved_posts.json`), both dialects. */
-  private async *extractUncollected(startIndex: number): AsyncGenerator<Record> {
-    let index = startIndex;
+  private async *uncollected(): AsyncGenerator<Save> {
     const entries = await this.readInstagramArray('your_instagram_activity/saved/saved_posts.json');
     for (const entry of entries) {
       let url: string | undefined;
@@ -125,22 +147,11 @@ export class InstagramArchiveSavesExtractor extends InstagramArchiveExtractor {
       }
       if (!url || !timestamp) continue;
       if (!this.inRange(timestamp)) continue;
-      const rec = this.emitSave({ url, ownerHandle, timestamp });
-      if (!rec) continue;
-      if (this.shouldStopExtracting(index)) return;
-      yield rec;
-      index++;
+      yield { url, ownerHandle, timestamp };
     }
   }
 
-  private emitSave(data: {
-    url: string;
-    ownerHandle?: string;
-    collectionName?: string;
-    timestamp: number;
-  }): Record | null {
-    const shortcode = this.shortcodeFromUrl(data.url);
-    if (!shortcode) return null;
+  private emitSave(shortcode: string, data: Save): Record {
     return this.createRecordWithArchiveContext(
       {
         type: 'saves',

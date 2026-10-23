@@ -1,4 +1,4 @@
-import { Record } from '@chronicle.app/etl';
+import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
 import { parseCoarseDate } from '../fields.js';
 import LinkedInTransformer from '../LinkedInTransformer.js';
 import { LinkedInArchiveExtractor } from './LinkedInArchiveExtractor.js';
@@ -17,9 +17,29 @@ export class LinkedInArchiveEducationExtractor extends LinkedInArchiveExtractor<
   static override schema = LinkedInArchiveExtractor.schema;
 
   async *extract(): AsyncGenerator<Record> {
+    let count = 0;
+    for (const enrollment of await this.enrollments()) {
+      if (this.shouldStopExtracting(count)) break;
+      if (!this.withinWindow(enrollment.startedOn)) continue;
+      yield this.createRecordWithArchiveContext({
+        ...enrollment,
+        occurredAt: enrollment.startedOn,
+      });
+      count++;
+    }
+  }
+
+  /** The schools a run reads, and when each began. */
+  override async survey(options: SurveyOptions = {}): Promise<Survey> {
+    const dates = (await this.enrollments()).map(enrollment => enrollment.startedOn);
+    return { education: this.surveyDates(dates, options) };
+  }
+
+  /** Every school in the export with a name and a start, newest first. */
+  private async enrollments() {
     const rows = await this.readCsv('Education.csv');
 
-    const enrollments = rows
+    return rows
       .map(row => ({
         school: row['School Name']?.trim(),
         degree: row['Degree Name']?.trim(),
@@ -30,17 +50,6 @@ export class LinkedInArchiveEducationExtractor extends LinkedInArchiveExtractor<
       }))
       .filter(enrollment => enrollment.school && enrollment.startedOn)
       .sort((a, b) => (a.startedOn! < b.startedOn! ? 1 : -1));
-
-    let count = 0;
-    for (const enrollment of enrollments) {
-      if (this.shouldStopExtracting(count)) break;
-      if (!this.withinWindow(enrollment.startedOn)) continue;
-      yield this.createRecordWithArchiveContext({
-        ...enrollment,
-        occurredAt: enrollment.startedOn,
-      });
-      count++;
-    }
   }
 
   override async determineCount(): Promise<number> {

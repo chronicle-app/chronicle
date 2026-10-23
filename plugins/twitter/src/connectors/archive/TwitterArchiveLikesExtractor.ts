@@ -1,4 +1,4 @@
-import { Record } from '@chronicle.app/etl';
+import { Record, type Survey } from '@chronicle.app/etl';
 import TwitterTransformer from '../TwitterTransformer.js';
 import { TwitterArchiveExtractor } from './TwitterArchiveExtractor.js';
 
@@ -28,30 +28,32 @@ export class TwitterArchiveLikesExtractor extends TwitterArchiveExtractor<
 
   private async *processLikes(filePath: string): AsyncGenerator<Record> {
     try {
-      const content = await this.files.readText(filePath);
-      const jsData = this.parseTwitterJS(content, 'like');
-
       let count = 0;
-      for (const item of jsData) {
-        const { like } = item;
-        if (like) {
-          if (this.shouldStopExtracting(count)) break;
+      for (const like of await this.loadLikes(filePath)) {
+        if (this.shouldStopExtracting(count)) break;
 
-          yield this.createRecordWithArchiveContext(
-            {
-              type: 'like',
-              tweetId: like.tweetId,
-              fullText: like.fullText,
-              expandedUrl: like.expandedUrl,
-            },
-            { originalData: like }
-          );
-          count++;
-        }
+        yield this.createRecordWithArchiveContext(
+          {
+            type: 'like',
+            tweetId: like.tweetId,
+            fullText: like.fullText,
+            expandedUrl: like.expandedUrl,
+          },
+          { originalData: like }
+        );
+        count++;
       }
     } catch (error) {
       this.logger.warn('Could not process likes', { error: String(error) });
     }
+  }
+
+  /** The archive's likes, as it writes them: with no time, so since and until can't apply. */
+  private async loadLikes(filePath: string) {
+    const content = await this.files.readText(filePath);
+    return this.parseTwitterJS(content, 'like')
+      .map(item => item.like)
+      .filter(Boolean);
   }
 
   override async determineCount(): Promise<number | null> {
@@ -62,5 +64,10 @@ export class TwitterArchiveLikesExtractor extends TwitterArchiveExtractor<
     } catch {
       return null;
     }
+  }
+
+  /** The likes a run reads, counted alone: the archive doesn't say when any were made. */
+  override async survey(): Promise<Survey> {
+    return { likes: { count: (await this.loadLikes(`data/like.js`)).length } };
   }
 }

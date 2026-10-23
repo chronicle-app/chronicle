@@ -1,4 +1,11 @@
-import { Extractor, Record } from '@chronicle.app/etl';
+import {
+  Extractor,
+  Record,
+  countMonth,
+  type KindSurvey,
+  type Survey,
+  type SurveyOptions,
+} from '@chronicle.app/etl';
 import { getICloudAccount } from '@chronicle.app/apple';
 import { EXIT_CODES, ExtractorError } from '@chronicle.app/logging';
 import { z } from 'zod';
@@ -34,6 +41,8 @@ export default abstract class AppleHealthExtractor extends Extractor<typeof Appl
   static override strategy = 'archive';
   static override defaultTransformer = AppleHealthTransformer;
   static override newestFirst = true;
+  /** What one of this kind's records is, as a survey names it: `heart readings`. */
+  static surveyLabel: string;
 
   static override schema = Extractor.schema.extend({
     input: z
@@ -77,6 +86,8 @@ export default abstract class AppleHealthExtractor extends Extractor<typeof Appl
   private shared = new Map<string, object>();
   // Samples left out because their unit has no conversion, by type and unit.
   private unconverted = new Map<string, number>();
+  // Whether a survey is reading, which only counts what it finds.
+  private counting = false;
 
   override async setup(): Promise<void> {
     await super.setup();
@@ -115,6 +126,35 @@ export default abstract class AppleHealthExtractor extends Extractor<typeof Appl
     return new Date((record.data as { start: string }).start);
   }
 
+  /**
+   * The readings or periods of sleep a run reads, and when they started. The
+   * export has no index, so it's read as a run reads it, keeping only counts.
+   */
+  override async survey(options: SurveyOptions = {}): Promise<Survey> {
+    const { recordTypes, surveyLabel } = this.constructor as typeof AppleHealthExtractor;
+    const byMonth: KindSurvey['byMonth'] = options.byMonth ? {} : undefined;
+    let [count, earliest, latest] = [0, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY];
+    this.counting = true;
+    try {
+      for await (const { start } of this.read()) {
+        if (!this.inRange(start)) continue;
+        count++;
+        earliest = Math.min(earliest, start);
+        latest = Math.max(latest, start);
+        if (byMonth) countMonth(byMonth, new Date(start));
+      }
+    } finally {
+      this.counting = false;
+    }
+    const kind: KindSurvey = {
+      count,
+      ...(surveyLabel && { label: surveyLabel }),
+      ...(count > 0 && { earliest: new Date(earliest), latest: new Date(latest) }),
+      ...(byMonth && { byMonth }),
+    };
+    return { [recordTypes[0]]: kind };
+  }
+
   /** What this kind finds in the export, in the order it's read. */
   protected abstract read(): AsyncGenerator<Found>;
 
@@ -125,7 +165,8 @@ export default abstract class AppleHealthExtractor extends Extractor<typeof Appl
 
   /**
    * The export's samples and correlations of the types the run reads, once the
-   * export's devices are known. When it reads none of them, the export isn't read.
+   * export's devices are known, which a survey doesn't need. When it reads none
+   * of them, the export isn't read.
    */
   protected async *elements(
     records: string[],
@@ -136,7 +177,7 @@ export default abstract class AppleHealthExtractor extends Extractor<typeof Appl
       correlations: new Set(correlations.filter(type => this.wants(type))),
     };
     if (wanted.records.size === 0 && wanted.correlations.size === 0) return;
-    this.devices = await sourceDevices(this.health);
+    if (!this.counting) this.devices = await sourceDevices(this.health);
     yield* readExport(this.health, wanted);
   }
 
@@ -191,9 +232,11 @@ export default abstract class AppleHealthExtractor extends Extractor<typeof Appl
 
   /**
    * One object for every value like this one. It's a copy, since the parser's
-   * strings are slices of the text it read and would keep that in memory.
+   * strings are slices of the text it read and would keep that in memory. A
+   * survey keeps nothing it reads, so it gets the value itself.
    */
   protected share<T extends object>(value: T): T {
+    if (this.counting) return value;
     const key = JSON.stringify(value);
     let copy = this.shared.get(key);
     if (!copy) this.shared.set(key, (copy = JSON.parse(key) as object));

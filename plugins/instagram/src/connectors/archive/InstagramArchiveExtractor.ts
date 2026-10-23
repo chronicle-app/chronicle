@@ -1,4 +1,10 @@
-import { ArchiveExtractor, Extractor } from '@chronicle.app/etl';
+import {
+  ArchiveExtractor,
+  Extractor,
+  countMonth,
+  type KindSurvey,
+  type SurveyOptions,
+} from '@chronicle.app/etl';
 import { posix } from 'node:path';
 import { z } from 'zod';
 
@@ -85,6 +91,19 @@ export abstract class InstagramArchiveExtractor extends ArchiveExtractor<
   /** Whether a unix-seconds timestamp falls inside the configured since/until window. */
   protected inRange(timestampSeconds: number): boolean {
     return this.isWithinDateRange(new Date(timestampSeconds * 1000));
+  }
+
+  /** A record type's survey before it counts any, with months when asked for them. */
+  protected emptySurvey(options: SurveyOptions): KindSurvey {
+    return { count: 0, ...(options.byMonth && { byMonth: {} }) };
+  }
+
+  /** Count one record a run reads into its type's survey, by the time a run dates it. */
+  protected tally(kind: KindSurvey, time: Date): void {
+    kind.count++;
+    if (!kind.earliest || time < kind.earliest) kind.earliest = time;
+    if (!kind.latest || time > kind.latest) kind.latest = time;
+    if (kind.byMonth) countMonth(kind.byMonth, time);
   }
 
   /**

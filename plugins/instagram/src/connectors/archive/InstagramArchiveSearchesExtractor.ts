@@ -1,6 +1,14 @@
-import { Record } from '@chronicle.app/etl';
+import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
 import { InstagramArchiveExtractor } from './InstagramArchiveExtractor.js';
 import InstagramTransformer from '../InstagramTransformer.js';
+
+/** One search a run reads, before it's a record. */
+interface Search {
+  kind: 'profile' | 'query';
+  entry: any;
+  value: string;
+  timestamp: number;
+}
 
 /**
  * Extract recent searches from an Instagram data export — one `searches`
@@ -25,44 +33,49 @@ export class InstagramArchiveSearchesExtractor extends InstagramArchiveExtractor
 
   async *extract(): AsyncGenerator<Record> {
     let index = 0;
-    index = yield* this.extractFile(
-      'logged_information/recent_searches/profile_searches.json',
-      'profile',
-      index
-    );
-    yield* this.extractFile(
-      'logged_information/recent_searches/word_or_phrase_searches.json',
-      'query',
-      index
-    );
-  }
-
-  private async *extractFile(
-    file: string,
-    kind: 'profile' | 'query',
-    startIndex: number
-  ): AsyncGenerator<Record, number> {
-    let index = startIndex;
-    for (const entry of await this.readInstagramArray(file)) {
-      const parsed = this.parseSearch(entry);
-      if (!parsed) continue;
-      if (!this.inRange(parsed.timestamp)) continue;
-      if (this.shouldStopExtracting(index)) return index;
+    for await (const { kind, entry, value, timestamp } of this.searches()) {
+      if (this.shouldStopExtracting(index)) return;
 
       yield this.createRecordWithArchiveContext(
         {
           type: 'searches',
           kind,
           ...(kind === 'profile'
-            ? { handle: parsed.value }
-            : { query: this.fixInstagramTextEncoding(parsed.value) }),
-          timestamp: this.convertInstagramTimestamp(parsed.timestamp),
+            ? { handle: value }
+            : { query: this.fixInstagramTextEncoding(value) }),
+          timestamp: this.convertInstagramTimestamp(timestamp),
         },
         { originalData: entry }
       );
       index++;
     }
-    return index;
+  }
+
+  /** The searches a run reads and when each was made. */
+  override async survey(options: SurveyOptions = {}): Promise<Survey> {
+    const searches = this.emptySurvey(options);
+    for await (const { timestamp } of this.searches()) {
+      this.tally(searches, new Date(timestamp * 1000));
+    }
+    return { searches };
+  }
+
+  /** The profile searches, then the keyword searches, in the run's window. */
+  private async *searches(): AsyncGenerator<Search> {
+    yield* this.searchesIn('logged_information/recent_searches/profile_searches.json', 'profile');
+    yield* this.searchesIn(
+      'logged_information/recent_searches/word_or_phrase_searches.json',
+      'query'
+    );
+  }
+
+  private async *searchesIn(file: string, kind: Search['kind']): AsyncGenerator<Search> {
+    for (const entry of await this.readInstagramArray(file)) {
+      const parsed = this.parseSearch(entry);
+      if (!parsed) continue;
+      if (!this.inRange(parsed.timestamp)) continue;
+      yield { kind, entry, ...parsed };
+    }
   }
 
   /** The searched value + time from either dialect. */
