@@ -32,6 +32,25 @@ export class AppleCallHistoryExtractor extends SqliteExtractor<typeof AppleCallH
   static override default = true;
   static override defaultTransformer = CallHistoryTransformer;
   static override temporality = 'event' as const;
+  // What extract() and survey() read, which a CallHistory.storedata must have.
+  static override databases = [
+    {
+      tables: {
+        ZCALLRECORD: [
+          'Z_PK',
+          'ZUNIQUE_ID',
+          'ZDATE',
+          'ZDURATION',
+          'ZORIGINATED',
+          'ZADDRESS',
+          'ZNAME',
+          'ZPARTICIPANTGROUPUUID',
+        ],
+        Z_2REMOTEPARTICIPANTHANDLES: ['Z_2REMOTEPARTICIPANTCALLS', 'Z_4REMOTEPARTICIPANTHANDLES'],
+        ZHANDLE: ['Z_PK', 'ZVALUE'],
+      },
+    },
+  ];
 
   static override schema = SqliteExtractor.schema.omit({ input: true }).extend({
     input: z.string().describe('Path to CallHistory.storedata').default(DEFAULT_DB),

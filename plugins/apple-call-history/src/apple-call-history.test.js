@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ContactCache } from '@chronicle.app/apple';
 import { monthKey } from '@chronicle.app/etl';
+import { writeSchemaDatabase } from '@chronicle.app/etl-sqlite';
 import { AppleCallHistoryExtractor, CallHistoryTransformer } from '../dist/index.js';
 import { writeCallHistoryFixture, writeContactsFixture } from './fixture.test-helper.js';
 
@@ -46,6 +47,24 @@ async function survey(input, config = {}, options = {}) {
   }
 }
 const surveyBy = input => survey(input, {}, { byMonth: true });
+
+test('its declared schema is all its queries read, and a CallHistory.storedata without it is refused', async t => {
+  const dir = tempDir(t);
+  const [schema] = AppleCallHistoryExtractor.databases;
+  const input = join(dir, 'CallHistory.storedata');
+  writeSchemaDatabase(input, schema, { optional: false });
+  assert.deepEqual((await extract(input)).records, []);
+  assert.equal((await surveyBy(input)).calls.count, 0);
+
+  // An older Call History's, say, without a column its queries read.
+  const older = join(dir, 'older.storedata');
+  const calls = schema.tables.ZCALLRECORD.filter(column => column !== 'ZNAME');
+  writeSchemaDatabase(older, { tables: { ...schema.tables, ZCALLRECORD: calls } });
+  await assert.rejects(extract(older), {
+    message: /version of the database/,
+    fields: { path: older, missing: ['ZCALLRECORD.ZNAME'] },
+  });
+});
 
 async function actions(dir) {
   const { records } = await extract(writeCallHistoryFixture(dir));
