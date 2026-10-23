@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { test } from 'node:test';
-import { writeZip } from '@chronicle.app/etl';
+import { findExports, writeZip } from '@chronicle.app/etl';
 import { METRIC_PROPERTIES } from '@chronicle.app/schema';
 import {
   AppleHealthActivityExtractor,
@@ -480,6 +480,37 @@ function zipExport(folder, zip) {
   writeZip(zip, files);
   return zip;
 }
+
+test('its layout finds the export where it starts, unzipped and zipped', async t => {
+  const folder = fixture(t);
+  const downloads = join(dirname(folder), 'downloads');
+  mkdirSync(downloads);
+  const zip = zipExport(folder, join(downloads, 'export.zip'));
+  const { chronicle } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url)));
+  const sets = Object.entries(chronicle.sources).flatMap(([source, { strategies }]) =>
+    Object.entries(strategies).map(([strategy, { layouts = [] }]) => ({
+      source,
+      strategy,
+      layouts,
+    }))
+  );
+
+  const { exports } = await findExports(dirname(folder), sets);
+  const inZip = join(zip, 'apple_health_export');
+  assert.deepEqual(
+    exports.map(e => e.root),
+    [join(dirname(folder), 'apple_health_export'), inZip].sort()
+  );
+
+  // Where the scan says the zipped export starts is an input a run reads.
+  const fromZip = (await extract(AppleHealthRespiratoryExtractor, { input: inZip })).records;
+  const fromFolder = (await extract(AppleHealthRespiratoryExtractor, { input: folder })).records;
+  assert.ok(fromFolder.length > 0);
+  assert.deepEqual(
+    fromZip.map(record => record.data),
+    fromFolder.map(record => record.data)
+  );
+});
 
 test('the export reads the same zipped as unzipped, however it is passed', async t => {
   const folder = fixture(t);

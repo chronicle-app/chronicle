@@ -151,14 +151,21 @@ appears again in one payload. Attachments remain references; this
 package does not copy their bytes. Attachment downloading, CLI flag helpers,
 and additional presentation transforms are not included.
 
-Four extractor and system helpers are shared by several sources:
+Five extractor and system helpers are shared by several sources:
 
 - `openExport(input)` opens an export however it was handed over: a folder, a
-  zip, a folder that holds only zips, or one part of a Google Takeout split
-  into numbered zips, which brings in its sibling parts. It lists, finds, and
+  zip, a folder that holds only zips, one part of a Google Takeout split into
+  numbered zips, which brings in its sibling parts, or a folder in a zip by a
+  path through it, like `export.zip/apple_health_export`. It lists, finds, and
   streams files by their paths inside the export, and reads files in a zip in
   place, decompressing them as they stream. `writeZip` writes a zip for test
   fixtures.
+- `findExports(path, sets)` finds the exports in a folder or zip by each
+  strategy's `layouts`, the paths a manifest says its exports hold from where
+  they start. It opens zips by their indexes, reads no file, and doesn't go
+  into hidden folders, macOS bundles, or links. Given a file or folder inside
+  an export, it finds that export. `findExportsIn(paths, sets)` does the same
+  over a list of paths, like a package's manifest.
 - `ArchiveExtractor` is a base for takeout-style exports read in place from an
   `--input` directory. It reads JSON files, checks the since/until window,
   repairs the mojibake these exports write, and attaches the export's account

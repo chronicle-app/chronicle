@@ -15,6 +15,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
+import { writeZip } from '@chronicle.app/etl';
 
 const bin = process.env.CHRONICLE_TEST_BIN || resolve(import.meta.dirname, '../bin/run.js');
 function fixture(t) {
@@ -723,7 +724,7 @@ test('plugins new scaffolds a plugin for the source kind that reads it and passe
 });
 
 /**
- * A home folder holding what sources scan looks for: shell histories, Chrome
+ * A home folder holding what scan looks for: shell histories, Chrome
  * profiles with the folder Chrome keeps beside them, and an Obsidian vault
  * the registry lists beside one that's gone. Chrome and Obsidian sit where
  * each looks on macOS and on Linux.
@@ -759,11 +760,11 @@ function scanHome(dir) {
   return { home, vault };
 }
 
-test('sources scan finds what a home folder holds, with a command that extracts each', t => {
+test('scan finds what a home folder holds, with a command that extracts each', t => {
   const { dir, run } = fixture(t);
   const { home, vault } = scanHome(dir);
   const scan = run.with({ HOME: home, GH_TOKEN: 'synthetic-token' });
-  const rows = JSON.parse(success(scan('sources', 'scan', '--format', 'json')));
+  const rows = JSON.parse(success(scan('scan', '--format', 'json')));
   const row = (source, label) => rows.find(r => r.source === source && r.label === label);
 
   // Shell's defaults find zsh first; bash needs its flag, and an empty history says so.
@@ -792,7 +793,7 @@ test('sources scan finds what a home folder holds, with a command that extracts 
   }
 
   // The table, with the next step under it.
-  const table = scan('sources', 'scan');
+  const table = scan('scan');
   assert.match(table.stdout, /^chrome +app-db +Work +ready$/m);
   assert.match(table.stderr, /Run `chronicle extract \S+/);
 
@@ -802,7 +803,7 @@ test('sources scan finds what a home folder holds, with a command that extracts 
   );
   for (const folder of closed) chmodSync(folder, 0o000);
   try {
-    const rows = JSON.parse(success(scan('sources', 'scan', 'chrome', '--format', 'json')));
+    const rows = JSON.parse(success(scan('scan', 'chrome', '--format', 'json')));
     const work = rows.find(r => r.label === 'Work');
     assert.equal(work.status, 'unreadable');
     assert.equal(work.command, 'chronicle extract chrome --profile "Profile 1"');
@@ -811,11 +812,11 @@ test('sources scan finds what a home folder holds, with a command that extracts 
   }
 
   // One source with nothing there says where it looked, and isn't an error.
-  const zotero = scan('sources', 'scan', 'zotero');
+  const zotero = scan('scan', 'zotero');
   assert.equal(zotero.status, 0, zotero.stderr);
   assert.match(zotero.stderr, /Nothing found for zotero/);
   assert.match(zotero.stderr, /Looked in ~\/Zotero\/zotero\.sqlite/);
-  const unknown = scan('sources', 'scan', 'nope');
+  const unknown = scan('scan', 'nope');
   assert.notEqual(unknown.status, 0);
   assert.match(unknown.stderr, /chronicle sources --all/);
 });
@@ -863,7 +864,7 @@ test('survey counts what each ready source holds, and says what it left out', t 
   const [zsh] = JSON.parse(success(survey('survey', 'shell', '--format', 'json')));
   assert.deepEqual(zsh.survey.commands.byMonth, { '2023-11': 1 });
   // Every source's survey leaves months out; a scan points to it.
-  assert.match(survey('sources', 'scan').stderr, /chronicle survey/);
+  assert.match(survey('scan').stderr, /chronicle survey/);
   assert.notEqual(survey('survey', 'no-such-source').status, 0);
 });
 
@@ -947,19 +948,134 @@ test('survey takes the options extract does, and counts an export it is pointed 
 });
 
 test(
-  'sources scan finds a source whose plugin is not installed, from the catalog',
+  'scan finds a source whose plugin is not installed, from the catalog',
   { skip: process.env.CHRONICLE_TEST_BIN && 'every plugin is installed in the packed check' },
   t => {
     const { dir, run } = fixture(t);
     const { home } = scanHome(dir);
     const scan = run.with({ HOME: home, CHRONICLE_WORKSPACE_PLUGINS: '0' });
-    const rows = JSON.parse(success(scan('sources', 'scan', '--format', 'json')));
+    const rows = JSON.parse(success(scan('scan', '--format', 'json')));
     // Without its locator, each profile folder that matched is a row, by its path.
     const chrome = rows.filter(r => r.source === 'chrome');
     assert.ok(chrome.length >= 2);
     assert.ok(chrome.every(r => !r.installed && r.plugin === 'chrome'));
     assert.ok(rows.some(r => r.source === 'shell' && r.installed));
-    assert.match(scan('sources', 'scan').stderr, /chronicle plugins install \S+/);
+    assert.match(scan('scan').stderr, /chronicle plugins install \S+/);
+  }
+);
+
+/**
+ * A folder of exports as people keep them: the Health app's export unzipped
+ * in one folder and zipped in another, beside a folder and a photo library
+ * that hold none, and a download that didn't finish.
+ */
+function exportFiles(dir) {
+  const root = join(dir, 'EXPORT_FILES');
+  const health = { 'export.xml': '<HealthData locale="en_US"/>', 'export_cda.xml': '<x/>' };
+  mkdirSync(join(root, 'old', 'apple_health_export'), { recursive: true });
+  for (const [name, content] of Object.entries(health)) {
+    writeFileSync(join(root, 'old', 'apple_health_export', name), content);
+  }
+  writeZip(
+    join(root, 'export.zip'),
+    Object.fromEntries(Object.entries(health).map(([n, c]) => [`apple_health_export/${n}`, c]))
+  );
+  mkdirSync(join(root, 'misc'));
+  writeFileSync(join(root, 'misc', 'notes.txt'), 'not an export');
+  // A photo library is one item, and nothing inside it is looked at.
+  mkdirSync(join(root, 'Photos Library.photoslibrary', 'resources'), { recursive: true });
+  for (const [name, content] of Object.entries(health)) {
+    writeFileSync(join(root, 'Photos Library.photoslibrary', 'resources', name), content);
+  }
+  writeFileSync(join(root, 'broken.zip'), 'not a zip');
+  return root;
+}
+
+test('scan finds the exports in a folder or zip, with the command that reads each', t => {
+  const { dir, run } = fixture(t);
+  const root = exportFiles(dir);
+  const scan = run.with({ HOME: join(dir, 'home') });
+  const rows = JSON.parse(success(scan('scan', root, '--format', 'json')));
+  assert.deepEqual(
+    rows.map(r => [r.source, r.label, r.status]),
+    [
+      ['apple-health', 'export.zip/apple_health_export', 'ready'],
+      ['apple-health', 'old/apple_health_export/', 'ready'],
+    ]
+  );
+  // The zipped export starts at the folder in the zip, which its run reads in place.
+  const [zipped] = rows;
+  assert.equal(zipped.root, join(root, 'export.zip', 'apple_health_export'));
+  assert.equal(zipped.command, `chronicle extract apple-health --input ${zipped.root}`);
+  assert.deepEqual(zipped.evidence.files, ['export.xml', 'export_cda.xml']);
+  assert.match(zipped.pluginVersion, /^\d+\.\d+\.\d+/);
+
+  // The table, with what it didn't recognize, couldn't open, and what to run next.
+  const table = scan('scan', root);
+  assert.equal(table.status, 0, table.stderr);
+  assert.match(table.stdout, /^apple-health +archive +old\/apple_health_export\/ +ready$/m);
+  assert.match(
+    table.stderr,
+    /Didn't recognize 2 folders: misc and Photos Library\.photoslibrary\./
+  );
+  assert.match(table.stderr, /Couldn't open 1 zip: broken\.zip\./);
+  assert.match(table.stderr, /Run `chronicle survey \S+EXPORT_FILES` to see how much each holds/);
+
+  // A zip as the path, and a folder with no export in it.
+  const [one] = JSON.parse(success(scan('scan', join(root, 'export.zip'), '--format', 'json')));
+  assert.equal(one.label, 'export.zip/apple_health_export');
+  const nothing = scan('scan', join(root, 'misc'));
+  assert.equal(nothing.status, 0, nothing.stderr);
+  assert.match(nothing.stderr, /Didn't recognize anything in/);
+  assert.notEqual(scan('scan', join(dir, 'gone')).status, 0);
+
+  // A file is in an export, or in none.
+  const health = join(root, 'old', 'apple_health_export');
+  const file = scan('scan', join(health, 'export_cda.xml'));
+  assert.equal(file.status, 0, file.stderr);
+  assert.match(file.stdout, /^apple-health +archive +apple_health_export\/ +ready$/m);
+  assert.match(file.stderr, /Run `chronicle survey \S+old\/apple_health_export` to see how much/);
+  const note = scan('scan', join(root, 'misc', 'notes.txt'));
+  assert.equal(note.status, 0, note.stderr);
+  assert.match(note.stderr, /Didn't recognize \S+misc\/notes\.txt/);
+
+  // A word is a source unless it reads as a path. A folder's bare name says how to scan it.
+  const bare = scan('scan', 'EXPORT_FILES');
+  assert.notEqual(bare.status, 0);
+  assert.match(bare.stderr, /Run `chronicle scan \.\/EXPORT_FILES` to look in the folder/);
+  assert.equal(JSON.parse(success(scan('scan', './EXPORT_FILES', '--format', 'json'))).length, 2);
+  // A source with nowhere to look on a computer reads exports.
+  const instagram = scan('scan', 'instagram');
+  assert.equal(instagram.status, 0, instagram.stderr);
+  assert.match(instagram.stderr, /instagram reads an export/);
+  assert.match(instagram.stderr, /chronicle scan <path>/);
+
+  // Survey takes a path as scan does.
+  const surveyBare = scan('survey', 'EXPORT_FILES');
+  assert.notEqual(surveyBare.status, 0);
+  assert.match(surveyBare.stderr, /chronicle survey \.\/EXPORT_FILES/);
+  assert.equal(success(scan('survey', join(root, 'misc'), '--format', 'json')).trim(), '[]');
+});
+
+test(
+  'scan and survey find an export whose plugin is not installed',
+  { skip: process.env.CHRONICLE_TEST_BIN && 'every plugin is installed in the packed check' },
+  t => {
+    const { dir, run } = fixture(t);
+    const root = exportFiles(dir);
+    const scan = run.with({ HOME: join(dir, 'home'), CHRONICLE_WORKSPACE_PLUGINS: '0' });
+    const rows = JSON.parse(success(scan('scan', root, '--format', 'json')));
+    assert.equal(rows.length, 2);
+    assert.ok(rows.every(r => r.source === 'apple-health' && !r.installed));
+    const table = scan('scan', root);
+    assert.match(table.stdout, /plugin not installed/);
+    assert.match(table.stderr, /chronicle plugins install apple-health/);
+
+    // Survey lists what it can't count yet, and where to see why.
+    const surveyed = scan('survey', root);
+    assert.equal(surveyed.status, 0, surveyed.stderr);
+    assert.match(surveyed.stderr, /2 sources found aren't ready/);
+    assert.match(surveyed.stderr, /Run `chronicle scan \S+EXPORT_FILES` to see why/);
   }
 );
 

@@ -1,6 +1,7 @@
 export { Extractor } from './extractor.js';
 export {
   Locator,
+  segmentPattern,
   type Candidate,
   type CandidateStatus,
   type LocateContext,
@@ -96,5 +97,16 @@ export {
 } from './shapes.js';
 export { ArchiveExtractor } from './archive/ArchiveExtractor.js';
 export { openExport, type ExportFiles } from './archive/exportFiles.js';
+export {
+  findExports,
+  findExportsIn,
+  type FindOptions,
+  type FoundExport,
+  type FoundExports,
+  type Layout,
+  type LayoutMatch,
+  type LayoutSet,
+  type Refused,
+} from './archive/layouts.js';
 export { writeZip } from './archive/writeZip.js';
 export { SystemInfo } from './system/SystemInfo.js';

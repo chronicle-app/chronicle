@@ -1,6 +1,6 @@
 import { createReadStream } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
-import { basename, dirname, join } from 'node:path';
+import { basename, dirname, join, relative, sep } from 'node:path';
 import type { Readable } from 'node:stream';
 import { InputNotFound } from '@chronicle.app/logging';
 import yauzl from 'yauzl';
@@ -35,18 +35,21 @@ export interface ExportFiles {
 // `takeout-20250101T000000Z-001.zip`: the same name with a three-digit number.
 const PART = /^(.+)-\d{3}\.zip$/i;
 
-const isZip = (path: string) => path.toLowerCase().endsWith('.zip');
+export const isZip = (path: string) => path.toLowerCase().endsWith('.zip');
 
 /**
  * Open an export from the path a person passed. A folder is read as it is,
  * unless all it holds is zips, which are then read as one export. A zip
- * that's one part of a split Takeout brings in its sibling parts.
+ * that's one part of a split Takeout brings in its sibling parts. A path
+ * through a zip, like `export.zip/apple_health_export`, is that folder in it.
  */
 export async function openExport(input: string): Promise<ExportFiles> {
   let stats;
   try {
     stats = await stat(input);
   } catch (error) {
+    const inZip = await zipAlong(input);
+    if (inZip) return ZipExport.open(await partsOf(inZip.zip), inZip.folder);
     throw fileError(error, input, 'export');
   }
   if (stats.isDirectory()) {
@@ -70,8 +73,26 @@ async function zipsIn(folder: string): Promise<string[] | null> {
   return entries.map(entry => join(folder, entry.name)).sort();
 }
 
+/**
+ * The zip a path that isn't there runs through, and the folder in it the
+ * rest of the path names. Null when the path doesn't run through a zip.
+ */
+async function zipAlong(input: string): Promise<{ zip: string; folder: string } | null> {
+  for (let zip = dirname(input); zip !== dirname(zip); zip = dirname(zip)) {
+    let stats;
+    try {
+      stats = await stat(zip);
+    } catch {
+      continue;
+    }
+    if (!stats.isFile() || !isZip(zip)) return null;
+    return { zip, folder: relative(zip, input).split(sep).join('/') };
+  }
+  return null;
+}
+
 /** A zip and, when it's one part of a split Takeout, its sibling parts. */
-async function partsOf(zip: string): Promise<string[]> {
+export async function partsOf(zip: string): Promise<string[]> {
   const stem = PART.exec(basename(zip))?.[1];
   if (!stem) return [zip];
   const folder = dirname(zip);
@@ -181,10 +202,14 @@ class ZipExport extends BaseExport {
     super();
   }
 
-  /** Open the zips and read their indexes. A path in more than one zip is taken from the first. */
-  static async open(files: string[]): Promise<ZipExport> {
+  /**
+   * Open the zips and read their indexes. A path in more than one zip is
+   * taken from the first. With a folder, only what's in it, by paths from it.
+   */
+  static async open(files: string[], folder = ''): Promise<ZipExport> {
     const zips: yauzl.ZipFile[] = [];
     const entries = new Map<string, { zip: yauzl.ZipFile; entry: yauzl.Entry }>();
+    const within = folder ? `${folder}/` : '';
     try {
       for (const file of files) {
         const zip = await openZip(file);
@@ -192,8 +217,13 @@ class ZipExport extends BaseExport {
         for (const entry of await readIndex(zip, file)) {
           if (entry.fileName.endsWith('/')) continue;
           const path = normalize(entry.fileName);
-          if (!entries.has(path)) entries.set(path, { zip, entry });
+          if (!path.startsWith(within)) continue;
+          const inside = path.slice(within.length);
+          if (!entries.has(inside)) entries.set(inside, { zip, entry });
         }
+      }
+      if (folder && entries.size === 0) {
+        throw new InputNotFound(`No ${folder} in the zip`, { path: files[0] });
       }
     } catch (error) {
       for (const zip of zips) zip.close();

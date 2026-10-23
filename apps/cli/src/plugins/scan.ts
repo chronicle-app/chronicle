@@ -2,12 +2,17 @@ import os from 'node:os';
 import path from 'node:path';
 import { open, readdir, stat } from 'node:fs/promises';
 import {
+  findExports,
+  segmentPattern,
   toKebabCase,
   type Candidate,
   type CandidateStatus,
+  type FoundExport,
+  type LayoutMatch,
   type LocateContext,
   type Location,
   type LocationMatch,
+  type Refused,
 } from '@chronicle.app/etl';
 import { createLogger } from '@chronicle.app/logging';
 import { listSources, type SourceListing } from './catalog.js';
@@ -16,7 +21,7 @@ import { FlagManager } from '../utils/FlagManager.js';
 
 const logger = createLogger({ scope: 'scan' });
 
-/** One candidate as `sources scan` lists it. */
+/** One candidate as `scan` lists it. */
 export interface ScanRow {
   source: string;
   strategy: string;
@@ -30,7 +35,22 @@ export interface ScanRow {
   /** The run, as a command that works when typed. */
   command: string;
   remedy?: string;
-  evidence: { path?: string; modifiedAt?: string; bytes?: number; credential?: string };
+  /** For an export in a path: where it starts, which the run takes as its input. */
+  root?: string;
+  /** The name of the export's layout, when its plugin gives it one. */
+  layout?: string;
+  /** How many zips a split Takeout came in. */
+  parts?: number;
+  /** The installed plugin's version, so a count can say which plugin made it. */
+  pluginVersion?: string;
+  evidence: {
+    path?: string;
+    modifiedAt?: string;
+    bytes?: number;
+    credential?: string;
+    /** For an export in a path: the files its layout matched, from where it starts. */
+    files?: string[];
+  };
 }
 
 export interface ScanResult {
@@ -50,17 +70,6 @@ export function fromHome(file: string, home: string): string {
 function resolveHome(pattern: string, home: string): string {
   if (pattern === '~') return home;
   return pattern.startsWith('~/') ? path.join(home, pattern.slice(2)) : pattern;
-}
-
-/** One path segment of a location as a regular expression: `*` and `{name}` match within it. */
-function segmentPattern(segment: string): RegExp {
-  let source = '';
-  for (const part of segment.split(/(\*|\{[A-Za-z]\w*\})/)) {
-    if (part === '*') source += '[^/]*';
-    else if (/^\{[A-Za-z]\w*\}$/.test(part)) source += `(?<${part.slice(1, -1)}>[^/]+)`;
-    else source += part.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
-  }
-  return new RegExp(`^${source}$`);
 }
 
 /**
@@ -144,7 +153,7 @@ export async function check(
 }
 
 /** A word for the shell: bare when it needs no quoting, else in double quotes. */
-function shellWord(value: string, home: string): string {
+export function shellWord(value: string, home: string): string {
   const short = fromHome(value, home);
   if (/^[\w@%+=:,./~-]+$/.test(short)) return short;
   return `"${value.replaceAll(/["\\$`]/g, String.raw`\$&`)}"`;
@@ -186,6 +195,7 @@ const RANK: Record<CandidateStatus, number> = {
   'signed-out': 3,
   empty: 4,
   unreadable: 5,
+  unsupported: 6,
 };
 const rankOf = (row: ScanRow) => (row.status === 'ready' && !row.installed ? 1 : RANK[row.status]);
 
@@ -268,6 +278,7 @@ async function scanStrategy(
       config,
       command: commandFor(listing, strategy.name, config, context.home),
       ...(candidate.remedy && { remedy: candidate.remedy }),
+      ...(listing.version && { pluginVersion: listing.version }),
       evidence: {
         ...(candidate.path && { path: candidate.path }),
         ...(modifiedAt && { modifiedAt: modifiedAt.toISOString() }),
@@ -319,9 +330,119 @@ export async function scan(options: { source?: string } = {}): Promise<ScanResul
       )
     )
   ).flat();
-  rows.sort(
-    (a, b) =>
-      rankOf(a) - rankOf(b) || a.source.localeCompare(b.source) || a.label.localeCompare(b.label)
-  );
+  rows.sort(byRank);
   return { rows, looked, extractors };
+}
+
+/** Rows best first, then by source and what was found. */
+const byRank = (a: ScanRow, b: ScanRow) =>
+  rankOf(a) - rankOf(b) || a.source.localeCompare(b.source) || a.label.localeCompare(b.label);
+
+/**
+ * Whether a word names a path rather than a source: it has a `/`, starts
+ * with `~` or `.`, or is a zip. A source's name is none of those.
+ */
+export function isPathArgument(word: string): boolean {
+  return (
+    word.includes('/') ||
+    word.includes(path.sep) ||
+    word.startsWith('~') ||
+    word.startsWith('.') ||
+    word.toLowerCase().endsWith('.zip')
+  );
+}
+
+export interface PathScanResult {
+  rows: ScanRow[];
+  /** The path looked in, absolute. */
+  scanned: string;
+  /** Whether it's a folder, rather than a zip or another file. */
+  folder: boolean;
+  /** The folders and zips directly in the path that hold no export. */
+  unrecognized: string[];
+  /** What couldn't be looked in, and why. */
+  refused: Refused[];
+  /** How many folders were looked in. */
+  looked: number;
+  /** The installed extractors, by source, for surveying a row. */
+  extractors: Map<string, ExtractorMetadata[]>;
+}
+
+/**
+ * Where an export is, from the path looked in: a folder with a `/`, then a
+ * split Takeout's parts and the layout's name when it has one. An export
+ * the path is in, or is, goes by its own name.
+ */
+function exportLabel(exported: FoundExport, match: LayoutMatch, scanned: string): string {
+  const inZip = exported.parts || /\.zip(\/|$)/i.test(exported.root);
+  const base = scanned.toLowerCase().endsWith('.zip') ? path.dirname(scanned) : scanned;
+  const relative = path.relative(base, exported.root);
+  const where = !relative || relative.startsWith('..') ? path.basename(exported.root) : relative;
+  const notes = [
+    exported.parts && `${exported.parts.length} parts`,
+    match.layout.name && `${match.layout.name} layout`,
+  ].filter(Boolean);
+  return `${where}${inZip ? '' : '/'}${notes.length > 0 ? ` (${notes.join(', ')})` : ''}`;
+}
+
+/**
+ * The exports in a folder or zip, or the one a path is in, found by each
+ * source's layouts: one row for each source that reads each export, with
+ * the command that extracts it. Matching the layouts takes no plugin code,
+ * so an export is found before its plugin is installed. It reads no file.
+ */
+export async function scanPath(
+  target: string,
+  options: { onFolder?: (looked: number) => void } = {}
+): Promise<PathScanResult> {
+  const home = os.homedir();
+  const scanned = path.resolve(resolveHome(target, home));
+  const listings = (await listSources()).filter(l => l.supported);
+  const sets = listings.flatMap(listing =>
+    listing.strategies
+      .filter(strategy => strategy.layouts?.length)
+      .map(strategy => ({
+        source: listing.source,
+        strategy: strategy.name,
+        layouts: strategy.layouts!,
+      }))
+  );
+  const found = await findExports(scanned, sets, { onFolder: options.onFolder });
+  const folder = (await stat(scanned)).isDirectory();
+  const extractors = await PluginScanner.scanAllPlugins();
+  const rows: ScanRow[] = [];
+  for (const exported of found.exports) {
+    for (const match of exported.matches) {
+      const listing = listings.find(l => l.source === match.source)!;
+      const pool = (extractors.get(listing.source) ?? []).filter(
+        e => e.strategy === match.strategy
+      );
+      const config = withoutDefaults({ ...match.options, input: exported.root }, pool);
+      rows.push({
+        source: listing.source,
+        strategy: match.strategy,
+        label: exportLabel(exported, match, scanned),
+        status: match.layout.supported === false ? 'unsupported' : 'ready',
+        installed: listing.installed,
+        plugin: listing.plugin,
+        config,
+        command: commandFor(listing, match.strategy, config, home),
+        root: exported.root,
+        ...(match.layout.name && { layout: match.layout.name }),
+        ...(exported.parts && { parts: exported.parts.length }),
+        ...(listing.version && { pluginVersion: listing.version }),
+        evidence: { path: exported.root, files: match.files },
+      });
+    }
+  }
+  rows.sort(byRank);
+  return {
+    rows,
+    scanned,
+    folder,
+    unrecognized: found.unrecognized,
+    refused: found.refused,
+    looked: found.looked,
+    extractors,
+  };
 }

@@ -68,8 +68,8 @@ test('each manifest matches its plugin’s exported extractor classes', async ()
     for (const [name, source] of Object.entries(pkg.chronicle.sources ?? {})) {
       declared[name] = {};
       for (const [strategyName, strategy] of Object.entries(source.strategies)) {
-        // Where it's found isn't something the extractor classes say.
-        const { locations: _locations, ...declaredStrategy } = strategy;
+        // Where it's found, and what its exports look like, aren't things the extractor classes say.
+        const { locations: _locations, layouts: _layouts, ...declaredStrategy } = strategy;
         declared[name][strategyName] = { ...declaredStrategy, default: Boolean(strategy.default) };
       }
     }
@@ -114,6 +114,70 @@ test('each locator and declared location belongs to a strategy, and binds only i
           }
         }
       }
+    }
+  }
+});
+
+test('each layout is paths from where its export starts, and matches only its own export', async () => {
+  const { findExportsIn, segmentPattern } = await import(
+    new URL('core/etl/dist/index.js', root).href
+  );
+  const sets = [];
+  for (const { dir, pkg } of workspace) {
+    const exported = Object.values(
+      await import(new URL(`plugins/${dir}/dist/index.js`, root).href)
+    ).filter(value => typeof value === 'function' && typeof value.source === 'string');
+    for (const [source, { strategies }] of Object.entries(pkg.chronicle.sources ?? {})) {
+      for (const [name, strategy] of Object.entries(strategies)) {
+        const { layouts = [] } = strategy;
+        if (layouts.length === 0) continue;
+        assert.equal(strategy.delivery, 'export', `${pkg.name}: ${name} has layouts but no export`);
+        const readers = exported.filter(
+          value => value.source === source && value.strategy === name && value.schema?.shape
+        );
+        for (const layout of layouts) {
+          assert.ok(layout.files?.length > 0, `${pkg.name}: a layout of ${name} names no files`);
+          for (const file of layout.files) {
+            const segments = file.split('/');
+            assert.ok(
+              segments.every(segment => segment && segment !== '.' && segment !== '..'),
+              `${pkg.name}: ${file} isn't a path from where the export starts`
+            );
+            assert.ok(!file.startsWith('~') && !file.includes('**'), `${pkg.name}: ${file}`);
+            for (const segment of segments) segmentPattern(segment);
+          }
+          const bound = layout.files.flatMap(file =>
+            [...file.matchAll(/\{(\w+)\}/g)].map(match => match[1])
+          );
+          for (const option of bound) {
+            for (const reader of readers) {
+              assert.ok(
+                option in reader.schema.shape,
+                `${pkg.name}: ${reader.name} has no "${option}"`
+              );
+            }
+          }
+        }
+        sets.push({ source, strategy: name, layouts, plugin: pkg.name });
+      }
+    }
+  }
+  // Each layout's own files, as the smallest export it matches, are no other strategy's.
+  for (const { source, strategy, layouts, plugin } of sets) {
+    for (const layout of layouts) {
+      const files = layout.files.map(file => file.replaceAll(/\*|\{\w+\}/g, 'x'));
+      const { exports } = await findExportsIn(files, sets);
+      assert.deepEqual(
+        exports.map(e => e.root),
+        [''],
+        `${plugin}: ${layout.files.join(', ')} isn't found where it starts`
+      );
+      const others = exports[0].matches.filter(m => m.source !== source || m.strategy !== strategy);
+      assert.deepEqual(
+        others.map(m => `${m.source} ${m.strategy}`),
+        [],
+        `${plugin}: ${source} ${strategy}'s export also matches another strategy's layout`
+      );
     }
   }
 });

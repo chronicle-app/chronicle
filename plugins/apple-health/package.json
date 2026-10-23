@@ -72,6 +72,14 @@
               "heart",
               "respiratory",
               "sleep"
+            ],
+            "layouts": [
+              {
+                "files": [
+                  "export.xml",
+                  "export_cda.xml"
+                ]
+              }
             ]
           }
         }

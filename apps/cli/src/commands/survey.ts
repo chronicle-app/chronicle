@@ -1,5 +1,6 @@
 import type { KindSurvey, Measure, Survey } from '@chronicle.app/etl';
 import { BaseCommand } from '../baseCommand.js';
+import { existsSync } from 'node:fs';
 import os from 'node:os';
 import {
   LiveRegion,
@@ -17,14 +18,22 @@ import {
 } from '../output/index.js';
 import { listSources } from '../plugins/catalog.js';
 import type { ExtractorMetadata } from '../plugins/PluginScanner.js';
-import { fromHome, scan, type ScanRow } from '../plugins/scan.js';
+import {
+  fromHome,
+  isPathArgument,
+  scan,
+  scanPath,
+  shellWord,
+  type PathScanResult,
+  type ScanRow,
+} from '../plugins/scan.js';
 import { rowFor, surveyRow, surveyWith, surveyable } from '../plugins/survey.js';
 import { SourceDispatchCommand } from '../utils/SourceDispatchCommand.js';
 import { FlagManager } from '../utils/FlagManager.js';
 import { ALL_KINDS } from '../utils/recordKinds.js';
 import { PLATFORM_NAMES } from '../utils/sourcesTable.js';
 import { SURVEY_FLAGS } from '../utils/surveyFlags.js';
-import { extractHint } from './sources/scan.js';
+import { extractHint } from './scan.js';
 
 /** Longest a survey may take before its source gives up on it. */
 const SURVEY_TIMEOUT_MS = 30_000;
@@ -126,39 +135,86 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
   static override summary = 'Count what a source holds, and over which years';
 
   static override description =
-    'With no source, counts each source `chronicle sources scan` finds on this computer. ' +
+    'With no source, counts each source `chronicle scan` finds on this computer. ' +
     'With a source and its options, like the export `--input` it reads, counts that run. ' +
+    'With a folder or zip, counts each export `chronicle scan` finds in it. ' +
     "Run `chronicle survey moves-app --help` to see a source's options.";
 
-  static override usage = 'survey [source] [type...] [flags]';
+  static override usage = 'survey [source|path] [type...] [flags]';
 
   static override examples = [
     'chronicle survey',
     'chronicle survey imessage',
     'chronicle survey moves-app --input ~/moves_export --since 2015-01-01',
     'chronicle survey timing-app calls',
+    'chronicle survey ~/Downloads/export.zip',
     'chronicle survey --format json',
   ];
 
   static override flags = { ...BaseCommand.baseFlags, ...SURVEY_FLAGS };
 
-  // An unknown source only gets "no source named …" or the install offer.
-  protected override readonly parsesFlagsForNonSource = false;
   // A survey counts everything a run would read, so it takes no limit, and
   // every kind when it names none.
   protected override readonly unoffered = ['limit'];
   protected override readonly defaultKinds = [ALL_KINDS];
   protected override readonly announcesKinds = false;
 
+  // An unknown source only gets "no source named …" or the install offer. A path gets its flags.
+  protected override parsesFlagsForNonSource(positional: string): boolean {
+    return isPathArgument(positional);
+  }
+
   protected override commonFlags(): Record<string, any> {
     return { ...BaseCommand.baseFlags, ...SURVEY_FLAGS };
   }
 
-  /** No source: everything a scan finds. A source that isn't installed: the offer to install it. */
+  /**
+   * No source: everything a scan finds. A path: each export a scan finds in
+   * it. A source that isn't installed: the offer to install it.
+   */
   protected async handleNonSource(positional: string | undefined): Promise<void> {
+    if (positional && isPathArgument(positional)) return this.surveyPath(positional);
+    // A folder named bare, which isn't a source, is the folder.
+    const folder =
+      positional &&
+      existsSync(positional) &&
+      !(await listSources()).some(s => s.source === positional);
+    if (folder) {
+      this.fail(`No source named "${positional}"`, {
+        hint: `Run \`chronicle survey ./${positional}\` to count what's in the folder.`,
+      });
+    }
     if (positional) return this.installPrompt(positional);
     const { rows, extractors } = await scan();
     await this.report(rows, extractors, row => surveyRow(row, extractors));
+  }
+
+  /**
+   * Each export a scan of a folder or zip finds, counted with no time limit:
+   * an export has no index to count from, so its survey reads it.
+   */
+  private async surveyPath(target: string): Promise<void> {
+    let found: PathScanResult;
+    try {
+      found = await scanPath(target);
+    } catch (error) {
+      this.failFrom(error);
+    }
+    const { rows, extractors, scanned, folder } = found;
+    const where = shellWord(scanned, os.homedir());
+    if (rows.length === 0) {
+      this.logger.info(
+        `Didn't recognize ${folder ? 'anything in ' : ''}${fromHome(scanned, os.homedir())}`
+      );
+      this.hint(
+        folder
+          ? `Run \`chronicle scan ${where}\` to see what it holds.`
+          : 'Run `chronicle sources --all` to see what Chronicle reads.'
+      );
+      if (this.flags.format === 'json') this.log('[]');
+      return;
+    }
+    await this.report(rows, extractors, row => surveyRow(row, extractors), undefined, where);
   }
 
   /**
@@ -238,19 +294,28 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
     });
   }
 
-  /** Survey the rows that can be, and print what they hold, as a table, JSON or CSV. */
+  /**
+   * Survey the rows that can be, and print what they hold, as a table, JSON
+   * or CSV. Rows from a scan of a path, named by `path`, have no time limit.
+   */
   private async report(
     rows: ScanRow[],
     extractors: Map<string, ExtractorMetadata[]>,
     survey: (row: ScanRow) => Promise<Survey | null>,
-    source?: string
+    source?: string,
+    path?: string
   ): Promise<void> {
     const targets = rows.filter(row => surveyable(row, extractors));
     // Ready, but read over the network: listed, not counted.
     const online = rows.filter(
       row => row.installed && row.status === 'ready' && !targets.includes(row)
     );
-    const surveys = await this.surveyAll(targets, online, survey);
+    const surveys = await this.surveyAll(
+      targets,
+      online,
+      survey,
+      path ? undefined : SURVEY_TIMEOUT_MS
+    );
     const answer = (i: number) => {
       const state = surveys[i];
       return state.state === 'done' ? state.survey : null;
@@ -314,7 +379,7 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
     } else {
       this.logger.info(`Couldn't count ${source ?? 'any source'}`);
     }
-    this.hints(rows, targets, surveys, source);
+    this.hints(rows, targets, surveys, path ? `chronicle scan ${path}` : undefined, source);
   }
 
   /**
@@ -403,14 +468,16 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
   }
 
   /**
-   * Every target's survey, all started at once. At a terminal the table shows
-   * meanwhile on stderr, each source filling in as its survey answers; the
-   * finished table then prints on stdout.
+   * Every target's survey, all started at once, each given up on after
+   * `timeout` when there is one. At a terminal the table shows meanwhile on
+   * stderr, each source filling in as its survey answers; the finished table
+   * then prints on stdout.
    */
   private async surveyAll(
     targets: ScanRow[],
     online: ScanRow[],
-    survey: (row: ScanRow) => Promise<Survey | null>
+    survey: (row: ScanRow) => Promise<Survey | null>,
+    timeout?: number
   ): Promise<Surveyed[]> {
     const states: Surveyed[] = targets.map(() => ({ state: 'pending' }));
     const live =
@@ -422,7 +489,8 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
       await Promise.all(
         targets.map(async (row, i) => {
           try {
-            states[i] = { state: 'done', survey: await within(survey(row), SURVEY_TIMEOUT_MS) };
+            const answer = timeout === undefined ? survey(row) : within(survey(row), timeout);
+            states[i] = { state: 'done', survey: await answer };
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             states[i] = { state: 'failed', error: message };
@@ -499,8 +567,18 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
     ).lines;
   }
 
-  /** What to do next, and which sources the table leaves out and why. */
-  private hints(rows: ScanRow[], targets: ScanRow[], states: Surveyed[], source?: string): void {
+  /**
+   * What to do next, and which sources the table leaves out and why:
+   * `found` is the command that found the rows, when it wasn't a scan of the
+   * computer.
+   */
+  private hints(
+    rows: ScanRow[],
+    targets: ScanRow[],
+    states: Surveyed[],
+    found?: string,
+    source?: string
+  ): void {
     const counted = targets.filter((_, i) => {
       const state = states[i];
       return state.state === 'done' && state.survey;
@@ -535,10 +613,10 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
     }
     const waiting = rows.filter(row => !row.installed || row.status !== 'ready').length;
     if (waiting > 0) {
-      const scan = ['chronicle sources scan', source].filter(Boolean).join(' ');
+      const why = found ?? ['chronicle scan', source].filter(Boolean).join(' ');
       this.hint(
         `${count(waiting)} ${plural('sources', waiting)} found ${waiting === 1 ? "isn't" : "aren't"} ready. ` +
-          `Run \`${scan}\` to see why.`
+          `Run \`${why}\` to see why.`
       );
     }
   }

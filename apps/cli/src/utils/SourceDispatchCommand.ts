@@ -51,7 +51,9 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
    * that only reports an unknown source turns this off, so a source's own flags
    * (`extract old-name --limit 5`) don't fail before the real error.
    */
-  protected readonly parsesFlagsForNonSource: boolean = true;
+  protected parsesFlagsForNonSource(_positional: string): boolean {
+    return true;
+  }
 
   static override args = {
     source: Args.string({ description: 'A source, like shell or imessage', required: false }),
@@ -157,7 +159,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     // (a file path / inline JSON for ingest, or an install-prompt for extract).
     if (candidates.length === 0) {
       this.nonSourceArg = positional;
-      if (this.parsesFlagsForNonSource) await super.init();
+      if (this.parsesFlagsForNonSource(positional)) await super.init();
       return;
     }
 

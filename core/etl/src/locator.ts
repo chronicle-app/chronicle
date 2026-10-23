@@ -6,8 +6,10 @@
  * - `unreadable`: there, but its permissions keep it from being read
  * - `empty`: it opens, with nothing in it
  * - `signed-out`: no credential to sign in with, though the service's tools are set up
+ * - `unsupported`: an export in a layout the source's plugin recognizes but can't read
  */
-export type CandidateStatus = 'ready' | 'blocked' | 'unreadable' | 'empty' | 'signed-out';
+export type CandidateStatus =
+  'ready' | 'blocked' | 'unreadable' | 'empty' | 'signed-out' | 'unsupported';
 
 /**
  * One run a source could do on this computer: the options it takes and what
@@ -40,6 +42,20 @@ export interface Location {
   platforms?: NodeJS.Platform[];
   /** Options a run takes to read what this location matches, like `{ "shell": "bash" }`. */
   options?: { [option: string]: unknown };
+}
+
+/**
+ * One path segment of a location or layout as a regular expression: `*` and
+ * `{name}` match within it, and `{name}` captures what it matched as `name`.
+ */
+export function segmentPattern(segment: string): RegExp {
+  let source = '';
+  for (const part of segment.split(/(\*|\{[A-Za-z]\w*\})/)) {
+    if (part === '*') source += '[^/]*';
+    else if (/^\{[A-Za-z]\w*\}$/.test(part)) source += `(?<${part.slice(1, -1)}>[^/]+)`;
+    else source += part.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+  }
+  return new RegExp(`^${source}$`);
 }
 
 /** A declared location that matched: the path, and the options it binds. */
