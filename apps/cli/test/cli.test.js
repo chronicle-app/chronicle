@@ -1153,6 +1153,16 @@ test('scan finds the exports in a folder or zip, with the command that reads eac
   const [counts] = JSON.parse(success(scan('survey', root, '--format', 'json')));
   assert.equal(counts.root, join(root, 'export.zip', 'apple_health_export'));
   assert.match(counts.pluginVersion, /^\d+\.\d+\.\d+/);
+  // One export named by a path through its zip is counted as extract reads it.
+  const inZip = join(root, 'export.zip', 'apple_health_export');
+  const [named] = JSON.parse(
+    success(scan('survey', 'apple-health', '--input', inZip, '--format', 'json'))
+  );
+  assert.equal(named.status, 'ready');
+  assert.ok(named.survey);
+  const nowhere = scan('survey', 'apple-health', '--input', join(root, 'export.zip', 'nope'));
+  assert.notEqual(nowhere.status, 0);
+  assert.match(nowhere.stderr, /Nothing at/);
   // An export with no records is one row that says so, and isn't offered to extract.
   const empty = scan('survey', root);
   assert.equal(empty.status, 0, empty.stderr);

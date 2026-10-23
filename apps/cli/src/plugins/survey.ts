@@ -1,6 +1,6 @@
 import os from 'node:os';
 import path from 'node:path';
-import type { Survey, SurveyOptions } from '@chronicle.app/etl';
+import { openExport, type Survey, type SurveyOptions } from '@chronicle.app/etl';
 import type { SourceListing } from './catalog.js';
 import type { ExtractorMetadata } from './PluginScanner.js';
 import { check, commandFor, fromHome, withoutDefaults, type ScanRow } from './scan.js';
@@ -50,6 +50,25 @@ export async function surveyRow(
 }
 
 /**
+ * Whether a path through a zip, like `data.zip/apple_health_export`, is an
+ * export a run could read, opened as a run opens it: by the zip's index.
+ * Null when it isn't in a zip, or the zip doesn't hold it.
+ */
+async function checkInZip(input: string): Promise<{ status: 'ready' | 'empty' } | null> {
+  let files;
+  try {
+    files = await openExport(input);
+  } catch {
+    return null;
+  }
+  try {
+    return { status: (await files.list()).length > 0 ? 'ready' : 'empty' };
+  } finally {
+    await files.close();
+  }
+}
+
+/**
  * A run given its options, as a row the way a scan lists what it finds:
  * named for its input, the one its extractor reads by default, or else its
  * options, with the command that extracts it. Null when there's nothing at
@@ -65,7 +84,9 @@ export async function rowFor(
   const home = os.homedir();
   const pool = extractors.filter(e => e.strategy === strategy);
   const input = typeof options.input === 'string' ? path.resolve(options.input) : undefined;
-  const checked = input ? await check(input, process.platform) : { status: 'ready' as const };
+  const checked = input
+    ? ((await check(input, process.platform)) ?? (await checkInZip(input)))
+    : { status: 'ready' as const };
   if (!checked) return null;
   const config = withoutDefaults(input ? { ...options, input } : options, pool);
   const shape: { [field: string]: any } | undefined = pool[0]?.extractor.schema?.shape;
