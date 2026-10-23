@@ -1,9 +1,11 @@
-import { readdir, stat } from 'node:fs/promises';
+import { open, readdir, stat } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
+import type { Readable } from 'node:stream';
 import { fileError } from '../fileErrors.js';
 import { segmentPattern } from '../locator.js';
-import { type DatabaseSchema, isSqlite, matchSchema, readColumns } from './databases.js';
-import { isZip, openExport, partsOf } from './exportFiles.js';
+import { type Condition, type Page, type Subject, evaluate } from './conditions.js';
+import { type DatabaseColumns, isSqlite, readColumns } from './databases.js';
+import { type ExportFiles, isZip, openExport, partsOf } from './exportFiles.js';
 
 /**
  * What an export looks like from inside, from
@@ -19,39 +21,63 @@ import { isZip, openExport, partsOf } from './exportFiles.js';
 export interface Layout {
   /** Every path that must be there, each a file or a folder. */
   files: string[];
-  /** A name to tell this layout from the source's others, like the year it's from. */
+  /** What else says it's this export, like how a file in it starts. */
+  match?: Condition[];
+  /** What its reader needs of it, which an export in a version it can't read lacks. */
+  requires?: Condition[];
+  /**
+   * A name to tell this layout from the source's others, like the year it's
+   * from. `{name}` in it is what a condition captured, like `HealthKit {version}`.
+   */
   name?: string;
   /** False for a layout the plugin recognizes but can't read. */
   supported?: boolean;
 }
 
-/** A strategy's layouts and databases, for {@link findExports} to look for. */
+/**
+ * What one file a strategy reads looks like, as an export of a single file
+ * is, from `chronicle.sources.<source>.strategies.<strategy>.files`.
+ */
+export interface FileFormat {
+  /**
+   * The names, with `*`, that a walk opens a file to check, like `*.csv`, so
+   * a folder of photos opens nothing. A file passed as the path is checked
+   * whatever its name.
+   */
+  names: string[];
+  /** What says a file is this, like its CSV columns. */
+  match: Condition[];
+  /** What its reader needs of it. */
+  requires?: Condition[];
+  /** The record types a file of this holds, when the strategy reads others from other files. */
+  recordTypes?: string[];
+  name?: string;
+  supported?: boolean;
+}
+
+/** A strategy's layouts and file formats, for {@link findExports} to look for. */
 export interface LayoutSet {
   source: string;
   strategy: string;
   layouts: Layout[];
-  /** The schemas of the SQLite databases it reads. */
-  databases?: DatabaseSchema[];
-  /**
-   * The names its databases go by, like `History.db`, which a walk opens
-   * files by. A file passed as the path is opened whatever its name.
-   */
-  names?: string[];
+  files?: FileFormat[];
 }
 
-/** A strategy's layout that matched where an export starts, or its database's schema. */
+/** A strategy's layout that matched where an export starts, or its file format. */
 export interface LayoutMatch {
   source: string;
   strategy: string;
-  layout: Layout | DatabaseSchema;
+  layout: Layout | FileFormat;
+  /** Its layout's name, with what its conditions captured; none when one wasn't. */
+  name?: string;
   /** The paths that matched, from where the export starts. */
   files: string[];
   /** What each `{name}` matched. */
   options: { [option: string]: string };
-  /** For a database: the schema's tables, which it has. */
-  tables?: string[];
-  /** For a database: the needed columns it lacks, as `table.column`, when a run can't read it. */
-  missing?: string[];
+  /** What its reader needs that isn't there, when a run can't read it. */
+  unmet?: string[];
+  /** For a file: the record types it holds, when it doesn't hold them all. */
+  recordTypes?: string[];
 }
 
 /** An export found, and every strategy whose layout says it reads it. */
@@ -63,7 +89,7 @@ export interface FoundExport {
   root: string;
   /** The zips it's in, when it's a split Takeout's parts. */
   parts?: string[];
-  /** True when it's one file, a database, rather than a folder or zip. */
+  /** True when it's one file, rather than a folder or zip. */
   file?: boolean;
   matches: LayoutMatch[];
 }
@@ -133,6 +159,73 @@ interface Tree {
   forget(dir: string): void;
   /** Where a path from the top is on disk, for a tree that's a folder on disk. */
   onDisk?(path: string): string;
+  /** The start of a file's text, by its path from the top, when the tree can read it. */
+  head?(path: string, bytes: number): Promise<Page | null>;
+}
+
+/** Bytes read from a file's start as its text, without a byte order mark. */
+function pageOf(bytes: Buffer, wanted: number, more: boolean): Page {
+  const text = bytes.subarray(0, wanted).toString('utf8');
+  return { text: text.replace(/^\uFEFF/, ''), more };
+}
+
+/** The start of a stream's text, as `head` conditions read it. */
+async function headOf(stream: Readable, wanted: number): Promise<Page> {
+  const chunks: Buffer[] = [];
+  let length = 0;
+  for await (const chunk of stream) {
+    chunks.push(chunk as Buffer);
+    length += (chunk as Buffer).length;
+    if (length > wanted) break;
+  }
+  stream.destroy();
+  return pageOf(Buffer.concat(chunks), wanted, length > wanted);
+}
+
+/** The start of a file on disk's text, or null when it can't be read. */
+async function headOfFile(file: string, wanted: number): Promise<Page | null> {
+  let handle;
+  try {
+    handle = await open(file, 'r');
+    const { buffer, bytesRead } = await handle.read(Buffer.alloc(wanted + 1), 0, wanted + 1, 0);
+    return pageOf(buffer.subarray(0, bytesRead), wanted, bytesRead > wanted);
+  } catch {
+    return null;
+  } finally {
+    await handle?.close();
+  }
+}
+
+/** A database's columns, for a file on disk; null when it isn't one, and throws when it won't open. */
+async function columnsOfFile(file: string): Promise<DatabaseColumns | null> {
+  return (await isSqlite(file)) ? readColumns(file) : null;
+}
+
+/** What a layout's conditions look at, in a folder of a tree. */
+function folderSubject(tree: Tree, dir: string): Subject {
+  return {
+    locate: pattern => matchPath(tree, dir, pattern),
+    head: async (path, bytes) => (tree.head ? tree.head(within(dir, path), bytes) : null),
+    async columns(path) {
+      if (!tree.onDisk) return null;
+      try {
+        return await columnsOfFile(tree.onDisk(within(dir, path)));
+      } catch {
+        return null;
+      }
+    },
+  };
+}
+
+/** A name from a layout's, with what conditions captured, or none when one wasn't. */
+function named(name: string | undefined, captures: { [name: string]: string }): string | undefined {
+  if (!name) return undefined;
+  let whole = true;
+  const filled = name.replaceAll(/\{(\w+)\}/g, (_, key: string) => {
+    if (captures[key] === undefined) whole = false;
+    return captures[key] ?? '';
+  });
+  return whole ? filled : undefined;
 }
 
 const within = (dir: string, name: string) => (dir ? `${dir}/${name}` : name);
@@ -175,11 +268,15 @@ function folderTree(base: string, refused: Refused[]): Tree {
       }
     },
     onDisk: path => join(base, path),
+    head: (path, bytes) => headOfFile(join(base, path), bytes),
   };
 }
 
-/** A zip's files as folders, from its index. A zip in a zip is a file. */
-function listingTree(paths: string[]): Tree {
+/**
+ * A zip's files as folders, from its index, and the start of each file's
+ * text, when there's a way to read it. A zip in a zip is a file.
+ */
+function listingTree(paths: string[], head?: Tree['head']): Tree {
   const folders = new Map<string, Map<string, Kind>>([['', new Map()]]);
   for (const path of paths) {
     const segments = path.split('/');
@@ -198,6 +295,7 @@ function listingTree(paths: string[]): Tree {
       return folders.get(dir) ?? null;
     },
     forget() {},
+    ...(head && { head }),
   };
 }
 
@@ -234,7 +332,11 @@ async function matchPath(
   return { path: dir ? found.path.slice(dir.length + 1) : found.path, options: found.options };
 }
 
-/** Each strategy's first layout that matches at `dir`. */
+/**
+ * Each strategy's first layout that matches at `dir`: its paths are there,
+ * and its `match` conditions hold. Its `requires` that don't are what its
+ * reader can't read.
+ */
 async function matchAt(tree: Tree, dir: string, sets: LayoutSet[]): Promise<LayoutMatch[]> {
   const matches: LayoutMatch[] = [];
   for (const { source, strategy, layouts } of sets) {
@@ -246,12 +348,19 @@ async function matchAt(tree: Tree, dir: string, sets: LayoutSet[]): Promise<Layo
         found.push(match);
       }
       if (found.length < layout.files.length || found.length === 0) continue;
+      const subject = folderSubject(tree, dir);
+      const matched = await evaluate(layout.match, subject);
+      if (!matched.holds) continue;
+      const needs = await evaluate(layout.requires, subject, { all: true });
+      const captures = { ...matched.captures, ...needs.captures };
       matches.push({
         source,
         strategy,
         layout,
+        ...(named(layout.name, captures) && { name: named(layout.name, captures) }),
         files: found.map(f => f.path),
         options: Object.assign({}, ...found.map(f => f.options)),
+        ...(!needs.holds && { unmet: needs.unmet }),
       });
       break;
     }
@@ -261,6 +370,15 @@ async function matchAt(tree: Tree, dir: string, sets: LayoutSet[]): Promise<Layo
 
 /** A name the walk doesn't go into: hidden, or what macOS adds to a zip it makes. */
 const skipped = (name: string) => name.startsWith('.') || name === '__MACOSX';
+
+/** The start of a file's text in an export, or null when it isn't there. */
+async function headIn(files: ExportFiles, path: string, bytes: number): Promise<Page | null> {
+  try {
+    return await headOf(await files.open(path), bytes);
+  } catch {
+    return null;
+  }
+}
 
 /** An empty result, for a walk to fill. */
 const nothingFound = (): FoundExports => ({
@@ -277,9 +395,15 @@ const nothingFound = (): FoundExports => ({
  */
 function walker(base: string, sets: LayoutSet[], options: FindOptions, found: FoundExports) {
   const depth = options.depth ?? DEPTH;
-  const named = sets
-    .flatMap(set => (set.databases ? (set.names ?? []) : []))
-    .map(name => segmentPattern(name));
+  // The names a walk opens a file by, for any strategy's file formats.
+  const patterns = new Map(
+    sets.flatMap(set =>
+      (set.files ?? []).flatMap(format => format.names.map(name => [name, segmentPattern(name)]))
+    )
+  );
+  const gates = [...patterns.values()];
+  const fits = (format: FileFormat, name: string) =>
+    format.names.some(pattern => patterns.get(pattern)!.test(name));
 
   /**
    * Whether `dir` in `tree`, or anything in it, is an export. At the top of
@@ -307,9 +431,9 @@ function walker(base: string, sets: LayoutSet[], options: FindOptions, found: Fo
       if (skipped(name) || kind === 'link') continue;
       const child = within(dir, name);
       if (kind === 'file') {
-        // A file is opened only on disk, and only when it's named as a database is.
-        if (tree.onDisk && named.some(pattern => pattern.test(name))) {
-          any = (await searchFile(tree.onDisk(child))) || any;
+        // A file is opened only on disk, and only when a format's name fits it.
+        if (tree.onDisk && gates.some(pattern => pattern.test(name))) {
+          any = (await searchFile(tree.onDisk(child), true)) || any;
         }
         continue;
       }
@@ -343,7 +467,7 @@ function walker(base: string, sets: LayoutSet[], options: FindOptions, found: Fo
     }
     const parts = await partsOf(zip);
     try {
-      const tree = listingTree(await files.list());
+      const tree = listingTree(await files.list(), (path, bytes) => headIn(files, path, bytes));
       return await search(tree, '', level, dir => ({
         root: dir ? `${zip}/${dir}` : zip,
         ...(parts.length > 1 && { parts }),
@@ -354,34 +478,56 @@ function walker(base: string, sets: LayoutSet[], options: FindOptions, found: Fo
   };
 
   /**
-   * Whether a file is a database a strategy reads, by its schema: its
-   * tables, and whether it has every column a run needs. It's read without
-   * writing beside it.
+   * Whether a file is one a strategy reads, by its formats' conditions: in a
+   * walk, only the formats whose names fit it. A database that won't open is
+   * refused.
    */
-  const searchFile = async (file: string): Promise<boolean> => {
-    const databases = sets.filter(set => set.databases?.length);
-    if (databases.length === 0 || !(await isSqlite(file))) return false;
-    let columns;
-    try {
-      columns = readColumns(file);
-    } catch {
-      found.refused.push({ path: file, code: 'EDB' });
-      return false;
-    }
+  const searchFile = async (file: string, walk = false): Promise<boolean> => {
+    const name = basename(file);
+    const pages = new Map<number, Promise<Page | null>>();
+    let refused = false;
+    const subject: Subject = {
+      name,
+      locate: async () => null,
+      // Read once for every format that checks it.
+      head(path, bytes) {
+        if (path) return Promise.resolve(null);
+        if (!pages.has(bytes)) pages.set(bytes, headOfFile(file, bytes));
+        return pages.get(bytes)!;
+      },
+      async columns(path) {
+        if (path) return null;
+        try {
+          return await columnsOfFile(file);
+        } catch {
+          refused = true;
+          return null;
+        }
+      },
+    };
     const matches: LayoutMatch[] = [];
-    for (const { source, strategy, databases: schemas } of databases) {
-      const match = matchSchema(columns, schemas!);
-      if (!match) continue;
-      matches.push({
-        source,
-        strategy,
-        layout: match.schema,
-        files: [],
-        options: {},
-        tables: Object.keys(match.schema.tables),
-        ...(match.missing.length > 0 && { missing: match.missing }),
-      });
+    for (const { source, strategy, files: formats = [] } of sets) {
+      for (const format of formats) {
+        if (walk && !fits(format, name)) continue;
+        const matched = await evaluate(format.match, subject);
+        if (!matched.holds) continue;
+        const needs = await evaluate(format.requires, subject, { all: true });
+        const captures = { ...matched.captures, ...needs.captures };
+        matches.push({
+          source,
+          strategy,
+          layout: format,
+          ...(named(format.name, captures) && { name: named(format.name, captures) }),
+          files: [],
+          options: {},
+          ...(!needs.holds && { unmet: needs.unmet }),
+          ...(format.recordTypes && { recordTypes: format.recordTypes }),
+        });
+        // One format of a strategy is enough, as one layout is.
+        break;
+      }
     }
+    if (refused) found.refused.push({ path: file, code: 'EDB' });
     if (matches.length === 0) return false;
     found.exports.push({ root: file, file: true, matches });
     return true;
@@ -417,9 +563,10 @@ function walker(base: string, sets: LayoutSet[], options: FindOptions, found: Fo
  * several sources share a Takeout. The walk opens each zip it finds, reading
  * only its index, and reads a split Takeout's parts as one. It reads no file,
  * follows no link, and doesn't go into hidden folders or macOS bundles. It
- * opens a file only when it's named as a strategy's database is, to read its
- * schema. A file passed as the path is a database, or is looked for in the
- * export it's in, as is a folder with no export in it.
+ * reads the start of a file only for a condition a layout's paths already
+ * matched, or one a file format's name fits. A file passed as the path is
+ * one a strategy reads, or is looked for in the export it's in, as is a
+ * folder with no export in it.
  */
 export async function findExports(
   path: string,
@@ -451,16 +598,24 @@ export async function findExports(
 /**
  * Every export in a list of files, as a zip's index or a package's manifest
  * lists them, without looking at a disk. Roots are paths from the list's
- * top, `''` when the whole list is one export.
+ * top, `''` when the whole list is one export. With `head`, a condition can
+ * read the start of a file; without it, one that needs to doesn't hold.
  */
 export async function findExportsIn(
   paths: string[],
   sets: LayoutSet[],
-  options: FindOptions = {}
+  options: FindOptions & { head?: (path: string) => Promise<string | null> } = {}
 ): Promise<FoundExports> {
   const found = nothingFound();
   const { search } = walker('', sets, options, found);
-  await search(listingTree(paths), '', 0, dir => ({ root: dir }), true);
+  const { head } = options;
+  const read: Tree['head'] =
+    head &&
+    (async path => {
+      const text = await head(path);
+      return text === null ? null : { text, more: false };
+    });
+  await search(listingTree(paths, read), '', 0, dir => ({ root: dir }), true);
   found.exports.sort((a, b) => byName(a.root, b.root));
   return found;
 }

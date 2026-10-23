@@ -66,6 +66,12 @@
                 "files": [
                   "data/account.js",
                   "data/tweets.js"
+                ],
+                "match": [
+                  {
+                    "path": "data/account.js",
+                    "head": "^window\\.YTD\\.account\\.part0"
+                  }
                 ]
               }
             ],

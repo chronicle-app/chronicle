@@ -76,9 +76,15 @@
             "layouts": [
               {
                 "files": [
-                  "export.xml",
-                  "export_cda.xml"
-                ]
+                  "export.xml"
+                ],
+                "match": [
+                  {
+                    "path": "export.xml",
+                    "head": "<(?:!DOCTYPE )?HealthData\\b(?:[\\s\\S]{0,200}?HealthKit Export Version: (?<version>\\d+))?"
+                  }
+                ],
+                "name": "HealthKit {version}"
               }
             ]
           }

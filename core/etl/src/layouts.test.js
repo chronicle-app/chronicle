@@ -13,7 +13,14 @@ import { DatabaseSync } from 'node:sqlite';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
-import { findExports, findExportsIn, openExport, writeZip } from '../dist/index.js';
+import {
+  checkConditions,
+  evaluate,
+  findExports,
+  findExportsIn,
+  openExport,
+  writeZip,
+} from '../dist/index.js';
 
 const SETS = [
   {
@@ -253,9 +260,18 @@ const SAFARI = {
   source: 'safari',
   strategy: 'app-db',
   layouts: [],
-  names: ['History.db'],
-  databases: [
-    { tables: { history_items: ['id', 'url'], history_visits: ['id', 'visit_time', 'origin?'] } },
+  files: [
+    {
+      names: ['History.db'],
+      match: [{ sqlite: { tables: ['history_items', 'history_visits'] } }],
+      requires: [
+        {
+          sqlite: {
+            columns: { history_items: ['id', 'url'], history_visits: ['id', 'visit_time'] },
+          },
+        },
+      ],
+    },
   ],
 };
 
@@ -287,14 +303,13 @@ test('a database is found by its schema, and read without writing beside it', as
 
   const found = await findExports(dir, [SAFARI]);
   assert.deepEqual(
-    found.exports.map(e => [e.root.slice(dir.length + 1), e.file, e.matches[0].missing]),
+    found.exports.map(e => [e.root.slice(dir.length + 1), e.file, e.matches[0].unmet]),
     [
       ['safari/2019/History.db', true, ['history_visits.visit_time']],
       ['safari/2026-08-06/History.db', true, undefined],
       ['safari/History.db', true, undefined],
     ]
   );
-  assert.deepEqual(found.exports[0].matches[0].tables, ['history_items', 'history_visits']);
   assert.deepEqual(found.refused, [
     { path: join(dir, 'safari/encrypted/History.db'), code: 'EDB' },
   ]);
@@ -310,4 +325,155 @@ test('a database is found by its schema, and read without writing beside it', as
   );
   const notOne = await findExports(join(dir, 'notes/History.db'), [SAFARI]);
   assert.deepEqual(notOne.unrecognized, ['History.db']);
+});
+
+const GOODREADS = {
+  source: 'goodreads',
+  strategy: 'csv',
+  layouts: [],
+  files: [
+    {
+      names: ['*.csv'],
+      match: [{ csv: ['Book Id', 'Title', 'Author'] }],
+      requires: [{ csv: ['Exclusive Shelf'] }],
+    },
+  ],
+};
+const MARVIN = {
+  source: 'marvin',
+  strategy: 'csv',
+  layouts: [],
+  files: [
+    { names: ['*.csv'], recordTypes: ['annotations'], match: [{ csv: ['ID', 'HighlightText'] }] },
+    {
+      names: ['*.csv'],
+      recordTypes: ['reading-sessions'],
+      match: [{ csv: ['Session ID', 'Part Time'] }],
+    },
+  ],
+};
+const EMAIL = {
+  source: 'email',
+  strategy: 'mbox',
+  layouts: [],
+  files: [{ names: ['*.mbox'], match: [{ head: '^From ' }] }],
+};
+const GMAIL = {
+  source: 'gmail',
+  strategy: 'takeout',
+  layouts: [],
+  files: [{ names: ['*.mbox'], match: [{ headers: ['X-GM-THRID'] }] }],
+};
+const HEALTH_BY_HEAD = {
+  source: 'apple-health',
+  strategy: 'archive',
+  layouts: [
+    {
+      files: ['export.xml'],
+      name: 'HealthKit {version}',
+      match: [
+        {
+          path: 'export.xml',
+          head: '<(?:!DOCTYPE )?HealthData\\b(?:[\\s\\S]{0,200}?HealthKit Export Version: (?<version>\\d+))?',
+        },
+      ],
+      requires: [{ path: 'export.xml', not: { head: 'HealthKit Export Version: [1-9]\\b' } }],
+    },
+  ],
+};
+
+const DOCTYPE =
+  '<?xml version="1.0"?>\n<!DOCTYPE HealthData [\n<!-- HealthKit Export Version: 14 -->\n';
+const GMAIL_MBOX =
+  'From 1@xxx Wed Jun 22 19:27:30 +0000 2016\nX-GM-THRID: 1\nX-Gmail-Labels: Inbox\nSubject: hi\n\nbody\n';
+
+test('a layout says how its files start, captures from them, and what its reader needs', async t => {
+  const dir = plant(scratch(t), {
+    'health/export.xml': `${DOCTYPE}<HealthData/>`,
+    'old-health/export.xml': '<!DOCTYPE HealthData [\n<!-- HealthKit Export Version: 9 -->\n',
+    'not-health/export.xml': '<Export/>',
+  });
+  writeZip(join(dir, 'export.zip'), {
+    'apple_health_export/export.xml': `${DOCTYPE}<HealthData/>`,
+  });
+  const found = await findExports(dir, [HEALTH_BY_HEAD]);
+  assert.deepEqual(
+    found.exports.map(e => [e.root.slice(dir.length + 1), e.matches[0].name, e.matches[0].unmet]),
+    [
+      // Inside a zip, a file's start is read from its entry.
+      ['export.zip/apple_health_export', 'HealthKit 14', undefined],
+      ['health', 'HealthKit 14', undefined],
+      ['old-health', 'HealthKit 9', [`not {"head":"HealthKit Export Version: [1-9]\\\\b"}`]],
+    ]
+  );
+  // An export.xml that isn't Health's is no export.
+  assert.deepEqual(found.unrecognized, ['not-health']);
+
+  // Without a way to read a file, a condition that would read one doesn't hold.
+  const listed = await findExportsIn(['health/export.xml'], [HEALTH_BY_HEAD]);
+  assert.deepEqual(listed.exports, []);
+  const read = await findExportsIn(['health/export.xml'], [HEALTH_BY_HEAD], {
+    head: async () => DOCTYPE,
+  });
+  assert.deepEqual(
+    read.exports.map(e => e.root),
+    ['health']
+  );
+});
+
+test('a file is found by its format: CSV columns, an mbox and its headers', async t => {
+  const dir = plant(join(scratch(t), 'data'), {
+    'csv/goodreads_library_export.csv': 'Book Id,Title,Author,Exclusive Shelf\n1,"A, B",C,read\n',
+    'csv/goodreads-old.csv': 'Book Id,Title,Author\n1,A,C\n',
+    'csv/residences.csv': 'Place,From,To\n',
+    'marvin/Journal.csv': '﻿ID,Type,Title,HighlightText\n"x",1,T,H\n',
+    'marvin/Reading Sessions.csv': 'Session ID, Part ID, Part Time\n"a","b","1"\n',
+    'email/All mail.mbox': GMAIL_MBOX,
+    'email/sample.mbox': 'From someone Mon Jan 1 00:00:00 2024\nSubject: hi\n\nbody\n',
+    // A CSV's columns, under another extension, aren't opened in a walk.
+    'email/notes.txt': 'Book Id,Title,Author\n',
+  });
+  const sets = [GOODREADS, MARVIN, EMAIL, GMAIL];
+  const found = await findExports(dir, sets);
+  const rows = found.exports.flatMap(e =>
+    e.matches.map(m => [e.root.slice(dir.length + 1), m.source, m.recordTypes?.join(','), m.unmet])
+  );
+  assert.deepEqual(rows, [
+    ['csv/goodreads-old.csv', 'goodreads', undefined, ['the file has no Exclusive Shelf column']],
+    ['csv/goodreads_library_export.csv', 'goodreads', undefined, undefined],
+    // Gmail's mbox is an mbox too, so both read it.
+    ['email/All mail.mbox', 'email', undefined, undefined],
+    ['email/All mail.mbox', 'gmail', undefined, undefined],
+    ['email/sample.mbox', 'email', undefined, undefined],
+    ['marvin/Journal.csv', 'marvin', 'annotations', undefined],
+    ['marvin/Reading Sessions.csv', 'marvin', 'reading-sessions', undefined],
+  ]);
+
+  // Passed as the path, a file is checked whatever its name.
+  const direct = await findExports(join(dir, 'email/notes.txt'), sets);
+  assert.deepEqual(
+    direct.exports.map(e => e.matches[0].source),
+    ['goodreads']
+  );
+});
+
+test('conditions combine, and a manifest’s are checked before they run', async () => {
+  const subject = {
+    name: 'x.mbox',
+    locate: async () => null,
+    head: async () => ({ text: GMAIL_MBOX, more: false }),
+    columns: async () => null,
+  };
+  const holds = async conditions => (await evaluate(conditions, subject)).holds;
+  assert.equal(await holds([{ name: '*.mbox', headers: ['x-gm-thrid', 'Subject'] }]), true);
+  assert.equal(await holds([{ any: [{ head: '^Nope' }, { head: '^From (?<id>\\d+)' }] }]), true);
+  assert.deepEqual((await evaluate([{ head: '^From (?<id>\\d+)@' }], subject)).captures, {
+    id: '1',
+  });
+  assert.equal(await holds([{ not: { headers: ['X-GM-THRID'] } }]), false);
+  assert.equal(await holds([{ csv: ['From'] }]), false);
+  assert.equal(await holds([{ sqlite: { tables: ['t'] } }]), false);
+  assert.throws(() => checkConditions([{ heed: 'x' }]), /no condition heed/);
+  assert.throws(() => checkConditions([{ head: '(' }]), /Invalid regular expression/);
+  assert.throws(() => checkConditions([{}]), /empty condition/);
 });

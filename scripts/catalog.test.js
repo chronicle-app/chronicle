@@ -72,7 +72,12 @@ test('each manifest matches its plugin’s exported extractor classes', async ()
       declared[name] = {};
       for (const [strategyName, strategy] of Object.entries(source.strategies)) {
         // Where it's found, and what its exports look like, aren't things the extractor classes say.
-        const { locations: _locations, layouts: _layouts, ...declaredStrategy } = strategy;
+        const {
+          locations: _locations,
+          layouts: _layouts,
+          files: _files,
+          ...declaredStrategy
+        } = strategy;
         declared[name][strategyName] = { ...declaredStrategy, default: Boolean(strategy.default) };
       }
     }
@@ -122,7 +127,7 @@ test('each locator and declared location belongs to a strategy, and binds only i
 });
 
 test('each layout is paths from where its export starts, and matches only its own export', async () => {
-  const { findExportsIn, segmentPattern } = await import(
+  const { checkConditions, findExportsIn, segmentPattern } = await import(
     new URL('core/etl/dist/index.js', root).href
   );
   const sets = [];
@@ -140,6 +145,7 @@ test('each layout is paths from where its export starts, and matches only its ow
         );
         for (const layout of layouts) {
           assert.ok(layout.files?.length > 0, `${pkg.name}: a layout of ${name} names no files`);
+          checkConditions([...(layout.match ?? []), ...(layout.requires ?? [])], pkg.name);
           for (const file of layout.files) {
             const segments = file.split('/');
             assert.ok(
@@ -161,7 +167,13 @@ test('each layout is paths from where its export starts, and matches only its ow
             }
           }
         }
-        sets.push({ source, strategy: name, layouts, plugin: pkg.name });
+        // Across plugins, layouts are compared by their paths, which need no file's contents.
+        sets.push({
+          source,
+          strategy: name,
+          layouts: layouts.map(layout => ({ files: layout.files })),
+          plugin: pkg.name,
+        });
       }
     }
   }
@@ -181,6 +193,27 @@ test('each layout is paths from where its export starts, and matches only its ow
         [],
         `${plugin}: ${source} ${strategy}'s export also matches another strategy's layout`
       );
+    }
+  }
+});
+
+test('each file format names what a walk opens, and checks what it can', async () => {
+  const { checkConditions, segmentPattern } = await import(
+    new URL('core/etl/dist/index.js', root).href
+  );
+  for (const { pkg } of workspace) {
+    for (const { strategies } of Object.values(pkg.chronicle.sources ?? {})) {
+      for (const [name, strategy] of Object.entries(strategies)) {
+        for (const format of strategy.files ?? []) {
+          assert.ok(format.names?.length > 0, `${pkg.name}: a file of ${name} opens by no name`);
+          for (const pattern of format.names) segmentPattern(pattern);
+          assert.ok(format.match?.length > 0, `${pkg.name}: a file of ${name} matches anything`);
+          checkConditions([...format.match, ...(format.requires ?? [])], pkg.name);
+          for (const type of format.recordTypes ?? []) {
+            assert.ok(strategy.recordTypes.includes(type), `${pkg.name}: ${name} has no ${type}`);
+          }
+        }
+      }
     }
   }
 });

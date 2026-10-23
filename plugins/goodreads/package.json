@@ -64,7 +64,35 @@
             "recordTypes": [
               "shelves"
             ],
-            "default": true
+            "default": true,
+            "files": [
+              {
+                "names": [
+                  "*.csv"
+                ],
+                "match": [
+                  {
+                    "csv": [
+                      "Book Id",
+                      "Title",
+                      "Author",
+                      "Exclusive Shelf"
+                    ]
+                  }
+                ],
+                "requires": [
+                  {
+                    "csv": [
+                      "Additional Authors",
+                      "My Review",
+                      "Bookshelves",
+                      "Date Read",
+                      "Date Added"
+                    ]
+                  }
+                ]
+              }
+            ]
           }
         }
       }

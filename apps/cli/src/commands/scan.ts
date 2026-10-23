@@ -22,7 +22,7 @@ export function statusText(row: ScanRow): string {
   if (row.status === 'blocked') return 'needs Full Disk Access';
   // Installing its plugin wouldn't help.
   if (row.status === 'unsupported') {
-    return row.evidence.tables ? 'version not supported' : 'layout not supported';
+    return row.evidence.unmet ? 'version not supported' : 'layout not supported';
   }
   if (!row.installed) return 'plugin not installed';
   switch (row.status) {

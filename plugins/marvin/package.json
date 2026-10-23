@@ -65,7 +65,62 @@
               "annotations",
               "reading-sessions"
             ],
-            "default": true
+            "default": true,
+            "files": [
+              {
+                "names": [
+                  "*.csv"
+                ],
+                "recordTypes": [
+                  "annotations"
+                ],
+                "match": [
+                  {
+                    "csv": [
+                      "ID",
+                      "Type",
+                      "HighlightText",
+                      "EntryText"
+                    ]
+                  }
+                ],
+                "requires": [
+                  {
+                    "csv": [
+                      "Title",
+                      "Author",
+                      "Created"
+                    ]
+                  }
+                ]
+              },
+              {
+                "names": [
+                  "*.csv"
+                ],
+                "recordTypes": [
+                  "reading-sessions"
+                ],
+                "match": [
+                  {
+                    "csv": [
+                      "Session ID",
+                      "Part ID",
+                      "Part Time"
+                    ]
+                  }
+                ],
+                "requires": [
+                  {
+                    "csv": [
+                      "Date Created",
+                      "Book Title",
+                      "Book Author"
+                    ]
+                  }
+                ]
+              }
+            ]
           }
         }
       }

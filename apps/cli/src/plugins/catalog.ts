@@ -1,7 +1,13 @@
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { Delivery, type DatabaseSchema, type Layout, type Location } from '@chronicle.app/etl';
+import {
+  Delivery,
+  type DatabaseSchema,
+  type FileFormat,
+  type Layout,
+  type Location,
+} from '@chronicle.app/etl';
 import {
   PluginScanner,
   cliRoot,
@@ -34,6 +40,8 @@ export interface ManifestStrategy {
   layouts?: Layout[];
   /** The tables and columns of the SQLite databases it reads, for `scan <path>`. */
   databases?: DatabaseSchema[];
+  /** What one file it reads looks like, for `scan <path>`. */
+  files?: FileFormat[];
 }
 
 export interface ManifestSource {

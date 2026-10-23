@@ -1008,7 +1008,7 @@ test('scan finds the exports in a folder or zip, with the command that reads eac
   const [zipped] = rows;
   assert.equal(zipped.root, join(root, 'export.zip', 'apple_health_export'));
   assert.equal(zipped.command, `chronicle extract apple-health --input ${zipped.root}`);
-  assert.deepEqual(zipped.evidence.files, ['export.xml', 'export_cda.xml']);
+  assert.deepEqual(zipped.evidence.files, ['export.xml']);
   assert.match(zipped.pluginVersion, /^\d+\.\d+\.\d+/);
 
   // The table, with what it didn't recognize, couldn't open, and what to run next.
@@ -1086,7 +1086,7 @@ test(
 
     const rows = JSON.parse(success(scan('scan', root, '--format', 'json')));
     assert.deepEqual(
-      rows.map(r => [r.source, r.label, r.status, r.evidence.missing]),
+      rows.map(r => [r.source, r.label, r.status, r.evidence.unmet]),
       [
         ['safari', 'safari/2026-08-06/History.db', 'ready', undefined],
         ['safari', 'safari/2019/History.db', 'unsupported', ['history_visits.origin']],

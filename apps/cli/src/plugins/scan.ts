@@ -12,6 +12,7 @@ import {
   type Candidate,
   type CandidateStatus,
   type DatabaseSchema,
+  type FileFormat,
   type FoundExport,
   type LayoutMatch,
   type LocateContext,
@@ -44,6 +45,8 @@ export interface ScanRow {
   root?: string;
   /** The name of the export's layout, when its plugin gives it one. */
   layout?: string;
+  /** For a file: the record types it holds, when it doesn't hold them all. */
+  recordTypes?: string[];
   /** How many zips a split Takeout came in. */
   parts?: number;
   /** The installed plugin's version, so a count can say which plugin made it. */
@@ -55,10 +58,8 @@ export interface ScanRow {
     credential?: string;
     /** For an export in a path: the files its layout matched, from where it starts. */
     files?: string[];
-    /** For a database in a path: the tables its schema names. */
-    tables?: string[];
-    /** For a database in a path: the columns a run needs that it lacks. */
-    missing?: string[];
+    /** What a run needs that isn't there, when it can't read what was found. */
+    unmet?: string[];
   };
 }
 
@@ -168,7 +169,7 @@ export async function check(
 async function checkSchema(
   file: string,
   schemas: DatabaseSchema[]
-): Promise<{ status: CandidateStatus; tables?: string[]; missing?: string[] }> {
+): Promise<{ status: CandidateStatus; unmet?: string[] }> {
   if (!(await isSqlite(file))) return { status: 'unreadable' };
   let match;
   try {
@@ -177,9 +178,29 @@ async function checkSchema(
     return { status: 'unreadable' };
   }
   if (!match) return { status: 'unreadable' };
-  const tables = Object.keys(match.schema.tables);
-  if (match.missing.length > 0) return { status: 'unsupported', tables, missing: match.missing };
-  return { status: match.schema.supported === false ? 'unsupported' : 'ready', tables };
+  if (match.missing.length > 0) return { status: 'unsupported', unmet: match.missing };
+  return { status: match.schema.supported === false ? 'unsupported' : 'ready' };
+}
+
+/**
+ * A database's schema as a file format: its tables say whose it is, and the
+ * columns its reader needs say whether a run can read it. A walk opens a
+ * file named as the database is where it lives.
+ */
+function databaseFormat(schema: DatabaseSchema, locations: Location[]): FileFormat {
+  const columns = Object.fromEntries(
+    Object.entries(schema.tables).map(([table, wanted]) => [
+      table,
+      wanted.filter(column => !column.endsWith('?')),
+    ])
+  );
+  return {
+    names: locations.map(location => path.basename(location.path)),
+    match: [{ sqlite: { tables: Object.keys(schema.tables) } }],
+    requires: [{ sqlite: { columns } }],
+    ...(schema.name && { name: schema.name }),
+    ...(schema.supported === false && { supported: false }),
+  };
 }
 
 /** A word for the shell: bare when it needs no quoting, else in double quotes. */
@@ -319,8 +340,7 @@ async function scanStrategy(
         ...(modifiedAt && { modifiedAt: modifiedAt.toISOString() }),
         ...(bytes !== undefined && { bytes }),
         ...(candidate.credential && { credential: candidate.credential }),
-        ...(schema?.tables && { tables: schema.tables }),
-        ...(schema?.missing && { missing: schema.missing }),
+        ...(schema?.unmet && { unmet: schema.unmet }),
       },
     });
   }
@@ -418,7 +438,8 @@ function exportLabel(exported: FoundExport, match: LayoutMatch, scanned: string)
   const where = !relative || relative.startsWith('..') ? path.basename(exported.root) : relative;
   const notes = [
     exported.parts && `${exported.parts.length} parts`,
-    match.layout.name && `${match.layout.name} layout`,
+    match.name,
+    match.recordTypes?.join(', '),
   ].filter(Boolean);
   return `${where}${folder ? '/' : ''}${notes.length > 0 ? ` (${notes.join(', ')})` : ''}`;
 }
@@ -438,14 +459,20 @@ export async function scanPath(
   const listings = (await listSources()).filter(l => l.supported);
   const sets = listings.flatMap(listing =>
     listing.strategies
-      .filter(strategy => strategy.layouts?.length || strategy.databases?.length)
+      .filter(
+        strategy => strategy.layouts?.length || strategy.files?.length || strategy.databases?.length
+      )
       .map(strategy => ({
         source: listing.source,
         strategy: strategy.name,
         layouts: strategy.layouts ?? [],
-        databases: strategy.databases,
-        // A copy keeps the name its app gave it.
-        names: strategy.locations?.map(location => path.basename(location.path)),
+        files: [
+          ...(strategy.files ?? []),
+          // A copy of a database keeps the name its app gave it.
+          ...(strategy.databases ?? []).map(schema =>
+            databaseFormat(schema, strategy.locations ?? [])
+          ),
+        ],
       }))
   );
   const found = await findExports(scanned, sets, { onFolder: options.onFolder });
@@ -463,20 +490,20 @@ export async function scanPath(
         source: listing.source,
         strategy: match.strategy,
         label: exportLabel(exported, match, scanned),
-        status: match.layout.supported === false || match.missing ? 'unsupported' : 'ready',
+        status: match.layout.supported === false || match.unmet ? 'unsupported' : 'ready',
         installed: listing.installed,
         plugin: listing.plugin,
         config,
-        command: commandFor(listing, match.strategy, config, home),
+        command: commandFor(listing, match.strategy, config, home, match.recordTypes),
         root: exported.root,
-        ...(match.layout.name && { layout: match.layout.name }),
+        ...(match.name && { layout: match.name }),
+        ...(match.recordTypes && { recordTypes: match.recordTypes }),
         ...(exported.parts && { parts: exported.parts.length }),
         ...(listing.version && { pluginVersion: listing.version }),
         evidence: {
           path: exported.root,
           files: match.files,
-          ...(match.tables && { tables: match.tables }),
-          ...(match.missing && { missing: match.missing }),
+          ...(match.unmet && { unmet: match.unmet }),
         },
       });
     }

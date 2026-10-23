@@ -102,12 +102,23 @@ export {
   findExportsIn,
   type FindOptions,
   type FoundExport,
+  type FileFormat,
   type FoundExports,
   type Layout,
   type LayoutMatch,
   type LayoutSet,
   type Refused,
 } from './archive/layouts.js';
+export {
+  FIRST_BYTES,
+  HEAD_BYTES,
+  checkConditions,
+  evaluate,
+  type Condition,
+  type Outcome,
+  type Page,
+  type Subject,
+} from './archive/conditions.js';
 export {
   columnsOf,
   isSqlite,
