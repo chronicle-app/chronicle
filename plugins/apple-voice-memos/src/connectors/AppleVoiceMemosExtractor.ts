@@ -72,6 +72,22 @@ export class AppleVoiceMemosExtractor extends SqliteExtractor<typeof AppleVoiceM
   static override default = true;
   static override defaultTransformer = AppleVoiceMemosTransformer;
   static override newestFirst = true;
+  // What extract() and survey() read, which a CloudRecordings.db must have.
+  static override databases = [
+    {
+      tables: {
+        ZCLOUDRECORDING: [
+          'ZUNIQUEID',
+          'ZDATE',
+          'ZDURATION',
+          'ZENCRYPTEDTITLE',
+          'ZPATH',
+          'ZFLAGS',
+          'ZEVICTIONDATE',
+        ],
+      },
+    },
+  ];
 
   static override schema = SqliteExtractor.schema.omit({ input: true }).extend({
     input: z.string().describe('Path to CloudRecordings.db').default(DEFAULT_DB),

@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, isAbsolute, join, relative } from 'node:path';
 import { monthKey } from '@chronicle.app/etl';
+import { writeSchemaDatabase } from '@chronicle.app/etl-sqlite';
 import { AppleVoiceMemosExtractor, AppleVoiceMemosTransformer } from '../dist/index.js';
 import { account, ids, writeAppleVoiceMemosFixture } from './fixture.test-helper.js';
 
@@ -49,6 +50,35 @@ async function survey(t, config = {}, options = {}) {
   }
 }
 const surveyBy = t => survey(t, {}, { byMonth: true });
+
+test('its declared schema is all its queries read, and a CloudRecordings.db without it is refused', async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'apple-voice-memos-schema-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const [schema] = AppleVoiceMemosExtractor.databases;
+  const run = async (input, read) => {
+    const extractor = new AppleVoiceMemosExtractor({ input, account, limit: 0 });
+    try {
+      await extractor.setup();
+      return await read(extractor);
+    } finally {
+      await extractor.teardown();
+    }
+  };
+  const records = input => run(input, extractor => Array.fromAsync(extractor.extract()));
+  const input = join(dir, 'CloudRecordings.db');
+  writeSchemaDatabase(input, schema, { optional: false });
+  assert.deepEqual(await records(input), []);
+  assert.equal((await run(input, extractor => extractor.survey())).recordings.count, 0);
+
+  // An older Voice Memos', say, without a column its queries read.
+  const older = join(dir, 'older.db');
+  const recordings = schema.tables.ZCLOUDRECORDING.filter(column => column !== 'ZEVICTIONDATE');
+  writeSchemaDatabase(older, { tables: { ZCLOUDRECORDING: recordings } });
+  await assert.rejects(records(older), {
+    message: /version of the database/,
+    fields: { path: older, missing: ['ZCLOUDRECORDING.ZEVICTIONDATE'] },
+  });
+});
 
 const transformer = new AppleVoiceMemosTransformer();
 const transform = async record => (await transformer.performTransform(record))[0].data;
