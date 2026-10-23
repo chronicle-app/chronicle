@@ -96,6 +96,52 @@ export class ApplePodcastsExtractor extends SqliteExtractor<typeof ApplePodcasts
   static override description = 'Podcast listens and subscriptions';
   static override recordTypes = ['listens', 'subscriptions'];
   static override default = true;
+  // What extract() and survey() read, which an MTLibrary.sqlite must have.
+  static override databases = [
+    {
+      tables: {
+        ZMTEPISODE: [
+          'ZGUID',
+          'ZTITLE',
+          'ZAUTHOR',
+          'ZPLAYHEAD',
+          'ZPLAYCOUNT',
+          'ZPLAYSTATELASTMODIFIEDDATE',
+          'ZLASTDATEPLAYED',
+          'ZLASTUSERMARKEDASPLAYEDDATE',
+          'ZISBOOKMARKED',
+          'ZLASTBOOKMARKEDDATE',
+          'ZPUBDATE',
+          'ZSTORETRACKID',
+          'ZWEBPAGEURL',
+          'ZARTWORKTEMPLATEURL',
+          'ZPODCASTUUID',
+          'ZCURRENTMEDIAENCLOSURE',
+          'ZDESCRIPTIONOBJECT',
+          'ZMETADATAIDENTIFIER',
+        ],
+        ZMTPODCAST: [
+          'ZUUID',
+          'ZTITLE',
+          'ZAUTHOR',
+          'ZCATEGORY',
+          'ZFEEDURL',
+          'ZUPDATEDFEEDURL',
+          'ZIMAGEURL',
+          'ZSTORECOLLECTIONID',
+          'ZWEBPAGEURL',
+          'ZITEMDESCRIPTION',
+          'ZCHANNEL',
+          'ZSUBSCRIBED',
+          'ZADDEDDATE',
+        ],
+        ZMTCHANNEL: ['Z_PK', 'ZSTOREID', 'ZNAME'],
+        ZMTMEDIAENCLOSURE: ['Z_PK', 'ZDURATION', 'ZREMOTEURL', 'ZTRANSCRIPTIDENTIFIER'],
+        ZMTEPISODEDESCRIPTION: ['Z_PK', 'ZTEXT'],
+        ZMTUPPMETADATA: ['ZMETADATAIDENTIFIER', 'ZTIMESTAMP'],
+      },
+    },
+  ];
   // Make `input` optional with the app's group-container path as the default, so
   // the CLI doesn't demand `--input` on a normal install. (Schema validation runs
   // before the constructor, so a constructor default wouldn't take effect.)

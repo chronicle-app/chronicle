@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { monthKey } from '@chronicle.app/etl';
+import { writeSchemaDatabase } from '@chronicle.app/etl-sqlite';
 import { ApplePodcastsExtractor, ApplePodcastsTransformer } from '../dist/index.js';
 import { account, writeApplePodcastsFixture } from './fixture.test-helper.js';
 
@@ -250,6 +251,37 @@ async function survey(t, config = {}, options = {}) {
     await extractor.teardown();
   }
 }
+
+test('its declared schema is all its queries read, and an MTLibrary.sqlite without it is refused', async t => {
+  const dir = tempDir(t);
+  const [schema] = ApplePodcastsExtractor.databases;
+  const run = async (input, read) => {
+    const extractor = new ApplePodcastsExtractor({ input, account, limit: 0 });
+    try {
+      await extractor.setup();
+      return await read(extractor);
+    } finally {
+      await extractor.teardown();
+    }
+  };
+  const records = input => run(input, extractor => Array.fromAsync(extractor.extract()));
+  const input = join(dir, 'MTLibrary.sqlite');
+  writeSchemaDatabase(input, schema, { optional: false });
+  assert.deepEqual(await records(input), []);
+  const counted = await run(input, extractor => extractor.survey({ byMonth: true }));
+  assert.equal(counted.listens.count + counted.subscriptions.count, 0);
+
+  // An older Podcasts', say, without a column its queries read.
+  const older = join(dir, 'older.sqlite');
+  const enclosures = schema.tables.ZMTMEDIAENCLOSURE.filter(
+    column => column !== 'ZTRANSCRIPTIDENTIFIER'
+  );
+  writeSchemaDatabase(older, { tables: { ...schema.tables, ZMTMEDIAENCLOSURE: enclosures } });
+  await assert.rejects(records(older), {
+    message: /version of the database/,
+    fields: { path: older, missing: ['ZMTMEDIAENCLOSURE.ZTRANSCRIPTIDENTIFIER'] },
+  });
+});
 
 const ofType = (records, recordType) =>
   records.filter(record => record.extraction.recordType === recordType);
