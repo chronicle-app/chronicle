@@ -24,6 +24,12 @@ const BUILTIN_MEAL_TYPES: { [id: string]: string } = {
   '4': 'Snacks',
 };
 
+// When an entry was eaten: its time, or for one logged to a day without a
+// time, the middle of that day in UTC, so it falls on that day in any zone
+// within twelve hours. `day` is the day it was logged to, a Julian day number
+// in FoodNoms, which strftime reads as it does a date.
+const EATEN_AT = `COALESCE(f.date, strftime('%Y-%m-%d 12:00:00.000', f.day))`;
+
 export class FoodNomsExtractor extends SqliteExtractor<typeof FoodNomsExtractor> {
   static override source = 'foodnoms';
   static override strategy = 'app-db';
@@ -73,14 +79,31 @@ export class FoodNomsExtractor extends SqliteExtractor<typeof FoodNomsExtractor>
     return date.toISOString().replace('T', ' ').replace('Z', '');
   }
 
-  /** Entries within since and until, both inclusive. */
+  /**
+   * Entries eaten within since and until, both inclusive. A food in a saved
+   * collection (a recipe, a saved meal) is an entry too, but one never eaten,
+   * with no time or day, so it's left out.
+   */
   private entryFilter(): { where: string; values: Array<number | string> } {
-    const range = timeRangeConditions('f.date', this.config, {
+    const range = timeRangeConditions(EATEN_AT, this.config, {
       convert: date => this.toDbDate(date),
       sinceOp: '>=',
       untilOp: '<=',
     });
-    return { where: [`1=1`, ...range.conditions].join(' AND '), values: range.values };
+    const collected = this.hasColumn('collectionEditID') ? ['f.collectionEditID IS NULL'] : [];
+    return {
+      where: [`1=1`, ...collected, ...range.conditions].join(' AND '),
+      values: range.values,
+    };
+  }
+
+  /** Whether the entry table has a column, which an older FoodNoms may not. */
+  private hasColumn(name: string): boolean {
+    return Boolean(
+      this.db!.prepare(`SELECT 1 FROM pragma_table_info('foodEntryRecord') WHERE name = ?`).get(
+        name
+      )
+    );
   }
 
   async *extract(): AsyncGenerator<Record> {
@@ -100,6 +123,7 @@ export class FoodNomsExtractor extends SqliteExtractor<typeof FoodNomsExtractor>
         f.id,
         hex(f.entryID) as entryID,
         f.date,
+        ${EATEN_AT} as eatenAt,
         f.dateCreated,
         f.dateLastUpdated,
         f.tzID,
@@ -130,7 +154,7 @@ export class FoodNomsExtractor extends SqliteExtractor<typeof FoodNomsExtractor>
       FROM foodEntryRecord f
       LEFT JOIN mealTypeRecord m ON f.mealTypeID = m.mealTypeID
       WHERE ${where}
-      ORDER BY f.date DESC
+      ORDER BY ${EATEN_AT} DESC
       ${limit === null ? '' : 'LIMIT ?'}
     `;
 
@@ -158,6 +182,7 @@ export class FoodNomsExtractor extends SqliteExtractor<typeof FoodNomsExtractor>
         entryID: this.hexToUuid((row as any).entryID),
         nutrients,
         date: (row as any).date ? (row as any).date + 'Z' : null,
+        eatenAt: (row as any).eatenAt ? (row as any).eatenAt + 'Z' : null,
         dateCreated: (row as any).dateCreated ? (row as any).dateCreated + 'Z' : null,
         dateLastUpdated: (row as any).dateLastUpdated ? (row as any).dateLastUpdated + 'Z' : null,
       };
@@ -191,25 +216,19 @@ export class FoodNomsExtractor extends SqliteExtractor<typeof FoodNomsExtractor>
   override async survey(options: SurveyOptions = {}): Promise<Survey | null> {
     if (!this.db) return null;
     const { where, values } = this.entryFilter();
+    const from = `FROM foodEntryRecord f
+      LEFT JOIN mealTypeRecord m ON f.mealTypeID = m.mealTypeID
+      WHERE ${where}`;
     const row = this.db
-      .prepare(
-        `SELECT COUNT(*) AS n, MIN(f.date) AS first, MAX(f.date) AS last
-        FROM foodEntryRecord f
-        LEFT JOIN mealTypeRecord m ON f.mealTypeID = m.mealTypeID
-        WHERE ${where}`
-      )
+      .prepare(`SELECT COUNT(*) AS n, MIN(${EATEN_AT}) AS first, MAX(${EATEN_AT}) AS last ${from}`)
       .get(...values) as { n: number; first: string | null; last: string | null };
     // strftime reads the naive date strings as UTC too.
+    const month = monthSql(`CAST(strftime('%s', ${EATEN_AT}) AS INTEGER)`);
     const byMonth =
       options.byMonth &&
       countsByMonth(
         this.db
-          .prepare(
-            `SELECT ${monthSql(`CAST(strftime('%s', f.date) AS INTEGER)`)} AS month, COUNT(*) AS n
-            FROM foodEntryRecord f
-            LEFT JOIN mealTypeRecord m ON f.mealTypeID = m.mealTypeID
-            WHERE ${where} GROUP BY month`
-          )
+          .prepare(`SELECT ${month} AS month, COUNT(*) AS n ${from} GROUP BY month`)
           .all(...values) as Array<{ month: string | null; n: number }>
       );
     // Naive UTC date strings, read as the UTC instants they are, as extract() does.
