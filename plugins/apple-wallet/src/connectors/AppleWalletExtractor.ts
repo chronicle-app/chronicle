@@ -176,6 +176,7 @@ export class AppleWalletExtractor extends SqliteExtractor<typeof AppleWalletExtr
       },
     },
   ];
+
   // A pending transaction's amount can change when it posts, so a run is a
   // read of each transaction's current state, sighted at read time.
   static override temporality = 'snapshot' as const;

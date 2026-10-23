@@ -81,6 +81,7 @@ export class WhatsappExtractor extends SqliteExtractor<typeof WhatsappExtractor>
       },
     },
   ];
+
   static override schema = SqliteExtractor.schema.omit({ input: true }).extend({
     input: z
       .string()

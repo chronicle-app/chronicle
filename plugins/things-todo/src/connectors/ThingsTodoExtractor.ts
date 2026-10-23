@@ -129,6 +129,7 @@ export class ThingsTodoExtractor extends SqliteExtractor<typeof ThingsTodoExtrac
       },
     },
   ];
+
   static override schema = SqliteExtractor.schema.omit({ input: true }).extend({
     input: z
       .string()

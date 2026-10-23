@@ -50,6 +50,7 @@ export class ImessageExtractor extends SqliteExtractor<typeof ImessageExtractor>
       },
     },
   ];
+
   static override schema = SqliteExtractor.schema.omit({ input: true }).extend({
     input: z
       .string()

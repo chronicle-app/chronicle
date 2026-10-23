@@ -142,6 +142,7 @@ export class ApplePodcastsExtractor extends SqliteExtractor<typeof ApplePodcasts
       },
     },
   ];
+
   // Make `input` optional with the app's group-container path as the default, so
   // the CLI doesn't demand `--input` on a normal install. (Schema validation runs
   // before the constructor, so a constructor default wouldn't take effect.)
