@@ -167,14 +167,13 @@ test('bookmarks are dated when Safari added them, newest first', async t => {
       ['F-1', '2025-01-01T03:00:00.000Z', ['Favorites']],
       ['R-1', '2025-01-01T02:00:00.000Z', ['Reading List']],
       ['B-2', '2025-01-01T01:00:00.000Z', ['Favorites', 'Design']],
-      // Those Safari didn't date come last, in the order of the file.
-      ['F-2', null, ['Favorites']],
-      ['B-3', null, []],
-      ['LOCAL-UUID', null, []],
+      ['B-3', '2024-12-31T23:00:00.000Z', []],
+      // Keyed by its ID on this Mac, as it doesn't sync.
+      ['LOCAL-UUID', '2024-12-31T22:00:00.000Z', []],
+      // F-2, which Safari didn't date, is left out.
     ]
   );
 
-  // A bound leaves out what has no date.
   const since = new Date('2025-01-01T01:30:00Z');
   assert.deepEqual(
     (await bookmarks(t, { since })).map(r => r.data.id),
@@ -230,9 +229,8 @@ test('a bookmark is a BookmarkAction whose target is its folder', async t => {
     '@asserts': ['*'],
   });
 
-  // Without a date or a folder, there's neither; without a title, the URL names the page.
-  const [undated] = await transformer.performTransform(rows.find(r => r.data.id === 'B-3'));
-  assert.equal(undated.data.timestamp, undefined);
-  assert.equal(undated.data.target, undefined);
-  assert.equal(undated.data.object.name, 'https://example.com/three');
+  // Without a folder, there's no target; without a title, the URL names the page.
+  const [loose] = await transformer.performTransform(rows.find(r => r.data.id === 'B-3'));
+  assert.equal(loose.data.target, undefined);
+  assert.equal(loose.data.object.name, 'https://example.com/three');
 });

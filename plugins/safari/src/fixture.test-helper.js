@@ -8,7 +8,7 @@ const date = ms => new Date(JAN_1 + ms);
 /**
  * Write a Bookmarks.plist: a favorite, a favorite in a folder of Favorites, a
  * Reading List item, an older favorite Safari didn't date, a bookmark with no
- * title, and one that never synced.
+ * title, and one that doesn't sync.
  */
 export function writeBookmarksFixture(dir) {
   const path = join(dir, 'Bookmarks.plist');
@@ -34,8 +34,8 @@ export function writeBookmarksFixture(dir) {
             ReadingList: { DateAdded: date(2 * HOUR) },
           }),
         ]),
-        leaf('B-3', 'https://example.com/three', null, {}),
-        leaf(null, 'https://example.com/local', 'Local', {}),
+        leaf('B-3', 'https://example.com/three', null, { dateAdded: date(-HOUR) }),
+        leaf(null, 'https://example.com/local', 'Local', { dateAdded: date(-2 * HOUR) }),
       ])
     )
   );

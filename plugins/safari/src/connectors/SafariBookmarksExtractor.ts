@@ -16,8 +16,8 @@ export interface Bookmark {
   id: string;
   url: string;
   title: string | null;
-  /** When it was saved (ISO), or null when Safari doesn't say. */
-  addedAt: string | null;
+  /** When it was saved (ISO). */
+  addedAt: string;
   /** The folders it's in, outermost first. */
   folders: BookmarkFolder[];
 }
@@ -44,7 +44,7 @@ const text = (value: PlistValue | undefined) =>
 
 const date = (value: PlistValue | undefined) => (value instanceof Date ? value : null);
 
-const savedAt = (bookmark: Bookmark) => (bookmark.addedAt ? Date.parse(bookmark.addedAt) : null);
+const savedAt = (bookmark: Bookmark) => Date.parse(bookmark.addedAt);
 
 export class SafariBookmarksExtractor extends Extractor<typeof SafariBookmarksExtractor> {
   static override source = 'safari';
@@ -95,23 +95,18 @@ export class SafariBookmarksExtractor extends Extractor<typeof SafariBookmarksEx
     return (record.data as Bookmark).id;
   }
 
-  override occurredAt(record: Record): Date | undefined {
-    const { addedAt } = record.data as Bookmark;
-    return addedAt ? new Date(addedAt) : undefined;
+  override occurredAt(record: Record): Date {
+    return new Date((record.data as Bookmark).addedAt);
   }
 
   async *extract(): AsyncGenerator<Record> {
     const { since, until } = this.config;
     const limit = this.getEffectiveLimit();
-    const undated = Number.NEGATIVE_INFINITY;
-    // Newest first, then those with no date. A bound leaves out those with none.
     const bookmarks = this.bookmarks
-      .filter(bookmark => {
-        if (!since && !until) return true;
-        const at = savedAt(bookmark);
-        return at !== null && (!since || at > since.getTime()) && (!until || at < until.getTime());
-      })
-      .sort((a, b) => (savedAt(b) ?? undated) - (savedAt(a) ?? undated));
+      .filter(
+        b => (!since || savedAt(b) > since.getTime()) && (!until || savedAt(b) < until.getTime())
+      )
+      .sort((a, b) => savedAt(b) - savedAt(a));
 
     const account =
       this.config.account === undefined ? await getICloudAccount() : this.config.account;
@@ -121,7 +116,11 @@ export class SafariBookmarksExtractor extends Extractor<typeof SafariBookmarksEx
     }
   }
 
-  /** Every bookmark in the file, with when it was saved where Safari says. */
+  /**
+   * Every bookmark in the file that Safari dated: each Reading List item, and
+   * each bookmark Safari saved since it began dating them, but not those from
+   * before.
+   */
   private read(root: PlistValue): Bookmark[] {
     const bookmarks: Bookmark[] = [];
     const walk = (node: Node, folders: BookmarkFolder[]) => {
@@ -132,14 +131,14 @@ export class SafariBookmarksExtractor extends Extractor<typeof SafariBookmarksEx
           walk(child, [...folders, { id: this.idOf(child), name: FOLDER_NAMES[title] ?? title }]);
         } else if (child.WebBookmarkType === 'WebBookmarkTypeLeaf' && text(child.URLString)) {
           const readingList = isNode(child.ReadingList) ? child.ReadingList : {};
-          const uri = isNode(child.URIDictionary) ? child.URIDictionary : {};
-          // Safari dates bookmarks it saves now, but not those from before.
           const addedAt = date(readingList.DateAdded) ?? date(child.dateAdded);
+          if (!addedAt) continue;
+          const uri = isNode(child.URIDictionary) ? child.URIDictionary : {};
           bookmarks.push({
             id: this.idOf(child),
             url: text(child.URLString)!,
             title: text(uri.title),
-            addedAt: addedAt?.toISOString() ?? null,
+            addedAt: addedAt.toISOString(),
             folders,
           });
         }

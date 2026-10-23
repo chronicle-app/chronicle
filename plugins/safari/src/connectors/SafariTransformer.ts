@@ -66,7 +66,7 @@ export default class SafariTransformer extends ChronicleTransformer {
       '@key': ['@type', 'source', 'sourceId'],
       source: 'safari',
       sourceId: bookmark.id,
-      ...(bookmark.addedAt && { timestamp: new Date(bookmark.addedAt) }),
+      timestamp: new Date(bookmark.addedAt),
       ...(user && { agent: user }),
       object: this.buildWebPage(record),
       ...(target && { target }),
