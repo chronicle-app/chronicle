@@ -271,21 +271,15 @@ export default class Scan extends BaseCommand<typeof Scan> {
     }
   }
 
-  /** The rows, with their strategies only when a source is found by more than one. */
+  /** The rows, each with the strategy that reads it. */
   private table(rows: ScanRow[]): void {
     const t = tokens({ stream: 'stdout', theme: this.flags.theme });
-    const strategies = new Map<string, Set<string>>();
-    for (const row of rows) {
-      strategies.set(row.source, (strategies.get(row.source) ?? new Set()).add(row.strategy));
-    }
-    const several = [...strategies.values()].some(names => names.size > 1);
-    const strategy = <T>(value: T): T[] => (several ? [value] : []);
     const { lines } = table(
       {
-        headings: ['source', ...strategy('strategy'), 'found', 'status'],
-        cells: rows.map(row => [row.source, ...strategy(row.strategy), row.label, statusText(row)]),
-        muted: [false, ...strategy(false), false, true],
-        paths: [false, ...strategy(false), true, false],
+        headings: ['source', 'strategy', 'found', 'status'],
+        cells: rows.map(row => [row.source, row.strategy, row.label, statusText(row)]),
+        muted: [false, false, false, true],
+        paths: [false, false, true, false],
       },
       t,
       stdoutWidth()

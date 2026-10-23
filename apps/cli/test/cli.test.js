@@ -795,7 +795,7 @@ test('scan finds what a home folder holds, with a command that extracts each', t
 
   // The table, with the next step under it.
   const table = scan('scan');
-  assert.match(table.stdout, /^chrome +Work +ready$/m);
+  assert.match(table.stdout, /^chrome +app-db +Work +ready$/m);
   assert.match(table.stderr, /For example, `chronicle extract [^`]+` extracts /);
 
   // A profile its permissions close is there, but can't be read.
@@ -876,10 +876,10 @@ test('survey counts what each ready source holds, and lists the rest with what i
   const [zsh] = JSON.parse(success(survey('survey', 'shell', '--format', 'json')));
   assert.deepEqual(zsh.survey.commands.byMonth, { '2023-11': 1 });
   // Every source's survey leaves months out; a scan points to it, and names
-  // strategies only when a source is found by more than one.
+  // each row's strategy.
   const scanned = survey('scan');
   assert.match(scanned.stderr, /chronicle survey/);
-  assert.match(scanned.stdout, /^source +found +status$/m);
+  assert.match(scanned.stdout, /^source +strategy +found +status$/m);
   assert.notEqual(survey('survey', 'no-such-source').status, 0);
 });
 
@@ -1030,7 +1030,7 @@ test('scan finds the exports in a folder or zip, with the command that reads eac
   // The table, with what it didn't recognize, couldn't open, and what to run next.
   const table = scan('scan', root);
   assert.equal(table.status, 0, table.stderr);
-  assert.match(table.stdout, /^apple-health +old\/apple_health_export\/ +ready$/m);
+  assert.match(table.stdout, /^apple-health +archive +old\/apple_health_export\/ +ready$/m);
   // An export's command is an example of each one's, and names it by where it is.
   assert.match(
     table.stderr,
@@ -1055,7 +1055,7 @@ test('scan finds the exports in a folder or zip, with the command that reads eac
   const health = join(root, 'old', 'apple_health_export');
   const file = scan('scan', join(health, 'export_cda.xml'));
   assert.equal(file.status, 0, file.stderr);
-  assert.match(file.stdout, /^apple-health +apple_health_export\/ +ready$/m);
+  assert.match(file.stdout, /^apple-health +archive +apple_health_export\/ +ready$/m);
   assert.match(file.stderr, /Run `chronicle survey \S+old\/apple_health_export` to see how much/);
   const note = scan('scan', join(root, 'misc', 'notes.txt'));
   assert.equal(note.status, 0, note.stderr);
@@ -1115,7 +1115,10 @@ test(
     );
     assert.equal(rows[0].command, `chronicle extract safari --input ${history}`);
     const table = scan('scan', root);
-    assert.match(table.stdout, /^safari +safari\/2019\/History\.db +version not supported$/m);
+    assert.match(
+      table.stdout,
+      /^safari +app-db +safari\/2019\/History\.db +version not supported$/m
+    );
     assert.match(table.stderr, /Chronicle recognizes 1 more but can't read it yet/);
 
     const [surveyed] = JSON.parse(success(scan('survey', history, '--format', 'json')));
