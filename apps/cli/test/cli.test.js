@@ -1236,6 +1236,24 @@ test(
     const [surveyed] = JSON.parse(success(scan('survey', history, '--format', 'json')));
     assert.equal(surveyed.survey.views.count, 1);
     assert.deepEqual(readdirSync(dirname(history)), ['History.db']);
+
+    // A database is called one. Beside only databases, the rest of the folder
+    // is the app's own, so it isn't listed as unrecognized.
+    mkdirSync(join(root, 'Caches'));
+    writeFileSync(join(root, 'Caches', 'cache.bin'), 'synthetic');
+    const databases = scan('scan', root);
+    assert.match(databases.stderr, /Found 2 databases/);
+    assert.doesNotMatch(databases.stderr, /Didn't recognize/);
+    assert.match(scan('survey', join(root, 'safari')).stderr, /Counted 1 database\b/);
+    // Beside an export, each is named, and so is what holds neither.
+    writeFileSync(
+      join(root, 'goodreads_library_export.csv'),
+      'Book Id,Title,Author,Additional Authors,Exclusive Shelf,My Review,Bookshelves,Date Read,Date Added\n' +
+        '1,Synthetic,Someone,,read,,,2024/01/02,2024/01/01\n'
+    );
+    const both = scan('scan', root);
+    assert.match(both.stderr, /Found 1 export and 2 databases/);
+    assert.match(both.stderr, /Didn't recognize 1 folder: Caches\./);
   }
 );
 

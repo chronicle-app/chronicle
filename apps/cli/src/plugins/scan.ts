@@ -51,6 +51,8 @@ export interface ScanRow {
   parts?: number;
   /** The installed plugin's version, so a count can say which plugin made it. */
   pluginVersion?: string;
+  /** For what a path scan found: true for an app's database, found by its schema, not an export. */
+  database?: boolean;
   evidence: {
     path?: string;
     modifiedAt?: string;
@@ -457,6 +459,8 @@ export async function scanPath(
   const home = os.homedir();
   const scanned = path.resolve(resolveHome(target, home));
   const listings = (await listSources()).filter(l => l.supported);
+  // The formats that are an app's database, to tell what they find from an export.
+  const databases = new Set<FileFormat>();
   const sets = listings.flatMap(listing =>
     listing.strategies
       .filter(
@@ -469,9 +473,11 @@ export async function scanPath(
         files: [
           ...(strategy.files ?? []),
           // A copy of a database keeps the name its app gave it.
-          ...(strategy.databases ?? []).map(schema =>
-            databaseFormat(schema, strategy.locations ?? [])
-          ),
+          ...(strategy.databases ?? []).map(schema => {
+            const format = databaseFormat(schema, strategy.locations ?? []);
+            databases.add(format);
+            return format;
+          }),
         ],
       }))
   );
@@ -500,6 +506,7 @@ export async function scanPath(
         ...(match.recordTypes && { recordTypes: match.recordTypes }),
         ...(exported.parts && { parts: exported.parts.length }),
         ...(listing.version && { pluginVersion: listing.version }),
+        ...(databases.has(match.layout as FileFormat) && { database: true }),
         evidence: {
           path: exported.root,
           files: match.files,

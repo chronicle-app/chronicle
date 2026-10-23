@@ -51,7 +51,9 @@ export function extractHint(rows: ScanRow[], example = rows[0]): string {
     return `To extract a source, run \`chronicle extract\` with its name, like \`${example.command}\`.`;
   }
   const one = example.root
-    ? 'an export'
+    ? example.database
+      ? 'a database'
+      : 'an export'
     : rows.every(row => row.source === example.source)
       ? 'one'
       : 'a source';
@@ -109,6 +111,18 @@ function foldersAndZips(names: string[]): string {
   return [
     folders > 0 && `${count(folders)} ${plural('folders', folders)}`,
     zips > 0 && `${count(zips)} ${plural('zips', zips)}`,
+  ]
+    .filter(Boolean)
+    .join(' and ');
+}
+
+/** What a path scan found, counted the way a sentence says it: `2 exports and 1 database`. */
+export function exportsAndDatabases(rows: ScanRow[]): string {
+  const databases = rows.filter(row => row.database).length;
+  const exports = rows.length - databases;
+  return [
+    exports > 0 && `${count(exports)} ${plural('exports', exports)}`,
+    databases > 0 && `${count(databases)} ${plural('databases', databases)}`,
   ]
     .filter(Boolean)
     .join(' and ');
@@ -244,8 +258,9 @@ export default class Scan extends BaseCommand<typeof Scan> {
       this.hint('Run `chronicle sources --all` to see what Chronicle reads.');
     } else {
       this.table(rows);
-      this.summary(`Found ${count(rows.length)} ${plural('exports', rows.length)}`);
-      if (unrecognized.length > 0) {
+      this.summary(`Found ${exportsAndDatabases(rows)}`);
+      // Beside an app's database, the rest of the folder is the app's own.
+      if (unrecognized.length > 0 && !rows.every(row => row.database)) {
         const names = [...unrecognized].sort((a, b) => a.localeCompare(b));
         this.hint(`Didn't recognize ${foldersAndZips(names)}: ${named(names)}.`);
       }

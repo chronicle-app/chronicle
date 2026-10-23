@@ -34,7 +34,7 @@ import { FlagManager } from '../utils/FlagManager.js';
 import { ALL_KINDS } from '../utils/recordKinds.js';
 import { PLATFORM_NAMES } from '../utils/sourcesTable.js';
 import { SURVEY_FLAGS } from '../utils/surveyFlags.js';
-import { blockerHints, extractHint, statusText } from './scan.js';
+import { blockerHints, exportsAndDatabases, extractHint, statusText } from './scan.js';
 
 /** Longest a survey may take before its source gives up on it. */
 const SURVEY_TIMEOUT_MS = 30_000;
@@ -408,15 +408,17 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
     this.hints(rows, { targets, online, waiting }, surveys);
   }
 
-  /** The table's outcome: how many sources, or exports, were counted, and their records. */
+  /** The table's outcome: how many sources, or exports and databases, were counted, and their records. */
   private counted(targets: ScanRow[], states: Surveyed[], durationMs: number, exports: boolean) {
     const answered = targets.filter((_, i) => {
       const state = states[i];
       return state.state === 'done' && state.survey;
     });
     if (answered.length === 0) return;
-    const n = exports ? answered.length : new Set(answered.map(row => row.source)).size;
-    const title = `Counted ${count(n)} ${plural(exports ? 'exports' : 'sources', n)}`;
+    const sources = new Set(answered.map(row => row.source)).size;
+    const title = exports
+      ? `Counted ${exportsAndDatabases(answered)}`
+      : `Counted ${count(sources)} ${plural('sources', sources)}`;
     const records = answered.reduce(
       (sum, row) => sum + total(this.surveyOf(row, targets, states)),
       0
