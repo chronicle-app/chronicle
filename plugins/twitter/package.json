@@ -61,6 +61,14 @@
         "strategies": {
           "archive": {
             "delivery": "export",
+            "layouts": [
+              {
+                "files": [
+                  "data/account.js",
+                  "data/tweets.js"
+                ]
+              }
+            ],
             "recordTypes": [
               "direct-messages",
               "group-direct-messages",

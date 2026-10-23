@@ -1,5 +1,4 @@
 import { ArchiveExtractor, Extractor } from '@chronicle.app/etl';
-import { readFile } from 'node:fs/promises';
 import { z } from 'zod';
 
 export abstract class TwitterArchiveExtractor<
@@ -9,7 +8,7 @@ export abstract class TwitterArchiveExtractor<
   static override strategy = 'archive';
 
   static override schema = Extractor.schema.extend({
-    input: z.string().describe('Path to Twitter export data directory'),
+    input: z.string().describe('The Twitter archive, as a zip or its unpacked folder'),
     'include-group-dms': z
       .boolean()
       .optional()
@@ -17,20 +16,17 @@ export abstract class TwitterArchiveExtractor<
       .describe('Include group direct messages in extraction'),
   });
 
-  /**
-   * Twitter's export needs the archive's base directory to locate
-   * `data/account.js`, so this can't share the base class's no-arg
-   * `loadAccountInfo()` signature — kept as its own method instead of an
-   * incompatible override.
-   */
-  protected async loadAccountInfoFrom(basePath: string): Promise<void> {
+  protected override readonly exportName = 'Twitter archive';
+
+  /** Whose archive this is, from `data/account.js`. */
+  protected override async loadAccountInfo(): Promise<any> {
     try {
-      const content = await readFile(`${basePath}/data/account.js`, 'utf-8');
+      const content = await this.files.readText('data/account.js');
       const jsData = this.parseTwitterJS(content, 'account');
-      this.accountInfo = jsData[0]?.account || null;
+      return jsData[0]?.account || null;
     } catch (error) {
       this.logger.warn('Could not load account info', { error: String(error) });
-      this.accountInfo = null;
+      return null;
     }
   }
 

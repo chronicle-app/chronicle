@@ -1,18 +1,33 @@
 import assert from 'node:assert/strict';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { test } from 'node:test';
+import { findExports, writeZip } from '@chronicle.app/etl';
 import {
   TwitterArchiveDirectMessagesExtractor,
   TwitterArchiveLikesExtractor,
   TwitterArchiveTweetsExtractor,
   TwitterTransformer,
 } from '../dist/index.js';
-import { archive } from './fixture.test-helper.js';
+import { archive, archiveFiles } from './fixture.test-helper.js';
 
 async function records(Extractor, input, config = {}) {
   const extractor = new Extractor({ input, limit: 0, ...config });
   await extractor.setup();
   try {
     return await Array.fromAsync(extractor.extract());
+  } finally {
+    await extractor.teardown();
+  }
+}
+
+/** How many records a run would read, counted as the runner does, after setup. */
+async function count(Extractor, input, config = {}) {
+  const extractor = new Extractor({ input, ...config });
+  await extractor.setup();
+  try {
+    return await extractor.determineCount();
   } finally {
     await extractor.teardown();
   }
@@ -45,7 +60,7 @@ test('tweets become PublishActions of Posts with their mentions and links', asyn
     rows.map(r => r.extraction.recordType),
     ['tweets', 'tweets']
   );
-  assert.equal(await new TwitterArchiveTweetsExtractor({ input }).determineCount(), 2);
+  assert.equal(await count(TwitterArchiveTweetsExtractor, input), 2);
 
   // Mentions and links come from the tweet's entities.
   assert.deepEqual(await transform(rows[0]), [
@@ -132,7 +147,7 @@ test('1:1 and group DMs become MessageActions, newest first', async t => {
     rows.map(r => r.extraction.recordType),
     ['group-direct-messages', 'direct-messages']
   );
-  assert.equal(await new TwitterArchiveDirectMessagesExtractor({ input }).determineCount(), 2);
+  assert.equal(await count(TwitterArchiveDirectMessagesExtractor, input), 2);
 
   // A group message is addressed to every other participant from the header.
   assert.deepEqual(await transform(rows[0]), [
@@ -184,5 +199,40 @@ test('1:1 and group DMs become MessageActions, newest first', async t => {
   assert.deepEqual(
     oneOnOne.map(r => r.data.id),
     ['1300000000000000001']
+  );
+});
+
+test('an archive reads the same zipped, and its layout finds it where it starts', async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'twitter-zip-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const unzipped = archive(t);
+  // Zipped as X hands it over, its files at the top of the zip.
+  const zip = join(dir, 'twitter-2022-11-02-d627cfdf.zip');
+  writeZip(zip, archiveFiles());
+  for (const Extractor of [
+    TwitterArchiveTweetsExtractor,
+    TwitterArchiveLikesExtractor,
+    TwitterArchiveDirectMessagesExtractor,
+  ]) {
+    const folder = await records(Extractor, unzipped);
+    assert.ok(folder.length > 0, Extractor.name);
+    assert.deepEqual(
+      (await records(Extractor, zip)).map(r => [r.data, r.context]),
+      folder.map(r => [r.data, r.context]),
+      Extractor.name
+    );
+  }
+
+  const { chronicle } = JSON.parse(readFileSync(join(import.meta.dirname, '../package.json')));
+  const { layouts } = chronicle.sources.twitter.strategies.archive;
+  const { exports } = await findExports(zip, [{ source: 'twitter', strategy: 'archive', layouts }]);
+  assert.deepEqual(
+    exports.map(e => e.root),
+    [zip]
+  );
+  const found = await findExports(unzipped, [{ source: 'twitter', strategy: 'archive', layouts }]);
+  assert.deepEqual(
+    found.exports.map(e => e.root),
+    [unzipped]
   );
 });

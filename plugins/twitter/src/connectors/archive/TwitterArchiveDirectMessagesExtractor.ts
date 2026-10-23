@@ -1,5 +1,4 @@
 import { Record } from '@chronicle.app/etl';
-import { readFile } from 'node:fs/promises';
 import { z } from 'zod';
 import TwitterTransformer from '../TwitterTransformer.js';
 import { TwitterArchiveExtractor } from './TwitterArchiveExtractor.js';
@@ -26,22 +25,18 @@ export class TwitterArchiveDirectMessagesExtractor extends TwitterArchiveExtract
 
     try {
       // Load account info first
-      await this.loadAccountInfoFrom(config.input);
+      this.accountInfo = await this.loadAccountInfo();
 
       // Collect all messages from both sources
       const allMessages: any[] = [];
 
       // Process 1:1 direct messages
-      const oneOnOneMessages = await this.loadDirectMessages(
-        `${config.input}/data/direct-messages.js`
-      );
+      const oneOnOneMessages = await this.loadDirectMessages(`data/direct-messages.js`);
       allMessages.push(...oneOnOneMessages);
 
       // Process group direct messages (if enabled)
       if (config['include-group-dms']) {
-        const groupMessages = await this.loadGroupDirectMessages(
-          `${config.input}/data/direct-messages-group.js`
-        );
+        const groupMessages = await this.loadGroupDirectMessages(`data/direct-messages-group.js`);
         allMessages.push(...groupMessages);
       }
 
@@ -68,7 +63,7 @@ export class TwitterArchiveDirectMessagesExtractor extends TwitterArchiveExtract
     const messages: any[] = [];
 
     try {
-      const content = await readFile(filePath, 'utf-8');
+      const content = await this.files.readText(filePath);
       const jsData = this.parseTwitterJS(content, 'direct_messages');
 
       for (const item of jsData) {
@@ -107,7 +102,7 @@ export class TwitterArchiveDirectMessagesExtractor extends TwitterArchiveExtract
     const groupHeaders = new Map<string, any>();
 
     try {
-      const content = await readFile(filePath, 'utf-8');
+      const content = await this.files.readText(filePath);
       const jsData = this.parseTwitterJS(content, 'direct_message_group_headers');
 
       for (const item of jsData) {
@@ -140,7 +135,7 @@ export class TwitterArchiveDirectMessagesExtractor extends TwitterArchiveExtract
         `${filePath.replace('direct-messages-group.js', 'direct-message-group-headers.js')}`
       );
 
-      const content = await readFile(filePath, 'utf-8');
+      const content = await this.files.readText(filePath);
       const jsData = this.parseTwitterJS(content, 'direct_messages_group');
 
       for (const item of jsData) {
@@ -191,7 +186,7 @@ export class TwitterArchiveDirectMessagesExtractor extends TwitterArchiveExtract
 
       // Count 1:1 direct messages
       try {
-        const dmContent = await readFile(`${config.input}/data/direct-messages.js`, 'utf-8');
+        const dmContent = await this.files.readText(`data/direct-messages.js`);
         const dmData = this.parseTwitterJS(dmContent, 'direct_messages');
         for (const item of dmData) {
           const conversation = item.dmConversation;
@@ -206,10 +201,7 @@ export class TwitterArchiveDirectMessagesExtractor extends TwitterArchiveExtract
       // Count group direct messages (if enabled)
       if (config['include-group-dms']) {
         try {
-          const groupContent = await readFile(
-            `${config.input}/data/direct-messages-group.js`,
-            'utf-8'
-          );
+          const groupContent = await this.files.readText(`data/direct-messages-group.js`);
           const groupData = this.parseTwitterJS(groupContent, 'direct_messages_group');
           for (const item of groupData) {
             const conversation = item.dmConversation;

@@ -1,6 +1,4 @@
 import { Record } from '@chronicle.app/etl';
-import { readFile } from 'node:fs/promises';
-import { z } from 'zod';
 import TwitterTransformer from '../TwitterTransformer.js';
 import { TwitterArchiveExtractor } from './TwitterArchiveExtractor.js';
 
@@ -18,13 +16,11 @@ export class TwitterArchiveLikesExtractor extends TwitterArchiveExtractor<
   }
 
   async *extract(): AsyncGenerator<Record> {
-    const config = this.config as z.infer<typeof TwitterArchiveLikesExtractor.schema>;
-
     try {
       // Load account info first
-      await this.loadAccountInfoFrom(config.input);
+      this.accountInfo = await this.loadAccountInfo();
 
-      yield* this.processLikes(`${config.input}/data/like.js`);
+      yield* this.processLikes(`data/like.js`);
     } catch (error) {
       throw new Error(`Failed to process Twitter likes: ${error}`);
     }
@@ -32,7 +28,7 @@ export class TwitterArchiveLikesExtractor extends TwitterArchiveExtractor<
 
   private async *processLikes(filePath: string): AsyncGenerator<Record> {
     try {
-      const content = await readFile(filePath, 'utf-8');
+      const content = await this.files.readText(filePath);
       const jsData = this.parseTwitterJS(content, 'like');
 
       let count = 0;
@@ -59,10 +55,8 @@ export class TwitterArchiveLikesExtractor extends TwitterArchiveExtractor<
   }
 
   override async determineCount(): Promise<number | null> {
-    const config = this.config as z.infer<typeof TwitterArchiveLikesExtractor.schema>;
-
     try {
-      const likesContent = await readFile(`${config.input}/data/like.js`, 'utf-8');
+      const likesContent = await this.files.readText(`data/like.js`);
       const likesData = this.parseTwitterJS(likesContent, 'like');
       return likesData.length;
     } catch {

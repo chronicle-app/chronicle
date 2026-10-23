@@ -1,6 +1,4 @@
 import { Record } from '@chronicle.app/etl';
-import { readFile } from 'node:fs/promises';
-import { z } from 'zod';
 import TwitterTransformer from '../TwitterTransformer.js';
 import { TwitterArchiveExtractor } from './TwitterArchiveExtractor.js';
 
@@ -19,13 +17,11 @@ export class TwitterArchiveTweetsExtractor extends TwitterArchiveExtractor<
   }
 
   async *extract(): AsyncGenerator<Record> {
-    const config = this.config as z.infer<typeof TwitterArchiveTweetsExtractor.schema>;
-
     try {
       // Load account info first
-      await this.loadAccountInfoFrom(config.input);
+      this.accountInfo = await this.loadAccountInfo();
 
-      yield* this.processTweets(`${config.input}/data/tweets.js`);
+      yield* this.processTweets(`data/tweets.js`);
     } catch (error) {
       throw new Error(`Failed to process Twitter tweets: ${error}`);
     }
@@ -33,7 +29,7 @@ export class TwitterArchiveTweetsExtractor extends TwitterArchiveExtractor<
 
   private async *processTweets(filePath: string): AsyncGenerator<Record> {
     try {
-      const content = await readFile(filePath, 'utf-8');
+      const content = await this.files.readText(filePath);
       const jsData = this.parseTwitterJS(content, 'tweets');
 
       let count = 0;
@@ -67,10 +63,8 @@ export class TwitterArchiveTweetsExtractor extends TwitterArchiveExtractor<
   }
 
   override async determineCount(): Promise<number | null> {
-    const config = this.config as z.infer<typeof TwitterArchiveTweetsExtractor.schema>;
-
     try {
-      const tweetsContent = await readFile(`${config.input}/data/tweets.js`, 'utf-8');
+      const tweetsContent = await this.files.readText(`data/tweets.js`);
       const tweetsData = this.parseTwitterJS(tweetsContent, 'tweets');
       return tweetsData.length;
     } catch {
