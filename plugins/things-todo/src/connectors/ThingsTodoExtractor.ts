@@ -103,6 +103,32 @@ export class ThingsTodoExtractor extends SqliteExtractor<typeof ThingsTodoExtrac
   static override description = 'Tasks and projects';
   static override recordTypes: string[] = ['tasks', 'projects'];
   static override default = true;
+  // What extract() and survey() read, which a Things main.sqlite must have.
+  static override databases = [
+    {
+      tables: {
+        TMTask: [
+          'uuid',
+          'title',
+          'type',
+          'status',
+          'creationDate',
+          'startDate',
+          'stopDate',
+          'userModificationDate',
+          'project',
+          'heading',
+          'area',
+          'notes',
+          'trashed',
+        ],
+        TMTaskTag: ['tasks', 'tags'],
+        TMTag: ['uuid', 'title', 'parent', 'shortcut', 'usedDate'],
+        TMArea: ['uuid', 'title'],
+        TMAreaTag: ['areas', 'tags'],
+      },
+    },
+  ];
   static override schema = SqliteExtractor.schema.omit({ input: true }).extend({
     input: z
       .string()

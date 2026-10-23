@@ -5,6 +5,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { monthKey } from '@chronicle.app/etl';
+import { writeSchemaDatabase } from '@chronicle.app/etl-sqlite';
 import { ThingsTodoExtractor, ThingsTodoTransformer } from '../dist/index.js';
 import { localAccountName } from '../dist/connectors/ownerName.js';
 
@@ -63,6 +64,27 @@ async function survey(input, config = {}, options = {}) {
     await extractor.teardown();
   }
 }
+
+test('its declared schema is all its queries read, and a main.sqlite without it is refused', async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'things-schema-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const [schema] = ThingsTodoExtractor.databases;
+  const input = join(dir, 'main.sqlite');
+  writeSchemaDatabase(input, schema, { optional: false });
+  assert.deepEqual(await records(input), []);
+  const counted = await survey(input, {}, { byMonth: true });
+  assert.equal(counted.tasks.count + counted.projects.count, 0);
+
+  // An older Things', say, without a column its queries read.
+  const older = join(dir, 'older.sqlite');
+  const tags = schema.tables.TMTag.filter(column => column !== 'usedDate');
+  writeSchemaDatabase(older, { tables: { ...schema.tables, TMTag: tags } });
+  await assert.rejects(records(older), {
+    message: /version of the database/,
+    fields: { path: older, missing: ['TMTag.usedDate'] },
+  });
+});
+
 /** How many extracted records of a kind were created in each month, as a survey's `byMonth` keys them. */
 function createdMonths(rows, kind) {
   const months = {};
