@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { monthKey } from '@chronicle.app/etl';
+import { writeSchemaDatabase } from '@chronicle.app/etl-sqlite';
 import { AppleWalletExtractor, AppleWalletTransformer } from '../dist/index.js';
 import { account, writeWalletFixture } from './fixture.test-helper.js';
 
@@ -219,6 +220,24 @@ async function survey(input, config = {}, options = {}) {
   }
 }
 const surveyBy = input => survey(input, {}, { byMonth: true });
+
+test('its declared schema is all its queries read, and a passes23.sqlite without it is refused', async t => {
+  const dir = tempDir(t);
+  const [schema] = AppleWalletExtractor.databases;
+  const input = join(dir, 'passes23.sqlite');
+  writeSchemaDatabase(input, schema, { optional: false });
+  assert.deepEqual((await extract(input)).records, []);
+  assert.equal((await surveyBy(input)).transactions.count, 0);
+
+  // An older Wallet's, say, without a column its queries read.
+  const older = join(dir, 'older.sqlite');
+  const passes = schema.tables.pass.filter(column => column !== 'e');
+  writeSchemaDatabase(older, { tables: { ...schema.tables, pass: passes } });
+  await assert.rejects(extract(older), {
+    message: /version of the database/,
+    fields: { path: older, missing: ['pass.e'] },
+  });
+});
 
 test('a survey counts the transactions a run reads, and when they were made', async t => {
   const input = writeWalletFixture(tempDir(t));

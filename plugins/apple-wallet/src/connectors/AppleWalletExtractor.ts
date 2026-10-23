@@ -138,6 +138,44 @@ export class AppleWalletExtractor extends SqliteExtractor<typeof AppleWalletExtr
   static override default = true;
   static override defaultTransformer = AppleWalletTransformer;
   static override newestFirst = true;
+  // What extract() and survey() read, which a passes23.sqlite must have.
+  static override databases = [
+    {
+      tables: {
+        payment_transaction: [
+          'pid',
+          'identifier',
+          'service_identifier',
+          'transaction_date',
+          'amount',
+          'currency_code',
+          'merchant_name',
+          'merchant_raw_name',
+          'merchant_industry_code',
+          'merchant_industry_category',
+          'locality',
+          'administrative_area',
+          'location_latitude',
+          'location_longitude',
+          'transaction_status',
+          'transaction_type',
+          'adjustment_type',
+          'source_pid',
+        ],
+        pass: [
+          'pid',
+          'unique_id',
+          'primary_account_identifier',
+          'e',
+          'primary_account_suffix',
+          'organization_name',
+          'supports_fpan_notifications',
+          'transaction_source_pid',
+        ],
+        payment_application: ['transaction_source_pid', 'pass_pid'],
+      },
+    },
+  ];
   // A pending transaction's amount can change when it posts, so a run is a
   // read of each transaction's current state, sighted at read time.
   static override temporality = 'snapshot' as const;
