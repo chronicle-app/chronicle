@@ -27,6 +27,9 @@ export class WhatsappBackupExtractor extends WhatsappExtractor {
   static override strategy = 'backup';
   static override description = 'Messages from an iPhone backup';
   static override default = false;
+  // The database it reads is a copy already, taken out of the backup, and a
+  // scan finds the backup by its Manifest.db, not by this schema.
+  static override databases = undefined;
 
   static override schema = WhatsappExtractor.schema.extend({
     input: z

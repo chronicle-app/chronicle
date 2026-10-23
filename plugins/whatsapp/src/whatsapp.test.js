@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { monthKey } from '@chronicle.app/etl';
+import { writeSchemaDatabase } from '@chronicle.app/etl-sqlite';
 import { WhatsappBackupExtractor, WhatsappExtractor, WhatsappTransformer } from '../dist/index.js';
 import { decodeReplyStanzaId } from '../dist/replyTarget.js';
 import { PARENT_ID, SELF_NUMBER, writeWhatsappFixture } from './fixture.test-helper.js';
@@ -224,6 +225,24 @@ async function survey(Extractor, config, options = {}) {
     await extractor.teardown();
   }
 }
+
+test('its declared schema is all its queries read, and a ChatStorage.sqlite without it is refused', async t => {
+  const dir = tempDir(t);
+  const [schema] = WhatsappExtractor.databases;
+  const input = join(dir, 'ChatStorage.sqlite');
+  writeSchemaDatabase(input, schema, { optional: false });
+  assert.deepEqual(await extract({ input }), []);
+  assert.equal((await survey(WhatsappExtractor, { input }, { byMonth: true })).messages.count, 0);
+
+  // An older WhatsApp's, say, without a column its queries read.
+  const older = join(dir, 'older.sqlite');
+  const media = schema.tables.ZWAMEDIAITEM.filter(column => column !== 'ZMETADATA');
+  writeSchemaDatabase(older, { tables: { ...schema.tables, ZWAMEDIAITEM: media } });
+  await assert.rejects(extract({ input: older }), {
+    message: /version of the database/,
+    fields: { path: older, missing: ['ZWAMEDIAITEM.ZMETADATA'] },
+  });
+});
 
 /** How many of the times each month holds, as a survey's `byMonth` keys them. */
 function monthsOf(times) {

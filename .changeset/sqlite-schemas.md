@@ -6,6 +6,7 @@
 '@chronicle.app/imessage': minor
 '@chronicle.app/shazam': minor
 '@chronicle.app/things-todo': minor
+'@chronicle.app/whatsapp': minor
 ---
 
-iMessage, Apple Call History, Voice Memos, Apple Wallet, Shazam, Things, and Apple Podcasts declare the tables and columns they read in their app's database, so `chronicle scan ~/Library/Messages` finds a `chat.db`, as does a scan of any folder with a copy of one, and extract refuses a version of the database it can't read.
+iMessage, Apple Call History, Voice Memos, Apple Wallet, Shazam, Things, Apple Podcasts, and WhatsApp declare the tables and columns they read in their app's database, so `chronicle scan ~/Library/Messages` finds a `chat.db`, as does a scan of any folder with a copy of one, and extract refuses a version of the database it can't read.

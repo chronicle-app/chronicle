@@ -2,6 +2,7 @@ import {
   Delivery,
   Record,
   normalizePhoneNumber,
+  type DatabaseSchema,
   type Survey,
   type SurveyOptions,
 } from '@chronicle.app/etl';
@@ -56,6 +57,30 @@ export class WhatsappExtractor extends SqliteExtractor<typeof WhatsappExtractor>
   // buildQuery orders by m.ZMESSAGEDATE DESC, which with keyOf opts this
   // extractor into the frontier cursor (incremental catch-up import).
   static override newestFirst = true;
+  // What extract() and survey() read, which a ChatStorage.sqlite must have.
+  static override databases: DatabaseSchema[] | undefined = [
+    {
+      tables: {
+        ZWAMESSAGE: [
+          'Z_PK',
+          'ZSTANZAID',
+          'ZTEXT',
+          'ZMESSAGEDATE',
+          'ZISFROMME',
+          'ZMESSAGETYPE',
+          'ZFROMJID',
+          'ZCHATSESSION',
+          'ZGROUPMEMBER',
+          'ZPARENTMESSAGE',
+          'ZMEDIAITEM',
+        ],
+        ZWACHATSESSION: ['Z_PK', 'ZCONTACTJID', 'ZSESSIONTYPE', 'ZPARTNERNAME'],
+        ZWAMEDIAITEM: ['ZMESSAGE', 'ZMEDIALOCALPATH', 'ZTITLE', 'ZMETADATA'],
+        ZWAGROUPMEMBER: ['Z_PK', 'ZMEMBERJID', 'ZCONTACTNAME', 'ZCHATSESSION'],
+        ZWAPROFILEPUSHNAME: ['ZJID', 'ZPUSHNAME'],
+      },
+    },
+  ];
   static override schema = SqliteExtractor.schema.omit({ input: true }).extend({
     input: z
       .string()
