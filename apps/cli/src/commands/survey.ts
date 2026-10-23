@@ -489,7 +489,7 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
       if (state.state === 'failed') block(row, [note(`Couldn't count it: ${state.error}`)]);
       if (state.state !== 'done') continue;
       if (!state.survey) {
-        block(row, [note("Can't say how much it holds")]);
+        block(row, [note('Not surveyable')]);
         continue;
       }
       const sections = Object.entries(state.survey).map(([kind, part]) => {
@@ -515,13 +515,7 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
       });
       block(row, sections);
     }
-    for (const row of online) {
-      block(row, [
-        note(
-          `Not counted, since ${row.source} is read online and counting it means downloading it.`
-        ),
-      ]);
-    }
+    for (const row of online) block(row, [note('Not surveyable')]);
     for (const row of waiting) block(row, [note(capitalized(statusText(row)))]);
     return lines;
   }
@@ -583,9 +577,9 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
   /**
    * A row per record type of each source surveyed, the source and where its
    * records come from on its first; one with a spinner for a survey under
-   * way, and one that says `empty` for a place with no records. Then those
-   * online, and those not ready, with what's in their way. A source that
-   * can't say how much it holds is left out.
+   * way, one that says `empty` for a place with no records, and one that's
+   * not surveyable for a source that can't say how much it holds. Then those
+   * online, not surveyable either, and those not ready, with what's in their way.
    */
   private table(
     { targets, online, waiting }: Found,
@@ -596,8 +590,8 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
   ): string[] {
     const spinner = glyphs.spinner[frame % glyphs.spinner.length];
     const cells: string[][] = [];
-    const say = (row: ScanRow, text: string) => {
-      cells.push([row.source, text, '', '', row.label]);
+    const say = (row: ScanRow, text: string, details = '') => {
+      cells.push([row.source, text, '', details, row.label]);
     };
     for (const [i, row] of targets.entries()) {
       const state = states[i];
@@ -616,9 +610,9 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
             k === 0 ? row.label : '',
           ]);
         }
-      }
+      } else say(row, '-', 'not surveyable');
     }
-    for (const row of online) say(row, 'online, not counted');
+    for (const row of online) say(row, '-', 'not surveyable');
     for (const row of waiting) say(row, statusText(row));
     if (cells.length === 0) return [];
     return table(
@@ -635,17 +629,24 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
   }
 
   /**
-   * What to do next: extract what has records, or is online, see why one
-   * failed, or clear what's in the way.
+   * What to do next: extract what has records, or isn't surveyable, see why
+   * one failed, or clear what's in the way.
    */
   private hints(rows: ScanRow[], { targets, online }: Found, states: Surveyed[]): void {
     const records = (row: ScanRow) => total(this.surveyOf(row, targets, states));
     const counted = targets.filter(row => records(row) > 0);
-    if (counted.length > 0 || online.length > 0) {
+    const unsurveyable = [
+      ...targets.filter((_, i) => {
+        const state = states[i];
+        return state.state === 'done' && !state.survey;
+      }),
+      ...online,
+    ];
+    if (counted.length > 0 || unsurveyable.length > 0) {
       // The example is the source with the most to extract.
       const most =
         counted.length > 0 && counted.reduce((a, b) => (records(b) > records(a) ? b : a));
-      this.hint(extractHint([...counted, ...online], most || online[0]));
+      this.hint(extractHint([...counted, ...unsurveyable], most || unsurveyable[0]));
     }
     const failed = states.filter(state => state.state === 'failed').length;
     if (failed > 0) {

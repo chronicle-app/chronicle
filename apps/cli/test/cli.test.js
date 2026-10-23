@@ -897,7 +897,7 @@ test('survey counts what each ready source holds, and lists the rest with what i
   assert.match(shown.stderr, /Counted 2 sources {2}in \S+\n(?:\S+ )? {4}2 records$/m);
   assert.match(shown.stdout, /^chrome +couldn't count +Personal$/m);
   assert.match(shown.stderr, /Couldn't count 2 sources/);
-  assert.match(shown.stdout, /^github +online, not counted +GH_TOKEN$/m);
+  assert.match(shown.stdout, /^github +- +not surveyable +GH_TOKEN$/m);
   assert.match(shown.stdout, /^shell +empty +~\/\.bash_history$/m);
   assert.doesNotMatch(shown.stderr, /chronicle scan/);
   // A source's command, as an example of each's. This one names where it reads.
@@ -911,13 +911,10 @@ test('survey counts what each ready source holds, and lists the rest with what i
   assert.match(detail, /^shell {2}~\/\.zsh_history {2}\d+ B · changed [^\n]+\n\n1 command$/m);
   assert.match(detail, /^shell {2}~\/\.bash_history .*\n\nEmpty$/m);
   assert.match(detail, /^ {2}first +2023-11-1\d \d\d:\d\d$/m);
-  // A source online says why it isn't counted, and how to extract it.
+  // A source online isn't surveyable, and says how to extract it.
   const online = survey('survey', 'github');
   assert.equal(online.status, 0, online.stderr);
-  assert.match(
-    online.stdout,
-    /^github {2}GitHub [^\n]+\nGH_TOKEN\n\nNot counted, since github is read online/m
-  );
+  assert.match(online.stdout, /^github {2}GitHub [^\n]+\nGH_TOKEN\n\nNot surveyable$/m);
   assert.match(online.stderr, /Run `chronicle extract github` to extract it\./);
   // A single year has no sparkline: its count says it all.
   assert.doesNotMatch(detail, /years|█/);
@@ -1139,6 +1136,25 @@ test('scan finds the exports in a folder or zip, with the command that reads eac
   assert.doesNotMatch(empty.stdout, /\b0 /);
   assert.match(empty.stderr, /Counted 2 exports/);
   assert.doesNotMatch(empty.stderr, /To extract/);
+  // An export its plugin can't count is listed as such, and offered to extract.
+  const shelves = join(dir, 'books', '2024-04-08');
+  mkdirSync(shelves, { recursive: true });
+  writeFileSync(
+    join(shelves, 'goodreads_library_export.csv'),
+    'Book Id,Title,Author,Additional Authors,Exclusive Shelf,My Review,Bookshelves,Date Read,Date Added\n' +
+      '1,Synthetic,Someone,,read,,,2024/01/02,2024/01/01\n'
+  );
+  const books = scan('survey', join(dir, 'books'));
+  assert.equal(books.status, 0, books.stderr);
+  assert.match(
+    books.stdout,
+    /^goodreads +- +not surveyable +2024-04-08\/goodreads_library_export\.csv$/m
+  );
+  assert.match(
+    books.stderr,
+    /Run `chronicle extract goodreads --input \S+goodreads_library_export\.csv` to extract it\./
+  );
+  assert.doesNotMatch(books.stderr, /Nothing to survey/);
 });
 
 /** A copy of Safari's history, in WAL mode as Safari keeps it, with one visit; or an older one's. */
