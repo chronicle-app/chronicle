@@ -154,7 +154,7 @@ async function keptByTheirApps(rows: ScanRow[], home: string): Promise<boolean> 
 }
 
 export default class Scan extends BaseCommand<typeof Scan> {
-  static override summary = "Find your data and what's in its way, without reading it";
+  static override summary = 'Find data to extract on this computer';
 
   static override description =
     'With no argument, looks where each source keeps its files on this computer. ' +

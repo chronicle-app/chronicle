@@ -161,7 +161,7 @@ const OUTPUT_FLAGS = new Set([...Object.keys(BaseCommand.baseFlags), 'format']);
  * source's options as `extract` does, through {@link SourceDispatchCommand}.
  */
 export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCommand> {
-  static override summary = 'Count what each source holds and when, before you extract it';
+  static override summary = "Explore what's in your sources and exports";
 
   static override description =
     'With no source, counts each source `chronicle scan` finds on this computer. ' +

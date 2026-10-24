@@ -36,6 +36,7 @@ export {
   caption,
   card,
   table,
+  wrap,
   type Definition,
   type Segment,
   type SummaryFields,

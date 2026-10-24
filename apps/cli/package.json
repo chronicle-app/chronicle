@@ -68,25 +68,25 @@
     "topicSeparator": " ",
     "topics": {
       "extract": {
-        "description": "Extract records from a source as Chronicle JSON-LD"
+        "description": "Extract records from a source"
       },
       "sources": {
-        "description": "List the sources and the record types each has"
+        "description": "List sources and types available"
       },
       "auth": {
         "description": "Sign in to providers and manage stored credentials"
       },
       "config": {
-        "description": "Set flag defaults and save presets"
+        "description": "Configure defaults and presets"
       },
       "config:preset": {
         "description": "Save sets of flags to use with `--preset`"
       },
       "plugins": {
-        "description": "List, install, and remove source plugins"
+        "description": "Manage plugins"
       },
       "setup": {
-        "description": "Set up this computer for the sources that need it"
+        "description": "First-time setup for this computer"
       }
     },
     "pjson": {

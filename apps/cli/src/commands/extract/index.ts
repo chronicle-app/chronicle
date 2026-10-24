@@ -11,7 +11,7 @@ import { SourceDispatchCommand } from '../../utils/SourceDispatchCommand.js';
 export default class Extract extends SourceDispatchCommand<typeof Extract> {
   static override aliases = ['e'];
 
-  static override summary = 'Extract records from a source as Chronicle JSON-LD';
+  static override summary = 'Extract records from a source';
 
   static override description =
     'Records print to stdout unless you pass `--output`. Each source has its own strategies, ' +

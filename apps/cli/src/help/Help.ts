@@ -27,6 +27,23 @@ const ROOT_ORDER = [
   ['auth', 'setup', 'config', 'plugins', 'commands'],
 ];
 
+/**
+ * A first run, under the commands: one source from finding it to saving it.
+ * Shell history is on almost every computer, and reading it needs no setup.
+ */
+const GET_STARTED = [
+  { comment: 'Find data on this computer', command: 'chronicle scan' },
+  { comment: "See what's in your shell history", command: 'chronicle survey shell' },
+  {
+    comment: 'Show the last week of commands',
+    command: 'chronicle extract shell --since 7d --loader table',
+  },
+  {
+    comment: 'Save all of them as JSON-LD',
+    command: 'chronicle extract shell --limit 0 --output history.json',
+  },
+];
+
 // Verb (or its short alias) -> canonical verb for usage text.
 const SOURCE_VERBS = new Map<string, string>([
   ['extract', 'extract'],
@@ -135,7 +152,12 @@ export default class ChronicleHelp extends Help {
     const rest = nested ? [] : [...own].filter(([name]) => !listed.has(name)).map(([, e]) => e);
     groups.at(-1)!.push(...rest.sort(byName), ...plugins);
     return rootHelp(
-      { version: this.config.version, summary: this.config.pjson.description, commands: groups },
+      {
+        version: this.config.version,
+        summary: this.config.pjson.description,
+        commands: groups,
+        start: GET_STARTED,
+      },
       this.t,
       this.width
     );

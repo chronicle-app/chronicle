@@ -3,6 +3,7 @@ import {
   definitions,
   heading,
   paragraph,
+  wrap,
   type Definition,
   type Segment,
   type Tokens,
@@ -204,6 +205,23 @@ export interface RootInput {
   summary?: string;
   /** In groups, each apart from the next. */
   commands: Entry[][];
+  /** A first run, step by step, under the commands. */
+  start?: Step[];
+}
+
+/** A step in a walkthrough: what it does, and the command that does it. */
+export interface Step {
+  comment: string;
+  command: string;
+}
+
+/** Steps as a README shows them: each command under its `# comment`, a blank line between. */
+function steps(list: Step[], t: Tokens, width: number): string[] {
+  return list.flatMap(({ comment, command }, i) => [
+    ...(i > 0 ? [''] : []),
+    ...wrap(comment, width - 4).map(part => `  ${t.muted(`# ${part}`)}`),
+    commandLine(command, t),
+  ]);
 }
 
 /**
@@ -226,12 +244,17 @@ function groupedEntries(groups: Entry[][], t: Tokens, width: number): string[] {
 }
 
 /** `chronicle --help`: what Chronicle is, and its commands. */
-export function rootHelp({ version, summary, commands }: RootInput, t: Tokens, width: number) {
+export function rootHelp(
+  { version, summary, commands, start = [] }: RootInput,
+  t: Tokens,
+  width: number
+) {
   return [
     heading(`Chronicle ${version}`, t, width),
     ...prose(summary, t, width),
     ...section('Usage', [commandLine(`${BIN} <command> [flags]`, t)], t, width),
     ...section('Commands', groupedEntries(commands, t, width), t, width),
+    ...section('Get started', steps(start, t, width), t, width),
     '',
     ...paragraph('Add `--help` to any command to see its flags.', t, width),
   ].join('\n');

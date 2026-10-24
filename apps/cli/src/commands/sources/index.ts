@@ -9,7 +9,7 @@ const legacyNote = (count: number) =>
   'longer exist. Run `chronicle sources --all` to include them.';
 
 export default class Sources extends BaseCommand<typeof Sources> {
-  static override description = 'List the sources and the record types each has';
+  static override description = 'List sources and types available';
 
   static override examples = [
     'chronicle sources',
