@@ -851,8 +851,13 @@ test('the extract hint names a source, or gives a command and where it reads', a
   });
   assert.equal(extractHint([timing]), 'Run `chronicle extract timing-app` to extract it.');
   assert.equal(
-    extractHint([timing, zsh, bash]),
+    extractHint([timing, zsh]),
     'To extract a source, run `chronicle extract` with its name, like `chronicle extract timing-app`.'
+  );
+  // Bash's command needs its flag, so its name alone isn't enough.
+  assert.equal(
+    extractHint([timing, zsh, bash]),
+    "To extract a source, run its command, like `chronicle extract timing-app` for ~/SQLite.db. Use `--format json` to see each one's command."
   );
   assert.equal(
     extractHint([zsh, bash]),
@@ -1111,6 +1116,19 @@ test('scan finds the exports in a folder or zip, with the command that reads eac
   assert.match(table.stderr, /Couldn't open 1 zip: broken\.zip\./);
   assert.match(table.stderr, /Run `chronicle survey \S+EXPORT_FILES` to see how much each holds/);
 
+  // A file two sources read is a row for each, and one export.
+  const mail = join(dir, 'Takeout', 'Mail');
+  mkdirSync(mail, { recursive: true });
+  writeFileSync(
+    join(mail, 'All mail Including Spam and Trash.mbox'),
+    'From 1@xxx Mon Jan 01 00:00:00 +0000 2024\nX-GM-THRID: 1\nSubject: Synthetic\n\nHi\n'
+  );
+  const takeout = scan('scan', join(dir, 'Takeout'));
+  assert.equal(takeout.status, 0, takeout.stderr);
+  assert.match(takeout.stdout, /^email +mbox +Mail\/All mail/m);
+  assert.match(takeout.stdout, /^gmail +takeout +Mail\/All mail/m);
+  assert.match(takeout.stderr, /Found 1 export$/m);
+
   // A zip as the path, and a folder with no export in it.
   const [one] = JSON.parse(success(scan('scan', join(root, 'export.zip'), '--format', 'json')));
   assert.equal(one.label, 'export.zip/apple_health_export');
@@ -1231,21 +1249,29 @@ test(
       table.stdout,
       /^safari +app-db +safari\/2019\/History\.db +version not supported$/m
     );
-    assert.match(table.stderr, /Chronicle recognizes 1 more but can't read it yet/);
+    // Counted with what was found, not as more.
+    assert.match(table.stderr, /Found 2 databases/);
+    assert.match(table.stderr, /Chronicle can't read 1 of them yet\./);
 
     const [surveyed] = JSON.parse(success(scan('survey', history, '--format', 'json')));
     assert.equal(surveyed.survey.views.count, 1);
     assert.deepEqual(readdirSync(dirname(history)), ['History.db']);
 
-    // A database is called one. Beside only databases, the rest of the folder
-    // is the app's own, so it isn't listed as unrecognized.
+    // A database is called one. In Safari's own folder, the rest of the folder
+    // is Safari's, so it isn't listed as unrecognized; beside copies, it is.
+    const own = join(dir, 'home', 'Library', 'Safari');
+    safariHistory(join(own, 'History.db'));
+    mkdirSync(join(own, 'Favicon Cache'));
+    const kept = scan('scan', own);
+    assert.match(kept.stderr, /Found 1 database$/m);
+    assert.doesNotMatch(kept.stderr, /Didn't recognize/);
     mkdirSync(join(root, 'Caches'));
     writeFileSync(join(root, 'Caches', 'cache.bin'), 'synthetic');
     const databases = scan('scan', root);
     assert.match(databases.stderr, /Found 2 databases/);
-    assert.doesNotMatch(databases.stderr, /Didn't recognize/);
+    assert.match(databases.stderr, /Didn't recognize 1 folder: Caches\./);
     assert.match(scan('survey', join(root, 'safari')).stderr, /Counted 1 database\b/);
-    // Beside an export, each is named, and so is what holds neither.
+    // Beside an export, each is named.
     writeFileSync(
       join(root, 'goodreads_library_export.csv'),
       'Book Id,Title,Author,Additional Authors,Exclusive Shelf,My Review,Bookshelves,Date Read,Date Added\n' +
@@ -1253,7 +1279,6 @@ test(
     );
     const both = scan('scan', root);
     assert.match(both.stderr, /Found 1 export and 2 databases/);
-    assert.match(both.stderr, /Didn't recognize 1 folder: Caches\./);
   }
 );
 

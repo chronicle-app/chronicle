@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { Args, Flags } from '@oclif/core';
-import { FULL_DISK_ACCESS } from '@chronicle.app/etl';
+import { FULL_DISK_ACCESS, segmentPattern } from '@chronicle.app/etl';
 import { BaseCommand } from '../baseCommand.js';
 import { LiveRegion, count, glyphs, plural, stdoutWidth, table, tokens } from '../output/index.js';
 import { listSources } from '../plugins/catalog.js';
@@ -39,15 +39,14 @@ export function statusText(row: ScanRow): string {
 
 /**
  * How to extract what a table lists: the command for its one row, or, for
- * several, `example`'s, as one of them. A command that's just the source's
- * name is said as that. Any other is followed by where it reads, unless it
- * names that itself, as an export's `--input` does, and by where to see
- * each row's.
+ * several, `example`'s, as one of them. When every command is just its
+ * source's name, it's said as that. Any other is followed by where it
+ * reads, unless it names that itself, as an export's `--input` does, and by
+ * where to see each row's.
  */
 export function extractHint(rows: ScanRow[], example = rows[0]): string {
   if (rows.length === 1) return `Run \`${example.command}\` to extract it.`;
-  const twin = rows.some(row => row !== example && row.source === example.source);
-  if (!twin && example.command === `chronicle extract ${example.source}`) {
+  if (rows.every(row => row.command === `chronicle extract ${row.source}`)) {
     return `To extract a source, run \`chronicle extract\` with its name, like \`${example.command}\`.`;
   }
   const one = example.root
@@ -116,16 +115,42 @@ function foldersAndZips(names: string[]): string {
     .join(' and ');
 }
 
-/** What a path scan found, counted the way a sentence says it: `2 exports and 1 database`. */
+/**
+ * What a path scan found, counted the way a sentence says it: `2 exports and
+ * 1 database`. Each counts once, however many sources read it.
+ */
 export function exportsAndDatabases(rows: ScanRow[]): string {
-  const databases = rows.filter(row => row.database).length;
-  const exports = rows.length - databases;
+  const databases = new Set(rows.filter(row => row.database).map(row => row.root)).size;
+  const exports = new Set(rows.filter(row => !row.database).map(row => row.root)).size;
   return [
     exports > 0 && `${count(exports)} ${plural('exports', exports)}`,
     databases > 0 && `${count(databases)} ${plural('databases', databases)}`,
   ]
     .filter(Boolean)
     .join(' and ');
+}
+
+/**
+ * Whether every row is an app's database where its app keeps it, as chat.db
+ * is in `~/Library/Messages`, by where its source looks. The rest of the
+ * folder is then the app's own, not a copy beside someone's exports.
+ */
+async function keptByTheirApps(rows: ScanRow[], home: string): Promise<boolean> {
+  if (!rows.every(row => row.database)) return false;
+  const listings = await listSources();
+  return rows.every(row => {
+    const strategy = listings
+      .find(listing => listing.source === row.source)
+      ?.strategies.find(s => s.name === row.strategy);
+    const segments = fromHome(row.root!, home).split('/');
+    return (strategy?.locations ?? []).some(location => {
+      const patterns = location.path.split('/');
+      return (
+        patterns.length === segments.length &&
+        patterns.every((pattern, i) => segmentPattern(pattern).test(segments[i]))
+      );
+    });
+  });
 }
 
 export default class Scan extends BaseCommand<typeof Scan> {
@@ -259,8 +284,18 @@ export default class Scan extends BaseCommand<typeof Scan> {
     } else {
       this.table(rows);
       this.summary(`Found ${exportsAndDatabases(rows)}`);
-      // Beside an app's database, the rest of the folder is the app's own.
-      if (unrecognized.length > 0 && !rows.every(row => row.database)) {
+      // Those no source can read, counted as the summary counts them.
+      const readable = new Set(rows.filter(row => row.status !== 'unsupported').map(r => r.root));
+      const roots = new Set(rows.map(row => row.root));
+      const unsupported = [...roots].filter(root => !readable.has(root)).length;
+      if (unsupported > 0) {
+        this.hint(
+          unsupported === roots.size
+            ? `Chronicle can't read ${unsupported === 1 ? 'it' : 'them'} yet.`
+            : `Chronicle can't read ${count(unsupported)} of them yet.`
+        );
+      }
+      if (unrecognized.length > 0 && !(await keptByTheirApps(rows, home))) {
         const names = [...unrecognized].sort((a, b) => a.localeCompare(b));
         this.hint(`Didn't recognize ${foldersAndZips(names)}: ${named(names)}.`);
       }
@@ -270,13 +305,6 @@ export default class Scan extends BaseCommand<typeof Scan> {
     // A file or folder in an export is surveyed as the export.
     const whole = rows.find(row => scanned.startsWith(`${row.root}${path.sep}`))?.root;
     this.hints(rows, `chronicle survey ${shellWord(whole ?? scanned, home)}`);
-    const unsupported = rows.filter(row => row.status === 'unsupported').length;
-    if (unsupported > 0) {
-      this.hint(
-        `Chronicle recognizes ${count(unsupported)} more but can't read ` +
-          `${unsupported === 1 ? 'it' : 'them'} yet.`
-      );
-    }
   }
 
   /** The rows as JSON or CSV, when the format asks for one: whether it did. */
@@ -301,17 +329,16 @@ export default class Scan extends BaseCommand<typeof Scan> {
   }
 
   /**
-   * The rows, each with the strategy that reads it, those that aren't ready
-   * last, just above the hints that say what to do about them.
+   * The rows, each with the strategy that reads it, in a scan's order: those
+   * that aren't ready last, just above the hints that say what to do about
+   * them.
    */
   private table(rows: ScanRow[]): void {
     const t = tokens({ stream: 'stdout', theme: this.flags.theme });
-    const ready = (row: ScanRow) => row.installed && row.status === 'ready';
-    const ordered = [...rows.filter(row => ready(row)), ...rows.filter(row => !ready(row))];
     const { lines } = table(
       {
         headings: ['source', 'strategy', 'found', 'status'],
-        cells: ordered.map(row => [row.source, row.strategy, row.label, statusText(row)]),
+        cells: rows.map(row => [row.source, row.strategy, row.label, statusText(row)]),
         muted: [false, false, false, true],
         paths: [false, false, true, false],
       },

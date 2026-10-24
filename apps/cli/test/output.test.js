@@ -96,6 +96,28 @@ test('a card wraps its values when asked, cutting no word', async () => {
   assert.equal(wrapped.map(line => line.slice('types  '.length)).join(' '), types);
 });
 
+test('root help lines up summaries across groups, and stacks only a name too long', async () => {
+  const { rootHelp } = await import('../dist/help/render.js');
+  const { plainTokens } = await import('../dist/output/index.js');
+  const long = 'a-plugin-command-with-a-very-long-name';
+  const commands = [
+    [{ name: 'sources', summary: 'List the sources' }],
+    [
+      { name: 'scan', summary: 'Find your data' },
+      { name: long, summary: 'Do a long thing' },
+    ],
+  ];
+  const lines = rootHelp({ version: '1.2.3', commands }, plainTokens, 80).split('\n');
+  const start = lines.indexOf('Commands') + 1;
+  assert.deepEqual(lines.slice(start, start + 5), [
+    '  sources  List the sources',
+    '',
+    '  scan     Find your data',
+    `  ${long}`,
+    '           Do a long thing',
+  ]);
+});
+
 test('a path in a table is cut in the middle, keeping where it is and its file', async () => {
   const { table, truncatePath, plainTokens } = await import('../dist/output/index.js');
   const notes = '~/Library/Group Containers/group.com.apple.notes/NoteStore.sqlite';

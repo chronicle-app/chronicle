@@ -206,22 +206,23 @@ export interface RootInput {
   commands: Entry[][];
 }
 
-/** Groups of entries, a blank line between them, their summaries lined up across groups. */
+/**
+ * Groups of entries, a blank line between them, their summaries lined up
+ * across groups. They're one list, so a name too long for the column takes
+ * a line of its own and no other does; an empty term between groups draws
+ * the blank line.
+ */
 function groupedEntries(groups: Entry[][], t: Tokens, width: number): string[] {
-  const widest = Math.max(0, ...groups.flat().map(({ name }) => name.length));
-  return groups
+  const items = groups
     .filter(group => group.length > 0)
-    .flatMap((group, i) => [
-      ...(i > 0 ? [''] : []),
-      ...definitions(
-        group.map(({ name, summary }) => ({
-          term: [[name, t.command], [' '.repeat(widest - name.length)]],
-          text: summary,
-        })),
-        t,
-        width
-      ),
+    .flatMap((group, i): Definition[] => [
+      ...(i > 0 ? [{ term: [] }] : []),
+      ...group.map(({ name, summary }): Definition => ({
+        term: [[name, t.command]],
+        text: summary,
+      })),
     ]);
+  return definitions(items, t, width).map(line => (line.trim() ? line : ''));
 }
 
 /** `chronicle --help`: what Chronicle is, and its commands. */
