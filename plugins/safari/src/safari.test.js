@@ -145,19 +145,25 @@ test('its declared schema is all its queries read, and a History.db without it i
   });
 });
 
-async function bookmarks(t, config = {}) {
+async function withBookmarks(t, config, read) {
   const dir = mkdtempSync(join(tmpdir(), 'safari-fixture-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const bookmarksFile = writeBookmarksFixture(dir);
   utimesSync(bookmarksFile, new Date('2025-02-01T00:00:00Z'), new Date('2025-02-01T00:00:00Z'));
-  const extractor = new SafariBookmarksExtractor({ bookmarksFile, account, ...config });
+  // Bookmarks.plist is read beside the History.db a run reads.
+  const input = join(dir, 'History.db');
+  const extractor = new SafariBookmarksExtractor({ input, account, ...config });
   try {
     await extractor.setup();
-    return await Array.fromAsync(extractor.extract());
+    return await read(extractor);
   } finally {
     await extractor.teardown();
   }
 }
+const bookmarks = (t, config = {}) =>
+  withBookmarks(t, config, extractor => Array.fromAsync(extractor.extract()));
+const surveyBookmarks = (t, config = {}, options = {}) =>
+  withBookmarks(t, config, extractor => extractor.survey(options));
 
 test('bookmarks are dated when Safari added them, newest first', async t => {
   const rows = await bookmarks(t);
@@ -179,6 +185,36 @@ test('bookmarks are dated when Safari added them, newest first', async t => {
     (await bookmarks(t, { since })).map(r => r.data.id),
     ['F-1', 'R-1']
   );
+});
+
+test('a survey counts the bookmarks a run reads, and when', async t => {
+  const rows = await bookmarks(t);
+  const times = rows.map(r => new Date(r.data.addedAt));
+  const survey = await surveyBookmarks(t, {}, { byMonth: true });
+  const months = {};
+  for (const time of times) months[monthKey(time)] = (months[monthKey(time)] ?? 0) + 1;
+  assert.deepEqual(survey, {
+    bookmarks: { count: rows.length, earliest: times.at(-1), latest: times[0], byMonth: months },
+  });
+  // By the run's bounds, but not its limit.
+  const since = new Date('2025-01-01T01:30:00Z');
+  assert.equal((await surveyBookmarks(t, { since, limit: 1 })).bookmarks.count, 2);
+});
+
+test('a History.db with no Bookmarks.plist beside it has no bookmarks', async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'safari-fixture-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const input = join(dir, 'History.db');
+  const extractor = new SafariBookmarksExtractor({ input, account });
+  await extractor.setup();
+  assert.deepEqual(await Array.fromAsync(extractor.extract()), []);
+  assert.deepEqual(await extractor.survey(), { bookmarks: { count: 0 } });
+
+  // One named that isn't there is an error.
+  const bookmarksFile = join(dir, 'Bookmarks.plist');
+  await assert.rejects(new SafariBookmarksExtractor({ bookmarksFile, account }).setup(), {
+    message: 'No bookmarks file found',
+  });
 });
 
 test('a bookmark is a BookmarkAction whose target is its folder', async t => {

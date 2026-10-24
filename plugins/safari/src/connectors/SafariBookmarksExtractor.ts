@@ -1,8 +1,16 @@
 import { readFile, stat } from 'node:fs/promises';
-import { Extractor, Record, fileError } from '@chronicle.app/etl';
+import { dirname, join } from 'node:path';
+import {
+  Extractor,
+  Record,
+  countMonth,
+  fileError,
+  type Survey,
+  type SurveyOptions,
+} from '@chronicle.app/etl';
 import { getICloudAccount, parseBinaryPlist, Uid, type PlistValue } from '@chronicle.app/apple';
 import { z } from 'zod';
-import { accountOption } from './SafariExtractor.js';
+import { accountOption, historyInput } from './SafariExtractor.js';
 import SafariTransformer from './SafariTransformer.js';
 
 /** A folder a bookmark is in. */
@@ -57,10 +65,11 @@ export class SafariBookmarksExtractor extends Extractor<typeof SafariBookmarksEx
   // Extractor.temporality.
   static override temporality = 'snapshot' as const;
   static override schema = Extractor.schema.extend({
+    input: historyInput,
     bookmarksFile: z
       .string()
-      .describe('Path to Safari Bookmarks.plist')
-      .default(`${process.env.HOME}/Library/Safari/Bookmarks.plist`),
+      .optional()
+      .describe('Path to Safari Bookmarks.plist (default: the one beside History.db)'),
     account: accountOption,
   });
 
@@ -69,14 +78,21 @@ export class SafariBookmarksExtractor extends Extractor<typeof SafariBookmarksEx
   private bookmarks: Bookmark[] = [];
   private changed: Date | undefined;
 
+  /**
+   * Read the bookmarks file, by default the one in the folder of the
+   * History.db a run reads, so a copy of Safari's folder is read as one. A
+   * History.db without one beside it has no bookmarks to read.
+   */
   override async setup(): Promise<void> {
     await super.setup();
-    const path = this.config.bookmarksFile;
+    const { bookmarksFile, input } = this.config;
+    const path = bookmarksFile ?? join(dirname(input), 'Bookmarks.plist');
     let bytes: Buffer;
     try {
       bytes = await readFile(path);
       this.changed = (await stat(path)).mtime;
     } catch (error) {
+      if (!bookmarksFile && (error as NodeJS.ErrnoException).code === 'ENOENT') return;
       throw fileError(error, path, 'bookmarks file');
     }
     this.bookmarks = this.read(parseBinaryPlist(bytes));
@@ -100,20 +116,41 @@ export class SafariBookmarksExtractor extends Extractor<typeof SafariBookmarksEx
   }
 
   async *extract(): AsyncGenerator<Record> {
-    const { since, until } = this.config;
     const limit = this.getEffectiveLimit();
-    const bookmarks = this.bookmarks
+    const account =
+      this.config.account === undefined ? await getICloudAccount() : this.config.account;
+
+    for (const bookmark of this.inRange().slice(0, limit ?? undefined)) {
+      yield this.createRecord(bookmark, { source: 'safari', account });
+    }
+  }
+
+  /** The bookmarks a run reads and when, from the file setup() read. */
+  override async survey(options: SurveyOptions = {}): Promise<Survey> {
+    const bookmarks = this.inRange();
+    const byMonth: { [month: string]: number } = {};
+    if (options.byMonth)
+      for (const { addedAt } of bookmarks) countMonth(byMonth, new Date(addedAt));
+    return {
+      bookmarks: {
+        count: bookmarks.length,
+        ...(bookmarks.length > 0 && {
+          earliest: new Date(bookmarks.at(-1)!.addedAt),
+          latest: new Date(bookmarks[0].addedAt),
+        }),
+        ...(options.byMonth && { byMonth }),
+      },
+    };
+  }
+
+  /** The bookmarks within since/until, newest first. */
+  private inRange(): Bookmark[] {
+    const { since, until } = this.config;
+    return this.bookmarks
       .filter(
         b => (!since || savedAt(b) > since.getTime()) && (!until || savedAt(b) < until.getTime())
       )
       .sort((a, b) => savedAt(b) - savedAt(a));
-
-    const account =
-      this.config.account === undefined ? await getICloudAccount() : this.config.account;
-
-    for (const bookmark of bookmarks.slice(0, limit ?? undefined)) {
-      yield this.createRecord(bookmark, { source: 'safari', account });
-    }
   }
 
   /**

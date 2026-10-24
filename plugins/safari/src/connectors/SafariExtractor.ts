@@ -18,6 +18,12 @@ const safariBound = (date: Date) => unixToSafariTimestamp(Math.floor(date.getTim
 // A visit's time as a record gives it: whole Unix seconds.
 const visitTime = `cast(history_visits.visit_time + ${APPLE_EPOCH_OFFSET_SECONDS} as integer)`;
 
+/** Safari's History.db; its Bookmarks.plist is in the same folder. */
+export const historyInput = z
+  .string()
+  .describe('Path to Safari History.db file')
+  .default(`${process.env.HOME}/Library/Safari/History.db`);
+
 /**
  * The Apple Account whose history and bookmarks these are. Omitted, it's the
  * one signed in to this Mac; null, there's no one to name.
@@ -60,10 +66,7 @@ export class SafariExtractor extends SqliteExtractor<typeof SafariExtractor> {
   ];
 
   static override schema = SqliteExtractor.schema.omit({ input: true }).extend({
-    input: z
-      .string()
-      .describe('Path to Safari History.db file')
-      .default(`${process.env.HOME}/Library/Safari/History.db`),
+    input: historyInput,
     account: accountOption,
   }) as any;
 
