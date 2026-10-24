@@ -34,7 +34,7 @@ export abstract class SqliteExtractor<
   static databases?: DatabaseSchema[];
 
   protected db: DatabaseSync | null = null;
-  /** The snapshot's columns, for {@link has}. */
+  /** The checked database's columns, for {@link has}. */
   private columns: DatabaseColumns | null = null;
   private snapshotDir: string | null = null;
 
@@ -51,21 +51,31 @@ export abstract class SqliteExtractor<
     this.snapshotDir = await mkdtemp(join(tmpdir(), 'chronicle-sqlite-'));
     try {
       this.db = this.openDatabase(await snapshot(input, this.snapshotDir));
-      this.columns = columnsOf(this.db);
-      const match = matchSchema(this.columns, databases);
-      if (!match || match.missing.length > 0 || match.schema.supported === false) {
-        throw new InputNotFound(
-          match ? 'That’s a version of the database this can’t read' : 'That isn’t the database',
-          {
-            path: input,
-            ...(match && { fields: { missing: match.missing } }),
-            hint: 'Run `chronicle scan <path>` to see what it is.',
-          }
-        );
-      }
+      this.assertSchema(databases, input);
     } catch (error) {
       await this.teardown();
       throw error;
+    }
+  }
+
+  /**
+   * Refuse the open database unless it has every column one of `databases`
+   * needs, naming `path` as what was given. `setup()` checks a declared
+   * schema; a reader that declares none, as one whose input is a copy
+   * already, can check one after it.
+   */
+  protected assertSchema(databases: DatabaseSchema[], path: string): void {
+    this.columns = columnsOf(this.db!);
+    const match = matchSchema(this.columns, databases);
+    if (!match || match.missing.length > 0 || match.schema.supported === false) {
+      throw new InputNotFound(
+        match ? 'That’s a version of the database this can’t read' : 'That isn’t the database',
+        {
+          path,
+          ...(match && { fields: { missing: match.missing } }),
+          hint: 'Run `chronicle scan <path>` to see what it is.',
+        }
+      );
     }
   }
 

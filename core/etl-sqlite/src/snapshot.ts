@@ -1,4 +1,5 @@
-import { constants as fsConstants, copyFileSync, rmSync, statSync } from 'node:fs';
+import { constants as fsConstants, rmSync, statSync } from 'node:fs';
+import { copyFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { EXIT_CODES, ExtractorError, delay, type DatabaseSchema } from '@chronicle.app/etl';
@@ -10,8 +11,8 @@ const SAVED = ['', '-wal'];
  * Copy a database and its `-wal` into `dir`, to read it without writing
  * beside it, waiting on an app's lock, or missing what's only in the
  * `-wal` so far. The copy is a clone where the filesystem can make one, as
- * APFS can, which is instant, and a full copy elsewhere. A copy that caught
- * a save is taken again.
+ * APFS can, which is instant, and a full copy elsewhere, made off the event
+ * loop. A copy that caught a save is taken again.
  */
 export async function snapshot(
   database: string,
@@ -23,8 +24,13 @@ export async function snapshot(
     const before = savedState(database);
     for (const suffix of SAVED) {
       rmSync(copy + suffix, { force: true });
-      if (suffix && !statSync(database + suffix, { throwIfNoEntry: false })) continue;
-      copyFileSync(database + suffix, copy + suffix, fsConstants.COPYFILE_FICLONE);
+      try {
+        await copyFile(database + suffix, copy + suffix, fsConstants.COPYFILE_FICLONE);
+      } catch (error) {
+        // A database can have no -wal, and one gone by the time its copy
+        // starts is a save, which the state after catches.
+        if (!suffix || (error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      }
     }
     if (before === savedState(database)) return copy;
     if (attempt >= attempts) {

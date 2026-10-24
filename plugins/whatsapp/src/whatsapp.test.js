@@ -242,6 +242,19 @@ test('its declared schema is all its queries read, and a ChatStorage.sqlite with
     message: /version of the database/,
     fields: { path: older, missing: ['ZWAMEDIAITEM.ZMETADATA'] },
   });
+
+  // An iPhone backup of that WhatsApp is refused too, naming the backup.
+  const source = writeWhatsappFixture(join(dir, 'source'));
+  copyFileSync(older, join(source, 'ChatStorage.sqlite'));
+  const backup = join(dir, 'backup');
+  writeBackup(backup, source);
+  await assert.rejects(
+    actions(WhatsappBackupExtractor, { input: backup, iosWorkDir: join(dir, 'work') }),
+    {
+      code: 'input-not-found',
+      fields: { path: backup, missing: ['ZWAMEDIAITEM.ZMETADATA'] },
+    }
+  );
 });
 
 /** How many of the times each month holds, as a survey's `byMonth` keys them. */
