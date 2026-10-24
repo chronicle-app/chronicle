@@ -1,9 +1,36 @@
 import { closeSync, openSync } from 'node:fs';
 import { InputNotFound, PermissionDenied } from '@chronicle.app/logging';
 
+/** Apps a shell runs in, by bundle ID, named as System Settings lists them. */
+const TERMINAL_APPS = new Map([
+  ['com.apple.Terminal', 'Terminal'],
+  ['com.googlecode.iterm2', 'iTerm'],
+  ['com.mitchellh.ghostty', 'Ghostty'],
+  ['dev.warp.Warp-Stable', 'Warp'],
+  ['com.github.wez.wezterm', 'WezTerm'],
+  ['org.alacritty', 'Alacritty'],
+  ['net.kovidgoyal.kitty', 'kitty'],
+  ['co.zeit.hyper', 'Hyper'],
+  ['com.microsoft.VSCode', 'Visual Studio Code'],
+  ['com.microsoft.VSCodeInsiders', 'Visual Studio Code - Insiders'],
+  ['com.todesktop.230313mzl4w4u92', 'Cursor'],
+  ['com.exafunction.windsurf', 'Windsurf'],
+  ['dev.zed.Zed', 'Zed'],
+  ['com.anthropic.claudefordesktop', 'Claude'],
+]);
+
+/**
+ * The app macOS asks Full Disk Access of: the one the shell runs in, by the
+ * bundle ID macOS starts it with. Unnamed when macOS didn't start the shell
+ * (ssh, launchd) or the app isn't one listed.
+ */
+export function terminalApp(): string | undefined {
+  const id = process.env.__CFBundleIdentifier;
+  return id === undefined ? undefined : TERMINAL_APPS.get(id);
+}
+
 /** How to let the terminal read what macOS guards, as a hint. */
-export const FULL_DISK_ACCESS =
-  'Give your terminal app Full Disk Access in System Settings → Privacy & Security, then restart it.';
+export const FULL_DISK_ACCESS = `Run \`chronicle setup full-disk-access\` to give ${terminalApp() ?? 'your terminal app'} Full Disk Access.`;
 
 /**
  * A filesystem error from reading `path` as the typed error it stands for:

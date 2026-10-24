@@ -70,7 +70,7 @@ export * from './connectors/transformers/DelayTransformer.js';
 export * from './connectors/transformers/SamplingTransformer.js';
 export * from './connectors/csv/CsvExtractor.js';
 export * from './io-extractor-helper.js';
-export { FULL_DISK_ACCESS, assertReadable, fileError } from './fileErrors.js';
+export { FULL_DISK_ACCESS, assertReadable, fileError, terminalApp } from './fileErrors.js';
 export * from './utils/string.js';
 export { ApiProxy, ApiAuthError, ApiRateLimitError, type ApiProxyOptions } from './api/ApiProxy.js';
 export { delay, paginateByPage, paginateCursor, paginateOffset } from './api/pagination.js';

@@ -841,6 +841,19 @@ test('scan finds what a home folder holds, with a command that extracts each', t
   assert.match(unknown.stderr, /chronicle sources --all/);
 });
 
+test(
+  'setup full-disk-access walks through turning it on, and opens nothing unasked',
+  { skip: process.platform !== 'darwin' && 'Full Disk Access is only on macOS' },
+  t => {
+    const { dir, run } = fixture(t);
+    // A home without the folders it guards, so this Mac's access doesn't count.
+    const access = run.with({ HOME: join(dir, 'home') })('setup', 'full-disk-access');
+    assert.equal(access.status, 0, access.stderr);
+    assert.match(access.stderr, /chronicle setup full-disk-access/);
+    assert.match(access.stderr, /--open/);
+  }
+);
+
 test('the extract hint names a source, or gives a command and where it reads', async () => {
   const { extractHint } = await import('../dist/commands/scan.js');
   const row = (source, label, command, config = {}) => ({ source, label, command, config });

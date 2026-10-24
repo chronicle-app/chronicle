@@ -84,6 +84,9 @@
       },
       "plugins": {
         "description": "List, install, and remove source plugins"
+      },
+      "setup": {
+        "description": "Set up this computer for the sources that need it"
       }
     },
     "pjson": {

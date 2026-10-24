@@ -24,7 +24,7 @@ const ROOT_ORDER = [
   ['sources'],
   ['extract'],
   ['scan', 'survey'],
-  ['auth', 'config', 'plugins', 'commands'],
+  ['auth', 'setup', 'config', 'plugins', 'commands'],
 ];
 
 // Verb (or its short alias) -> canonical verb for usage text.
