@@ -1,6 +1,13 @@
 import { ChronicleTransformer, Record } from '@chronicle.app/etl';
-import { ActionAndChildren, Entity, ViewAction } from '@chronicle.app/schema';
+import {
+  ActionAndChildren,
+  BookmarkAction,
+  Collection,
+  Entity,
+  ViewAction,
+} from '@chronicle.app/schema';
 import { buildICloudPersonSchema } from '@chronicle.app/apple';
+import type { Bookmark } from './SafariBookmarksExtractor.js';
 
 export default class SafariTransformer extends ChronicleTransformer {
   async transform(record: Record): Promise<ActionAndChildren[]> {
@@ -8,6 +15,8 @@ export default class SafariTransformer extends ChronicleTransformer {
 
     if (record.extraction.recordType === 'views') {
       actions.push(...(await this.buildViewActions(record)));
+    } else if (record.extraction.recordType === 'bookmarks') {
+      actions.push(await this.buildBookmarkAction(record));
     }
 
     return actions;
@@ -33,6 +42,38 @@ export default class SafariTransformer extends ChronicleTransformer {
     actions.push(viewAction);
 
     return actions;
+  }
+
+  // A bookmark, a favorite, and a Reading List item are each a page saved to
+  // a folder: the folder is the target, and a favorite's is Favorites.
+  private async buildBookmarkAction(record: Record): Promise<BookmarkAction> {
+    const bookmark = record.data as Bookmark;
+    const user = await buildICloudPersonSchema(record.context.account);
+    // Safari names its own folders the same in every account, such as
+    // `Favorites Bar`, so a folder's ID is unique only within its owner's.
+    let target: Collection | undefined;
+    for (const folder of bookmark.folders) {
+      target = {
+        '@type': 'Collection',
+        '@key': ['@type', 'source', 'inAccount[*].sourceId', 'sourceId'],
+        source: 'safari',
+        sourceId: folder.id,
+        name: folder.name,
+        ...(user && { inAccount: [user] }),
+        ...(target && { isPartOf: [target] }),
+      };
+    }
+
+    return {
+      '@type': 'BookmarkAction',
+      '@key': ['@type', 'source', 'sourceId'],
+      source: 'safari',
+      sourceId: bookmark.id,
+      timestamp: new Date(bookmark.addedAt),
+      ...(user && { agent: user }),
+      object: this.buildWebPage(record),
+      ...(target && { target }),
+    };
   }
 
   private buildWebPage(record: Record): Entity {

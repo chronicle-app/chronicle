@@ -178,7 +178,7 @@
       "name": "safari",
       "package": "@chronicle.app/safari",
       "tier": "core",
-      "summary": "Safari browsing history"
+      "summary": "Safari browsing history, bookmarks, and Reading List"
     },
     {
       "name": "shazam",

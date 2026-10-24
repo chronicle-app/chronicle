@@ -17,7 +17,7 @@
   "author": "Andrew Louis",
   "license": "MIT",
   "type": "module",
-  "description": "Chronicle Safari browsing history plugin",
+  "description": "Chronicle Safari browsing history, bookmarks, and Reading List plugin",
   "devDependencies": {
     "@chronicle.app/etl": "0.4.0",
     "@chronicle.app/schema": "0.4.0",
@@ -61,7 +61,8 @@
           "app-db": {
             "delivery": "local",
             "recordTypes": [
-              "views"
+              "views",
+              "bookmarks"
             ],
             "default": true,
             "locations": [
