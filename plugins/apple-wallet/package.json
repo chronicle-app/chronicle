@@ -102,7 +102,7 @@
                     "pid",
                     "unique_id",
                     "primary_account_identifier",
-                    "e",
+                    "e?",
                     "primary_account_suffix",
                     "organization_name",
                     "supports_fpan_notifications",

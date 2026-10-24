@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { DatabaseSync } from 'node:sqlite';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -55,6 +56,27 @@ test('its declared schema is all its queries read, and a CallHistory.storedata w
   writeSchemaDatabase(input, schema, { optional: false });
   assert.deepEqual((await extract(input)).records, []);
   assert.equal((await surveyBy(input)).calls.count, 0);
+
+  // One without the join table of a call's other participants, or with its
+  // handles' column under another entity number, extracts the same calls,
+  // with no one else on the group call.
+  const { records } = await extract(writeCallHistoryFixture(tempDir(t)));
+  const alone = records.map(r => (r.context.groupUuid ? { ...r.context, handles: [] } : r.context));
+  for (const change of [
+    'DROP TABLE Z_2REMOTEPARTICIPANTHANDLES',
+    `ALTER TABLE Z_2REMOTEPARTICIPANTHANDLES
+      RENAME COLUMN Z_4REMOTEPARTICIPANTHANDLES TO Z_5REMOTEPARTICIPANTHANDLES`,
+  ]) {
+    const store = writeCallHistoryFixture(tempDir(t));
+    const db = new DatabaseSync(store);
+    db.exec(change);
+    db.close();
+    assert.deepEqual(
+      (await extract(store)).records.map(r => r.context),
+      alone
+    );
+    assert.equal((await surveyBy(store)).calls.count, records.length);
+  }
 
   // An older Call History's, say, without a column its queries read.
   const older = join(dir, 'older.storedata');

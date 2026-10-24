@@ -89,11 +89,25 @@
                   ],
                   "Z_2REMOTEPARTICIPANTHANDLES": [
                     "Z_2REMOTEPARTICIPANTCALLS",
-                    "Z_4REMOTEPARTICIPANTHANDLES"
+                    "Z_4REMOTEPARTICIPANTHANDLES?"
                   ],
                   "ZHANDLE": [
                     "Z_PK",
                     "ZVALUE"
+                  ]
+                }
+              },
+              {
+                "tables": {
+                  "ZCALLRECORD": [
+                    "Z_PK",
+                    "ZUNIQUE_ID",
+                    "ZDATE",
+                    "ZDURATION",
+                    "ZORIGINATED",
+                    "ZADDRESS",
+                    "ZNAME",
+                    "ZPARTICIPANTGROUPUUID"
                   ]
                 }
               }

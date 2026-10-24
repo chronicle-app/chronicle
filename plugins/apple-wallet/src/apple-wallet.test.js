@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { DatabaseSync } from 'node:sqlite';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -229,13 +230,27 @@ test('its declared schema is all its queries read, and a passes23.sqlite without
   assert.deepEqual((await extract(input)).records, []);
   assert.equal((await surveyBy(input)).transactions.count, 0);
 
+  // One from another macOS, whose pass has no `e`, extracts the same, with
+  // the issuer's identifier for the account from pass.json.
+  const { records } = await extract(writeWalletFixture(tempDir(t)));
+  const store = writeWalletFixture(tempDir(t));
+  const db = new DatabaseSync(store);
+  db.exec('ALTER TABLE pass DROP COLUMN e');
+  db.close();
+  const withoutE = (await extract(store)).records;
+  assert.deepEqual(
+    withoutE.map(record => record.data),
+    records.map(record => record.data)
+  );
+  assert.equal(withoutE[0].data.card.issuerAccountIdentifier, 'ACCOUNT-VISA-1');
+
   // An older Wallet's, say, without a column its queries read.
   const older = join(dir, 'older.sqlite');
-  const passes = schema.tables.pass.filter(column => column !== 'e');
+  const passes = schema.tables.pass.filter(column => column !== 'supports_fpan_notifications');
   writeSchemaDatabase(older, { tables: { ...schema.tables, pass: passes } });
   await assert.rejects(extract(older), {
     message: /version of the database/,
-    fields: { path: older, missing: ['pass.e'] },
+    fields: { path: older, missing: ['pass.supports_fpan_notifications'] },
   });
 });
 

@@ -78,14 +78,14 @@
                     "type",
                     "status",
                     "creationDate",
-                    "startDate",
+                    "startDate?",
                     "stopDate",
                     "userModificationDate",
                     "project",
                     "heading",
                     "area",
-                    "notes",
-                    "trashed"
+                    "notes?",
+                    "trashed?"
                   ],
                   "TMTaskTag": [
                     "tasks",
@@ -95,8 +95,8 @@
                     "uuid",
                     "title",
                     "parent",
-                    "shortcut",
-                    "usedDate"
+                    "shortcut?",
+                    "usedDate?"
                   ],
                   "TMArea": [
                     "uuid",

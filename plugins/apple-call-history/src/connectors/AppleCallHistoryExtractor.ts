@@ -1,4 +1,4 @@
-import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
+import { Record, type DatabaseSchema, type Survey, type SurveyOptions } from '@chronicle.app/etl';
 import {
   APPLE_EPOCH_OFFSET_SECONDS,
   SqliteExtractor,
@@ -13,6 +13,26 @@ import { z } from 'zod';
 import CallHistoryTransformer from './CallHistoryTransformer.js';
 
 const DEFAULT_DB = `${process.env.HOME}/Library/Application Support/CallHistoryDB/CallHistory.storedata`;
+
+/** The columns of ZCALLRECORD that extract() and survey() read. */
+const CALL_COLUMNS = [
+  'Z_PK',
+  'ZUNIQUE_ID',
+  'ZDATE',
+  'ZDURATION',
+  'ZORIGINATED',
+  'ZADDRESS',
+  'ZNAME',
+  'ZPARTICIPANTGROUPUUID',
+];
+
+/** The columns a call's other participants are read from, as `table.column`. */
+const PARTICIPANT_COLUMNS = [
+  'Z_2REMOTEPARTICIPANTHANDLES.Z_2REMOTEPARTICIPANTCALLS',
+  'Z_2REMOTEPARTICIPANTHANDLES.Z_4REMOTEPARTICIPANTHANDLES',
+  'ZHANDLE.Z_PK',
+  'ZHANDLE.ZVALUE',
+];
 
 /**
  * Apple Call History — the primary, per-record-rich call source. Each record has
@@ -33,23 +53,19 @@ export class AppleCallHistoryExtractor extends SqliteExtractor<typeof AppleCallH
   static override defaultTransformer = CallHistoryTransformer;
   static override temporality = 'event' as const;
   // What extract() and survey() read, which a CallHistory.storedata must have.
-  static override databases = [
+  // Core Data names the join table of a call's other participants, and its
+  // columns, by entity number, which a release can change. A store without
+  // the table, in the second schema, or without its columns has its calls
+  // extracted without who else was on a group call.
+  static override databases: DatabaseSchema[] = [
     {
       tables: {
-        ZCALLRECORD: [
-          'Z_PK',
-          'ZUNIQUE_ID',
-          'ZDATE',
-          'ZDURATION',
-          'ZORIGINATED',
-          'ZADDRESS',
-          'ZNAME',
-          'ZPARTICIPANTGROUPUUID',
-        ],
-        Z_2REMOTEPARTICIPANTHANDLES: ['Z_2REMOTEPARTICIPANTCALLS', 'Z_4REMOTEPARTICIPANTHANDLES'],
+        ZCALLRECORD: CALL_COLUMNS,
+        Z_2REMOTEPARTICIPANTHANDLES: ['Z_2REMOTEPARTICIPANTCALLS', 'Z_4REMOTEPARTICIPANTHANDLES?'],
         ZHANDLE: ['Z_PK', 'ZVALUE'],
       },
     },
+    { tables: { ZCALLRECORD: CALL_COLUMNS } },
   ];
 
   static override schema = SqliteExtractor.schema.omit({ input: true }).extend({
@@ -65,14 +81,15 @@ export class AppleCallHistoryExtractor extends SqliteExtractor<typeof AppleCallH
     return { where: conditions.join(' AND '), values: range.values };
   }
 
-  /** call Z_PK → remote handle values (phone/email). */
+  /** call Z_PK → remote handle values (phone/email), when the store has the table of them. */
   private loadParticipants(): Map<number, string[]> {
+    const map = new Map<number, string[]>();
+    if (!PARTICIPANT_COLUMNS.every(column => this.has(column))) return map;
     const rows = this.db!.prepare(
       `SELECT j.Z_2REMOTEPARTICIPANTCALLS AS callPk, h.ZVALUE AS value
        FROM Z_2REMOTEPARTICIPANTHANDLES j
        JOIN ZHANDLE h ON h.Z_PK = j.Z_4REMOTEPARTICIPANTHANDLES`
     ).all() as any[];
-    const map = new Map<number, string[]>();
     for (const row of rows) {
       if (!row.value) continue;
       const list = map.get(row.callPk) ?? [];

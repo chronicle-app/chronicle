@@ -75,13 +75,30 @@ test('its declared schema is all its queries read, and a main.sqlite without it 
   const counted = await survey(input, {}, { byMonth: true });
   assert.equal(counted.tasks.count + counted.projects.count, 0);
 
+  // A tagged, completed task in it, with no notes or trash flag, and a tag
+  // with no shortcut or last use, extracts and becomes its actions.
+  const db = new DatabaseSync(input);
+  db.exec(`
+    INSERT INTO TMTag (uuid, title) VALUES ('tag-1', 'Focus');
+    INSERT INTO TMTaskTag VALUES ('task-1', 'tag-1');
+    INSERT INTO TMTask (uuid, title, type, status, creationDate, stopDate, userModificationDate)
+      VALUES ('task-1', 'Task', 0, 3, 100, 300, 300);
+  `);
+  db.close();
+  const [task] = await records(input);
+  assert.equal(task.context.tags[0].lastUsedAt, null);
+  assert.deepEqual(
+    (await new ThingsTodoTransformer().performTransform(task)).map(r => r.data['@type']),
+    ['PlanAction', 'CompleteAction']
+  );
+
   // An older Things', say, without a column its queries read.
   const older = join(dir, 'older.sqlite');
-  const tags = schema.tables.TMTag.filter(column => column !== 'usedDate');
+  const tags = schema.tables.TMTag.filter(column => column !== 'parent');
   writeSchemaDatabase(older, { tables: { ...schema.tables, TMTag: tags } });
   await assert.rejects(records(older), {
     message: /version of the database/,
-    fields: { path: older, missing: ['TMTag.usedDate'] },
+    fields: { path: older, missing: ['TMTag.parent'] },
   });
 });
 

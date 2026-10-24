@@ -166,7 +166,7 @@ export class AppleWalletExtractor extends SqliteExtractor<typeof AppleWalletExtr
           'pid',
           'unique_id',
           'primary_account_identifier',
-          'e',
+          'e?',
           'primary_account_suffix',
           'organization_name',
           'supports_fpan_notifications',
@@ -277,16 +277,19 @@ export class AppleWalletExtractor extends SqliteExtractor<typeof AppleWalletExtr
    * is on, has a source of its own, for Apple Pay on that device.
    */
   private async loadCards(): Promise<Map<string, Card>> {
+    // A store without `e`, from another macOS, has only pass.json's identifier for the account.
+    const issuer = this.has('pass.e') ? 'p.e' : 'NULL';
     const rows = allRows<CardRow>(
       this.db!.prepare(`
         SELECT CAST(transaction_source_pid AS TEXT) AS sourcePid, unique_id AS uniqueId,
-               primary_account_identifier AS cardIdentifier, e AS issuerAccountIdentifier,
+               primary_account_identifier AS cardIdentifier, ${issuer} AS issuerAccountIdentifier,
                primary_account_suffix AS accountSuffix, organization_name AS organizationName,
                supports_fpan_notifications AS accountNotifications
-        FROM pass WHERE transaction_source_pid IS NOT NULL
+        FROM pass p WHERE transaction_source_pid IS NOT NULL
         UNION
         SELECT CAST(a.transaction_source_pid AS TEXT), p.unique_id, p.primary_account_identifier,
-               p.e, p.primary_account_suffix, p.organization_name, p.supports_fpan_notifications
+               ${issuer}, p.primary_account_suffix, p.organization_name,
+               p.supports_fpan_notifications
         FROM payment_application a JOIN pass p ON p.pid = a.pass_pid
         WHERE a.transaction_source_pid IS NOT NULL`)
     );
