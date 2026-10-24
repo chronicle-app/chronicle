@@ -1,5 +1,16 @@
 # @chronicle.app/youtube
 
+## 0.5.0
+
+### Minor Changes
+
+- 5ed2312: Apple Health, Facebook, Instagram, LinkedIn, Slack, Twitter, and YouTube Takeout survey what their exports hold, so `chronicle survey` counts what they would extract, and when each record happened. The exports have no index, so a survey reads the export as a run does, keeping only counts and times. Messages say how many conversations they're in, and YouTube's watches how many videos. Twitter's likes have a count but no dates, since the archive doesn't say when you liked anything. A Slack run's progress total now follows `--since`, `--until`, and `--limit`.
+- 3d7e290: YouTube's Takeout reader takes the Takeout itself, as a folder, a zip, or one part of a split Takeout, as well as its "YouTube and YouTube Music" folder, and reads a zip in place. Its manifest declares the Takeout's layout, so `chronicle scan <path>` finds one however it's kept, and a Takeout with its history in JSON shows as a layout it can't read yet. `ExportFiles` says when each file was last changed with `modified(path)`, in a zip from its index, so a zipped Takeout has the same as-of time as the unzipped one. `writeZip` dates a fixture's entries with `modified`.
+
+### Patch Changes
+
+- @chronicle.app/auth@0.5.0
+
 ## 0.4.0
 
 ### Patch Changes

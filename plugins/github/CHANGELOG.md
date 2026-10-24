@@ -1,5 +1,20 @@
 # @chronicle.app/github
 
+## 0.5.0
+
+### Minor Changes
+
+- e74de55: An issue's text, a pull request's, and a commit message after its subject line are their `description` instead of their `body`. That text describes the work, as a to-do's notes do. A comment's text stays its `body`.
+- f4a7c4e: A repository is keyed by its owner as well as its name, and an issue, a pull request, or a star by its repository's owner and name. Their keys named the owner and the repository through lists without `[*]`, so they read nothing: repositories with the same name were one node whoever owned them, as were issues and pull requests with the same number in different repositories, and stars of repositories with the same name. Repositories, issues, pull requests, and stars extracted before this change were keyed differently, so extracting them again makes new nodes.
+- c7d0f22: GitHub repositories are keyed by their owner's login and their own name, the `owner/name` in their URL and git remotes, instead of by the owner's numeric id and the name. A repository's `handle` is its name. Issues, pull requests, and stars are keyed through their repository the same way. A repository now becomes a new node when its owner changes their login, as it already did when it was renamed or transferred. Repositories, issues, pull requests, and stars extracted before this change were keyed differently, so extracting them again makes new nodes.
+- 67d3035: `chronicle scan` finds the sources on this computer and says whether each is ready to extract, with the command that extracts it. `chronicle scan chrome` looks for one source, and `--format json` or `csv` lists every row with its command. It opens what it finds to check it can be read, reads none of it, and stays off the network. A row macOS blocks says it needs Full Disk Access, and a source whose plugin isn't installed says which plugin to install.
+
+  A plugin's manifest says where each strategy's files are, as `locations` under the strategy: a path in the home folder, with `*` for any name within one folder and `{option}` for a name that is also the run's option, like Chrome's `{profile}`. A plugin can export a `Locator` from `@chronicle.app/etl` to name what a location matched, or to find what no path can. Chrome names each profile as its profile menu does, with the account it's signed in to. Obsidian lists each vault it has opened, and GitHub finds the credential a run would use without asking GitHub whether it still works.
+
+### Patch Changes
+
+- @chronicle.app/auth@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes
