@@ -221,12 +221,23 @@ test('a bookmark is a BookmarkAction whose target is its folder', async t => {
   const rows = await bookmarks(t);
   const transformer = new SafariTransformer();
   const [action] = await transformer.performTransform(rows.find(r => r.data.id === 'B-2'));
+  const you = {
+    '@type': 'Person',
+    '@key': ['@type', 'source', 'sourceId'],
+    source: 'icloud',
+    sourceId: '1234567890',
+    handle: 'you@example.com',
+    sameAs: ['@me'],
+    '@asserts': ['*'],
+  };
+  // Every account's Favorites is `Favorites Bar`, so a folder is keyed in its owner's.
   const favorites = {
     '@type': 'Collection',
-    '@key': ['@type', 'source', 'sourceId'],
+    '@key': ['@type', 'source', 'inAccount[*].sourceId', 'sourceId'],
     source: 'safari',
     sourceId: 'Favorites Bar',
     name: 'Favorites',
+    inAccount: [you],
     '@asserts': ['*'],
   };
   assert.deepEqual(action.data, {
@@ -235,15 +246,7 @@ test('a bookmark is a BookmarkAction whose target is its folder', async t => {
     source: 'safari',
     sourceId: 'B-2',
     timestamp: new Date('2025-01-01T01:00:00Z'),
-    agent: {
-      '@type': 'Person',
-      '@key': ['@type', 'source', 'sourceId'],
-      source: 'icloud',
-      sourceId: '1234567890',
-      handle: 'you@example.com',
-      sameAs: ['@me'],
-      '@asserts': ['*'],
-    },
+    agent: you,
     object: {
       '@type': 'Entity',
       '@key': ['url'],
@@ -253,10 +256,11 @@ test('a bookmark is a BookmarkAction whose target is its folder', async t => {
     },
     target: {
       '@type': 'Collection',
-      '@key': ['@type', 'source', 'sourceId'],
+      '@key': ['@type', 'source', 'inAccount[*].sourceId', 'sourceId'],
       source: 'safari',
       sourceId: 'D-1',
       name: 'Design',
+      inAccount: [you],
       isPartOf: [favorites],
       '@asserts': ['*'],
     },
@@ -269,4 +273,11 @@ test('a bookmark is a BookmarkAction whose target is its folder', async t => {
   const [loose] = await transformer.performTransform(rows.find(r => r.data.id === 'B-3'));
   assert.equal(loose.data.target, undefined);
   assert.equal(loose.data.object.name, 'https://example.com/three');
+
+  // Without an account, there's no one to act or to hold the folder.
+  const [anyone] = await transformer.performTransform(
+    (await bookmarks(t, { account: null })).find(r => r.data.id === 'B-2')
+  );
+  assert.equal(anyone.data.agent, undefined);
+  assert.equal(anyone.data.target.inAccount, undefined);
 });

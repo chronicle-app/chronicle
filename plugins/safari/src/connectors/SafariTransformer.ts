@@ -49,14 +49,17 @@ export default class SafariTransformer extends ChronicleTransformer {
   private async buildBookmarkAction(record: Record): Promise<BookmarkAction> {
     const bookmark = record.data as Bookmark;
     const user = await buildICloudPersonSchema(record.context.account);
+    // Safari names its own folders the same in every account, such as
+    // `Favorites Bar`, so a folder's ID is unique only within its owner's.
     let target: Collection | undefined;
     for (const folder of bookmark.folders) {
       target = {
         '@type': 'Collection',
-        '@key': ['@type', 'source', 'sourceId'],
+        '@key': ['@type', 'source', 'inAccount[*].sourceId', 'sourceId'],
         source: 'safari',
         sourceId: folder.id,
         name: folder.name,
+        ...(user && { inAccount: [user] }),
         ...(target && { isPartOf: [target] }),
       };
     }
