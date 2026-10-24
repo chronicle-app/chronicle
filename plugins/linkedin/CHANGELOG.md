@@ -1,5 +1,12 @@
 # @chronicle.app/linkedin
 
+## 0.5.0
+
+### Minor Changes
+
+- d8569f2: `ArchiveExtractor` opens `--input` with `openExport`, so the Facebook, Instagram, and LinkedIn readers take their export as the zip the service hands over, or unzipped as before, and read it in place. A subclass reads files by their paths in the export. Each declares its export's layout, so `chronicle scan <path>` finds it. `ExportFiles` lists a folder's names with `children(folder)` and gives a reader outside the export a file on disk with `localPath(path)`, a copy out of a zip that lasts until the export is closed, so Instagram's posts and stories keep their media from a zip. `openExport` takes what to call the export in its messages, like `LinkedIn export`.
+- 5ed2312: Apple Health, Facebook, Instagram, LinkedIn, Slack, Twitter, and YouTube Takeout survey what their exports hold, so `chronicle survey` counts what they would extract, and when each record happened. The exports have no index, so a survey reads the export as a run does, keeping only counts and times. Messages say how many conversations they're in, and YouTube's watches how many videos. Twitter's likes have a count but no dates, since the archive doesn't say when you liked anything. A Slack run's progress total now follows `--since`, `--until`, and `--limit`.
+
 ## 0.4.0
 
 ### Patch Changes

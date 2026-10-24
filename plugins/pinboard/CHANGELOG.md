@@ -1,5 +1,11 @@
 # @chronicle.app/pinboard
 
+## 0.5.0
+
+### Patch Changes
+
+- @chronicle.app/auth@0.5.0
+
 ## 0.4.0
 
 ### Patch Changes
