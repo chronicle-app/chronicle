@@ -1,6 +1,5 @@
-import { Record } from '@chronicle.app/etl';
-import { stat } from 'node:fs/promises';
-import { join } from 'node:path';
+import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
+import { posix } from 'node:path';
 import { FacebookArchiveExtractor } from './FacebookArchiveExtractor.js';
 import FacebookTransformer from '../FacebookTransformer.js';
 
@@ -11,23 +10,31 @@ export class FacebookArchiveSearchHistoryExtractor extends FacebookArchiveExtrac
   static override defaultTransformer = FacebookTransformer;
 
   async *extract(): AsyncGenerator<Record> {
+    let recordCount = 0;
+
+    for await (const record of this.searches()) {
+      yield record;
+      recordCount++;
+
+      if (this.shouldStopExtracting(recordCount)) {
+        return;
+      }
+    }
+  }
+
+  /** The searches a run reads, and when each was made. */
+  override async survey(options: SurveyOptions = {}): Promise<Survey> {
+    return this.surveyOf(this.searches(), options);
+  }
+
+  /** Every search in the export, in the order a run reads them, before its limit. */
+  private async *searches(): AsyncGenerator<Record> {
     await this.initialize();
 
     const processedSearches = new Set<string>();
-    let recordCount = 0;
 
     for await (const { fullPath } of this.iterateExportSegments()) {
-      for await (const record of this.extractSearchHistoryFromSegment(
-        fullPath,
-        processedSearches
-      )) {
-        yield record;
-        recordCount++;
-
-        if (this.shouldStopExtracting(recordCount)) {
-          return;
-        }
-      }
+      yield* this.extractSearchHistoryFromSegment(fullPath, processedSearches);
     }
   }
 
@@ -35,19 +42,14 @@ export class FacebookArchiveSearchHistoryExtractor extends FacebookArchiveExtrac
     segmentPath: string,
     processedSearches: Set<string>
   ): AsyncGenerator<Record> {
-    const searchHistoryPath = join(
+    const searchHistoryPath = posix.join(
       segmentPath,
       'logged_information',
       'search',
       'your_search_history.json'
     );
 
-    try {
-      await stat(searchHistoryPath);
-    } catch {
-      // No search history file found
-      return;
-    }
+    if (!(await this.exists(searchHistoryPath))) return; // No search history file found
 
     try {
       const data = await this.readFacebookJson(searchHistoryPath);

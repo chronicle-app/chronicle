@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { findExports, monthKey, writeZip } from '@chronicle.app/etl';
 import {
   InstagramArchiveCommentsExtractor,
   InstagramArchiveFollowsExtractor,
@@ -17,6 +18,7 @@ import {
 import {
   SELF,
   SHARE_SUFFIX,
+  instagramExportFiles,
   writeInstagramExport,
   writeInstagramExport2026Saves,
 } from './fixture.test-helper.js';
@@ -456,4 +458,111 @@ test('an export with no username fails instead of inventing an owner', async t =
     actions(InstagramArchiveFollowsExtractor, { input: dir }),
     /no account username/
   );
+});
+
+/** What a run reads, with each media file's path from the export's `media/` on. */
+async function readExport(Extractor, input) {
+  const extractor = new Extractor({ input });
+  try {
+    await extractor.setup();
+    const records = await Array.fromAsync(extractor.extract());
+    const read = JSON.stringify(records.map(r => [r.data, r.context]));
+    return JSON.parse(read.replaceAll(/"path":"[^"]*?\/(media\/[^"]+)"/g, '"path":"$1"'));
+  } finally {
+    await extractor.teardown();
+  }
+}
+
+test('an export reads the same zipped, and its layout finds it where it starts', async t => {
+  const dir = tempDir(t);
+  const unzipped = writeInstagramExport(join(dir, 'instagram-sam.rivera-2026-07-15-AbCd'));
+  const zip = join(dir, 'instagram-sam.rivera-2026-07-15-AbCd.zip');
+  writeZip(zip, instagramExportFiles());
+  for (const Extractor of [
+    InstagramArchivePostsExtractor,
+    InstagramArchiveStoriesExtractor,
+    InstagramArchiveMessagesExtractor,
+    InstagramArchiveLikesExtractor,
+    InstagramArchiveFollowsExtractor,
+    InstagramArchiveCommentsExtractor,
+    InstagramArchiveSearchesExtractor,
+  ]) {
+    const folder = await readExport(Extractor, unzipped);
+    assert.ok(folder.length > 0, Extractor.name);
+    assert.deepEqual(await readExport(Extractor, zip), folder, Extractor.name);
+  }
+
+  const { chronicle } = JSON.parse(readFileSync(join(import.meta.dirname, '../package.json')));
+  const { layouts } = chronicle.sources.instagram.strategies.archive;
+  const { exports } = await findExports(dir, [
+    { source: 'instagram', strategy: 'archive', layouts },
+  ]);
+  assert.deepEqual(
+    exports.map(e => e.root),
+    [unzipped, zip]
+  );
+});
+
+async function records(Extractor, config) {
+  const extractor = new Extractor(config);
+  try {
+    await extractor.setup();
+    return await Array.fromAsync(extractor.extract());
+  } finally {
+    await extractor.teardown();
+  }
+}
+
+async function survey(Extractor, config, options) {
+  const extractor = new Extractor(config);
+  try {
+    await extractor.setup();
+    return await extractor.survey(options);
+  } finally {
+    await extractor.teardown();
+  }
+}
+
+test('a survey counts what each kind reads, whatever the limit, and when, zipped or not', async t => {
+  const dir = tempDir(t);
+  const input = writeInstagramExport(join(dir, 'export'));
+  const zip = join(dir, 'export.zip');
+  writeZip(zip, instagramExportFiles());
+  const since = new Date('2024-05-10');
+  for (const Extractor of [
+    InstagramArchivePostsExtractor,
+    InstagramArchiveStoriesExtractor,
+    InstagramArchiveMessagesExtractor,
+    InstagramArchiveLikesExtractor,
+    InstagramArchiveFollowsExtractor,
+    InstagramArchiveSavesExtractor,
+    InstagramArchiveCommentsExtractor,
+    InstagramArchiveSearchesExtractor,
+  ]) {
+    const [kind] = Extractor.recordTypes;
+    const read = await records(Extractor, { input });
+    // A message is dated when it was sent; everything else by its timestamp.
+    const times = read.map(r => new Date(r.data.created_at ?? r.data.timestamp));
+    const expected = {
+      count: read.length,
+      earliest: new Date(Math.min(...times)),
+      latest: new Date(Math.max(...times)),
+    };
+    if (kind === 'messages') {
+      const conversations = new Set(read.map(r => r.data.conversation_id)).size;
+      expected.measures = [{ key: 'conversations', label: 'conversations', value: conversations }];
+    }
+    assert.ok(read.length > 0, kind);
+    assert.deepEqual(await survey(Extractor, { input, limit: 1 }), { [kind]: expected }, kind);
+    assert.deepEqual(await survey(Extractor, { input: zip }), { [kind]: expected }, kind);
+
+    // By month when asked, by the same times, in local time.
+    const months = {};
+    for (const time of times) months[monthKey(time)] = (months[monthKey(time)] ?? 0) + 1;
+    const { [kind]: byMonth } = await survey(Extractor, { input }, { byMonth: true });
+    assert.deepEqual(byMonth.byMonth, months, kind);
+
+    const { [kind]: windowed } = await survey(Extractor, { input, since });
+    assert.equal(windowed.count, (await records(Extractor, { input, since })).length, kind);
+  }
 });

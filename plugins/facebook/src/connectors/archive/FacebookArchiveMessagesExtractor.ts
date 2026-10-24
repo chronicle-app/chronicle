@@ -1,6 +1,5 @@
-import { Record } from '@chronicle.app/etl';
-import { readdir, stat } from 'node:fs/promises';
-import { join } from 'node:path';
+import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
+import { posix } from 'node:path';
 import { FacebookArchiveExtractor } from './FacebookArchiveExtractor.js';
 import FacebookTransformer from '../FacebookTransformer.js';
 
@@ -11,23 +10,38 @@ export class FacebookArchiveMessagesExtractor extends FacebookArchiveExtractor {
   static override defaultTransformer = FacebookTransformer;
 
   async *extract(): AsyncGenerator<Record> {
+    let recordCount = 0;
+
+    for await (const record of this.messages()) {
+      yield record;
+      recordCount++;
+
+      if (this.shouldStopExtracting(recordCount)) {
+        return;
+      }
+    }
+  }
+
+  /** The messages a run reads and when they were sent, with how many conversations they're in. */
+  override async survey(options: SurveyOptions = {}): Promise<Survey> {
+    const conversations = new Set<string>();
+    const survey = await this.surveyOf(this.messages(), options, record =>
+      conversations.add(record.context.conversationId)
+    );
+    survey.messages.measures = [
+      { key: 'conversations', label: 'conversations', value: conversations.size },
+    ];
+    return survey;
+  }
+
+  /** Every message in the export, in the order a run reads them, before its limit. */
+  private async *messages(): AsyncGenerator<Record> {
     await this.initialize();
 
     const processedConversations = new Set<string>();
-    let recordCount = 0;
 
     for await (const { fullPath } of this.iterateExportSegments()) {
-      for await (const record of this.extractMessagesFromSegment(
-        fullPath,
-        processedConversations
-      )) {
-        yield record;
-        recordCount++;
-
-        if (this.shouldStopExtracting(recordCount)) {
-          return;
-        }
-      }
+      yield* this.extractMessagesFromSegment(fullPath, processedConversations);
     }
   }
 
@@ -35,14 +49,9 @@ export class FacebookArchiveMessagesExtractor extends FacebookArchiveExtractor {
     segmentPath: string,
     processedConversations: Set<string>
   ): AsyncGenerator<Record> {
-    const messagesPath = join(segmentPath, 'your_facebook_activity', 'messages');
+    const messagesPath = posix.join(segmentPath, 'your_facebook_activity', 'messages');
 
-    try {
-      await stat(messagesPath);
-    } catch {
-      // No messages directory found
-      return;
-    }
+    if (!(await this.exists(messagesPath))) return; // No messages directory found
 
     // Process different message types
     yield* this.extractFromMessageFolder(messagesPath, 'inbox', processedConversations);
@@ -56,28 +65,24 @@ export class FacebookArchiveMessagesExtractor extends FacebookArchiveExtractor {
     folderName: string,
     processedConversations: Set<string>
   ): AsyncGenerator<Record> {
-    const folderPath = join(messagesPath, folderName);
+    const folderPath = posix.join(messagesPath, folderName);
+
+    if (!(await this.exists(folderPath))) return; // Folder doesn't exist in this segment
 
     try {
-      await stat(folderPath);
-    } catch {
-      return; // Folder doesn't exist in this segment
-    }
-
-    try {
-      const conversations = await readdir(folderPath, { withFileTypes: true });
+      const conversations = await this.files.children(folderPath);
 
       for (const conversation of conversations) {
-        if (!conversation.isDirectory()) continue;
+        if (!conversation.endsWith('/')) continue;
 
-        const conversationId = conversation.name;
+        const conversationId = conversation.slice(0, -1);
 
         // Skip if already processed (avoid duplicates across segments)
         if (processedConversations.has(conversationId)) {
           continue;
         }
 
-        const conversationPath = join(folderPath, conversationId);
+        const conversationPath = posix.join(folderPath, conversationId);
 
         try {
           yield* this.extractMessagesFromConversation(conversationPath, conversationId, folderName);
@@ -97,7 +102,7 @@ export class FacebookArchiveMessagesExtractor extends FacebookArchiveExtractor {
     threadType: string
   ): AsyncGenerator<Record> {
     try {
-      const files = await readdir(conversationPath);
+      const files = await this.files.children(conversationPath);
       const messageFiles = files.filter(
         file => file.startsWith('message_') && file.endsWith('.json')
       );
@@ -115,7 +120,7 @@ export class FacebookArchiveMessagesExtractor extends FacebookArchiveExtractor {
       });
 
       for (const messageFile of messageFiles) {
-        const filePath = join(conversationPath, messageFile);
+        const filePath = posix.join(conversationPath, messageFile);
 
         try {
           const data = await this.readFacebookJson(filePath);

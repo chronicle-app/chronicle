@@ -167,7 +167,7 @@ export const EVENTS: OutputEvent[] = [
 /** A command as oclif caches it, for its help screen. */
 const command = {
   id: 'sources',
-  summary: 'List the sources and the record types each has',
+  summary: 'List sources and types available',
   aliases: [],
   hidden: false,
   hiddenAliases: [],
@@ -243,9 +243,18 @@ function help(t: Tokens, width: number): string[] {
         version: '1.2.3',
         summary: 'Extract your digital history into a shared vocabulary.',
         commands: [
-          { name: 'auth', summary: 'Sign in to providers and manage stored credentials' },
-          { name: 'extract', summary: 'Extract records from a source as Chronicle JSON-LD' },
-          { name: 'autocomplete', summary: 'Set up tab completion for your shell' },
+          [{ name: 'extract', summary: 'Extract records from a source' }],
+          [
+            { name: 'auth', summary: 'Sign in to providers and manage stored credentials' },
+            { name: 'autocomplete', summary: 'Set up tab completion for your shell' },
+          ],
+        ],
+        start: [
+          { comment: 'Find data on this computer', command: 'chronicle scan' },
+          {
+            comment: 'Save every command in your shell history as JSON-LD',
+            command: 'chronicle extract shell --limit 0 --output history.json',
+          },
         ],
       },
       t,

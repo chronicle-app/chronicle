@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { join } from 'node:path';
+import { countMonth } from '@chronicle.app/etl';
+import { ObsidianExtractor } from '../dist/index.js';
 import { at, extract, transform, vault } from './fixture.test-helper.js';
 
 const realm = {
@@ -158,6 +160,27 @@ test('a limited subfolder import keeps the enclosing vault identity', async t =>
   const [fromSubset] = await transform(subset.records);
   assert.deepEqual(fromSubset, fromAll);
   assert.deepEqual(fromSubset.object.references, [document('Welcome.md', 'Welcome')]);
+});
+
+test('a survey counts the notes a run reads, whatever its limit, and when they were last edited', async t => {
+  const root = vault(t, {
+    'Welcome.md': ['Hello.', 0],
+    'Notes/Ideas.md': ['An idea.', 20],
+    'Notes/Reading.md': ['A book.', 10],
+  });
+  const limited = await extract(root, 1);
+  assert.equal(limited.records.length, 1);
+  assert.deepEqual(limited.survey, { notes: { count: 3, earliest: at(0), latest: at(20) } });
+  assert.deepEqual((await extract(join(root, 'Notes'))).survey, {
+    notes: { count: 2, earliest: at(10), latest: at(20) },
+  });
+  assert.deepEqual((await extract(vault(t, {}))).survey, { notes: { count: 0 } });
+  // By month when asked, by when each was last edited, in local time.
+  const extractor = new ObsidianExtractor({ input: root, quiet: true });
+  await extractor.setup();
+  const months = {};
+  for (const seconds of [0, 20, 10]) countMonth(months, at(seconds));
+  assert.deepEqual((await extractor.survey({ byMonth: true })).notes.byMonth, months);
 });
 
 test('without .obsidian the input folder is the vault; an empty vault yields nothing', async t => {

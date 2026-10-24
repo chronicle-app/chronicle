@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { countMonth } from '@chronicle.app/etl';
 import { ClaudeCodeExtractor, ClaudeCodeTransformer } from '../dist/index.js';
 
 function prompt(uuid = 'prompt-1', timestamp = '2026-01-01T00:00:00Z') {
@@ -48,6 +49,46 @@ const lines = () => [
   { type: 'ai-title', aiTitle: 'AI title' },
   { type: 'custom-title', customTitle: 'My session' },
 ];
+async function survey(input, config = {}, options = {}) {
+  const extractor = new ClaudeCodeExtractor({ input, ...config });
+  try {
+    await extractor.setup();
+    return await extractor.survey(options);
+  } finally {
+    await extractor.teardown();
+  }
+}
+
+test('a survey counts the messages a run reads, whatever its limit, and in how many sessions', async t => {
+  const { root } = fixture(t, lines());
+  writeFileSync(
+    join(root, 'session-2.jsonl'),
+    JSON.stringify(prompt('prompt-2', '2026-01-03T00:00:00Z'))
+  );
+  const records = await extract(root, { tools: true });
+  const times = records.map(r => Date.parse(r.data.timestamp));
+  assert.deepEqual(await survey(root, { tools: true, limit: 1 }), {
+    messages: {
+      count: records.length,
+      earliest: new Date(Math.min(...times)),
+      latest: new Date(Math.max(...times)),
+      measures: [{ key: 'sessions', label: 'sessions', value: 2 }],
+    },
+  });
+  // By month when asked, in local time.
+  const months = {};
+  for (const time of times) countMonth(months, new Date(time));
+  assert.deepEqual(
+    (await survey(root, { tools: true }, { byMonth: true })).messages.byMonth,
+    months
+  );
+  const since = new Date('2026-01-02T00:00:00Z');
+  assert.equal(
+    (await survey(root, { since })).messages.count,
+    (await extract(root, { since })).length
+  );
+});
+
 test('groups streaming reply blocks and maps messages, authors, model, thread and project', async t => {
   const { input } = fixture(t, lines());
   const records = await extract(input);

@@ -68,7 +68,50 @@
             "recordTypes": [
               "calls"
             ],
-            "default": true
+            "default": true,
+            "locations": [
+              {
+                "path": "~/Library/Application Support/CallHistoryDB/CallHistory.storedata"
+              }
+            ],
+            "databases": [
+              {
+                "tables": {
+                  "ZCALLRECORD": [
+                    "Z_PK",
+                    "ZUNIQUE_ID",
+                    "ZDATE",
+                    "ZDURATION",
+                    "ZORIGINATED",
+                    "ZADDRESS",
+                    "ZNAME",
+                    "ZPARTICIPANTGROUPUUID"
+                  ],
+                  "Z_2REMOTEPARTICIPANTHANDLES": [
+                    "Z_2REMOTEPARTICIPANTCALLS",
+                    "Z_4REMOTEPARTICIPANTHANDLES?"
+                  ],
+                  "ZHANDLE": [
+                    "Z_PK",
+                    "ZVALUE"
+                  ]
+                }
+              },
+              {
+                "tables": {
+                  "ZCALLRECORD": [
+                    "Z_PK",
+                    "ZUNIQUE_ID",
+                    "ZDATE",
+                    "ZDURATION",
+                    "ZORIGINATED",
+                    "ZADDRESS",
+                    "ZNAME",
+                    "ZPARTICIPANTGROUPUUID"
+                  ]
+                }
+              }
+            ]
           }
         },
         "platforms": [

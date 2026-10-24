@@ -3,6 +3,7 @@ import { after, test } from 'node:test';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { monthKey } from '@chronicle.app/etl';
 import {
   AppUsageExtractor,
   TimeEntriesExtractor,
@@ -281,6 +282,103 @@ test('the default run merges app usage, time entries, and calls, newest first', 
 });
 
 const ids = records => records.map(r => r.context.id ?? r.context.uuid);
+
+async function survey(Extractor, config, options = {}) {
+  const extractor = new Extractor({ input, ...config });
+  try {
+    await extractor.setup();
+    return await extractor.survey(options);
+  } finally {
+    await extractor.teardown();
+  }
+}
+
+/** How many extracted records start in each month, as a survey's `byMonth` keys them. */
+function monthsOf(records) {
+  const months = {};
+  for (const { context } of records) {
+    const month = monthKey(new Date((context.startDate ?? context.startSec) * 1000));
+    months[month] = (months[month] ?? 0) + 1;
+  }
+  return months;
+}
+
+/** What a survey says of extracted records: how many, their first and last start, and the time they span. */
+function surveyOf(records, label) {
+  const spans = records.map(({ context }) => {
+    const start = context.startDate ?? context.startSec;
+    return [start, (context.endDate ?? context.endSec ?? start) - start];
+  });
+  const starts = spans.map(([start]) => start);
+  return {
+    count: records.length,
+    earliest: new Date(Math.min(...starts) * 1000),
+    latest: new Date(Math.max(...starts) * 1000),
+    measures: [
+      {
+        key: 'duration',
+        label,
+        value: spans.reduce((total, [, seconds]) => total + seconds, 0),
+        unit: 'seconds',
+      },
+    ],
+  };
+}
+
+test('a survey counts each kind a run reads, when, and the time it spans, past any limit', async () => {
+  const expected = {
+    'app-activities': surveyOf(await extract(AppUsageExtractor, {}), 'activities'),
+    'time-entries': surveyOf(await extract(TimeEntriesExtractor, {}), 'entries'),
+    calls: surveyOf(await extract(TimingCallExtractor, {}), 'calls'),
+  };
+  assert.equal(expected['app-activities'].count, 5);
+  assert.equal(expected.calls.measures[0].value, 83);
+  assert.deepEqual(await survey(AppUsageExtractor, { limit: 1 }), {
+    'app-activities': expected['app-activities'],
+  });
+  assert.deepEqual(await survey(TimeEntriesExtractor, { limit: 1 }), {
+    'time-entries': expected['time-entries'],
+  });
+  assert.deepEqual(await survey(TimingCallExtractor, { limit: 1 }), { calls: expected.calls });
+
+  // The default run's survey is its children's, merged.
+  assert.deepEqual(await survey(TimingDefaultExtractor, { limit: 1 }), expected);
+
+  // By month when asked, by when each starts; the default run's are its children's.
+  const months = {
+    'app-activities': monthsOf(await extract(AppUsageExtractor, {})),
+    'time-entries': monthsOf(await extract(TimeEntriesExtractor, {})),
+    calls: monthsOf(await extract(TimingCallExtractor, {})),
+  };
+  const byMonth = { byMonth: true };
+  assert.deepEqual(
+    (await survey(AppUsageExtractor, {}, byMonth))['app-activities'].byMonth,
+    months['app-activities']
+  );
+  assert.deepEqual(
+    (await survey(TimeEntriesExtractor, {}, byMonth))['time-entries'].byMonth,
+    months['time-entries']
+  );
+  assert.deepEqual((await survey(TimingCallExtractor, {}, byMonth)).calls.byMonth, months.calls);
+  const merged = await survey(TimingDefaultExtractor, {}, byMonth);
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(merged).map(([kind, part]) => [kind, part.byMonth])),
+    months
+  );
+
+  const since = new Date(iso(499));
+  const later = await survey(TimingDefaultExtractor, { since });
+  assert.equal(later['app-activities'].count, (await extract(AppUsageExtractor, { since })).length);
+  assert.equal(
+    later['time-entries'].count,
+    (await extract(TimeEntriesExtractor, { since })).length
+  );
+  assert.equal(later.calls.count, (await extract(TimingCallExtractor, { since })).length);
+  assert.deepEqual(later['time-entries'], {
+    count: 0,
+    measures: [{ key: 'duration', label: 'entries', value: 0, unit: 'seconds' }],
+  });
+});
 
 test('the focused extractors skip deleted, running, and non-call rows, and honor the window', async () => {
   assert.deepEqual(ids(await extract(TimeEntriesExtractor, {})), ['201']);

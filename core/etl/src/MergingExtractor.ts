@@ -1,5 +1,6 @@
 import { Extractor } from './extractor.js';
 import { Record } from './types.js';
+import { mergeSurveys, type Survey, type SurveyOptions } from './survey.js';
 
 /** A constructable Extractor class (the abstract base is not `new`-able). */
 type ExtractorCtor = new (config: any) => Extractor;
@@ -110,6 +111,10 @@ export abstract class MergingExtractor<
     const total = counts.reduce((sum: number, c) => sum + (c ?? 0), 0);
     const limit = this.getEffectiveLimit();
     return limit === null ? total : Math.min(limit, total);
+  }
+
+  override async survey(options: SurveyOptions = {}): Promise<Survey | null> {
+    return mergeSurveys(await Promise.all(this.instances.map(c => c.survey(options))));
   }
 
   override async teardown(): Promise<void> {

@@ -3,6 +3,7 @@ import {
   definitions,
   heading,
   paragraph,
+  wrap,
   type Definition,
   type Segment,
   type Tokens,
@@ -202,16 +203,58 @@ export function listedSummary(command: Pick<Command.Cached, 'summary' | 'descrip
 export interface RootInput {
   version: string;
   summary?: string;
-  commands: Entry[];
+  /** In groups, each apart from the next. */
+  commands: Entry[][];
+  /** A first run, step by step, under the commands. */
+  start?: Step[];
+}
+
+/** A step in a walkthrough: what it does, and the command that does it. */
+export interface Step {
+  comment: string;
+  command: string;
+}
+
+/** Steps as a README shows them: each command under its `# comment`, a blank line between. */
+function steps(list: Step[], t: Tokens, width: number): string[] {
+  return list.flatMap(({ comment, command }, i) => [
+    ...(i > 0 ? [''] : []),
+    ...wrap(comment, width - 4).map(part => `  ${t.muted(`# ${part}`)}`),
+    commandLine(command, t),
+  ]);
+}
+
+/**
+ * Groups of entries, a blank line between them, their summaries lined up
+ * across groups. They're one list, so a name too long for the column takes
+ * a line of its own and no other does; an empty term between groups draws
+ * the blank line.
+ */
+function groupedEntries(groups: Entry[][], t: Tokens, width: number): string[] {
+  const items = groups
+    .filter(group => group.length > 0)
+    .flatMap((group, i): Definition[] => [
+      ...(i > 0 ? [{ term: [] }] : []),
+      ...group.map(({ name, summary }): Definition => ({
+        term: [[name, t.command]],
+        text: summary,
+      })),
+    ]);
+  return definitions(items, t, width).map(line => (line.trim() ? line : ''));
 }
 
 /** `chronicle --help`: what Chronicle is, and its commands. */
-export function rootHelp({ version, summary, commands }: RootInput, t: Tokens, width: number) {
+export function rootHelp(
+  { version, summary, commands, start = [] }: RootInput,
+  t: Tokens,
+  width: number
+) {
   return [
     heading(`Chronicle ${version}`, t, width),
     ...prose(summary, t, width),
     ...section('Usage', [commandLine(`${BIN} <command> [flags]`, t)], t, width),
-    ...section('Commands', entries(commands, t, width), t, width),
+    ...section('Commands', groupedEntries(commands, t, width), t, width),
+    ...section('Get started', steps(start, t, width), t, width),
     '',
     ...paragraph('Add `--help` to any command to see its flags.', t, width),
   ].join('\n');
@@ -241,9 +284,11 @@ export function commandHelp(
   width: number
 ) {
   const own = summaryOf(command);
-  // Whether one is optional is the usage line's to say.
+  // Whether one is optional is the usage line's to say, unless the command
+  // names its arguments itself, like survey's `<source|path>`.
+  const terms: { [arg: string]: string } = (command as { argTerms?: {} }).argTerms ?? {};
   const args = Object.values(command.args ?? {}).map(arg => ({
-    term: [[`<${arg.name}>`, t.command]] as Segment[],
+    term: [[terms[arg.name] ?? `<${arg.name}>`, t.command]] as Segment[],
     text: arg.description,
   }));
   const aliases = (command.aliases ?? []).filter(alias => alias !== command.id);

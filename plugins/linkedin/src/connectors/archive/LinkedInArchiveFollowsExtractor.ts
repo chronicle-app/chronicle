@@ -1,4 +1,4 @@
-import { Record } from '@chronicle.app/etl';
+import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
 import { parseLongStamp } from '../fields.js';
 import LinkedInTransformer from '../LinkedInTransformer.js';
 import { LinkedInArchiveExtractor } from './LinkedInArchiveExtractor.js';
@@ -21,18 +21,8 @@ export class LinkedInArchiveFollowsExtractor extends LinkedInArchiveExtractor<
   static override schema = LinkedInArchiveExtractor.schema;
 
   async *extract(): AsyncGenerator<Record> {
-    const rows = await this.readCsv('Company Follows.csv');
-
-    const follows = rows
-      .map(row => ({
-        organization: row.Organization?.trim(),
-        followedAt: parseLongStamp(row['Followed On']),
-      }))
-      .filter(follow => follow.organization)
-      .sort((a, b) => ((a.followedAt ?? '') < (b.followedAt ?? '') ? 1 : -1));
-
     let count = 0;
-    for (const follow of follows) {
+    for (const follow of await this.follows()) {
       if (this.shouldStopExtracting(count)) break;
       if (!this.withinWindow(follow.followedAt)) continue;
       yield this.createRecordWithArchiveContext({
@@ -41,6 +31,25 @@ export class LinkedInArchiveFollowsExtractor extends LinkedInArchiveExtractor<
       });
       count++;
     }
+  }
+
+  /** The follows a run reads, and when each was made. */
+  override async survey(options: SurveyOptions = {}): Promise<Survey> {
+    const dates = (await this.follows()).map(follow => follow.followedAt);
+    return { follows: this.surveyDates(dates, options) };
+  }
+
+  /** Every follow in the export that names what it follows, newest first. */
+  private async follows() {
+    const rows = await this.readCsv('Company Follows.csv');
+
+    return rows
+      .map(row => ({
+        organization: row.Organization?.trim(),
+        followedAt: parseLongStamp(row['Followed On']),
+      }))
+      .filter(follow => follow.organization)
+      .sort((a, b) => ((a.followedAt ?? '') < (b.followedAt ?? '') ? 1 : -1));
   }
 
   override async determineCount(): Promise<number> {

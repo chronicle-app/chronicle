@@ -1,7 +1,13 @@
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { Delivery } from '@chronicle.app/etl';
+import {
+  Delivery,
+  type DatabaseSchema,
+  type FileFormat,
+  type Layout,
+  type Location,
+} from '@chronicle.app/etl';
 import {
   PluginScanner,
   cliRoot,
@@ -28,6 +34,14 @@ export interface ManifestStrategy {
   delivery: Delivery;
   recordTypes: string[];
   default?: boolean;
+  /** Where its material lives on a computer, for `scan`. */
+  locations?: Location[];
+  /** What its exports look like from inside, for `scan <path>`. */
+  layouts?: Layout[];
+  /** The tables and columns of the SQLite databases it reads, for `scan <path>`. */
+  databases?: DatabaseSchema[];
+  /** What one file it reads looks like, for `scan <path>`. */
+  files?: FileFormat[];
 }
 
 export interface ManifestSource {
@@ -51,6 +65,8 @@ export interface SourceListing {
   installed: boolean;
   /** Where the plugin was found; null when it isn't installed. */
   origin: PluginOrigin | null;
+  /** The installed plugin's version, when its package.json says. */
+  version?: string;
   strategies: Array<ManifestStrategy & { name: string }>;
   platforms: NodeJS.Platform[];
   requires: string[];
@@ -96,9 +112,10 @@ export async function loadCatalog(): Promise<CatalogEntry[]> {
  * A plugin's manifest from its package.json. A plugin without one is imported
  * and its manifest derived from its extractor classes.
  */
-async function manifestOf(plugin: FoundPlugin): Promise<Manifest> {
+async function manifestOf(plugin: FoundPlugin): Promise<{ manifest: Manifest; version?: string }> {
   const pkg = plugin.file ? null : await readJson(path.join(plugin.path, 'package.json'));
-  if (pkg?.chronicle?.sources) return pkg.chronicle.sources;
+  const version = typeof pkg?.version === 'string' ? pkg.version : undefined;
+  if (pkg?.chronicle?.sources) return { manifest: pkg.chronicle.sources, version };
   const manifest: Manifest = {};
   for (const e of await PluginScanner.scanPluginExtractors(plugin)) {
     manifest[e.source] ??= { strategies: {} };
@@ -110,7 +127,7 @@ async function manifestOf(plugin: FoundPlugin): Promise<Manifest> {
     }
     if (e.default) strategy.default = true;
   }
-  return manifest;
+  return { manifest, version };
 }
 
 /**
@@ -126,7 +143,8 @@ export async function listSources(): Promise<SourceListing[]> {
   for (const plugin of await PluginScanner.findChroniclePlugins()) {
     installed.add(plugin.name);
     const entry = byPackage.get(plugin.name);
-    for (const [source, manifest] of Object.entries(await manifestOf(plugin))) {
+    const { manifest: sources, version } = await manifestOf(plugin);
+    for (const [source, manifest] of Object.entries(sources)) {
       const platforms = manifest.platforms ?? [];
       listings.push({
         source,
@@ -136,6 +154,7 @@ export async function listSources(): Promise<SourceListing[]> {
         summary: plugin.origin === 'local' ? (plugin.file ?? plugin.path) : (entry?.summary ?? ''),
         installed: true,
         origin: plugin.origin,
+        ...(version && { version }),
         strategies: Object.entries(manifest.strategies).map(([name, strategy]) => ({
           name,
           ...strategy,

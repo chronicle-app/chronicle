@@ -4,6 +4,8 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { monthKey } from '@chronicle.app/etl';
+import { writeSchemaDatabase } from '@chronicle.app/etl-sqlite';
 import { ThingsTodoExtractor, ThingsTodoTransformer } from '../dist/index.js';
 import { localAccountName } from '../dist/connectors/ownerName.js';
 
@@ -38,8 +40,8 @@ function fixture(t) {
     INSERT INTO TMTaskTag VALUES ('task-1', 'tag-1');
     INSERT INTO TMTask VALUES ('project-1','Project',2,0,100,NULL,NULL,100,NULL,NULL,'area-1',NULL,0);
     INSERT INTO TMTask VALUES ('task-1','Task',0,3,100,NULL,300,300,'project-1',NULL,'area-1','Notes',0);
-    INSERT INTO TMTask VALUES ('task-2','Cancelled',0,2,100,NULL,400,400,NULL,NULL,NULL,NULL,0);
-    INSERT INTO TMTask VALUES ('task-3','Edited',0,0,100,NULL,NULL,500,NULL,NULL,NULL,NULL,1);
+    INSERT INTO TMTask VALUES ('task-2','Cancelled',0,2,150,NULL,400,400,NULL,NULL,NULL,NULL,0);
+    INSERT INTO TMTask VALUES ('task-3','Edited',0,0,200,NULL,NULL,500,NULL,NULL,NULL,NULL,1);
   `);
   db.close();
   return input;
@@ -53,6 +55,96 @@ async function records(input, config = {}, Extractor = extractorResolving()) {
     await extractor.teardown();
   }
 }
+async function survey(input, config = {}, options = {}) {
+  const extractor = new (extractorResolving())({ input, ...config });
+  try {
+    await extractor.setup();
+    return await extractor.survey(options);
+  } finally {
+    await extractor.teardown();
+  }
+}
+
+test('its declared schema is all its queries read, and a main.sqlite without it is refused', async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'things-schema-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const [schema] = ThingsTodoExtractor.databases;
+  const input = join(dir, 'main.sqlite');
+  writeSchemaDatabase(input, schema, { optional: false });
+  assert.deepEqual(await records(input), []);
+  const counted = await survey(input, {}, { byMonth: true });
+  assert.equal(counted.tasks.count + counted.projects.count, 0);
+
+  // A tagged, completed task in it, with no notes or trash flag, and a tag
+  // with no shortcut or last use, extracts and becomes its actions.
+  const db = new DatabaseSync(input);
+  db.exec(`
+    INSERT INTO TMTag (uuid, title) VALUES ('tag-1', 'Focus');
+    INSERT INTO TMTaskTag VALUES ('task-1', 'tag-1');
+    INSERT INTO TMTask (uuid, title, type, status, creationDate, stopDate, userModificationDate)
+      VALUES ('task-1', 'Task', 0, 3, 100, 300, 300);
+  `);
+  db.close();
+  const [task] = await records(input);
+  assert.equal(task.context.tags[0].lastUsedAt, null);
+  assert.deepEqual(
+    (await new ThingsTodoTransformer().performTransform(task)).map(r => r.data['@type']),
+    ['PlanAction', 'CompleteAction']
+  );
+
+  // An older Things', say, without a column its queries read.
+  const older = join(dir, 'older.sqlite');
+  const tags = schema.tables.TMTag.filter(column => column !== 'parent');
+  writeSchemaDatabase(older, { tables: { ...schema.tables, TMTag: tags } });
+  await assert.rejects(records(older), {
+    message: /version of the database/,
+    fields: { path: older, missing: ['TMTag.parent'] },
+  });
+});
+
+/** How many extracted records of a kind were created in each month, as a survey's `byMonth` keys them. */
+function createdMonths(rows, kind) {
+  const months = {};
+  for (const r of rows.filter(r => r.extraction.recordType === kind)) {
+    const month = monthKey(r.context.timeline.createdAt);
+    months[month] = (months[month] ?? 0) + 1;
+  }
+  return months;
+}
+/** How many extracted records are of a kind, and when the first and last were created. */
+function createdSpan(rows, kind) {
+  const times = rows
+    .filter(r => r.extraction.recordType === kind)
+    .map(r => r.context.timeline.createdAt.getTime());
+  return {
+    count: times.length,
+    earliest: new Date(Math.min(...times)),
+    latest: new Date(Math.max(...times)),
+  };
+}
+test('a survey counts the tasks and projects a run reads, when they were created, and how many are done', async t => {
+  const input = fixture(t);
+  const rows = await records(input);
+  const done = rows.filter(r => r.context.timeline.status === 'completed').length;
+  assert.deepEqual(await survey(input, { limit: 1 }), {
+    tasks: {
+      ...createdSpan(rows, 'tasks'),
+      measures: [{ key: 'completed', label: 'completed', value: done }],
+    },
+    projects: createdSpan(rows, 'projects'),
+  });
+  assert.equal(createdSpan(rows, 'tasks').latest.getTime(), 200_000);
+  // By month when asked, by when each was created.
+  const byMonth = await survey(input, {}, { byMonth: true });
+  assert.deepEqual(byMonth.tasks.byMonth, createdMonths(rows, 'tasks'));
+  assert.deepEqual(byMonth.projects.byMonth, createdMonths(rows, 'projects'));
+  // Since the cancelled task's edit: it and the deleted one, and no project.
+  const since = new Date(400_000);
+  const later = await survey(input, { since });
+  const read = await records(input, { since });
+  assert.equal(later.tasks.count, read.length);
+  assert.deepEqual(later.projects, { count: 0 });
+});
 test('reads related projects, areas, tags and maps lifecycle events through schema validation', async t => {
   const input = fixture(t);
   const rows = await records(input);

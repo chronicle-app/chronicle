@@ -1,6 +1,16 @@
-import { Record } from '@chronicle.app/etl';
+import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
 import { InstagramArchiveExtractor } from './InstagramArchiveExtractor.js';
 import InstagramTransformer from '../InstagramTransformer.js';
+
+/** One of a post's media files, as a run reads it. */
+interface PostMedia {
+  id: string;
+  kind: 'image' | 'video';
+  path: string;
+  mimeType: string;
+  creation_timestamp?: number;
+  title?: string;
+}
 
 /**
  * Extract feed posts and reels from an Instagram data export.
@@ -28,32 +38,9 @@ export class InstagramArchivePostsExtractor extends InstagramArchiveExtractor {
   }
 
   async *extract(): AsyncGenerator<Record> {
-    const seen = new Set<string>();
     let index = 0;
 
-    for (const entry of await this.loadPostEntries()) {
-      const media = this.mediaItems(entry)
-        .filter(m => typeof m?.uri === 'string' && m.uri.includes('/'))
-        .map(m => {
-          const id = this.extractIdFromUri(m.uri);
-          const kind = /\.mp4$/i.test(m.uri) ? 'video' : 'image';
-          return {
-            id,
-            kind,
-            path: this.archiveMediaPath(m.uri),
-            mimeType: kind === 'video' ? 'video/mp4' : 'image/jpeg',
-            creation_timestamp: m.creation_timestamp,
-            title: m.title,
-          };
-        })
-        .filter(m => m.path !== null);
-      if (media.length === 0) continue;
-
-      const { id } = media[0];
-      if (seen.has(id)) continue;
-      seen.add(id);
-
-      const timestamp = entry.timestamp ?? media[0].creation_timestamp;
+    for await (const { entry, media, timestamp } of this.posts(uri => this.archiveMediaPath(uri))) {
       if (!this.inRange(timestamp)) continue;
       if (this.shouldStopExtracting(index)) break;
       index++;
@@ -61,7 +48,7 @@ export class InstagramArchivePostsExtractor extends InstagramArchiveExtractor {
       yield this.createRecordWithArchiveContext(
         {
           type: 'posts',
-          id,
+          id: media[0].id,
           sourceFormat: this.isReel(entry) ? 'reel' : 'feed',
           // Newer exports carry the caption on the media item; the older flat
           // shape sometimes only on the post entry itself.
@@ -76,6 +63,53 @@ export class InstagramArchivePostsExtractor extends InstagramArchiveExtractor {
         },
         { originalData: entry }
       );
+    }
+  }
+
+  /**
+   * The posts a run reads and when each was posted. Their media files aren't
+   * looked for, so a post whose files a zip is missing still counts.
+   */
+  override async survey(options: SurveyOptions = {}): Promise<Survey> {
+    const posts = this.emptySurvey(options);
+    for await (const { timestamp } of this.posts(uri => this.archiveMediaFile(uri))) {
+      if (this.inRange(timestamp)) this.tally(posts, new Date(timestamp * 1000));
+    }
+    return { posts };
+  }
+
+  /**
+   * Each post once, with its media and when it was posted. `locate` gives a
+   * media file's path, or null to leave the file out; a post left with none
+   * is skipped. Deduped by the first file's media pk, across files.
+   */
+  private async *posts(
+    locate: (uri: string) => Promise<string | null> | string | null
+  ): AsyncGenerator<{ entry: any; media: PostMedia[]; timestamp: number }> {
+    const seen = new Set<string>();
+    for (const entry of await this.loadPostEntries()) {
+      const media: PostMedia[] = [];
+      for (const m of this.mediaItems(entry)) {
+        if (typeof m?.uri !== 'string' || !m.uri.includes('/')) continue;
+        const path = await locate(m.uri);
+        if (path === null) continue;
+        const kind = /\.mp4$/i.test(m.uri) ? 'video' : 'image';
+        media.push({
+          id: this.extractIdFromUri(m.uri),
+          kind,
+          path,
+          mimeType: kind === 'video' ? 'video/mp4' : 'image/jpeg',
+          creation_timestamp: m.creation_timestamp,
+          title: m.title,
+        });
+      }
+      if (media.length === 0) continue;
+
+      const { id } = media[0];
+      if (seen.has(id)) continue;
+      seen.add(id);
+
+      yield { entry, media, timestamp: entry.timestamp ?? media[0].creation_timestamp };
     }
   }
 
@@ -127,20 +161,8 @@ export class InstagramArchivePostsExtractor extends InstagramArchiveExtractor {
   override async determineCount(): Promise<number | null> {
     try {
       let count = 0;
-      const seen = new Set<string>();
-      for (const entry of await this.loadPostEntries()) {
-        const media = this.mediaItems(entry).filter(
-          m =>
-            typeof m?.uri === 'string' &&
-            m.uri.includes('/') &&
-            this.archiveMediaPath(m.uri) !== null
-        );
-        if (media.length === 0) continue;
-        const id = this.extractIdFromUri(media[0].uri);
-        if (seen.has(id)) continue;
-        seen.add(id);
-        count++;
-      }
+      const posts = this.posts(uri => this.archiveMediaFile(uri));
+      while (!(await posts.next()).done) count++;
       return count;
     } catch {
       return null;

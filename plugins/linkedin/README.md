@@ -1,10 +1,11 @@
 # LinkedIn plugin
 
 Reads the **member data export** — the ZIP that Settings & Privacy → Data
-Privacy → "Get a copy of your data" produces, unpacked to a directory.
+Privacy → "Get a copy of your data" produces, read in place or unpacked to a
+directory.
 
 ```bash
-chronicle extract linkedin --input ~/Downloads/Basic_LinkedInDataExport_08-08-2026 --limit 0
+chronicle extract linkedin --input ~/Downloads/Basic_LinkedInDataExport_08-08-2026.zip --limit 0
 chronicle extract linkedin --input <dir> --type messages --limit 5   # one record kind
 ```
 
@@ -114,8 +115,8 @@ made in 2010 would claim they worked there then. `Positions.csv` and
 `Education.csv` are snapshots for the same reason. Messages, endorsements,
 follows and learning are events.
 
-**Re-importing the same directory is a no-op.** The sighting time is the
-export's own file time, not the moment of import, so a second run restates
+**Re-importing the same export is a no-op.** The sighting time is the
+export's own file time, in a zip from its index, not the moment of import, so a second run restates
 identical assertions instead of minting fresh ones.
 
 ## Not read, and why

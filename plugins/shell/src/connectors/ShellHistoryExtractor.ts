@@ -1,4 +1,11 @@
-import { Extractor, Record, fileError } from '@chronicle.app/etl';
+import {
+  Extractor,
+  Record,
+  countMonth,
+  fileError,
+  type Survey,
+  type SurveyOptions,
+} from '@chronicle.app/etl';
 import { readFile, access } from 'node:fs/promises';
 import { z } from 'zod';
 import os from 'node:os';
@@ -297,6 +304,34 @@ export class ShellHistoryExtractor extends Extractor<typeof ShellHistoryExtracto
     }
 
     yield* this.yieldNewestFirst(entries);
+  }
+
+  /**
+   * The commands a run reads and when, from one pass over the history file,
+   * which stays small. Commands without a time count, but date nothing.
+   */
+  override async survey(options: SurveyOptions = {}): Promise<Survey> {
+    // Every command in range, whatever the run's limit.
+    const all = new ShellHistoryExtractor({ ...this.config, limit: undefined });
+    let count = 0;
+    let earliest: Date | undefined;
+    let latest: Date | undefined;
+    const byMonth: { [month: string]: number } = {};
+    for await (const { data } of all.extract()) {
+      count++;
+      if (!data.timestamp) continue;
+      const time = new Date(data.timestamp);
+      if (!earliest || time < earliest) earliest = time;
+      if (!latest || time > latest) latest = time;
+      if (options.byMonth) countMonth(byMonth, time);
+    }
+    return {
+      commands: {
+        count,
+        ...(earliest && { earliest, latest }),
+        ...(options.byMonth && { byMonth }),
+      },
+    };
   }
 
   override async determineCount(): Promise<number | null> {

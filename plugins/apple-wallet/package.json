@@ -69,7 +69,52 @@
             "recordTypes": [
               "transactions"
             ],
-            "default": true
+            "default": true,
+            "locations": [
+              {
+                "path": "~/Library/Passes/passes23.sqlite"
+              }
+            ],
+            "databases": [
+              {
+                "tables": {
+                  "payment_transaction": [
+                    "pid",
+                    "identifier",
+                    "service_identifier",
+                    "transaction_date",
+                    "amount",
+                    "currency_code",
+                    "merchant_name",
+                    "merchant_raw_name",
+                    "merchant_industry_code",
+                    "merchant_industry_category",
+                    "locality",
+                    "administrative_area",
+                    "location_latitude",
+                    "location_longitude",
+                    "transaction_status",
+                    "transaction_type",
+                    "adjustment_type",
+                    "source_pid"
+                  ],
+                  "pass": [
+                    "pid",
+                    "unique_id",
+                    "primary_account_identifier",
+                    "e?",
+                    "primary_account_suffix",
+                    "organization_name",
+                    "supports_fpan_notifications",
+                    "transaction_source_pid"
+                  ],
+                  "payment_application": [
+                    "transaction_source_pid",
+                    "pass_pid"
+                  ]
+                }
+              }
+            ]
           }
         },
         "platforms": [

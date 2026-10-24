@@ -1,4 +1,11 @@
-import { Extractor, Record } from '@chronicle.app/etl';
+import {
+  Extractor,
+  Record,
+  countMonth,
+  type KindSurvey,
+  type Survey,
+  type SurveyOptions,
+} from '@chronicle.app/etl';
 import { buildICloudPersonSchema } from '@chronicle.app/apple';
 import { AgentAndChildren } from '@chronicle.app/schema';
 import { readFile, readdir } from 'node:fs/promises';
@@ -142,6 +149,41 @@ export class ArcTimelineExtractor extends Extractor<typeof ArcTimelineExtractor>
         });
       }
     }
+  }
+
+  /**
+   * The visits and travels a run reads, and when they started, from every
+   * day file in range. A survey keeps only each item's id and start, one day
+   * at a time, where a run holds every item and then reads trips' samples.
+   */
+  override async survey(options: SurveyOptions = {}): Promise<Survey> {
+    const config = this.config as z.infer<typeof ArcTimelineExtractor.schema>;
+    const dir = await this.findDailyDir(config.input);
+    const sinceKey = config.since ? dayKey(config.since) : undefined;
+    const untilKey = config.until ? dayKey(config.until) : undefined;
+    const seen = new Set<string>();
+    const visits: KindSurvey = { count: 0, ...(options.byMonth && { byMonth: {} }) };
+    const travels: KindSurvey = { count: 0, ...(options.byMonth && { byMonth: {} }) };
+    // Named by day, newest first, so a range skips whole files as a run does.
+    for (const { path, key } of await this.listDayFiles(dir)) {
+      if (sinceKey && key < sinceKey) break;
+      if (untilKey && key > untilKey) continue;
+      for (const item of (await this.readDayFile(path)).items) {
+        const { base } = item;
+        if (!base || base.deleted || seen.has(base.id)) continue;
+        const start = new Date(base.startDate);
+        if ((config.since && start < config.since) || (config.until && start > config.until))
+          continue;
+        const kind = item.visit || base.isVisit ? visits : item.trip ? travels : undefined;
+        if (!kind) continue;
+        seen.add(base.id);
+        kind.count++;
+        if (!kind.earliest || start < kind.earliest) kind.earliest = start;
+        if (!kind.latest || start > kind.latest) kind.latest = start;
+        if (kind.byMonth) countMonth(kind.byMonth, start);
+      }
+    }
+    return { visits, travels };
   }
 
   // The person whose timeline this is: an explicit `--identity` override, else

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { Delivery, Record } from './types.js';
 import { Transformer } from './transformer.js';
+import type { Survey, SurveyOptions } from './survey.js';
 import { Logger, createLogger, type RunContext, type Sink } from '@chronicle.app/logging';
 
 // type ExtractorConfig<T extends typeof Extractor> = z.infer<T['schema']>;
@@ -132,6 +133,22 @@ export abstract class Extractor<SelfClass extends typeof Extractor = typeof Extr
 
   // Overridable method for determining the number of records to extract
   async determineCount(): Promise<number | null> {
+    return null;
+  }
+
+  /**
+   * How much a run with this config would read, per record type, and over
+   * when: measured, not read. Called after `setup()`, and follows the run's
+   * options (since, until, a profile) but not its limit.
+   *
+   * As cheap as the source allows, and offline: aggregate queries, file
+   * sizes and dates, an index. Only a source with no other way to count reads
+   * everything, as a run would. It counts what `extract()` would yield,
+   * before a transformer drops any, so it may be a little over what a run
+   * writes but never under. Null, the default, when it can't say. With
+   * `byMonth`, each kind's records by month too.
+   */
+  async survey(_options: SurveyOptions = {}): Promise<Survey | null> {
     return null;
   }
 

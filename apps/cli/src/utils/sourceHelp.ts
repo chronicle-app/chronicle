@@ -107,13 +107,25 @@ export function recordTypesHint(
   };
 }
 
+/** What a verb shows beside a source's own flags, when it isn't extract's. */
+export interface VerbHelp {
+  /** The verb's flags worth showing beside the source's, by name. */
+  common: string[];
+  /** Where those flags are defined. */
+  flags: Record<string, any>;
+  /** The kinds a run of the verb reads when it names none. */
+  defaults?: 'all';
+}
+
 /** A source's help, as data: its strategies, its flags and the common ones, its defaults. */
 export function describeSource(
   source: string,
   candidates: ExtractorMetadata[],
-  verb = 'extract'
+  verb = 'extract',
+  help?: VerbHelp
 ): SourceHelpInput {
   const kinds = bareRunKinds(candidates);
+  const commonFlags = help?.flags ?? BASE_FLAGS;
   const all = new Set(candidates.flatMap(e => e.recordType));
   return {
     source,
@@ -133,10 +145,10 @@ export function describeSource(
       required: f.required,
       allowNo: f.allowNo,
     })),
-    common: COMMON_FLAG_KEYS.filter(name => BASE_FLAGS[name]).map(
-      name => ({ ...BASE_FLAGS[name], name }) as FlagLike
-    ),
-    defaults: kinds && kinds.length === all.size ? 'all' : kinds,
+    common: (help?.common ?? COMMON_FLAG_KEYS)
+      .filter(name => commonFlags[name])
+      .map(name => ({ ...commonFlags[name], name }) as FlagLike),
+    defaults: help?.defaults ?? (kinds && kinds.length === all.size ? 'all' : kinds),
   };
 }
 
@@ -148,10 +160,10 @@ export function describeSource(
 export function renderSourceHelp(
   source: string,
   candidates: ExtractorMetadata[],
-  opts: { verb?: string; theme?: string } = {}
+  opts: { verb?: string; theme?: string; help?: VerbHelp } = {}
 ): string {
   return sourceHelp(
-    describeSource(source, candidates, opts.verb || 'extract'),
+    describeSource(source, candidates, opts.verb || 'extract', opts.help),
     tokens({ stream: 'stdout', theme: opts.theme }),
     helpWidth()
   );

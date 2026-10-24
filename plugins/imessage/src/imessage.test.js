@@ -6,7 +6,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ImessageExtractor, ImessageTransformer } from '../dist/index.js';
 import { ContactCache } from '@chronicle.app/apple';
-import { Runner, JsonLoader } from '@chronicle.app/etl';
+import { Runner, JsonLoader, monthKey } from '@chronicle.app/etl';
+import { writeSchemaDatabase } from '@chronicle.app/etl-sqlite';
 
 const account = {
   accountID: 'me@example.com',
@@ -61,6 +62,60 @@ async function extract(input, config = {}) {
     await extractor.teardown();
   }
 }
+async function survey(input, config = {}, options = {}) {
+  const extractor = new ImessageExtractor({ input, account, ...config });
+  try {
+    await extractor.setup();
+    return await extractor.survey(options);
+  } finally {
+    await extractor.teardown();
+  }
+}
+const surveyBy = input => survey(input, {}, { byMonth: true });
+test('its declared schema is all its queries read, and a chat.db without it is refused', async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'imessage-schema-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const [schema] = ImessageExtractor.databases;
+  const input = join(dir, 'chat.db');
+  writeSchemaDatabase(input, schema, { optional: false });
+  assert.deepEqual(await extract(input, { includeContactNames: false }), []);
+  assert.equal((await surveyBy(input)).messages.count, 0);
+
+  // An older Messages', say, without a column its queries read.
+  const older = join(dir, 'older.db');
+  const attachment = schema.tables.attachment.filter(column => column !== 'uti');
+  writeSchemaDatabase(older, { tables: { ...schema.tables, attachment } });
+  await assert.rejects(extract(older), {
+    message: /version of the database/,
+    fields: { path: older, missing: ['attachment.uti'] },
+  });
+});
+test('a survey counts the messages a run reads, when, in how many conversations', async t => {
+  const { input } = fixture(t);
+  const rows = await extract(input);
+  const times = rows.map(row => row.context.timestamp);
+  assert.deepEqual(await survey(input, { limit: 1 }), {
+    messages: {
+      count: rows.length,
+      earliest: new Date(Math.min(...times)),
+      latest: new Date(Math.max(...times)),
+      measures: [
+        { key: 'conversations', label: 'conversations', value: 1 },
+        { key: 'attachmentBytes', label: 'attachments', value: 4, unit: 'bytes' },
+      ],
+    },
+  });
+  // By month when asked, by the time each message was sent, in local time.
+  const months = {};
+  for (const time of times)
+    months[monthKey(new Date(time))] = (months[monthKey(new Date(time))] ?? 0) + 1;
+  assert.deepEqual((await surveyBy(input)).messages.byMonth, months);
+  // Since the first message: the second, without its first's attachment.
+  const since = new Date(Math.min(...times));
+  const later = await survey(input, { since });
+  assert.equal(later.messages.count, (await extract(input, { since })).length);
+  assert.equal(later.messages.measures[1].value, 0);
+});
 test('native SQLite preserves large timestamps, BLOB text, chat participants and attachments', async t => {
   const { input, lookupContact } = fixture(t);
   const rows = await extract(input);

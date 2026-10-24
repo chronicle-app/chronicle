@@ -1,12 +1,14 @@
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { Record } from '@chronicle.app/etl';
+import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
 import {
   APPLE_EPOCH_OFFSET_SECONDS,
   SqliteExtractor,
   allRows,
+  countsByMonth,
   getRow,
   iterateRows,
+  monthSql,
   timeRangeConditions,
   unixToSafariTimestamp,
 } from '@chronicle.app/etl-sqlite';
@@ -136,6 +138,45 @@ export class AppleWalletExtractor extends SqliteExtractor<typeof AppleWalletExtr
   static override default = true;
   static override defaultTransformer = AppleWalletTransformer;
   static override newestFirst = true;
+  // What extract() and survey() read, which a passes23.sqlite must have.
+  static override databases = [
+    {
+      tables: {
+        payment_transaction: [
+          'pid',
+          'identifier',
+          'service_identifier',
+          'transaction_date',
+          'amount',
+          'currency_code',
+          'merchant_name',
+          'merchant_raw_name',
+          'merchant_industry_code',
+          'merchant_industry_category',
+          'locality',
+          'administrative_area',
+          'location_latitude',
+          'location_longitude',
+          'transaction_status',
+          'transaction_type',
+          'adjustment_type',
+          'source_pid',
+        ],
+        pass: [
+          'pid',
+          'unique_id',
+          'primary_account_identifier',
+          'e?',
+          'primary_account_suffix',
+          'organization_name',
+          'supports_fpan_notifications',
+          'transaction_source_pid',
+        ],
+        payment_application: ['transaction_source_pid', 'pass_pid'],
+      },
+    },
+  ];
+
   // A pending transaction's amount can change when it posts, so a run is a
   // read of each transaction's current state, sighted at read time.
   static override temporality = 'snapshot' as const;
@@ -236,16 +277,19 @@ export class AppleWalletExtractor extends SqliteExtractor<typeof AppleWalletExtr
    * is on, has a source of its own, for Apple Pay on that device.
    */
   private async loadCards(): Promise<Map<string, Card>> {
+    // A store without `e`, from another macOS, has only pass.json's identifier for the account.
+    const issuer = this.has('pass.e') ? 'p.e' : 'NULL';
     const rows = allRows<CardRow>(
       this.db!.prepare(`
         SELECT CAST(transaction_source_pid AS TEXT) AS sourcePid, unique_id AS uniqueId,
-               primary_account_identifier AS cardIdentifier, e AS issuerAccountIdentifier,
+               primary_account_identifier AS cardIdentifier, ${issuer} AS issuerAccountIdentifier,
                primary_account_suffix AS accountSuffix, organization_name AS organizationName,
                supports_fpan_notifications AS accountNotifications
-        FROM pass WHERE transaction_source_pid IS NOT NULL
+        FROM pass p WHERE transaction_source_pid IS NOT NULL
         UNION
         SELECT CAST(a.transaction_source_pid AS TEXT), p.unique_id, p.primary_account_identifier,
-               p.e, p.primary_account_suffix, p.organization_name, p.supports_fpan_notifications
+               ${issuer}, p.primary_account_suffix, p.organization_name,
+               p.supports_fpan_notifications
         FROM payment_application a JOIN pass p ON p.pid = a.pass_pid
         WHERE a.transaction_source_pid IS NOT NULL`)
     );
@@ -306,6 +350,37 @@ export class AppleWalletExtractor extends SqliteExtractor<typeof AppleWalletExtr
     } catch {
       return null;
     }
+  }
+
+  /** The transactions a run reads, and when they were made. */
+  override async survey(options: SurveyOptions = {}): Promise<Survey | null> {
+    if (!this.db) return null;
+    const { sql, values } = this.query(
+      'COUNT(*) AS n, MIN(transaction_date) AS first, MAX(transaction_date) AS last'
+    );
+    const { n, first, last } = getRow<{ n: number; first: number | null; last: number | null }>(
+      this.db.prepare(sql),
+      ...values
+    )!;
+    const months = this.query(
+      `${monthSql(`transaction_date + ${APPLE_EPOCH_OFFSET_SECONDS}`)} AS month, COUNT(*) AS n`
+    );
+    const byMonth =
+      options.byMonth &&
+      countsByMonth(
+        allRows<{ month: string | null; n: number }>(
+          this.db.prepare(`${months.sql} GROUP BY month`),
+          ...months.values
+        )
+      );
+    return {
+      transactions: {
+        count: n,
+        ...(first !== null && { earliest: new Date(appleDate(first)) }),
+        ...(last !== null && { latest: new Date(appleDate(last)) }),
+        ...(byMonth && { byMonth }),
+      },
+    };
   }
 }
 

@@ -1,4 +1,4 @@
-import { Record } from '@chronicle.app/etl';
+import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
 import { InstagramArchiveExtractor } from './InstagramArchiveExtractor.js';
 import InstagramTransformer from '../InstagramTransformer.js';
 
@@ -25,29 +25,11 @@ export class InstagramArchiveStoriesExtractor extends InstagramArchiveExtractor 
   }
 
   async *extract(): AsyncGenerator<Record> {
-    // Absent in exports where the account posted no stories — not an error.
-    let data: any;
-    try {
-      data = await this.readInstagramJson(InstagramArchiveStoriesExtractor.FILE);
-    } catch {
-      this.logger.warn('No stories.json in this export; nothing to extract');
-      return;
-    }
-    const stories = data?.ig_stories;
-    if (!Array.isArray(stories)) {
-      this.logger.warn('Instagram stories.json missing ig_stories array');
-      return;
-    }
-
-    for (const [index, story] of stories.entries()) {
+    for await (const { index, story, path } of this.stories(uri => this.archiveMediaPath(uri))) {
       if (this.shouldStopExtracting(index)) break;
-      if (!story?.uri) continue;
-      if (!this.inRange(story.creation_timestamp)) continue;
 
       const id = this.extractIdFromUri(story.uri);
       const kind = this.mediaKind(story);
-      const path = this.archiveMediaPath(story.uri);
-      if (!path) continue;
 
       yield this.createRecordWithArchiveContext(
         {
@@ -67,6 +49,48 @@ export class InstagramArchiveStoriesExtractor extends InstagramArchiveExtractor 
         },
         { originalData: story }
       );
+    }
+  }
+
+  /**
+   * The stories a run reads and when each was posted. Their media files aren't
+   * looked for, so a story whose file a zip is missing still counts.
+   */
+  override async survey(options: SurveyOptions = {}): Promise<Survey> {
+    const stories = this.emptySurvey(options);
+    for await (const { story } of this.stories(uri => this.archiveMediaFile(uri))) {
+      this.tally(stories, new Date(story.creation_timestamp * 1000));
+    }
+    return { stories };
+  }
+
+  /**
+   * The stories in the run's window, each with its place in `ig_stories` and
+   * its media file's path. `locate` gives the path, or null to skip the story.
+   */
+  private async *stories(
+    locate: (uri: string) => Promise<string | null> | string | null
+  ): AsyncGenerator<{ index: number; story: any; path: string }> {
+    // Absent in exports where the account posted no stories — not an error.
+    let data: any;
+    try {
+      data = await this.readInstagramJson(InstagramArchiveStoriesExtractor.FILE);
+    } catch {
+      this.logger.warn('No stories.json in this export; nothing to extract');
+      return;
+    }
+    const stories = data?.ig_stories;
+    if (!Array.isArray(stories)) {
+      this.logger.warn('Instagram stories.json missing ig_stories array');
+      return;
+    }
+
+    for (const [index, story] of stories.entries()) {
+      if (!story?.uri) continue;
+      if (!this.inRange(story.creation_timestamp)) continue;
+      const path = await locate(story.uri);
+      if (!path) continue;
+      yield { index, story, path };
     }
   }
 

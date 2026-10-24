@@ -68,7 +68,41 @@
             "recordTypes": [
               "listens"
             ],
-            "default": true
+            "default": true,
+            "locations": [
+              {
+                "path": "~/Library/Application Support/com.apple.shazamd/ShazamLibrary.sqlite"
+              }
+            ],
+            "databases": [
+              {
+                "tables": {
+                  "ZSHTRACKMO": [
+                    "Z_PK",
+                    "ZRECOGNITIONID",
+                    "ZSYNCID",
+                    "ZDATE",
+                    "ZMODIFIEDDATE",
+                    "ZTITLE",
+                    "ZSUBTITLE",
+                    "ZSHAZAMKEY",
+                    "ZSHAZAMURL",
+                    "ZPROVIDERNAME",
+                    "ZLATITUDE",
+                    "ZLONGITUDE",
+                    "ZARTWORKURL",
+                    "ZAPPLEMUSICID",
+                    "ZAPPLEMUSICURL",
+                    "ZISRC",
+                    "ZALBUMNAME",
+                    "ZRELEASEDATE",
+                    "ZEXPLICIT",
+                    "ZGENRES",
+                    "ZRAWSONGRESPONSE"
+                  ]
+                }
+              }
+            ]
           }
         },
         "platforms": [

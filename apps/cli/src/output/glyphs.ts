@@ -10,6 +10,8 @@ export const glyphs = {
   rule: '─',
   ellipsis: '…',
   spinner: '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏',
+  // A sparkline's columns, by eighths: an eighth of a row high to a whole one.
+  levels: '▁▂▃▄▅▆▇█',
   // Pickers: the highlighted option, and an option chosen or not.
   pointer: '❯',
   chosen: '◉',

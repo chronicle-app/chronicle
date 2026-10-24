@@ -3,17 +3,28 @@ import { test } from 'node:test';
 import { mkdtempSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, isAbsolute, join, relative } from 'node:path';
+import { monthKey } from '@chronicle.app/etl';
+import { writeSchemaDatabase } from '@chronicle.app/etl-sqlite';
 import { AppleVoiceMemosExtractor, AppleVoiceMemosTransformer } from '../dist/index.js';
 import { account, ids, writeAppleVoiceMemosFixture } from './fixture.test-helper.js';
 
-// An explicit account keeps the host's iCloud account out of the test.
-async function extract(t) {
+function fixture(t) {
   const dir = mkdtempSync(join(tmpdir(), 'apple-voice-memos-fixture-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const input = writeAppleVoiceMemosFixture(dir);
+  return writeAppleVoiceMemosFixture(dir);
+}
+
+// An explicit account keeps the host's iCloud account out of the test.
+async function extract(t, config = {}) {
+  const input = fixture(t);
   // A relative path to the library still gives each file's absolute path.
   const relativeInput = relative(process.cwd(), input);
-  const extractor = new AppleVoiceMemosExtractor({ input: relativeInput, account, limit: 0 });
+  const extractor = new AppleVoiceMemosExtractor({
+    input: relativeInput,
+    account,
+    limit: 0,
+    ...config,
+  });
   const events = [];
   extractor.useOutput({ emit: event => events.push(event) });
   try {
@@ -28,6 +39,46 @@ async function extract(t) {
     await extractor.teardown();
   }
 }
+
+async function survey(t, config = {}, options = {}) {
+  const extractor = new AppleVoiceMemosExtractor({ input: fixture(t), account, ...config });
+  try {
+    await extractor.setup();
+    return await extractor.survey(options);
+  } finally {
+    await extractor.teardown();
+  }
+}
+const surveyBy = t => survey(t, {}, { byMonth: true });
+
+test('its declared schema is all its queries read, and a CloudRecordings.db without it is refused', async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'apple-voice-memos-schema-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const [schema] = AppleVoiceMemosExtractor.databases;
+  const run = async (input, read) => {
+    const extractor = new AppleVoiceMemosExtractor({ input, account, limit: 0 });
+    try {
+      await extractor.setup();
+      return await read(extractor);
+    } finally {
+      await extractor.teardown();
+    }
+  };
+  const records = input => run(input, extractor => Array.fromAsync(extractor.extract()));
+  const input = join(dir, 'CloudRecordings.db');
+  writeSchemaDatabase(input, schema, { optional: false });
+  assert.deepEqual(await records(input), []);
+  assert.equal((await run(input, extractor => extractor.survey())).recordings.count, 0);
+
+  // An older Voice Memos', say, without a column its queries read.
+  const older = join(dir, 'older.db');
+  const recordings = schema.tables.ZCLOUDRECORDING.filter(column => column !== 'ZEVICTIONDATE');
+  writeSchemaDatabase(older, { tables: { ZCLOUDRECORDING: recordings } });
+  await assert.rejects(records(older), {
+    message: /version of the database/,
+    fields: { path: older, missing: ['ZCLOUDRECORDING.ZEVICTIONDATE'] },
+  });
+});
 
 const transformer = new AppleVoiceMemosTransformer();
 const transform = async record => (await transformer.performTransform(record))[0].data;
@@ -155,4 +206,35 @@ test('a recording names the OS release and the kind of device its file says it w
   for (const id of [ids.old, ids.qta, ids.noPath, ids.notDownloaded]) {
     assert.equal(instruments.get(id), undefined, id);
   }
+});
+
+test('a survey counts the recordings a run reads, when, and how long they last', async t => {
+  const { records } = await extract(t);
+  const times = records.map(record => Date.parse(record.data.date));
+  const seconds = records.reduce((sum, record) => sum + (record.data.duration ?? 0), 0);
+  assert.deepEqual(await survey(t, { limit: 1 }), {
+    recordings: {
+      count: records.length,
+      earliest: new Date(Math.min(...times)),
+      latest: new Date(Math.max(...times)),
+      measures: [
+        {
+          key: 'recordingSeconds',
+          label: 'recordings',
+          value: Math.round(seconds),
+          unit: 'seconds',
+        },
+      ],
+    },
+  });
+  // By month when asked, by when each recording started, in local time.
+  const months = {};
+  for (const time of times)
+    months[monthKey(new Date(time))] = (months[monthKey(new Date(time))] ?? 0) + 1;
+  assert.deepEqual((await surveyBy(t)).recordings.byMonth, months);
+  const since = new Date(Math.min(...times));
+  assert.equal(
+    (await survey(t, { since })).recordings.count,
+    (await extract(t, { since })).records.length
+  );
 });

@@ -1,9 +1,17 @@
-import { Extractor, Record } from '@chronicle.app/etl';
-import { readdir, readFile, stat } from 'node:fs/promises';
-import { basename, join } from 'node:path';
+import {
+  Extractor,
+  InputNotFound,
+  Record,
+  countMonth,
+  openExport,
+  type ExportFiles,
+  type Survey,
+  type SurveyOptions,
+} from '@chronicle.app/etl';
 import { z } from 'zod';
-import { readTakeoutCsv } from '../takeout/csv.js';
+import { parseTakeoutCsv } from '../takeout/csv.js';
 import { parseActivityHtml, videoIdFromUrl } from '../takeout/parseActivityHtml.js';
+import { ytTime } from '../utils/time.js';
 import YouTubeTakeoutTransformer from './YouTubeTakeoutTransformer.js';
 
 export interface TakeoutSelfChannel {
@@ -59,6 +67,13 @@ export interface TakeoutCommentRecord {
   createdAt: string;
 }
 
+// The folder Takeout puts YouTube's files in.
+const PRODUCT = 'YouTube and YouTube Music';
+
+// Where that folder can be in an export: the export itself, as an unpacked
+// folder was passed before, in the Takeout folder, or in the zip that holds it.
+const PREFIXES = ['', `${PRODUCT}/`, `Takeout/${PRODUCT}/`];
+
 // Relative paths of the archive files this extractor reads.
 const FILES = {
   watch: 'history/watch-history.html',
@@ -69,6 +84,17 @@ const FILES = {
   comments: 'comments/comments.csv',
   channel: 'channels/channel.csv',
 } as const;
+
+// The time the transformer dates each kind by. Takeout doesn't say when a
+// subscription began, so it has none.
+const DATED: { [recordType: string]: (data: unknown) => string } = {
+  watches: data => (data as TakeoutWatchRecord).time,
+  searches: data => (data as TakeoutSearchRecord).time,
+  playlists: data => (data as TakeoutPlaylistRecord).createdAt,
+  'playlist-items': data => (data as TakeoutPlaylistItemRecord).addedAt,
+  uploads: data => (data as TakeoutUploadRecord).publishedAt,
+  comments: data => (data as TakeoutCommentRecord).createdAt,
+};
 
 export class YouTubeTakeoutExtractor extends Extractor<typeof YouTubeTakeoutExtractor> {
   static override source = 'youtube';
@@ -98,54 +124,70 @@ export class YouTubeTakeoutExtractor extends Extractor<typeof YouTubeTakeoutExtr
   // flags across a source's extractors, so a schema-required flag here would
   // also gate the API extractors that share the youtube source.
   static override schema = Extractor.schema.extend({
-    input: z.string().optional().describe('Path to the Takeout "YouTube and YouTube Music" folder'),
+    input: z
+      .string()
+      .optional()
+      .describe(`The Takeout, as a folder or zip, or its "${PRODUCT}" folder`),
   });
 
+  private files: ExportFiles | null = null;
+  /** Where the YouTube folder is in the export, as a path prefix. */
+  private prefix = '';
   private archiveAsOf: Date | null = null;
   private selfChannel: TakeoutSelfChannel | null = null;
 
+  /** The path in the export of a file in the YouTube folder. */
   private inputPath(relative: string): string {
-    const config = this.config as z.infer<typeof YouTubeTakeoutExtractor.schema>;
-    if (!config.input) {
-      throw new Error(
-        'The takeout extractor needs --input: the path to the Takeout "YouTube and YouTube Music" folder'
-      );
-    }
-    return join(config.input, relative);
+    return this.prefix + relative;
   }
 
   private async fileExists(path: string): Promise<boolean> {
-    try {
-      await stat(path);
-      return true;
-    } catch {
-      return false;
-    }
+    return this.files!.has(path);
+  }
+
+  private async readCsv(path: string): Promise<{ [column: string]: string }[]> {
+    return parseTakeoutCsv(await this.files!.readText(path));
   }
 
   override async setup(): Promise<void> {
     await super.setup();
+    const config = this.config as z.infer<typeof YouTubeTakeoutExtractor.schema>;
+    if (!config.input) {
+      throw new Error(
+        `The takeout extractor needs --input: the Takeout, as a folder or zip, or its "${PRODUCT}" folder`
+      );
+    }
+    this.files = await openExport(config.input);
+    const listed = new Set(await this.files.list());
+    const prefix = PREFIXES.find(p => Object.values(FILES).some(f => listed.has(p + f)));
+    if (prefix === undefined) {
+      await this.teardown();
+      throw new InputNotFound(`No ${PRODUCT} folder in the export`, {
+        path: config.input,
+        hint: `Pass the Takeout, as a folder or zip, or its "${PRODUCT}" folder with \`--input <path>\`.`,
+      });
+    }
+    this.prefix = prefix;
 
     // The archive is a static artifact: its sighting time is the export's,
     // not this run's, so re-running over an unchanged tree is a byte-identical
-    // no-op. Newest mtime across the files read stands in for the export time.
+    // no-op. Newest mtime across the files read stands in for the export time;
+    // in a zip, the time its index gives each file.
     const paths = [
       ...Object.values(FILES).map(f => this.inputPath(f)),
       ...(await this.playlistItemFiles()).map(([, path]) => path),
     ];
     let newest = 0;
     for (const path of paths) {
-      try {
-        newest = Math.max(newest, (await stat(path)).mtimeMs);
-      } catch {
-        // Missing sections are fine; each is skipped with a warning later.
-      }
+      // Missing sections are fine; each is skipped with a warning later.
+      const modified = await this.files.modified(path);
+      if (modified) newest = Math.max(newest, modified.getTime());
     }
     if (newest > 0) this.archiveAsOf = new Date(newest);
 
     const channelPath = this.inputPath(FILES.channel);
     if (await this.fileExists(channelPath)) {
-      const [row] = await readTakeoutCsv(channelPath);
+      const [row] = await this.readCsv(channelPath);
       const id = row?.['Channel ID'];
       if (id) {
         this.selfChannel = {
@@ -161,6 +203,12 @@ export class YouTubeTakeoutExtractor extends Extractor<typeof YouTubeTakeoutExtr
     }
   }
 
+  override async teardown(): Promise<void> {
+    await this.files?.close();
+    this.files = null;
+    await super.teardown();
+  }
+
   protected override asOfTime(): Date {
     return this.archiveAsOf ?? super.asOfTime();
   }
@@ -174,15 +222,11 @@ export class YouTubeTakeoutExtractor extends Extractor<typeof YouTubeTakeoutExtr
 
   /** `[playlist title, csv path]` for each per-playlist membership file. */
   private async playlistItemFiles(): Promise<[string, string][]> {
-    const dir = this.inputPath('playlists');
-    try {
-      const files = await readdir(dir);
-      return files
-        .filter(f => f.endsWith('-videos.csv'))
-        .map(f => [basename(f, '-videos.csv'), join(dir, f)]);
-    } catch {
-      return [];
-    }
+    const dir = this.inputPath('playlists/');
+    return (await this.files!.list(dir))
+      .map(path => path.slice(dir.length))
+      .filter(name => !name.includes('/') && name.endsWith('-videos.csv'))
+      .map(name => [name.slice(0, -'-videos.csv'.length), dir + name]);
   }
 
   async *extract(): AsyncGenerator<Record> {
@@ -191,20 +235,51 @@ export class YouTubeTakeoutExtractor extends Extractor<typeof YouTubeTakeoutExtr
     const emit = (recordType: string, data: unknown): Record =>
       this.createRecord(data, { recordType, selfChannel: self });
 
-    for (const section of [
-      this.extractWatches(),
-      this.extractSearches(),
-      this.extractSubscriptions(),
-      this.extractPlaylists(),
-      this.extractUploads(),
-      this.extractComments(),
-    ]) {
-      for await (const [recordType, data] of section) {
-        if (this.shouldStopExtracting(count)) return;
-        yield emit(recordType, data);
-        count++;
-      }
+    for await (const [recordType, data] of this.readSections()) {
+      if (this.shouldStopExtracting(count)) return;
+      yield emit(recordType, data);
+      count++;
     }
+  }
+
+  /**
+   * The records a run reads and when each happened, from every section: the
+   * archive has no index, so each file is read. Subscriptions are as of the
+   * archive, and watches say how many videos they were of.
+   */
+  override async survey(options: SurveyOptions = {}): Promise<Survey> {
+    const kinds: Survey = {};
+    for (const recordType of YouTubeTakeoutExtractor.recordTypes) {
+      kinds[recordType] = {
+        count: 0,
+        ...(options.byMonth && DATED[recordType] && { byMonth: {} }),
+      };
+    }
+    const videos = new Set<string>();
+    for await (const [recordType, data] of this.readSections()) {
+      const kind = kinds[recordType];
+      kind.count++;
+      if (recordType === 'watches') videos.add((data as TakeoutWatchRecord).videoId);
+      const dated = DATED[recordType];
+      if (!dated) continue;
+      const time = ytTime(dated(data));
+      if (!kind.earliest || time < kind.earliest) kind.earliest = time;
+      if (!kind.latest || time > kind.latest) kind.latest = time;
+      if (kind.byMonth) countMonth(kind.byMonth, time);
+    }
+    if (this.archiveAsOf) kinds.subscriptions.asOf = this.archiveAsOf;
+    kinds.watches.measures = [{ key: 'videos', label: 'videos', value: videos.size }];
+    return kinds;
+  }
+
+  /** Each section's records, in the order a run reads them, as `[record type, data]`. */
+  private async *readSections(): AsyncGenerator<[string, unknown]> {
+    yield* this.extractWatches();
+    yield* this.extractSearches();
+    yield* this.extractSubscriptions();
+    yield* this.extractPlaylists();
+    yield* this.extractUploads();
+    yield* this.extractComments();
   }
 
   private async *extractWatches(): AsyncGenerator<[string, unknown]> {
@@ -214,7 +289,7 @@ export class YouTubeTakeoutExtractor extends Extractor<typeof YouTubeTakeoutExtr
       return;
     }
 
-    const entries = parseActivityHtml(await readFile(path, 'utf-8'));
+    const entries = parseActivityHtml(await this.files!.readText(path));
     let ads = 0;
     let noise = 0;
     let unparseable = 0;
@@ -261,7 +336,7 @@ export class YouTubeTakeoutExtractor extends Extractor<typeof YouTubeTakeoutExtr
       return;
     }
 
-    const entries = parseActivityHtml(await readFile(path, 'utf-8'));
+    const entries = parseActivityHtml(await this.files!.readText(path));
     let skipped = 0;
     let emitted = 0;
 
@@ -291,7 +366,7 @@ export class YouTubeTakeoutExtractor extends Extractor<typeof YouTubeTakeoutExtr
     const path = this.inputPath(FILES.subscriptions);
     if (!(await this.fileExists(path))) return;
 
-    for (const row of await readTakeoutCsv(path)) {
+    for (const row of await this.readCsv(path)) {
       const channelId = row['Channel Id'];
       if (!channelId) continue;
       const record: TakeoutSubscriptionRecord = {
@@ -307,7 +382,7 @@ export class YouTubeTakeoutExtractor extends Extractor<typeof YouTubeTakeoutExtr
     if (!(await this.fileExists(path))) return;
 
     const byTitle = new Map<string, TakeoutPlaylistRecord>();
-    for (const row of await readTakeoutCsv(path)) {
+    for (const row of await this.readCsv(path)) {
       const playlistId = row['Playlist ID'];
       const createdAt = row['Playlist Create Timestamp'];
       if (!playlistId || !createdAt) continue;
@@ -327,11 +402,11 @@ export class YouTubeTakeoutExtractor extends Extractor<typeof YouTubeTakeoutExtr
       const playlist = byTitle.get(title);
       if (!playlist) {
         this.logger.warn(
-          `Playlist file "${basename(itemPath)}" has no matching row in playlists.csv — skipping`
+          `Playlist file "${itemPath.split('/').at(-1)}" has no matching row in playlists.csv — skipping`
         );
         continue;
       }
-      for (const row of await readTakeoutCsv(itemPath)) {
+      for (const row of await this.readCsv(itemPath)) {
         const videoId = row['Video ID'];
         const addedAt = row['Playlist Video Creation Timestamp'];
         if (!videoId || !addedAt) continue;
@@ -351,7 +426,7 @@ export class YouTubeTakeoutExtractor extends Extractor<typeof YouTubeTakeoutExtr
     if (!(await this.fileExists(path))) return;
 
     let drafts = 0;
-    for (const row of await readTakeoutCsv(path)) {
+    for (const row of await this.readCsv(path)) {
       const videoId = row['Video ID'];
       if (!videoId) continue;
       // A row without a publish timestamp is an unpublished draft/private
@@ -379,7 +454,7 @@ export class YouTubeTakeoutExtractor extends Extractor<typeof YouTubeTakeoutExtr
     const path = this.inputPath(FILES.comments);
     if (!(await this.fileExists(path))) return;
 
-    for (const row of await readTakeoutCsv(path)) {
+    for (const row of await this.readCsv(path)) {
       const commentId = row['Comment ID'];
       const videoId = row['Video ID'];
       const createdAt = row['Comment Create Timestamp'];

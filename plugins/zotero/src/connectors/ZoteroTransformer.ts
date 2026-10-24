@@ -34,7 +34,7 @@ import {
 const SOURCE = 'zotero';
 
 /** Zotero timestamps are UTC `YYYY-MM-DD HH:MM:SS`, no zone marker. */
-function parseZoteroDate(raw: string): Date {
+export function parseZoteroDate(raw: string): Date {
   return new Date(`${raw.replace(' ', 'T')}Z`);
 }
 

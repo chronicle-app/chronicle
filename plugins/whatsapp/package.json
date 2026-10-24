@@ -73,11 +73,60 @@
             "recordTypes": [
               "messages"
             ],
-            "default": true
+            "default": true,
+            "locations": [
+              {
+                "path": "~/Library/Group Containers/group.net.whatsapp.WhatsApp.shared/ChatStorage.sqlite"
+              }
+            ],
+            "databases": [
+              {
+                "tables": {
+                  "ZWAMESSAGE": [
+                    "Z_PK",
+                    "ZSTANZAID",
+                    "ZTEXT",
+                    "ZMESSAGEDATE",
+                    "ZISFROMME",
+                    "ZMESSAGETYPE",
+                    "ZFROMJID",
+                    "ZCHATSESSION",
+                    "ZGROUPMEMBER",
+                    "ZPARENTMESSAGE",
+                    "ZMEDIAITEM"
+                  ],
+                  "ZWACHATSESSION": [
+                    "Z_PK",
+                    "ZCONTACTJID",
+                    "ZSESSIONTYPE",
+                    "ZPARTNERNAME"
+                  ],
+                  "ZWAMEDIAITEM": [
+                    "ZMESSAGE",
+                    "ZMEDIALOCALPATH",
+                    "ZTITLE",
+                    "ZMETADATA"
+                  ],
+                  "ZWAGROUPMEMBER": [
+                    "Z_PK",
+                    "ZMEMBERJID",
+                    "ZCONTACTNAME",
+                    "ZCHATSESSION"
+                  ],
+                  "ZWAPROFILEPUSHNAME": [
+                    "ZJID",
+                    "ZPUSHNAME"
+                  ]
+                }
+              }
+            ]
           }
         },
         "platforms": [
           "darwin"
+        ],
+        "requires": [
+          "full-disk-access"
         ]
       }
     }

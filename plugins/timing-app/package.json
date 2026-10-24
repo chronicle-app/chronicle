@@ -70,7 +70,12 @@
               "time-entries",
               "calls"
             ],
-            "default": true
+            "default": true,
+            "locations": [
+              {
+                "path": "~/Library/Application Support/info.eurocomp.Timing2/SQLite.db"
+              }
+            ]
           }
         },
         "platforms": [

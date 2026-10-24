@@ -1,11 +1,14 @@
 import { statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { Record } from '@chronicle.app/etl';
+import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
 import {
   APPLE_EPOCH_OFFSET_SECONDS,
   SqliteExtractor,
+  allRows,
+  countsByMonth,
   getRow,
   iterateRows,
+  monthSql,
   timeRangeConditions,
   unixToSafariTimestamp,
 } from '@chronicle.app/etl-sqlite';
@@ -69,6 +72,22 @@ export class AppleVoiceMemosExtractor extends SqliteExtractor<typeof AppleVoiceM
   static override default = true;
   static override defaultTransformer = AppleVoiceMemosTransformer;
   static override newestFirst = true;
+  // What extract() and survey() read, which a CloudRecordings.db must have.
+  static override databases = [
+    {
+      tables: {
+        ZCLOUDRECORDING: [
+          'ZUNIQUEID',
+          'ZDATE',
+          'ZDURATION',
+          'ZENCRYPTEDTITLE',
+          'ZPATH',
+          'ZFLAGS',
+          'ZEVICTIONDATE',
+        ],
+      },
+    },
+  ];
 
   static override schema = SqliteExtractor.schema.omit({ input: true }).extend({
     input: z.string().describe('Path to CloudRecordings.db').default(DEFAULT_DB),
@@ -219,6 +238,41 @@ export class AppleVoiceMemosExtractor extends SqliteExtractor<typeof AppleVoiceM
     } catch {
       return null;
     }
+  }
+
+  /** The recordings a run reads and when they started, with how long they last, to the second. */
+  override async survey(options: SurveyOptions = {}): Promise<Survey | null> {
+    if (!this.db) return null;
+    const { sql, values } = this.query(
+      `COUNT(*) AS n, MIN(ZDATE) AS first, MAX(ZDATE) AS last,
+       COALESCE(ROUND(SUM(ZDURATION)), 0) AS seconds`
+    );
+    const row = getRow<{ n: number; first: number | null; last: number | null; seconds: number }>(
+      this.db.prepare(sql),
+      ...values
+    )!;
+    const months = this.query(
+      `${monthSql(`ZDATE + ${APPLE_EPOCH_OFFSET_SECONDS}`)} AS month, COUNT(*) AS n`
+    );
+    const byMonth =
+      options.byMonth &&
+      countsByMonth(
+        allRows<{ month: string | null; n: number }>(
+          this.db.prepare(`${months.sql} GROUP BY month`),
+          ...months.values
+        )
+      );
+    return {
+      recordings: {
+        count: row.n,
+        ...(row.first !== null && { earliest: new Date(appleDate(row.first)) }),
+        ...(row.last !== null && { latest: new Date(appleDate(row.last)) }),
+        ...(byMonth && { byMonth }),
+        measures: [
+          { key: 'recordingSeconds', label: 'recordings', value: row.seconds, unit: 'seconds' },
+        ],
+      },
+    };
   }
 }
 

@@ -1,15 +1,16 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { findExports, monthKey, writeZip } from '@chronicle.app/etl';
 import {
   FacebookArchiveMessagesExtractor,
   FacebookArchiveReactionsExtractor,
   FacebookArchiveSearchHistoryExtractor,
   FacebookTransformer,
 } from '../dist/index.js';
-import { T0, writeFacebookExport } from './fixture.test-helper.js';
+import { T0, facebookExportFiles, writeFacebookExport } from './fixture.test-helper.js';
 
 // The export is written to a temp dir, so the tests read no host data.
 function tempDir(t) {
@@ -23,6 +24,16 @@ async function records(Extractor, config) {
   try {
     await extractor.setup();
     return { extractor, records: await Array.fromAsync(extractor.extract()) };
+  } finally {
+    await extractor.teardown();
+  }
+}
+
+async function survey(Extractor, config, options) {
+  const extractor = new Extractor(config);
+  try {
+    await extractor.setup();
+    return await extractor.survey(options);
   } finally {
     await extractor.teardown();
   }
@@ -257,4 +268,95 @@ test('a segmented export is read across its facebook-* directories', async t => 
   // The limit applies across segments.
   const searches = await records(FacebookArchiveSearchHistoryExtractor, { input, limit: 1 });
   assert.equal(searches.records.length, 1);
+});
+
+// What a survey of these records should say: each kind's count and first and
+// last times, and how many conversations the messages are in.
+function surveyed(Extractor, rows) {
+  const expected = {};
+  for (const kind of Extractor.recordTypes) {
+    const ofKind = rows.filter(r => r.extraction.recordType === kind);
+    const times = ofKind.filter(r => r.data.timestamp).map(r => Date.parse(r.data.timestamp));
+    expected[kind] = {
+      count: ofKind.length,
+      ...(times.length > 0 && {
+        earliest: new Date(Math.min(...times)),
+        latest: new Date(Math.max(...times)),
+      }),
+    };
+  }
+  if (expected.messages) {
+    const conversations = new Set(rows.map(r => r.context.conversationId)).size;
+    expected.messages.measures = [
+      { key: 'conversations', label: 'conversations', value: conversations },
+    ];
+  }
+  return expected;
+}
+
+test('a survey counts what a run reads, whatever its limit, and when', async t => {
+  // Two segments repeat the same records, which a run and its survey read once.
+  const input = tempDir(t);
+  writeFacebookExport(join(input, 'facebook-samrivera-1'));
+  writeFacebookExport(join(input, 'facebook-samrivera-2'));
+  const since = new Date((T0 + 4.5) * 1000);
+  for (const Extractor of [
+    FacebookArchiveMessagesExtractor,
+    FacebookArchiveReactionsExtractor,
+    FacebookArchiveSearchHistoryExtractor,
+  ]) {
+    const { records: rows } = await records(Extractor, { input });
+    assert.ok(rows.length > 0, Extractor.name);
+    assert.deepEqual(
+      await survey(Extractor, { input, limit: 1 }),
+      surveyed(Extractor, rows),
+      Extractor.name
+    );
+
+    // since drops the older records from both.
+    const { records: kept } = await records(Extractor, { input, since });
+    assert.deepEqual(await survey(Extractor, { input, since }), surveyed(Extractor, kept));
+
+    // By month when asked, by the same times, in local time.
+    const months = await survey(Extractor, { input }, { byMonth: true });
+    for (const kind of Extractor.recordTypes) {
+      const tally = {};
+      for (const row of rows.filter(r => r.extraction.recordType === kind && r.data.timestamp)) {
+        const month = monthKey(new Date(row.data.timestamp));
+        tally[month] = (tally[month] ?? 0) + 1;
+      }
+      assert.deepEqual(months[kind].byMonth, tally, kind);
+    }
+  }
+});
+
+test('an export reads the same zipped, and its layout finds it where it starts', async t => {
+  const dir = tempDir(t);
+  const unzipped = writeFacebookExport(join(dir, 'facebook-samrivera-11_08_2026-AbCd'));
+  const zip = join(dir, 'facebook-samrivera-11_08_2026-AbCd.zip');
+  writeZip(zip, facebookExportFiles());
+  for (const Extractor of [
+    FacebookArchiveMessagesExtractor,
+    FacebookArchiveReactionsExtractor,
+    FacebookArchiveSearchHistoryExtractor,
+  ]) {
+    const folder = await records(Extractor, { input: unzipped });
+    const zipped = await records(Extractor, { input: zip });
+    assert.ok(folder.records.length > 0, Extractor.name);
+    assert.deepEqual(
+      zipped.records.map(r => [r.data, r.context]),
+      folder.records.map(r => [r.data, r.context]),
+      Extractor.name
+    );
+  }
+
+  const { chronicle } = JSON.parse(readFileSync(join(import.meta.dirname, '../package.json')));
+  const { layouts } = chronicle.sources.facebook.strategies.archive;
+  const { exports } = await findExports(dir, [
+    { source: 'facebook', strategy: 'archive', layouts },
+  ]);
+  assert.deepEqual(
+    exports.map(e => e.root),
+    [unzipped, zip]
+  );
 });

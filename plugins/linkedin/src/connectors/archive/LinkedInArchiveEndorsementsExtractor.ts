@@ -1,4 +1,4 @@
-import { Record } from '@chronicle.app/etl';
+import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
 import { memberName, parseSlashStamp, profileHandle, profileUrl } from '../fields.js';
 import LinkedInTransformer from '../LinkedInTransformer.js';
 import { LinkedInArchiveExtractor } from './LinkedInArchiveExtractor.js';
@@ -25,15 +25,8 @@ export class LinkedInArchiveEndorsementsExtractor extends LinkedInArchiveExtract
   static override schema = LinkedInArchiveExtractor.schema;
 
   async *extract(): AsyncGenerator<Record> {
-    const given = await this.readEndorsements('Endorsement_Given_Info.csv', 'given');
-    const received = await this.readEndorsements('Endorsement_Received_Info.csv', 'received');
-
-    const endorsements = [...given, ...received].sort((a, b) =>
-      (a.endorsedAt ?? '') < (b.endorsedAt ?? '') ? 1 : -1
-    );
-
     let count = 0;
-    for (const endorsement of endorsements) {
+    for (const endorsement of await this.endorsements()) {
       if (this.shouldStopExtracting(count)) break;
       if (!this.withinWindow(endorsement.endorsedAt)) continue;
       yield this.createRecordWithArchiveContext({
@@ -42,6 +35,22 @@ export class LinkedInArchiveEndorsementsExtractor extends LinkedInArchiveExtract
       });
       count++;
     }
+  }
+
+  /** The endorsements a run reads, both ways, and when each was made. */
+  override async survey(options: SurveyOptions = {}): Promise<Survey> {
+    const dates = (await this.endorsements()).map(endorsement => endorsement.endorsedAt);
+    return { endorsements: this.surveyDates(dates, options) };
+  }
+
+  /** Both endorsement files as one list, newest first. */
+  private async endorsements() {
+    const given = await this.readEndorsements('Endorsement_Given_Info.csv', 'given');
+    const received = await this.readEndorsements('Endorsement_Received_Info.csv', 'received');
+
+    return [...given, ...received].sort((a, b) =>
+      (a.endorsedAt ?? '') < (b.endorsedAt ?? '') ? 1 : -1
+    );
   }
 
   /** One endorsement file, with the other party's columns read by prefix. */

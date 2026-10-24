@@ -22,8 +22,14 @@ chronicle extract shell --limit 10
 ## Usage
 
 Run `chronicle sources` to list sources and any that aren't installed (`--all`
-adds sources for services that no longer exist), `chronicle sources info <source>`
-to see one, and `chronicle extract <source> --help` for options. The CLI bundles `shell`, `imessage`, `safari`, `things-todo`, and
+adds sources for services that no longer exist), `chronicle scan` to find the
+ones on this computer and the command that extracts each, `chronicle scan <path>`
+to find the exports in a folder or zip, `chronicle sources info <source>` to see
+one, and `chronicle extract <source> --help` for options. `chronicle survey`
+counts what each source found holds and over which years, and
+`chronicle survey <path>` what each export in a folder or zip holds;
+`chronicle survey <source>` takes the options `extract` does, so
+`chronicle survey moves-app --input ~/moves_export` counts an export first. The CLI bundles `shell`, `imessage`, `safari`, `things-todo`, and
 `claude-code`; `chronicle plugins install <name>` adds any other catalog source.
 
 JSON is the default; use `--loader csv`, `yaml`, or `table`, and `--output <file>`

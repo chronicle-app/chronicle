@@ -30,7 +30,7 @@ chronicle extract twitter \
 
 The extractor supports the following options:
 
-- `--input` (required): Path to the Twitter export data directory
+- `--input` (required): The Twitter/X archive, as a zip or its unzipped folder
 - `--type`: Which record types to read: `tweets`, `likes`, `direct-messages`,
   `group-direct-messages` (default: all of them)
 - `--include-group-dms`: Include group direct messages (default: true)
@@ -50,7 +50,7 @@ npm test
 
 ## File Format
 
-The input is the unzipped directory of a Twitter/X data archive. The plugin
+The input is a Twitter/X data archive, zipped or unzipped. The plugin
 reads these files from its `data/` folder, each a `window.YTD.<name>.part0 = [...]`
 script wrapping a JSON array:
 

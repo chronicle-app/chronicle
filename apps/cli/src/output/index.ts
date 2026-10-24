@@ -14,7 +14,17 @@ export {
   type JsonColors,
 } from './tokens.js';
 export { glyphs } from './glyphs.js';
-export { count, duration, clock, plural, date, truncate, relativePath } from './format.js';
+export {
+  bytes,
+  count,
+  duration,
+  clock,
+  plural,
+  date,
+  truncate,
+  truncatePath,
+  relativePath,
+} from './format.js';
 export {
   line,
   summary,
@@ -26,12 +36,13 @@ export {
   caption,
   card,
   table,
+  wrap,
   type Definition,
   type Segment,
   type SummaryFields,
   type TableInput,
 } from './blocks.js';
-export { progress, LiveView, type ProgressFields } from './live.js';
+export { progress, LiveRegion, LiveView, type ProgressFields } from './live.js';
 // The prompts (`./prompts.js`) are imported on their own, only where a
 // question is asked, so other commands don't load what draws them.
 export {

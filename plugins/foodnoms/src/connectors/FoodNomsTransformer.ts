@@ -76,7 +76,8 @@ export default class FoodNomsTransformer extends ChronicleTransformer {
     const user: Agent = await this.buildUser(record.context.account);
 
     // One consume action per logged food entry. FoodNoms gives a single point in
-    // time (`date`), not a span, so it lands on `timestamp` rather than endTime.
+    // time (`date`), not a span, so it lands on `timestamp` rather than endTime:
+    // when it was eaten, which for an entry logged to a day alone is that day's.
     //
     // Identity is the consumption of this entry — keyed on the real entryID — and
     // `@type` is deliberately left OUT of the @key: eat-vs-drink is an inferred,
@@ -84,7 +85,7 @@ export default class FoodNomsTransformer extends ChronicleTransformer {
     // action. This also keeps FoodNoms consumptions shaped like the historical
     // `ate X` / `drank X` log so the two can sit on one timeline.
     const shared = {
-      timestamp: new Date(record.data.date),
+      timestamp: new Date(record.data.eatenAt ?? record.data.date),
       '@key': ['source', 'sourceId'],
       source: 'foodnoms',
       sourceId: record.data.entryID,

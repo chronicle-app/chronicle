@@ -213,6 +213,11 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
     // Output first, from raw argv: anything said while parsing follows it.
     this.installOutput(outputFlagsIn(this.argv));
     await super.init();
+    // `help` where an argument goes asks for the command's help, as `extract shell help` does.
+    if (this.argv[0] === 'help' && this.id) {
+      await this.config.runCommand('help', this.id.split(':'));
+      this.exit(0);
+    }
     // A command that reads its own argv (any flags at all) parses nothing here.
     if (!(this.ctor as unknown as typeof BaseCommand).parsesInInit) return;
     const { args, flags, metadata } = await this.parse({

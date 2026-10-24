@@ -1,12 +1,26 @@
-import { Record, SystemInfo, assertReadable } from '@chronicle.app/etl';
-import { SqliteExtractor, timeRangeConditions, iterateRows } from '@chronicle.app/etl-sqlite';
+import {
+  Record,
+  SystemInfo,
+  assertReadable,
+  type Survey,
+  type SurveyOptions,
+} from '@chronicle.app/etl';
+import {
+  SqliteExtractor,
+  allRows,
+  countsByMonth,
+  monthSql,
+  timeRangeConditions,
+  iterateRows,
+} from '@chronicle.app/etl-sqlite';
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 import { createHash, randomUUID } from 'node:crypto';
 import { constants as fsConstants, copyFileSync, readFileSync, rmSync, statSync } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
+import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join } from 'node:path';
 import { z } from 'zod';
-import ZoteroTransformer from './ZoteroTransformer.js';
+import ZoteroTransformer, { parseZoteroDate } from './ZoteroTransformer.js';
+import { zoteroDataDir } from '../dataDir.js';
 import type {
   ZoteroAnnotationRecord,
   ZoteroAttachment,
@@ -86,6 +100,46 @@ function toSqliteTimestamp(d: Date): string {
   return d.toISOString().slice(0, 19).replace('T', ' ');
 }
 
+/**
+ * The items behind each record type, as `FROM … WHERE …` before since/until:
+ * the user library's, and none in the trash or under an item in it.
+ */
+const RECORD_ROWS = {
+  works: `
+      FROM items i
+      JOIN itemTypes it ON it.itemTypeID = i.itemTypeID
+      JOIN libraries l ON l.libraryID = i.libraryID
+      WHERE l.type = 'user'
+        AND i.itemID NOT IN (SELECT itemID FROM deletedItems)
+        AND it.typeName NOT IN ('attachment', 'annotation', 'note')`,
+  annotations: `
+      FROM itemAnnotations a
+      JOIN items i ON i.itemID = a.itemID
+      JOIN libraries l ON l.libraryID = i.libraryID
+      JOIN itemAttachments att ON att.itemID = a.parentItemID
+      JOIN items ai ON ai.itemID = att.itemID
+      WHERE l.type = 'user'
+        AND i.itemID NOT IN (SELECT itemID FROM deletedItems)
+        AND ai.itemID NOT IN (SELECT itemID FROM deletedItems)
+        AND (att.parentItemID IS NULL OR att.parentItemID NOT IN (SELECT itemID FROM deletedItems))`,
+  attachments: `
+      FROM itemAttachments att
+      JOIN items i ON i.itemID = att.itemID
+      JOIN libraries l ON l.libraryID = i.libraryID
+      WHERE l.type = 'user'
+        AND att.parentItemID IS NULL
+        AND i.itemID NOT IN (SELECT itemID FROM deletedItems)`,
+  notes: `
+      FROM items i
+      JOIN itemTypes it ON it.itemTypeID = i.itemTypeID
+      JOIN itemNotes n ON n.itemID = i.itemID
+      JOIN libraries l ON l.libraryID = i.libraryID
+      WHERE l.type = 'user'
+        AND it.typeName = 'note'
+        AND i.itemID NOT IN (SELECT itemID FROM deletedItems)
+        AND (n.parentItemID IS NULL OR n.parentItemID NOT IN (SELECT itemID FROM deletedItems))`,
+};
+
 function isSqliteBusy(err: unknown): boolean {
   return (
     typeof err === 'object' &&
@@ -122,7 +176,7 @@ export class ZoteroExtractor extends SqliteExtractor<typeof ZoteroExtractor> {
     input: z
       .string()
       .describe('Path to the Zotero data directory (contains zotero.sqlite and storage/)')
-      .default(join(homedir(), 'Zotero')),
+      .default(() => zoteroDataDir()),
   }) as any;
 
   private dataDir!: string;
@@ -260,12 +314,7 @@ export class ZoteroExtractor extends SqliteExtractor<typeof ZoteroExtractor> {
     const sql = `
       SELECT i.itemID AS itemID, i.key AS key, i.dateAdded AS dateAdded, i.dateModified AS dateModified,
              it.typeName AS itemType
-      FROM items i
-      JOIN itemTypes it ON it.itemTypeID = i.itemTypeID
-      JOIN libraries l ON l.libraryID = i.libraryID
-      WHERE l.type = 'user'
-        AND i.itemID NOT IN (SELECT itemID FROM deletedItems)
-        AND it.typeName NOT IN ('attachment', 'annotation', 'note')${clause}
+      ${RECORD_ROWS.works}${clause}
       ORDER BY i.dateModified DESC`;
 
     for (const row of iterateRows<WorkRow>(this.db!.prepare(sql), ...params)) {
@@ -303,15 +352,7 @@ export class ZoteroExtractor extends SqliteExtractor<typeof ZoteroExtractor> {
              ai.itemID AS attItemID, ai.key AS attKey, ai.dateAdded AS attDateAdded,
              att.parentItemID AS workItemID, att.linkMode AS attLinkMode, att.contentType AS attContentType,
              att.path AS attPath, att.lastRead AS attLastRead
-      FROM itemAnnotations a
-      JOIN items i ON i.itemID = a.itemID
-      JOIN libraries l ON l.libraryID = i.libraryID
-      JOIN itemAttachments att ON att.itemID = a.parentItemID
-      JOIN items ai ON ai.itemID = att.itemID
-      WHERE l.type = 'user'
-        AND i.itemID NOT IN (SELECT itemID FROM deletedItems)
-        AND ai.itemID NOT IN (SELECT itemID FROM deletedItems)
-        AND (att.parentItemID IS NULL OR att.parentItemID NOT IN (SELECT itemID FROM deletedItems))${clause}
+      ${RECORD_ROWS.annotations}${clause}
       ORDER BY i.dateModified DESC`;
 
     for (const row of iterateRows<AnnotationRow>(this.db!.prepare(sql), ...params)) {
@@ -362,12 +403,7 @@ export class ZoteroExtractor extends SqliteExtractor<typeof ZoteroExtractor> {
       SELECT i.itemID AS itemID, i.key AS key, i.dateAdded AS dateAdded, i.dateModified AS dateModified,
              att.parentItemID AS parentItemID, att.linkMode AS linkMode, att.contentType AS contentType,
              att.path AS path, att.lastRead AS lastRead
-      FROM itemAttachments att
-      JOIN items i ON i.itemID = att.itemID
-      JOIN libraries l ON l.libraryID = i.libraryID
-      WHERE l.type = 'user'
-        AND att.parentItemID IS NULL
-        AND i.itemID NOT IN (SELECT itemID FROM deletedItems)${clause}
+      ${RECORD_ROWS.attachments}${clause}
       ORDER BY i.dateModified DESC`;
 
     for (const row of iterateRows<AttachmentRow>(this.db!.prepare(sql), ...params)) {
@@ -395,14 +431,7 @@ export class ZoteroExtractor extends SqliteExtractor<typeof ZoteroExtractor> {
     const sql = `
       SELECT i.itemID AS itemID, i.key AS key, i.dateAdded AS dateAdded, i.dateModified AS dateModified,
              n.parentItemID AS parentItemID, n.note AS note, n.title AS title
-      FROM items i
-      JOIN itemTypes it ON it.itemTypeID = i.itemTypeID
-      JOIN itemNotes n ON n.itemID = i.itemID
-      JOIN libraries l ON l.libraryID = i.libraryID
-      WHERE l.type = 'user'
-        AND it.typeName = 'note'
-        AND i.itemID NOT IN (SELECT itemID FROM deletedItems)
-        AND (n.parentItemID IS NULL OR n.parentItemID NOT IN (SELECT itemID FROM deletedItems))${clause}
+      ${RECORD_ROWS.notes}${clause}
       ORDER BY i.dateModified DESC`;
 
     for (const row of iterateRows<NoteRow>(this.db!.prepare(sql), ...params)) {
@@ -656,66 +685,50 @@ export class ZoteroExtractor extends SqliteExtractor<typeof ZoteroExtractor> {
   override async determineCount(): Promise<number | null> {
     if (!this.db) return null;
     try {
-      const worksFilter = this.sinceUntilFilter('i.dateModified');
-      const works = this.db
-        .prepare(
-          `SELECT COUNT(*) AS n
-           FROM items i
-           JOIN itemTypes it ON it.itemTypeID = i.itemTypeID
-           JOIN libraries l ON l.libraryID = i.libraryID
-           WHERE l.type = 'user'
-             AND i.itemID NOT IN (SELECT itemID FROM deletedItems)
-             AND it.typeName NOT IN ('attachment', 'annotation', 'note')${worksFilter.clause}`
-        )
-        .get(...worksFilter.params) as { n: number };
-
-      const annotationsFilter = this.sinceUntilFilter('i.dateModified');
-      const annotations = this.db
-        .prepare(
-          `SELECT COUNT(*) AS n
-           FROM itemAnnotations a
-           JOIN items i ON i.itemID = a.itemID
-           JOIN libraries l ON l.libraryID = i.libraryID
-           JOIN itemAttachments att ON att.itemID = a.parentItemID
-           JOIN items ai ON ai.itemID = att.itemID
-           WHERE l.type = 'user'
-             AND i.itemID NOT IN (SELECT itemID FROM deletedItems)
-             AND ai.itemID NOT IN (SELECT itemID FROM deletedItems)
-             AND (att.parentItemID IS NULL OR att.parentItemID NOT IN (SELECT itemID FROM deletedItems))${annotationsFilter.clause}`
-        )
-        .get(...annotationsFilter.params) as { n: number };
-
-      const attachmentsFilter = this.sinceUntilFilter('i.dateModified');
-      const attachments = this.db
-        .prepare(
-          `SELECT COUNT(*) AS n
-           FROM itemAttachments att
-           JOIN items i ON i.itemID = att.itemID
-           JOIN libraries l ON l.libraryID = i.libraryID
-           WHERE l.type = 'user'
-             AND att.parentItemID IS NULL
-             AND i.itemID NOT IN (SELECT itemID FROM deletedItems)${attachmentsFilter.clause}`
-        )
-        .get(...attachmentsFilter.params) as { n: number };
-
-      const notesFilter = this.sinceUntilFilter('i.dateModified');
-      const notes = this.db
-        .prepare(
-          `SELECT COUNT(*) AS n
-           FROM items i
-           JOIN itemTypes it ON it.itemTypeID = i.itemTypeID
-           JOIN itemNotes n ON n.itemID = i.itemID
-           JOIN libraries l ON l.libraryID = i.libraryID
-           WHERE l.type = 'user'
-             AND it.typeName = 'note'
-             AND i.itemID NOT IN (SELECT itemID FROM deletedItems)
-             AND (n.parentItemID IS NULL OR n.parentItemID NOT IN (SELECT itemID FROM deletedItems))${notesFilter.clause}`
-        )
-        .get(...notesFilter.params) as { n: number };
-
-      return works.n + annotations.n + attachments.n + notes.n;
+      const { clause, params } = this.sinceUntilFilter('i.dateModified');
+      let total = 0;
+      for (const rows of Object.values(RECORD_ROWS)) {
+        const { n } = this.db.prepare(`SELECT COUNT(*) AS n ${rows}${clause}`).get(...params) as {
+          n: number;
+        };
+        total += n;
+      }
+      return total;
     } catch {
       return null;
     }
+  }
+
+  /** The items a run reads of each record type, and when they were added. */
+  override async survey(options: SurveyOptions = {}): Promise<Survey | null> {
+    if (!this.db) return null;
+    const { clause, params } = this.sinceUntilFilter('i.dateModified');
+    // dateAdded is UTC text, so its month is from its Unix seconds.
+    const month = monthSql("CAST(strftime('%s', i.dateAdded) AS INTEGER)");
+    const survey: Survey = {};
+    for (const [recordType, rows] of Object.entries(RECORD_ROWS)) {
+      const { n, first, last } = this.db
+        .prepare(
+          `SELECT COUNT(*) AS n, MIN(i.dateAdded) AS first, MAX(i.dateAdded) AS last ${rows}${clause}`
+        )
+        .get(...params) as { n: number; first: string | null; last: string | null };
+      const byMonth =
+        options.byMonth &&
+        countsByMonth(
+          allRows<{ month: string | null; n: number }>(
+            this.db.prepare(
+              `SELECT ${month} AS month, COUNT(*) AS n ${rows}${clause} GROUP BY month`
+            ),
+            ...params
+          )
+        );
+      survey[recordType] = {
+        count: n,
+        ...(first !== null && { earliest: parseZoteroDate(first) }),
+        ...(last !== null && { latest: parseZoteroDate(last) }),
+        ...(byMonth && { byMonth }),
+      };
+    }
+    return survey;
   }
 }

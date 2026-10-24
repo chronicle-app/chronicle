@@ -61,6 +61,20 @@
         "strategies": {
           "archive": {
             "delivery": "export",
+            "layouts": [
+              {
+                "files": [
+                  "data/account.js",
+                  "data/tweets.js"
+                ],
+                "match": [
+                  {
+                    "path": "data/account.js",
+                    "head": "^window\\.YTD\\.account\\.part0"
+                  }
+                ]
+              }
+            ],
             "recordTypes": [
               "direct-messages",
               "group-direct-messages",

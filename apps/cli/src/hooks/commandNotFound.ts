@@ -42,6 +42,16 @@ export function unknownCommand(
 
 /** oclif raises an unknown command before any command runs, so no command's `catch` sees it. */
 const hook: Hook<'command_not_found'> = async function ({ id, argv }) {
+  // `help` among a command's or topic's words asks for its help, as `extract shell help` does.
+  const words = id.split(':');
+  const subject = words.filter(word => word !== 'help');
+  if (subject.length > 0 && subject.length < words.length) {
+    const asked = subject.join(':');
+    if (this.config.findCommand(asked) || this.config.findTopic(asked)) {
+      await this.config.runCommand('help', [...subject, ...(argv ?? [])]);
+      return;
+    }
+  }
   unknownCommand(this.config, id, argv ?? []);
 };
 

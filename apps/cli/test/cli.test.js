@@ -13,8 +13,10 @@ import {
   symlinkSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { test } from 'node:test';
+import { writeZip } from '@chronicle.app/etl';
 
 const bin = process.env.CHRONICLE_TEST_BIN || resolve(import.meta.dirname, '../bin/run.js');
 function fixture(t) {
@@ -204,6 +206,11 @@ test('raw extraction, four output loaders, file output and stream mode', t => {
   // A kind named after the source reads just that kind.
   const named = run('extract', 'shell', 'commands', '--input', input, '--raw', '--limit', '1');
   assert.equal(JSON.parse(success(named)).command, 'printf fixture');
+  // `-t all` and `-t defaults` read the kinds they stand for, as `all` after the source does.
+  for (const kinds of ['all', 'defaults']) {
+    const typed = run('extract', 'shell', '-t', kinds, '--input', input, '--raw', '--limit', '1');
+    assert.equal(JSON.parse(success(typed)).command, 'printf fixture', `-t ${kinds}`);
+  }
   // A supervisor reads the same run as JSON events on stderr. --delay slows
   // each extracted record, for watching a run while debugging.
   const events = run(
@@ -308,7 +315,7 @@ test('global config and explicit flag precedence reach the dynamic dispatcher', 
   assert.notEqual(run('config', 'get', 'limit').status, 0);
 });
 
-test('every command has help, asked for either way, drawn by the help class', async t => {
+test('every command has help, asked for any way, drawn by the help class', async t => {
   const { env, run } = fixture(t);
   const listed = JSON.parse(success(run('commands', '--format', 'json')));
   const ask = args =>
@@ -321,12 +328,14 @@ test('every command has help, asked for either way, drawn by the help class', as
       child.on('close', status => resolve({ status, stdout, stderr }));
     });
   // Multi-word commands as a shell passes them: each word its own argument.
+  // `help` after the words asks too, whether they take an argument or not.
   const asked = listed
     .map(({ command }) => command.split(' '))
     .filter(words => words.length > 1)
     .flatMap(words => [
       [...words, '--help'],
       ['help', ...words],
+      [...words, 'help'],
     ]);
   const results = await Promise.all(asked.map(ask));
   for (const [i, { status, stdout, stderr }] of results.entries()) {
@@ -339,9 +348,19 @@ test('every command has help, asked for either way, drawn by the help class', as
   }
   // Topics list their commands, and the root lists each command once.
   assert.match(success(run('config', 'preset', '--help')), /config preset show/);
+  assert.equal(
+    success(run('config', 'preset', 'help')),
+    success(run('config', 'preset', '--help'))
+  );
+  assert.equal(success(run('sources', 'help')), success(run('sources', '--help')));
   const root = success(run('--help'));
   assert.equal(root.match(/^ {2}extract /gm)?.length, 1);
   assert.doesNotMatch(root, /^ {2}e /m);
+  // In groups: sources, extract, then scan and survey, then the rest.
+  assert.match(
+    root,
+    /^ {2}sources .*\n\n {2}extract .*\n\n {2}scan .*\n {2}survey .*\n\n {2}auth /m
+  );
   // `commands` lists them all the same way, oclif's in plain words.
   const commands = success(run('commands'));
   assert.match(commands, /^command +description\n/);
@@ -715,6 +734,615 @@ test('plugins new scaffolds a plugin for the source kind that reads it and passe
   assert.match(onFile.stderr, /isn't a folder/);
 });
 
+/**
+ * A home folder holding what scan looks for: shell histories, Chrome
+ * profiles with the folder Chrome keeps beside them, and an Obsidian vault
+ * the registry lists beside one that's gone. Chrome and Obsidian sit where
+ * each looks on macOS and on Linux.
+ */
+function scanHome(dir) {
+  const home = join(dir, 'home');
+  const plant = (file, content = 'synthetic') => {
+    mkdirSync(dirname(join(home, file)), { recursive: true });
+    writeFileSync(join(home, file), content);
+  };
+  plant('.zsh_history', ': 1700000000:0;echo synthetic\n');
+  plant('.bash_history', '');
+  for (const userData of ['Library/Application Support/Google/Chrome', '.config/google-chrome']) {
+    for (const profile of ['Default', 'Profile 1', 'System Profile']) {
+      plant(`${userData}/${profile}/History`);
+    }
+    plant(
+      `${userData}/Local State`,
+      JSON.stringify({
+        profile: { info_cache: { Default: { name: 'Personal' }, 'Profile 1': { name: 'Work' } } },
+      })
+    );
+  }
+  const vault = join(dir, 'My Vault');
+  mkdirSync(join(vault, '.obsidian'), { recursive: true });
+  writeFileSync(join(vault, 'note.md'), '# Synthetic\n');
+  for (const config of ['Library/Application Support/obsidian', '.config/obsidian']) {
+    plant(
+      `${config}/obsidian.json`,
+      JSON.stringify({ vaults: { a: { path: vault }, b: { path: join(dir, 'gone') } } })
+    );
+  }
+  return { home, vault };
+}
+
+test('scan finds what a home folder holds, with a command that extracts each', t => {
+  const { dir, run } = fixture(t);
+  const { home, vault } = scanHome(dir);
+  const scan = run.with({ HOME: home, GH_TOKEN: 'synthetic-token' });
+  const rows = JSON.parse(success(scan('scan', '--format', 'json')));
+  const row = (source, label) => rows.find(r => r.source === source && r.label === label);
+
+  // Shell's defaults find zsh first; bash needs its flag, and an empty history says so.
+  assert.equal(row('shell', '~/.zsh_history').command, 'chronicle extract shell');
+  assert.equal(row('shell', '~/.bash_history').command, 'chronicle extract shell --shell bash');
+  assert.equal(row('shell', '~/.bash_history').status, 'empty');
+  // Chrome's profiles by the names its menu shows; its Default needs no flag.
+  const chrome = rows.filter(r => r.source === 'chrome');
+  assert.deepEqual(chrome.map(r => r.label).sort(), ['Personal', 'Work']);
+  assert.equal(row('chrome', 'Personal').command, 'chronicle extract chrome');
+  assert.equal(row('chrome', 'Work').command, 'chronicle extract chrome --profile "Profile 1"');
+  // Only the vault that's still there, its folder the input.
+  const vaults = rows.filter(r => r.source === 'obsidian');
+  assert.equal(vaults.length, 1);
+  assert.deepEqual(vaults[0].config, { input: vault });
+  // A credential says where it came from, never what it is.
+  assert.equal(row('github', 'GH_TOKEN').evidence.credential, 'GH_TOKEN');
+  assert.equal(row('github', 'GH_TOKEN').status, 'ready');
+  assert.doesNotMatch(JSON.stringify(rows), /synthetic-token/);
+
+  // The commands it prints run (Chrome's need a real History database).
+  for (const command of [row('shell', '~/.zsh_history').command, vaults[0].command]) {
+    const args = command.match(/"[^"]*"|\S+/g).map(word => word.replaceAll('"', ''));
+    const extracted = scan(...args.slice(1).map(w => w.replace(/^~/, home)), '--limit', '1');
+    assert.equal(extracted.status, 0, `${command}: ${extracted.stderr}`);
+  }
+
+  // The table, what isn't ready last, then what it found and the next step.
+  const table = scan('scan');
+  assert.match(table.stdout, /^chrome +app-db +Work +ready$/m);
+  assert.match(
+    table.stdout.trimEnd().split('\n').at(-1),
+    /^shell +history +~\/\.bash_history +empty$/
+  );
+  assert.match(table.stderr, /Found 4 sources in 6 places/);
+  // A command that doesn't say where it reads is followed by where.
+  assert.match(
+    table.stderr,
+    /To extract a source, run its command, like `chronicle extract chrome` for Personal\. Use `--format json` to see each one's command\./
+  );
+
+  // A profile its permissions close is there, but can't be read.
+  const closed = ['.config/google-chrome', 'Library/Application Support/Google/Chrome'].map(
+    userData => join(home, userData, 'Profile 1')
+  );
+  for (const folder of closed) chmodSync(folder, 0o000);
+  try {
+    const rows = JSON.parse(success(scan('scan', 'chrome', '--format', 'json')));
+    const work = rows.find(r => r.label === 'Work');
+    assert.equal(work.status, 'unreadable');
+    assert.equal(work.command, 'chronicle extract chrome --profile "Profile 1"');
+  } finally {
+    for (const folder of closed) chmodSync(folder, 0o755);
+  }
+
+  // One source with nothing there says where it looked, and isn't an error.
+  const zotero = scan('scan', 'zotero');
+  assert.equal(zotero.status, 0, zotero.stderr);
+  assert.match(zotero.stderr, /Nothing found for zotero/);
+  assert.match(zotero.stderr, /Looked in ~\/Zotero\/zotero\.sqlite/);
+  const unknown = scan('scan', 'nope');
+  assert.notEqual(unknown.status, 0);
+  assert.match(unknown.stderr, /chronicle sources --all/);
+});
+
+test(
+  'setup full-disk-access walks through turning it on, and opens nothing unasked',
+  { skip: process.platform !== 'darwin' && 'Full Disk Access is only on macOS' },
+  t => {
+    const { dir, run } = fixture(t);
+    // A home without the folders it guards, so this Mac's access doesn't count.
+    const access = run.with({ HOME: join(dir, 'home') })('setup', 'full-disk-access');
+    assert.equal(access.status, 0, access.stderr);
+    assert.match(access.stderr, /chronicle setup full-disk-access/);
+    assert.match(access.stderr, /--open/);
+  }
+);
+
+test('the extract hint names a source, or gives a command and where it reads', async () => {
+  const { extractHint } = await import('../dist/commands/scan.js');
+  const row = (source, label, command, config = {}) => ({ source, label, command, config });
+  const timing = row('timing-app', '~/SQLite.db', 'chronicle extract timing-app');
+  const zsh = row('shell', '~/.zsh_history', 'chronicle extract shell');
+  const bash = row('shell', '~/.bash_history', 'chronicle extract shell --shell bash', {
+    shell: 'bash',
+  });
+  assert.equal(extractHint([timing]), 'Run `chronicle extract timing-app` to extract it.');
+  assert.equal(
+    extractHint([timing, zsh]),
+    'To extract a source, run `chronicle extract` with its name, like `chronicle extract timing-app`.'
+  );
+  // Bash's command needs its flag, so its name alone isn't enough.
+  assert.equal(
+    extractHint([timing, zsh, bash]),
+    "To extract a source, run its command, like `chronicle extract timing-app` for ~/SQLite.db. Use `--format json` to see each one's command."
+  );
+  assert.equal(
+    extractHint([zsh, bash]),
+    "To extract one, run its command, like `chronicle extract shell` for ~/.zsh_history. Use `--format json` to see each one's command."
+  );
+});
+
+test('a measure beside a count is plural only when it counts more than one', async () => {
+  const { measureText } = await import('../dist/commands/survey.js');
+  assert.equal(measureText({ key: 'c', label: 'conversations', value: 1 }), '1 conversation');
+  assert.equal(measureText({ key: 'c', label: 'conversations', value: 2 }), '2 conversations');
+  assert.equal(
+    measureText({ key: 'b', label: 'attachments', value: 1, unit: 'bytes' }),
+    '1 B of attachments'
+  );
+});
+
+test('a sparkline has a column per year, as high as its records against the busiest', async () => {
+  const { sparkline } = await import('../dist/commands/survey.js');
+  assert.equal(sparkline({ '2015-01': 4, '2015-06': 4, '2017-03': 2 }), '2015 █ ▂ 2017');
+  assert.equal(sparkline({ '2015-01': 4, '2015-06': 4 }), undefined);
+  assert.equal(sparkline({}), undefined);
+  // Too many years for its width, and a column holds several, keeping both ends.
+  const four = { '2015-01': 3, '2016-01': 3, '2017-01': 1, '2018-01': 2 };
+  assert.equal(sparkline(four, 12), '2015 █▄ 2018');
+  const decades = Object.fromEntries(Array.from({ length: 35 }, (_, i) => [`${1991 + i}-01`, 1]));
+  const span = sparkline(decades, 30);
+  assert.match(span, /^1991 \S+ 2025$/);
+  assert.ok(span.length <= 30, span);
+});
+
+test('survey counts what each ready source holds, and lists the rest with what is in the way', t => {
+  const { dir, run } = fixture(t);
+  const { home } = scanHome(dir);
+  const survey = run.with({ HOME: home, GH_TOKEN: 'synthetic-token' });
+  const surveyed = JSON.parse(success(survey('survey', '--format', 'json')));
+  const of = (source, label) => surveyed.find(r => r.source === source && r.label === label);
+  assert.equal(of('shell', '~/.zsh_history').command, 'chronicle extract shell');
+  assert.deepEqual(of('shell', '~/.zsh_history').survey, {
+    commands: {
+      count: 1,
+      earliest: '2023-11-14T22:13:20.000Z',
+      latest: '2023-11-14T22:13:20.000Z',
+    },
+  });
+  // Every row says its status as a scan does.
+  assert.equal(of('shell', '~/.zsh_history').status, 'ready');
+  assert.equal(surveyed.find(r => r.source === 'obsidian').survey.notes.count, 1);
+  // A History that isn't a database fails its survey, and says why.
+  assert.equal(of('chrome', 'Personal').survey, null);
+  assert.ok(of('chrome', 'Personal').error);
+  // A source online is listed but not counted, and one that isn't ready with why.
+  assert.equal(of('github', 'GH_TOKEN').survey, null);
+  assert.equal(of('github', 'GH_TOKEN').online, true);
+  assert.equal(of('github', 'GH_TOKEN').status, 'ready');
+  assert.equal(of('shell', '~/.bash_history').survey, null);
+  assert.equal(of('shell', '~/.bash_history').status, 'empty');
+
+  // The counts first, then where each comes from, and what was counted.
+  const shown = survey('survey');
+  assert.equal(shown.status, 0, shown.stderr);
+  assert.match(shown.stdout, /^source +records +years +details +from$/m);
+  assert.match(shown.stdout, /^shell +1 command +2023 +~\/\.zsh_history$/m);
+  // Sources it couldn't count mark the outcome failed, and say how many.
+  assert.match(
+    shown.stderr,
+    /✗ Counted 2 sources {2}in \S+\n(?:\S+ )? {4}2 records\n(?:\S+ )? {4}2 failed$/m
+  );
+  assert.match(shown.stdout, /^chrome +couldn't count +Personal$/m);
+  assert.match(shown.stderr, /Couldn't count 2 sources/);
+  assert.match(shown.stdout, /^github +- +not surveyable +GH_TOKEN$/m);
+  assert.match(shown.stdout, /^shell +empty +~\/\.bash_history$/m);
+  assert.doesNotMatch(shown.stderr, /chronicle scan/);
+  // A source's command, as an example of each's. This one names where it reads.
+  assert.match(
+    shown.stderr,
+    /To extract a source, run its command, like `chronicle extract obsidian --input "[^"]+My Vault"`\. Use `--format json` to see each one's command\./
+  );
+  // One source: each place it was found, titled with the file and its size,
+  // then its records' count, first and last, or what's in the way.
+  const detail = success(survey('survey', 'shell'));
+  assert.match(detail, /^shell {2}~\/\.zsh_history {2}\d+ B · changed [^\n]+\n\n1 command$/m);
+  assert.match(detail, /^shell {2}~\/\.bash_history .*\n\nEmpty$/m);
+  assert.match(detail, /^ {2}first +2023-11-1\d \d\d:\d\d$/m);
+  // A source online isn't surveyable, and says how to extract it.
+  const online = survey('survey', 'github');
+  assert.equal(online.status, 0, online.stderr);
+  assert.match(online.stdout, /^github {2}GitHub [^\n]+\nGH_TOKEN\n\nNot surveyable$/m);
+  assert.match(online.stderr, /Run `chronicle extract github` to extract it\./);
+  // A single year has no sparkline: its count says it all.
+  assert.doesNotMatch(detail, /years|█/);
+  const [zsh] = JSON.parse(success(survey('survey', 'shell', '--format', 'json')));
+  assert.deepEqual(zsh.survey.commands.byMonth, { '2023-11': 1 });
+  // Every source's survey leaves months out; a scan points to it, and names
+  // each row's strategy.
+  const scanned = survey('scan');
+  assert.match(scanned.stderr, /chronicle survey/);
+  assert.match(scanned.stdout, /^source +strategy +found +status$/m);
+  assert.notEqual(survey('survey', 'no-such-source').status, 0);
+});
+
+test('survey takes the options extract does, and counts an export it is pointed at', t => {
+  const { dir, run } = fixture(t);
+  const { home } = scanHome(dir);
+  const survey = run.with({ HOME: home });
+  const storyline = join(dir, 'moves', 'json', 'daily', 'storyline');
+  mkdirSync(storyline, { recursive: true });
+  const place = { id: 1, name: 'Somewhere', type: 'user', location: { lat: 1, lon: 2 } };
+  writeFileSync(
+    join(storyline, 'storyline_20150101.json'),
+    JSON.stringify([
+      {
+        date: '20150101',
+        segments: [
+          {
+            type: 'place',
+            startTime: '20150101T090000-0300',
+            endTime: '20150101T100000-0300',
+            place,
+          },
+        ],
+      },
+    ])
+  );
+  writeFileSync(
+    join(storyline, 'storyline_20140509.json'),
+    JSON.stringify([
+      {
+        date: '20140509',
+        segments: [
+          {
+            type: 'place',
+            startTime: '20140509T090000-0300',
+            endTime: '20140509T100000-0300',
+            place,
+          },
+        ],
+      },
+    ])
+  );
+  const input = join(dir, 'moves');
+  const [counted] = JSON.parse(
+    success(survey('survey', 'moves-app', '--input', input, '--format', 'json'))
+  );
+  assert.equal(counted.label, input);
+  assert.match(counted.command, /^chronicle extract moves-app --input /);
+  assert.match(counted.pluginVersion, /^\d+\.\d+\.\d+/);
+  assert.deepEqual(counted.survey, {
+    places: {
+      count: 2,
+      earliest: '2014-05-09T12:00:00.000Z',
+      latest: '2015-01-01T12:00:00.000Z',
+      byMonth: { '2014-05': 1, '2015-01': 1 },
+    },
+    moves: { count: 0, byMonth: {} },
+  });
+  // Years when there are several, on one line, each against the busiest.
+  const years = success(survey('survey', 'moves-app', '--input', input));
+  // A source found in one place is titled with what it is.
+  assert.match(years, /^moves-app {2}Moves export places and moves$/m);
+  assert.match(years, /^2 places$/m);
+  assert.match(years, /^ {2}years +2014 ██ 2015$/m);
+  // Without one: where to point it.
+  const bare = survey('survey', 'moves-app');
+  assert.equal(bare.status, 2);
+  assert.match(bare.stderr, /moves-app reads an export you point it at/);
+  assert.match(bare.stderr, /chronicle survey moves-app --input <path>/);
+  assert.match(survey('survey', 'moves-app', '--input', join(dir, 'gone')).stderr, /Nothing at/);
+  // A source's own help lists its options beside survey's.
+  const help = success(survey('survey', 'moves-app', '--help'));
+  assert.match(help, /chronicle survey moves-app/);
+  assert.match(help, /--input/);
+  assert.match(help, /--format/);
+  assert.match(help, /Count records up to this date/);
+  assert.doesNotMatch(help, /--loader|--output/);
+  // Survey's own help says what it counts, and that it takes a path.
+  const own = success(survey('survey', '--help'));
+  assert.match(own, /^ {2}<source\|path> +A source, like shell, or a folder or zip of exports$/m);
+  assert.match(own, /^ {2}\[type\.\.\.\] +Record types to count/m);
+  assert.match(own, /^Record flags$/m);
+  assert.doesNotMatch(own, /Extract/);
+  // Options alone are one run: since a date, and in the command that extracts it.
+  const [since] = JSON.parse(
+    success(survey('survey', 'shell', '--since', '2024-01-01', '--format', 'json'))
+  );
+  assert.equal(since.command, 'chronicle extract shell --since 2024-01-01');
+  assert.equal(since.survey.commands.count, 0);
+});
+
+test(
+  'scan finds a source whose plugin is not installed, from the catalog',
+  { skip: process.env.CHRONICLE_TEST_BIN && 'every plugin is installed in the packed check' },
+  t => {
+    const { dir, run } = fixture(t);
+    const { home } = scanHome(dir);
+    const scan = run.with({ HOME: home, CHRONICLE_WORKSPACE_PLUGINS: '0' });
+    const rows = JSON.parse(success(scan('scan', '--format', 'json')));
+    // Without its locator, each profile folder that matched is a row, by its path.
+    const chrome = rows.filter(r => r.source === 'chrome');
+    assert.ok(chrome.length >= 2);
+    assert.ok(chrome.every(r => !r.installed && r.plugin === 'chrome'));
+    assert.ok(rows.some(r => r.source === 'shell' && r.installed));
+    assert.match(scan('scan').stderr, /chronicle plugins install \S+/);
+  }
+);
+
+/**
+ * A folder of exports as people keep them: the Health app's export unzipped
+ * in one folder and zipped in another, beside a folder and a photo library
+ * that hold none, and a download that didn't finish.
+ */
+function exportFiles(dir) {
+  const root = join(dir, 'EXPORT_FILES');
+  const health = { 'export.xml': '<HealthData locale="en_US"/>', 'export_cda.xml': '<x/>' };
+  mkdirSync(join(root, 'old', 'apple_health_export'), { recursive: true });
+  for (const [name, content] of Object.entries(health)) {
+    writeFileSync(join(root, 'old', 'apple_health_export', name), content);
+  }
+  writeZip(
+    join(root, 'export.zip'),
+    Object.fromEntries(Object.entries(health).map(([n, c]) => [`apple_health_export/${n}`, c]))
+  );
+  mkdirSync(join(root, 'misc'));
+  writeFileSync(join(root, 'misc', 'notes.txt'), 'not an export');
+  // A photo library is one item, and nothing inside it is looked at.
+  mkdirSync(join(root, 'Photos Library.photoslibrary', 'resources'), { recursive: true });
+  for (const [name, content] of Object.entries(health)) {
+    writeFileSync(join(root, 'Photos Library.photoslibrary', 'resources', name), content);
+  }
+  writeFileSync(join(root, 'broken.zip'), 'not a zip');
+  return root;
+}
+
+test('scan finds the exports in a folder or zip, with the command that reads each', t => {
+  const { dir, run } = fixture(t);
+  const root = exportFiles(dir);
+  const scan = run.with({ HOME: join(dir, 'home') });
+  const rows = JSON.parse(success(scan('scan', root, '--format', 'json')));
+  assert.deepEqual(
+    rows.map(r => [r.source, r.label, r.status]),
+    [
+      ['apple-health', 'export.zip/apple_health_export', 'ready'],
+      ['apple-health', 'old/apple_health_export/', 'ready'],
+    ]
+  );
+  // The zipped export starts at the folder in the zip, which its run reads in place.
+  const [zipped] = rows;
+  assert.equal(zipped.root, join(root, 'export.zip', 'apple_health_export'));
+  assert.equal(zipped.command, `chronicle extract apple-health --input ${zipped.root}`);
+  assert.deepEqual(zipped.evidence.files, ['export.xml']);
+  assert.match(zipped.pluginVersion, /^\d+\.\d+\.\d+/);
+
+  // The table, with what it didn't recognize, couldn't open, and what to run next.
+  const table = scan('scan', root);
+  assert.equal(table.status, 0, table.stderr);
+  assert.match(table.stdout, /^apple-health +archive +old\/apple_health_export\/ +ready$/m);
+  // An export's command is an example of each one's, and says where it is itself.
+  assert.match(table.stderr, /Found 2 exports/);
+  assert.match(
+    table.stderr,
+    /To extract an export, run its command, like `chronicle extract apple-health --input \S+export\.zip\/apple_health_export`\. Use `--format json` to see each one's command\./
+  );
+  assert.match(
+    table.stderr,
+    /Didn't recognize 2 folders: misc and Photos Library\.photoslibrary\./
+  );
+  assert.match(table.stderr, /Couldn't open 1 zip: broken\.zip\./);
+  assert.match(table.stderr, /Run `chronicle survey \S+EXPORT_FILES` to see how much each holds/);
+
+  // A file two sources read is a row for each, and one export.
+  const mail = join(dir, 'Takeout', 'Mail');
+  mkdirSync(mail, { recursive: true });
+  writeFileSync(
+    join(mail, 'All mail Including Spam and Trash.mbox'),
+    'From 1@xxx Mon Jan 01 00:00:00 +0000 2024\nX-GM-THRID: 1\nSubject: Synthetic\n\nHi\n'
+  );
+  const takeout = scan('scan', join(dir, 'Takeout'));
+  assert.equal(takeout.status, 0, takeout.stderr);
+  assert.match(takeout.stdout, /^email +mbox +Mail\/All mail/m);
+  assert.match(takeout.stdout, /^gmail +takeout +Mail\/All mail/m);
+  assert.match(takeout.stderr, /Found 1 export$/m);
+
+  // A zip as the path, and a folder with no export in it.
+  const [one] = JSON.parse(success(scan('scan', join(root, 'export.zip'), '--format', 'json')));
+  assert.equal(one.label, 'export.zip/apple_health_export');
+  const nothing = scan('scan', join(root, 'misc'));
+  assert.equal(nothing.status, 0, nothing.stderr);
+  assert.match(nothing.stderr, /Didn't recognize anything in/);
+  assert.notEqual(scan('scan', join(dir, 'gone')).status, 0);
+
+  // A file is in an export, or in none.
+  const health = join(root, 'old', 'apple_health_export');
+  const file = scan('scan', join(health, 'export_cda.xml'));
+  assert.equal(file.status, 0, file.stderr);
+  assert.match(file.stdout, /^apple-health +archive +apple_health_export\/ +ready$/m);
+  assert.match(file.stderr, /Run `chronicle survey \S+old\/apple_health_export` to see how much/);
+  const note = scan('scan', join(root, 'misc', 'notes.txt'));
+  assert.equal(note.status, 0, note.stderr);
+  assert.match(note.stderr, /Didn't recognize \S+misc\/notes\.txt/);
+
+  // A word is a source unless it reads as a path. A folder's bare name says how to scan it.
+  const bare = scan('scan', 'EXPORT_FILES');
+  assert.notEqual(bare.status, 0);
+  assert.match(bare.stderr, /Run `chronicle scan \.\/EXPORT_FILES` to look in the folder/);
+  assert.equal(JSON.parse(success(scan('scan', './EXPORT_FILES', '--format', 'json'))).length, 2);
+  // A source with nowhere to look on a computer reads exports.
+  const instagram = scan('scan', 'instagram');
+  assert.equal(instagram.status, 0, instagram.stderr);
+  assert.match(instagram.stderr, /instagram reads an export/);
+  assert.match(instagram.stderr, /chronicle scan <path>/);
+
+  // Survey takes a path as scan does.
+  const surveyBare = scan('survey', 'EXPORT_FILES');
+  assert.notEqual(surveyBare.status, 0);
+  assert.match(surveyBare.stderr, /chronicle survey \.\/EXPORT_FILES/);
+  const unknown = scan('survey', join(root, 'misc'));
+  assert.equal(unknown.status, 0, unknown.stderr);
+  assert.match(unknown.stderr, /chronicle sources --all/);
+  assert.doesNotMatch(unknown.stderr, /chronicle scan/);
+  assert.equal(success(scan('survey', join(root, 'misc'), '--format', 'json')).trim(), '[]');
+  // Each export's counts say where it starts and which plugin version made them.
+  const [counts] = JSON.parse(success(scan('survey', root, '--format', 'json')));
+  assert.equal(counts.root, join(root, 'export.zip', 'apple_health_export'));
+  assert.match(counts.pluginVersion, /^\d+\.\d+\.\d+/);
+  // One export named by a path through its zip is counted as extract reads it.
+  const inZip = join(root, 'export.zip', 'apple_health_export');
+  const [named] = JSON.parse(
+    success(scan('survey', 'apple-health', '--input', inZip, '--format', 'json'))
+  );
+  assert.equal(named.status, 'ready');
+  assert.ok(named.survey);
+  const nowhere = scan('survey', 'apple-health', '--input', join(root, 'export.zip', 'nope'));
+  assert.notEqual(nowhere.status, 0);
+  assert.match(nowhere.stderr, /Nothing at/);
+  // A zip that's there but won't open says why, and what to do, as extract does.
+  const broken = join(root, 'broken.zip', 'apple_health_export');
+  const unopened = scan('survey', 'apple-health', '--input', broken);
+  assert.equal(unopened.status, 4);
+  assert.match(unopened.stderr, /↳ .*`--input <path>`/);
+  if (process.getuid?.() !== 0) {
+    chmodSync(join(root, 'export.zip'), 0o000);
+    try {
+      const refused = scan('survey', 'apple-health', '--input', inZip);
+      assert.equal(refused.status, 4);
+      assert.match(refused.stderr, /↳ .*permissions/);
+    } finally {
+      chmodSync(join(root, 'export.zip'), 0o644);
+    }
+  }
+  // An export with no records is one row that says so, and isn't offered to extract.
+  const empty = scan('survey', root);
+  assert.equal(empty.status, 0, empty.stderr);
+  assert.match(empty.stdout, /^apple-health +empty +export\.zip\/apple_health_export$/m);
+  assert.doesNotMatch(empty.stdout, /\b0 /);
+  assert.match(empty.stderr, /Counted 2 exports/);
+  assert.doesNotMatch(empty.stderr, /To extract/);
+  // An export its plugin can't count is listed as such, and offered to extract.
+  const shelves = join(dir, 'books', '2024-04-08');
+  mkdirSync(shelves, { recursive: true });
+  writeFileSync(
+    join(shelves, 'goodreads_library_export.csv'),
+    'Book Id,Title,Author,Additional Authors,Exclusive Shelf,My Review,Bookshelves,Date Read,Date Added\n' +
+      '1,Synthetic,Someone,,read,,,2024/01/02,2024/01/01\n'
+  );
+  const books = scan('survey', join(dir, 'books'));
+  assert.equal(books.status, 0, books.stderr);
+  assert.match(
+    books.stdout,
+    /^goodreads +- +not surveyable +2024-04-08\/goodreads_library_export\.csv$/m
+  );
+  assert.match(
+    books.stderr,
+    /Run `chronicle extract goodreads --input \S+goodreads_library_export\.csv` to extract it\./
+  );
+  assert.doesNotMatch(books.stderr, /Nothing to survey/);
+});
+
+/** A copy of Safari's history, in WAL mode as Safari keeps it, with one visit; or an older one's. */
+function safariHistory(file, { older = false } = {}) {
+  mkdirSync(dirname(file), { recursive: true });
+  const db = new DatabaseSync(file);
+  db.exec(`
+    PRAGMA journal_mode = WAL;
+    CREATE TABLE history_items (id INTEGER PRIMARY KEY, url TEXT);
+    CREATE TABLE history_visits (id INTEGER PRIMARY KEY, history_item INTEGER, visit_time REAL,
+      title TEXT, redirect_destination INTEGER${older ? '' : ', origin INTEGER'});
+    INSERT INTO history_items VALUES (1, 'https://example.com/');
+    INSERT INTO history_visits VALUES (1, 1, 757382400, 'Example', NULL${older ? '' : ', 0'});
+  `);
+  db.close();
+}
+
+test(
+  'scan finds a database by its schema, and survey counts a copy without writing beside it',
+  { skip: process.platform !== 'darwin' && 'safari only runs on macOS' },
+  t => {
+    const { dir, run } = fixture(t);
+    const root = join(dir, 'data');
+    const history = join(root, 'safari', '2026-08-06', 'History.db');
+    safariHistory(history);
+    safariHistory(join(root, 'safari', '2019', 'History.db'), { older: true });
+    const scan = run.with({ HOME: join(dir, 'home') });
+
+    const rows = JSON.parse(success(scan('scan', root, '--format', 'json')));
+    assert.deepEqual(
+      rows.map(r => [r.source, r.label, r.status, r.evidence.unmet]),
+      [
+        ['safari', 'safari/2026-08-06/History.db', 'ready', undefined],
+        ['safari', 'safari/2019/History.db', 'unsupported', ['history_visits.origin']],
+      ]
+    );
+    assert.equal(rows[0].command, `chronicle extract safari --input ${history}`);
+    const table = scan('scan', root);
+    assert.match(
+      table.stdout,
+      /^safari +app-db +safari\/2019\/History\.db +version not supported$/m
+    );
+    // Counted with what was found, not as more.
+    assert.match(table.stderr, /Found 2 databases/);
+    assert.match(table.stderr, /Chronicle can't read 1 of them yet\./);
+
+    const [surveyed] = JSON.parse(success(scan('survey', history, '--format', 'json')));
+    assert.equal(surveyed.survey.views.count, 1);
+    assert.deepEqual(readdirSync(dirname(history)), ['History.db']);
+
+    // A database is called one. In Safari's own folder, the rest of the folder
+    // is Safari's, so it isn't listed as unrecognized; beside copies, it is.
+    const own = join(dir, 'home', 'Library', 'Safari');
+    safariHistory(join(own, 'History.db'));
+    mkdirSync(join(own, 'Favicon Cache'));
+    const kept = scan('scan', own);
+    assert.match(kept.stderr, /Found 1 database$/m);
+    assert.doesNotMatch(kept.stderr, /Didn't recognize/);
+    mkdirSync(join(root, 'Caches'));
+    writeFileSync(join(root, 'Caches', 'cache.bin'), 'synthetic');
+    const databases = scan('scan', root);
+    assert.match(databases.stderr, /Found 2 databases/);
+    assert.match(databases.stderr, /Didn't recognize 1 folder: Caches\./);
+    assert.match(scan('survey', join(root, 'safari')).stderr, /Counted 1 database\b/);
+    // Beside an export, each is named.
+    writeFileSync(
+      join(root, 'goodreads_library_export.csv'),
+      'Book Id,Title,Author,Additional Authors,Exclusive Shelf,My Review,Bookshelves,Date Read,Date Added\n' +
+        '1,Synthetic,Someone,,read,,,2024/01/02,2024/01/01\n'
+    );
+    const both = scan('scan', root);
+    assert.match(both.stderr, /Found 1 export and 2 databases/);
+  }
+);
+
+test(
+  'scan and survey find an export whose plugin is not installed',
+  { skip: process.env.CHRONICLE_TEST_BIN && 'every plugin is installed in the packed check' },
+  t => {
+    const { dir, run } = fixture(t);
+    const root = exportFiles(dir);
+    const scan = run.with({ HOME: join(dir, 'home'), CHRONICLE_WORKSPACE_PLUGINS: '0' });
+    const rows = JSON.parse(success(scan('scan', root, '--format', 'json')));
+    assert.equal(rows.length, 2);
+    assert.ok(rows.every(r => r.source === 'apple-health' && !r.installed));
+    const table = scan('scan', root);
+    assert.match(table.stdout, /plugin not installed/);
+    assert.match(table.stderr, /chronicle plugins install apple-health/);
+
+    // Survey lists what it can't count yet, and how to add its plugin.
+    const surveyed = scan('survey', root);
+    assert.equal(surveyed.status, 0, surveyed.stderr);
+    assert.match(surveyed.stdout, /^apple-health +plugin not installed +\S/m);
+    assert.match(surveyed.stderr, /chronicle plugins install apple-health/);
+  }
+);
+
 test(
   'a catalog source that is not installed points at plugins install',
   // Beside the packed CLI, every plugin is installed.
@@ -801,7 +1429,7 @@ test('preset selection and explicit values override global config', t => {
   assert.equal(JSON.parse(success(run(...args, '--limit', '1'))).command, 'printf fixture');
 });
 
-test('failed setup and transformation release extractor resources and exit nonzero', async t => {
+test('failed setup and transformation, and an interrupted survey, release extractor resources and exit nonzero', async t => {
   const { createRequire } = await import('node:module');
   const { pathToFileURL } = await import('node:url');
   const etlPath = createRequire(bin)
@@ -847,6 +1475,67 @@ test('failed setup and transformation release extractor resources and exit nonze
     assert.equal(readFileSync(marker, 'utf8'), 'closed');
     assert.equal(result.stdout, '');
   }
+
+  // Ctrl-C during a survey puts away what it set up: a database reader's copy
+  // of the database is gone from the temporary folder when it exits.
+  const { dir, env } = fixture(t);
+  const sqlitePath = createRequire(bin)
+    .resolve.paths('@chronicle.app/etl-sqlite')
+    .map(root => join(root, '@chronicle.app/etl-sqlite/dist/index.js'))
+    .find(path => existsSync(path));
+  const plugin = join(dir, 'data/node_modules/held-fixture');
+  const surveying = join(dir, 'surveying');
+  mkdirSync(plugin, { recursive: true });
+  writeFileSync(
+    join(plugin, 'package.json'),
+    JSON.stringify({
+      name: 'held-fixture',
+      type: 'module',
+      main: './index.js',
+      chronicle: { plugin: true },
+    })
+  );
+  writeFileSync(
+    join(plugin, 'index.js'),
+    `
+    import { SqliteExtractor } from ${JSON.stringify(pathToFileURL(sqlitePath).href)};
+    import { writeFileSync } from 'node:fs';
+    export class Held extends SqliteExtractor {
+      static source = 'held'; static strategy = 'app-db'; static recordTypes = ['rows'];
+      static databases = [{ tables: { rows: ['id'] } }];
+      async survey() {
+        writeFileSync(${JSON.stringify(surveying)}, 'surveying');
+        await new Promise(resolve => setTimeout(resolve, 60000));
+        return null;
+      }
+      async *extract() {}
+    }`
+  );
+  const database = join(dir, 'held.db');
+  const db = new DatabaseSync(database);
+  db.exec('CREATE TABLE rows (id INTEGER PRIMARY KEY)');
+  db.close();
+  const tmp = join(dir, 'tmp');
+  mkdirSync(tmp);
+  const copies = () => readdirSync(tmp).filter(name => name.startsWith('chronicle-sqlite-'));
+  const child = spawn(process.execPath, [bin, 'survey', 'held', '--input', database], {
+    cwd: dir,
+    env: { ...env, TMPDIR: tmp },
+  });
+  t.after(() => child.kill('SIGKILL'));
+  let stderr = '';
+  child.stderr.on('data', chunk => (stderr += chunk));
+  const exited = new Promise(resolve => child.on('exit', resolve));
+  // Interrupted once its copy is made and it's counting, which waits until then.
+  const deadline = Date.now() + 20000;
+  while (!existsSync(surveying)) {
+    assert.ok(Date.now() < deadline && child.exitCode === null, stderr);
+    await new Promise(resolve => setTimeout(resolve, 20));
+  }
+  assert.equal(copies().length, 1);
+  child.kill('SIGINT');
+  assert.equal(await exited, 130, stderr);
+  assert.deepEqual(copies(), []);
 });
 
 test('missing CSV input reports a normal command error instead of an unhandled stream error', t => {

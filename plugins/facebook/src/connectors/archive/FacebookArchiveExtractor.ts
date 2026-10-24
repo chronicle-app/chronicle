@@ -1,7 +1,17 @@
-import { ArchiveExtractor, Extractor } from '@chronicle.app/etl';
-import { readFile, readdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import {
+  ArchiveExtractor,
+  Extractor,
+  Record,
+  countMonth,
+  type KindSurvey,
+  type Survey,
+  type SurveyOptions,
+} from '@chronicle.app/etl';
+import { posix } from 'node:path';
 import { z } from 'zod';
+
+// The folders a Facebook export starts with, beside its other sections.
+const SECTIONS = new Set(['personal_information/', 'your_facebook_activity/']);
 
 export abstract class FacebookArchiveExtractor extends ArchiveExtractor<
   typeof FacebookArchiveExtractor
@@ -10,9 +20,12 @@ export abstract class FacebookArchiveExtractor extends ArchiveExtractor<
   static override strategy = 'archive';
 
   static override schema = Extractor.schema.extend({
-    input: z.string().describe('Path to the Facebook export directory'),
+    input: z.string().describe('The Facebook export, as a folder or zip'),
   });
 
+  protected override readonly exportName = 'Facebook export';
+
+  /** The export's segments, by their paths in it: `''` when the export is one. */
   protected exportSegments: string[] = [];
 
   async initialize(): Promise<void> {
@@ -20,37 +33,27 @@ export abstract class FacebookArchiveExtractor extends ArchiveExtractor<
     this.accountInfo = await this.loadAccountInfo();
   }
 
+  /** Whether a file or folder is in the export. */
+  protected async exists(path: string): Promise<boolean> {
+    return (await this.files.has(path)) || (await this.files.children(path)).length > 0;
+  }
+
   protected async discoverExportSegments(): Promise<void> {
-    const config = this.config as z.infer<typeof FacebookArchiveExtractor.schema>;
+    const entries = await this.files.children('');
 
-    try {
-      const entries = await readdir(config.input, { withFileTypes: true });
-
-      // Check if this is a new format export (direct structure)
-      const hasDirectStructure = entries.some(
-        entry =>
-          entry.isDirectory() &&
-          (entry.name === 'personal_information' || entry.name === 'your_facebook_activity')
-      );
-
-      if (hasDirectStructure) {
-        // New format: direct structure
-        this.exportSegments = [config.input];
-        // Detected new Facebook export format (direct structure)
-      } else {
-        // Old format: Find all export segment directories (meta-* or facebook-*)
-        this.exportSegments = entries
-          .filter(entry => entry.isDirectory())
-          .map(entry => entry.name)
-          .filter(name => name.startsWith('meta-') || name.startsWith('facebook-'))
-          .map(name => join(config.input, name));
-
-        // Discovered export segments (legacy format)
-      }
-    } catch {
-      // Could not discover export segments
-      this.exportSegments = [config.input]; // Fallback to input path
+    // Check if this is a new format export (direct structure)
+    if (entries.some(entry => SECTIONS.has(entry))) {
+      // New format: direct structure
+      this.exportSegments = [''];
+      return;
     }
+    // Old format: Find all export segment directories (meta-* or facebook-*)
+    const segments = entries
+      .filter(entry => entry.endsWith('/'))
+      .map(entry => entry.slice(0, -1))
+      .filter(name => name.startsWith('meta-') || name.startsWith('facebook-'));
+    // Without any, fall back to the export's root
+    this.exportSegments = segments.length > 0 ? segments : [''];
   }
 
   protected override async loadAccountInfo(): Promise<any> {
@@ -58,7 +61,7 @@ export abstract class FacebookArchiveExtractor extends ArchiveExtractor<
     for (const segmentPath of this.exportSegments) {
       try {
         // Check for new format (direct structure)
-        const directProfilePath = join(
+        const directProfilePath = posix.join(
           segmentPath,
           'personal_information',
           'profile_information',
@@ -66,8 +69,7 @@ export abstract class FacebookArchiveExtractor extends ArchiveExtractor<
         );
 
         try {
-          const content = await readFile(directProfilePath, 'utf-8');
-          const data = JSON.parse(content);
+          const data = await this.readFacebookJson(directProfilePath);
 
           return {
             name: data.profile_v2?.name?.full_name || data.profile_v2?.name?.value || 'unknown',
@@ -86,14 +88,13 @@ export abstract class FacebookArchiveExtractor extends ArchiveExtractor<
         }
 
         // Legacy format: look for facebook-* subdirectories
-        const entries = await readdir(segmentPath, { withFileTypes: true });
-        const facebookDirs = entries
-          .filter(entry => entry.isDirectory() && entry.name.startsWith('facebook-'))
-          .map(entry => entry.name);
+        const facebookDirs = (await this.files.children(segmentPath))
+          .filter(entry => entry.endsWith('/') && entry.startsWith('facebook-'))
+          .map(entry => entry.slice(0, -1));
 
         for (const fbDir of facebookDirs) {
           try {
-            const personalInfoPath = join(
+            const personalInfoPath = posix.join(
               segmentPath,
               fbDir,
               'personal_information',
@@ -101,8 +102,7 @@ export abstract class FacebookArchiveExtractor extends ArchiveExtractor<
               'profile_information.json'
             );
 
-            const content = await readFile(personalInfoPath, 'utf-8');
-            const data = JSON.parse(content);
+            const data = await this.readFacebookJson(personalInfoPath);
 
             return {
               name: data.profile_v2?.name?.full_name || data.profile_v2?.name?.value || 'unknown',
@@ -135,33 +135,50 @@ export abstract class FacebookArchiveExtractor extends ArchiveExtractor<
     fullPath: string;
   }> {
     for (const segmentPath of this.exportSegments) {
-      try {
-        // Check if this is new format (direct structure)
-        const entries = await readdir(segmentPath, { withFileTypes: true });
-        const hasDirectStructure = entries.some(
-          entry =>
-            entry.isDirectory() &&
-            (entry.name === 'personal_information' || entry.name === 'your_facebook_activity')
-        );
+      // Check if this is new format (direct structure)
+      const entries = await this.files.children(segmentPath);
+      if (entries.some(entry => SECTIONS.has(entry))) {
+        // New format: yield the segment path directly
+        yield { segmentPath, facebookDir: '', fullPath: segmentPath };
+      } else {
+        // Legacy format: look for facebook-* subdirectories
+        const facebookDirs = entries
+          .filter(entry => entry.endsWith('/') && entry.startsWith('facebook-'))
+          .map(entry => entry.slice(0, -1));
 
-        if (hasDirectStructure) {
-          // New format: yield the segment path directly
-          yield { segmentPath, facebookDir: '', fullPath: segmentPath };
-        } else {
-          // Legacy format: look for facebook-* subdirectories
-          const facebookDirs = entries
-            .filter(entry => entry.isDirectory() && entry.name.startsWith('facebook-'))
-            .map(entry => entry.name);
-
-          for (const facebookDir of facebookDirs) {
-            const fullPath = join(segmentPath, facebookDir);
-            yield { segmentPath, facebookDir, fullPath };
-          }
+        for (const facebookDir of facebookDirs) {
+          const fullPath = posix.join(segmentPath, facebookDir);
+          yield { segmentPath, facebookDir, fullPath };
         }
-      } catch {
-        // Could not read segment
       }
     }
+  }
+
+  /**
+   * A survey of records as a run reads them: each counted under its record
+   * type and dated by its `timestamp`, as the transformer dates its action.
+   * The export has no index, so every file is read, and only the tallies are kept.
+   */
+  protected async surveyOf(
+    records: AsyncIterable<Record>,
+    options: SurveyOptions,
+    each?: (record: Record) => void
+  ): Promise<Survey> {
+    const kind = (): KindSurvey => ({ count: 0, ...(options.byMonth && { byMonth: {} }) });
+    const { recordTypes } = this.constructor as typeof Extractor;
+    const survey: Survey = Object.fromEntries(recordTypes.map(recordType => [recordType, kind()]));
+    for await (const record of records) {
+      each?.(record);
+      // A record without a type is its extractor's first, as `createRecord` gives it.
+      const counted = survey[record.extraction.recordType ?? recordTypes[0]];
+      counted.count++;
+      if (!record.data.timestamp) continue;
+      const time = new Date(record.data.timestamp);
+      if (!counted.earliest || time < counted.earliest) counted.earliest = time;
+      if (!counted.latest || time > counted.latest) counted.latest = time;
+      if (counted.byMonth) countMonth(counted.byMonth, time);
+    }
+    return survey;
   }
 
   protected async readFacebookJson(filePath: string): Promise<any> {

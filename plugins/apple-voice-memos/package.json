@@ -68,11 +68,34 @@
             "recordTypes": [
               "recordings"
             ],
-            "default": true
+            "default": true,
+            "locations": [
+              {
+                "path": "~/Library/Group Containers/group.com.apple.VoiceMemos.shared/Recordings/CloudRecordings.db"
+              }
+            ],
+            "databases": [
+              {
+                "tables": {
+                  "ZCLOUDRECORDING": [
+                    "ZUNIQUEID",
+                    "ZDATE",
+                    "ZDURATION",
+                    "ZENCRYPTEDTITLE",
+                    "ZPATH",
+                    "ZFLAGS",
+                    "ZEVICTIONDATE"
+                  ]
+                }
+              }
+            ]
           }
         },
         "platforms": [
           "darwin"
+        ],
+        "requires": [
+          "full-disk-access"
         ]
       }
     }

@@ -1,6 +1,13 @@
-import { Record } from '@chronicle.app/etl';
+import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
 import { InstagramArchiveExtractor } from './InstagramArchiveExtractor.js';
 import InstagramTransformer from '../InstagramTransformer.js';
+
+/** One follow a run reads, before it's a record. */
+interface Follow {
+  direction: 'following' | 'follower';
+  handle: string;
+  timestamp: number;
+}
 
 /**
  * Extract the follow graph from an Instagram data export.
@@ -19,17 +26,34 @@ export class InstagramArchiveFollowsExtractor extends InstagramArchiveExtractor 
 
   async *extract(): AsyncGenerator<Record> {
     let index = 0;
-    index = yield* this.extractFollowing(index);
-    yield* this.extractFollowers(index);
+    for await (const { direction, handle, timestamp } of this.follows()) {
+      if (this.shouldStopExtracting(index)) return;
+      yield this.emitFollow(direction, handle, timestamp);
+      index++;
+    }
   }
 
-  private async *extractFollowing(startIndex: number): AsyncGenerator<Record, number> {
-    let index = startIndex;
+  /** The follows a run reads, both ways, and when each began. */
+  override async survey(options: SurveyOptions = {}): Promise<Survey> {
+    const follows = this.emptySurvey(options);
+    for await (const follow of this.follows()) {
+      this.tally(follows, new Date(follow.timestamp * 1000));
+    }
+    return { follows };
+  }
+
+  /** The accounts followed, then the followers, in the run's window. */
+  private async *follows(): AsyncGenerator<Follow> {
+    yield* this.following();
+    yield* this.followers();
+  }
+
+  private async *following(): AsyncGenerator<Follow> {
     let data: any;
     try {
       data = await this.readInstagramJson('connections/followers_and_following/following.json');
     } catch {
-      return index;
+      return;
     }
     for (const rel of data?.relationships_following ?? []) {
       const entry = rel?.string_list_data?.[0];
@@ -38,15 +62,11 @@ export class InstagramArchiveFollowsExtractor extends InstagramArchiveExtractor 
       const handle = entry?.value || rel?.title || this.handleFromHref(entry?.href);
       if (!handle || !entry?.timestamp) continue;
       if (!this.inRange(entry.timestamp)) continue;
-      if (this.shouldStopExtracting(index)) return index;
-      yield this.emitFollow('following', handle, entry.timestamp);
-      index++;
+      yield { direction: 'following', handle, timestamp: entry.timestamp };
     }
-    return index;
   }
 
-  private async *extractFollowers(startIndex: number): AsyncGenerator<Record> {
-    let index = startIndex;
+  private async *followers(): AsyncGenerator<Follow> {
     let data: any;
     try {
       data = await this.readInstagramJson('connections/followers_and_following/followers_1.json');
@@ -58,9 +78,7 @@ export class InstagramArchiveFollowsExtractor extends InstagramArchiveExtractor 
       const handle = entry?.value || this.handleFromHref(entry?.href);
       if (!handle || !entry?.timestamp) continue;
       if (!this.inRange(entry.timestamp)) continue;
-      if (this.shouldStopExtracting(index)) return;
-      yield this.emitFollow('follower', handle, entry.timestamp);
-      index++;
+      yield { direction: 'follower', handle, timestamp: entry.timestamp };
     }
   }
 

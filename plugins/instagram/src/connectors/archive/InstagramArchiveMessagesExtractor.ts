@@ -1,8 +1,13 @@
-import { Record } from '@chronicle.app/etl';
-import { readdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
+import { posix } from 'node:path';
 import { InstagramArchiveExtractor } from './InstagramArchiveExtractor.js';
 import InstagramTransformer from '../InstagramTransformer.js';
+
+// The folders of conversations: the inbox, then message requests.
+const FOLDERS = [
+  'your_instagram_activity/messages/inbox',
+  'your_instagram_activity/messages/message_requests',
+];
 
 export class InstagramArchiveMessagesExtractor extends InstagramArchiveExtractor {
   static override description = 'Direct messages';
@@ -29,16 +34,7 @@ export class InstagramArchiveMessagesExtractor extends InstagramArchiveExtractor
     try {
       // Collect all messages from both inbox and message requests
       const allMessages: any[] = [];
-
-      // Process inbox messages
-      const inboxMessages = await this.loadMessages('your_instagram_activity/messages/inbox');
-      allMessages.push(...inboxMessages);
-
-      // Process message requests
-      const requestMessages = await this.loadMessages(
-        'your_instagram_activity/messages/message_requests'
-      );
-      allMessages.push(...requestMessages);
+      for (const folder of FOLDERS) allMessages.push(...(await this.loadMessages(folder)));
 
       // Sort by timestamp descending (newest first)
       allMessages.sort((a, b) => b.timestamp_ms - a.timestamp_ms);
@@ -103,53 +99,83 @@ export class InstagramArchiveMessagesExtractor extends InstagramArchiveExtractor
     };
   }
 
-  private async loadMessages(messagesPath: string): Promise<any[]> {
-    const config = this.config as any;
-    const fullPath = join(config.input, messagesPath);
-    const messages: any[] = [];
-
-    try {
-      const conversationDirs = await readdir(fullPath, { withFileTypes: true });
-
-      for (const dir of conversationDirs) {
-        if (!dir.isDirectory()) continue;
-
-        try {
-          const conversationPath = join(fullPath, dir.name);
-
-          const conversationData = await this.readInstagramJson(
-            join(messagesPath, dir.name, 'message_1.json')
-          );
-
-          if (conversationData && conversationData.messages) {
-            const conversationId = dir.name;
-            const isMessageRequest = messagesPath.includes('message_requests');
-
-            for (const message of conversationData.messages) {
-              const conversationHandle = this.extractHandleFromConversationId(conversationId);
-              messages.push({
-                ...message,
-                conversation_id: conversationId,
-                conversation_handle: conversationHandle,
-                conversation_title: conversationData.title || conversationId,
-                participants: conversationData.participants || [],
-                is_message_request: isMessageRequest,
-                thread_path: conversationData.thread_path || conversationPath,
-              });
-            }
-          }
-        } catch (error) {
-          this.logger.warn(`Could not process conversation ${dir.name}`, {
-            error: error instanceof Error ? error.message : String(error),
-          });
+  /** The messages a run reads and when, with how many conversations they're in. */
+  override async survey(options: SurveyOptions = {}): Promise<Survey> {
+    const messages = this.emptySurvey(options);
+    const conversations = new Set<string>();
+    for (const folder of FOLDERS) {
+      for await (const { name, data } of this.conversations(folder)) {
+        for (const message of data.messages) {
+          if (!this.inRange(message.timestamp_ms / 1000)) continue;
+          this.tally(messages, new Date(message.timestamp_ms));
+          conversations.add(name);
         }
       }
-    } catch {
-      // A missing inbox/message_requests folder is a normal export shape.
-      this.logger.verboseInfo(`No messages at ${messagesPath}`);
+    }
+    return {
+      messages: {
+        ...messages,
+        measures: [{ key: 'conversations', label: 'conversations', value: conversations.size }],
+      },
+    };
+  }
+
+  private async loadMessages(messagesPath: string): Promise<any[]> {
+    const messages: any[] = [];
+    const isMessageRequest = messagesPath.includes('message_requests');
+
+    for await (const { name, path, data } of this.conversations(messagesPath)) {
+      const conversationHandle = this.extractHandleFromConversationId(name);
+      for (const message of data.messages) {
+        messages.push({
+          ...message,
+          conversation_id: name,
+          conversation_handle: conversationHandle,
+          conversation_title: data.title || name,
+          participants: data.participants || [],
+          is_message_request: isMessageRequest,
+          thread_path: data.thread_path || path,
+        });
+      }
     }
 
     return messages;
+  }
+
+  /**
+   * Each conversation in a folder of them, by its folder's name, with the
+   * thread its `message_1.json` holds. One that can't be read is skipped.
+   */
+  private async *conversations(
+    messagesPath: string
+  ): AsyncGenerator<{ name: string; path: string; data: any }> {
+    let names: string[] = [];
+    try {
+      names = (await this.files.children(messagesPath))
+        .filter(entry => entry.endsWith('/'))
+        .map(entry => entry.slice(0, -1));
+    } catch {
+      // A folder that can't be listed reads as missing.
+    }
+    if (names.length === 0) {
+      // A missing inbox/message_requests folder is a normal export shape.
+      this.logger.verboseInfo(`No messages at ${messagesPath}`);
+      return;
+    }
+
+    for (const name of names) {
+      const path = posix.join(messagesPath, name);
+      let data: any;
+      try {
+        data = await this.readInstagramJson(posix.join(path, 'message_1.json'));
+      } catch (error) {
+        this.logger.warn(`Could not process conversation ${name}`, {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        continue;
+      }
+      if (Array.isArray(data?.messages)) yield { name, path, data };
+    }
   }
 
   override async determineCount(): Promise<number | null> {
@@ -171,19 +197,17 @@ export class InstagramArchiveMessagesExtractor extends InstagramArchiveExtractor
   }
 
   private async countMessagesInPath(messagesPath: string): Promise<number> {
-    const config = this.config as any;
-    const fullPath = join(config.input, messagesPath);
     let messageCount = 0;
 
     try {
-      const conversationDirs = await readdir(fullPath, { withFileTypes: true });
+      const conversationDirs = (await this.files.children(messagesPath))
+        .filter(entry => entry.endsWith('/'))
+        .map(entry => entry.slice(0, -1));
 
-      for (const dir of conversationDirs) {
-        if (!dir.isDirectory()) continue;
-
+      for (const name of conversationDirs) {
         try {
           const conversationData = await this.readInstagramJson(
-            join(messagesPath, dir.name, 'message_1.json')
+            posix.join(messagesPath, name, 'message_1.json')
           );
 
           if (conversationData && conversationData.messages) {

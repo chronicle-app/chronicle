@@ -1,4 +1,22 @@
 export { Extractor } from './extractor.js';
+export {
+  Locator,
+  segmentPattern,
+  type Candidate,
+  type CandidateStatus,
+  type LocateContext,
+  type Location,
+  type LocationMatch,
+} from './locator.js';
+export {
+  countMonth,
+  mergeSurveys,
+  monthKey,
+  type KindSurvey,
+  type Measure,
+  type Survey,
+  type SurveyOptions,
+} from './survey.js';
 export { Transformer } from './transformer.js';
 export { ChronicleTransformer } from './ChronicleTransformer.js';
 export { NullTransformer } from './null-transformer.js';
@@ -52,7 +70,7 @@ export * from './connectors/transformers/DelayTransformer.js';
 export * from './connectors/transformers/SamplingTransformer.js';
 export * from './connectors/csv/CsvExtractor.js';
 export * from './io-extractor-helper.js';
-export { assertReadable, fileError } from './fileErrors.js';
+export { FULL_DISK_ACCESS, assertReadable, fileError, terminalApp } from './fileErrors.js';
 export * from './utils/string.js';
 export { ApiProxy, ApiAuthError, ApiRateLimitError, type ApiProxyOptions } from './api/ApiProxy.js';
 export { delay, paginateByPage, paginateCursor, paginateOffset } from './api/pagination.js';
@@ -79,5 +97,36 @@ export {
 } from './shapes.js';
 export { ArchiveExtractor } from './archive/ArchiveExtractor.js';
 export { openExport, type ExportFiles } from './archive/exportFiles.js';
+export {
+  findExports,
+  findExportsIn,
+  type FindOptions,
+  type FoundExport,
+  type FileFormat,
+  type FoundExports,
+  type Layout,
+  type LayoutMatch,
+  type LayoutSet,
+  type Refused,
+} from './archive/layouts.js';
+export {
+  FIRST_BYTES,
+  HEAD_BYTES,
+  checkConditions,
+  evaluate,
+  type Condition,
+  type Outcome,
+  type Page,
+  type Subject,
+} from './archive/conditions.js';
+export {
+  columnsOf,
+  isSqlite,
+  matchSchema,
+  readColumns,
+  type DatabaseColumns,
+  type DatabaseSchema,
+  type SchemaMatch,
+} from './archive/databases.js';
 export { writeZip } from './archive/writeZip.js';
 export { SystemInfo } from './system/SystemInfo.js';

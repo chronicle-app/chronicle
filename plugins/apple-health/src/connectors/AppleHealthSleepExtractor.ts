@@ -10,6 +10,7 @@ import AppleHealthExtractor, { type Found } from './AppleHealthExtractor.js';
 export default class AppleHealthSleepExtractor extends AppleHealthExtractor {
   static override description = 'Nights and naps, with their sleep stages';
   static override recordTypes = ['sleep'];
+  static override surveyLabel = 'sleep periods';
 
   protected async *read(): AsyncGenerator<Found> {
     const samples: HealthSample[] = [];

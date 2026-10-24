@@ -1,10 +1,10 @@
-import { utimesSync, writeFileSync } from 'node:fs';
+import { mkdirSync, utimesSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /** Every file's mtime, so the export's compile time (the snapshot as-of) is fixed. */
 export const COMPILED_AT = new Date('2026-08-08T08:29:38.000Z');
 
-const FILES = {
+export const FILES = {
   'Profile.csv': `First Name,Last Name,Maiden Name,Address,Birth Date,Headline,Summary,Industry,Zip Code,Geo Location,Twitter Handles,Websites,Instant Messengers
 Ada,Lovelace,,,,Building an analytical engine,,Software Development,,"London, England, United Kingdom",[ada],[PERSONAL:http://ada.example],
 `,
@@ -56,6 +56,7 @@ Unwatched Course,,Course,N/A,N/A,false,N/A,
  * fictional member Ada. Returns the directory.
  */
 export function writeLinkedInExport(dir) {
+  mkdirSync(dir, { recursive: true });
   for (const [name, text] of Object.entries(FILES)) {
     const file = join(dir, name);
     writeFileSync(file, text);

@@ -71,36 +71,24 @@ export function progress(fields: ProgressFields, t: Tokens, width: number, frame
 }
 
 /**
- * Draws {@link progress} on stderr, redrawn in place. Anything else written to
- * stderr meanwhile prints above it, and it redraws beneath.
+ * Lines on stderr, redrawn in place as a spinner ticks. Anything else written
+ * to stderr meanwhile prints above them, and they redraw beneath. `render`
+ * draws them for a width and a spinner frame, each line within the width.
  */
-export class LiveView {
-  private fields?: ProgressFields;
-  private startedAt = 0;
+export class LiveRegion {
   private frame = 0;
   private drawn = 0;
   private timer?: NodeJS.Timeout;
   private readonly write = process.stderr.write.bind(process.stderr);
 
-  constructor(private readonly t: Tokens) {}
+  constructor(private readonly render: (width: number, frame: number) => string[]) {}
 
   get running(): boolean {
     return this.timer !== undefined;
   }
 
-  update(fields: ProgressFields): void {
-    const moved = this.fields?.phase !== fields.phase;
-    this.fields = fields;
-    this.startedAt = Date.now() - fields.elapsedMs;
-    if (!this.timer) this.start();
-    else if (moved) {
-      // A new phase shows now, not on the next tick: writing may take less.
-      this.erase();
-      this.draw();
-    }
-  }
-
-  private start(): void {
+  start(): void {
+    if (this.timer) return;
     this.write('\u001B[?25l');
     process.once('exit', this.restoreCursor);
     process.stderr.write = ((chunk: any, ...rest: any[]) => {
@@ -112,14 +100,20 @@ export class LiveView {
     }) as typeof process.stderr.write;
     this.timer = setInterval(() => {
       this.frame++;
-      this.erase();
-      this.draw();
+      this.redraw();
     }, TICK);
     this.timer.unref();
     this.draw();
   }
 
-  /** Take the view off the screen, leaving stderr as it was. */
+  /** Draw what changed now, not on the next tick. */
+  redraw(): void {
+    if (!this.timer) return;
+    this.erase();
+    this.draw();
+  }
+
+  /** Take the lines off the screen, leaving stderr as it was. */
   stop(): void {
     if (!this.timer) return;
     clearInterval(this.timer);
@@ -135,10 +129,8 @@ export class LiveView {
   };
 
   private draw(): void {
-    if (!this.fields) return;
     const width = (process.stderr.columns || 80) - 1;
-    const fields = { ...this.fields, elapsedMs: Date.now() - this.startedAt };
-    const lines = progress(fields, this.t, width, this.frame);
+    const lines = this.render(width, this.frame);
     this.write(lines.join('\n'));
     this.drawn = lines.length;
   }
@@ -147,5 +139,38 @@ export class LiveView {
     if (this.drawn === 0) return;
     this.write(`\r\u001B[2K${'\u001B[1A\u001B[2K'.repeat(this.drawn - 1)}`);
     this.drawn = 0;
+  }
+}
+
+/** Draws {@link progress} on stderr, redrawn in place. */
+export class LiveView {
+  private fields?: ProgressFields;
+  private startedAt = 0;
+  private readonly region = new LiveRegion(this.lines.bind(this));
+
+  constructor(private readonly t: Tokens) {}
+
+  get running(): boolean {
+    return this.region.running;
+  }
+
+  update(fields: ProgressFields): void {
+    const moved = this.fields?.phase !== fields.phase;
+    this.fields = fields;
+    this.startedAt = Date.now() - fields.elapsedMs;
+    if (!this.region.running) this.region.start();
+    // A new phase shows now, not on the next tick: writing may take less.
+    else if (moved) this.region.redraw();
+  }
+
+  /** Take the view off the screen, leaving stderr as it was. */
+  stop(): void {
+    this.region.stop();
+  }
+
+  private lines(width: number, frame: number): string[] {
+    if (!this.fields) return [];
+    const fields = { ...this.fields, elapsedMs: Date.now() - this.startedAt };
+    return progress(fields, this.t, width, frame);
   }
 }

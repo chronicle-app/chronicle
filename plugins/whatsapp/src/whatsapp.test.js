@@ -5,6 +5,8 @@ import { copyFileSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync }
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import { monthKey } from '@chronicle.app/etl';
+import { writeSchemaDatabase } from '@chronicle.app/etl-sqlite';
 import { WhatsappBackupExtractor, WhatsappExtractor, WhatsappTransformer } from '../dist/index.js';
 import { decodeReplyStanzaId } from '../dist/replyTarget.js';
 import { PARENT_ID, SELF_NUMBER, writeWhatsappFixture } from './fixture.test-helper.js';
@@ -202,6 +204,111 @@ test('an iPhone backup yields the same messages, with media linked out of the ba
   );
   writeFileSync(join(input, 'Manifest.db'), 'not a sqlite file');
   await assert.rejects(actions(WhatsappBackupExtractor, { input, iosWorkDir }), /ENCRYPTED/);
+});
+
+async function extract(config) {
+  const extractor = new WhatsappExtractor({ ...hostFree, ...config });
+  try {
+    await extractor.setup();
+    return await Array.fromAsync(extractor.extract());
+  } finally {
+    await extractor.teardown();
+  }
+}
+
+async function survey(Extractor, config, options = {}) {
+  const extractor = new Extractor({ ...hostFree, ...config });
+  try {
+    await extractor.setup();
+    return await extractor.survey(options);
+  } finally {
+    await extractor.teardown();
+  }
+}
+
+test('its declared schema is all its queries read, and a ChatStorage.sqlite without it is refused', async t => {
+  const dir = tempDir(t);
+  const [schema] = WhatsappExtractor.databases;
+  const input = join(dir, 'ChatStorage.sqlite');
+  writeSchemaDatabase(input, schema, { optional: false });
+  assert.deepEqual(await extract({ input }), []);
+  assert.equal((await survey(WhatsappExtractor, { input }, { byMonth: true })).messages.count, 0);
+
+  // An older WhatsApp's, say, without a column its queries read.
+  const older = join(dir, 'older.sqlite');
+  const media = schema.tables.ZWAMEDIAITEM.filter(column => column !== 'ZMETADATA');
+  writeSchemaDatabase(older, { tables: { ...schema.tables, ZWAMEDIAITEM: media } });
+  await assert.rejects(extract({ input: older }), {
+    message: /version of the database/,
+    fields: { path: older, missing: ['ZWAMEDIAITEM.ZMETADATA'] },
+  });
+
+  // An iPhone backup of that WhatsApp is refused too, naming the backup.
+  const source = writeWhatsappFixture(join(dir, 'source'));
+  copyFileSync(older, join(source, 'ChatStorage.sqlite'));
+  const backup = join(dir, 'backup');
+  writeBackup(backup, source);
+  await assert.rejects(
+    actions(WhatsappBackupExtractor, { input: backup, iosWorkDir: join(dir, 'work') }),
+    {
+      code: 'input-not-found',
+      fields: { path: backup, missing: ['ZWAMEDIAITEM.ZMETADATA'] },
+    }
+  );
+});
+
+/** How many of the times each month holds, as a survey's `byMonth` keys them. */
+function monthsOf(times) {
+  const months = {};
+  for (const time of times)
+    months[monthKey(new Date(time))] = (months[monthKey(new Date(time))] ?? 0) + 1;
+  return months;
+}
+
+test('a survey counts the messages a run reads, when, in how many conversations', async t => {
+  const dir = tempDir(t);
+  const source = writeWhatsappFixture(join(dir, 'source'));
+  const input = join(source, 'ChatStorage.sqlite');
+  const records = await extract({ input });
+  const times = records.map(record => record.context.timestamp);
+  const expected = {
+    messages: {
+      count: records.length,
+      earliest: new Date(Math.min(...times)),
+      latest: new Date(Math.max(...times)),
+      measures: [
+        {
+          key: 'conversations',
+          label: 'conversations',
+          value: new Set(records.map(record => record.context.chatJid)).size,
+        },
+      ],
+    },
+  };
+  assert.deepEqual(await survey(WhatsappExtractor, { input, limit: 1 }), expected);
+  // By month when asked, by when each message was sent.
+  assert.deepEqual(
+    (await survey(WhatsappExtractor, { input }, { byMonth: true })).messages.byMonth,
+    monthsOf(times)
+  );
+
+  // An iPhone backup's run reads the same database, so its survey is the same.
+  const backup = join(dir, 'backup');
+  writeBackup(backup, source);
+  assert.deepEqual(
+    await survey(WhatsappBackupExtractor, {
+      input: backup,
+      iosWorkDir: join(dir, 'work'),
+      limit: 1,
+    }),
+    expected
+  );
+
+  const since = new Date('2025-01-01T00:00:03.500Z');
+  assert.equal(
+    (await survey(WhatsappExtractor, { input, since })).messages.count,
+    (await extract({ input, since })).length
+  );
 });
 
 test('reply targets decode only from protobuf field 5 with a stanza-shaped id', () => {

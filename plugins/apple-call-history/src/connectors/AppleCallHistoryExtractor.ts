@@ -1,6 +1,9 @@
-import { Record } from '@chronicle.app/etl';
+import { Record, type DatabaseSchema, type Survey, type SurveyOptions } from '@chronicle.app/etl';
 import {
+  APPLE_EPOCH_OFFSET_SECONDS,
   SqliteExtractor,
+  countsByMonth,
+  monthSql,
   safariToUnixTimestamp,
   timeRangeConditions,
   unixToSafariTimestamp,
@@ -10,6 +13,26 @@ import { z } from 'zod';
 import CallHistoryTransformer from './CallHistoryTransformer.js';
 
 const DEFAULT_DB = `${process.env.HOME}/Library/Application Support/CallHistoryDB/CallHistory.storedata`;
+
+/** The columns of ZCALLRECORD that extract() and survey() read. */
+const CALL_COLUMNS = [
+  'Z_PK',
+  'ZUNIQUE_ID',
+  'ZDATE',
+  'ZDURATION',
+  'ZORIGINATED',
+  'ZADDRESS',
+  'ZNAME',
+  'ZPARTICIPANTGROUPUUID',
+];
+
+/** The columns a call's other participants are read from, as `table.column`. */
+const PARTICIPANT_COLUMNS = [
+  'Z_2REMOTEPARTICIPANTHANDLES.Z_2REMOTEPARTICIPANTCALLS',
+  'Z_2REMOTEPARTICIPANTHANDLES.Z_4REMOTEPARTICIPANTHANDLES',
+  'ZHANDLE.Z_PK',
+  'ZHANDLE.ZVALUE',
+];
 
 /**
  * Apple Call History — the primary, per-record-rich call source. Each record has
@@ -29,19 +52,44 @@ export class AppleCallHistoryExtractor extends SqliteExtractor<typeof AppleCallH
   static override default = true;
   static override defaultTransformer = CallHistoryTransformer;
   static override temporality = 'event' as const;
+  // What extract() and survey() read, which a CallHistory.storedata must have.
+  // Core Data names the join table of a call's other participants, and its
+  // columns, by entity number, which a release can change. A store without
+  // the table, in the second schema, or without its columns has its calls
+  // extracted without who else was on a group call.
+  static override databases: DatabaseSchema[] = [
+    {
+      tables: {
+        ZCALLRECORD: CALL_COLUMNS,
+        Z_2REMOTEPARTICIPANTHANDLES: ['Z_2REMOTEPARTICIPANTCALLS', 'Z_4REMOTEPARTICIPANTHANDLES?'],
+        ZHANDLE: ['Z_PK', 'ZVALUE'],
+      },
+    },
+    { tables: { ZCALLRECORD: CALL_COLUMNS } },
+  ];
 
   static override schema = SqliteExtractor.schema.omit({ input: true }).extend({
     input: z.string().describe('Path to CallHistory.storedata').default(DEFAULT_DB),
   }) as any;
 
-  /** call Z_PK → remote handle values (phone/email). */
+  // Calls with an id, within since/until. ZDATE is seconds since the Apple epoch.
+  private callFilter(): { where: string; values: Array<number | string> } {
+    const range = timeRangeConditions('ZDATE', this.config, {
+      convert: date => unixToSafariTimestamp(date.getTime() / 1000),
+    });
+    const conditions = ['ZUNIQUE_ID IS NOT NULL', ...range.conditions];
+    return { where: conditions.join(' AND '), values: range.values };
+  }
+
+  /** call Z_PK → remote handle values (phone/email), when the store has the table of them. */
   private loadParticipants(): Map<number, string[]> {
+    const map = new Map<number, string[]>();
+    if (!PARTICIPANT_COLUMNS.every(column => this.has(column))) return map;
     const rows = this.db!.prepare(
       `SELECT j.Z_2REMOTEPARTICIPANTCALLS AS callPk, h.ZVALUE AS value
        FROM Z_2REMOTEPARTICIPANTHANDLES j
        JOIN ZHANDLE h ON h.Z_PK = j.Z_4REMOTEPARTICIPANTHANDLES`
     ).all() as any[];
-    const map = new Map<number, string[]>();
     for (const row of rows) {
       if (!row.value) continue;
       const list = map.get(row.callPk) ?? [];
@@ -56,21 +104,14 @@ export class AppleCallHistoryExtractor extends SqliteExtractor<typeof AppleCallH
 
     const participants = this.loadParticipants();
 
-    const conditions = ['ZUNIQUE_ID IS NOT NULL'];
-    const params: any[] = [];
-    const range = timeRangeConditions('ZDATE', this.config, {
-      convert: date => unixToSafariTimestamp(date.getTime() / 1000),
-    });
-    conditions.push(...range.conditions);
-    params.push(...range.values);
-
+    const { where, values: params } = this.callFilter();
     const limit = this.getEffectiveLimit();
     let sql = `
       SELECT Z_PK AS pk, ZUNIQUE_ID AS uuid, ZDATE AS zdate, ZDURATION AS duration,
              ZORIGINATED AS originated, ZADDRESS AS address, ZNAME AS name,
              hex(ZPARTICIPANTGROUPUUID) AS groupUuid
       FROM ZCALLRECORD
-      WHERE ${conditions.join(' AND ')}
+      WHERE ${where}
       ORDER BY ZDATE DESC`;
     if (limit !== null) {
       sql += ` LIMIT ?`;
@@ -102,13 +143,47 @@ export class AppleCallHistoryExtractor extends SqliteExtractor<typeof AppleCallH
   override async determineCount(): Promise<number | null> {
     if (!this.db) return null;
     try {
+      // The calls a run reads: those with an id, within since and until.
+      const { where, values } = this.callFilter();
       const row = this.db
-        .prepare(`SELECT COUNT(*) AS n FROM ZCALLRECORD WHERE ZUNIQUE_ID IS NOT NULL`)
-        .get() as { n: number };
-      return row.n;
+        .prepare(`SELECT COUNT(*) AS n FROM ZCALLRECORD WHERE ${where}`)
+        .get(...values) as { n: number };
+      const limit = this.getEffectiveLimit();
+      return limit === null ? row.n : Math.min(row.n, limit);
     } catch {
       return null;
     }
+  }
+
+  /** The calls a run reads and when, with how long they lasted, to the second. */
+  override async survey(options: SurveyOptions = {}): Promise<Survey | null> {
+    if (!this.db) return null;
+    const { where, values } = this.callFilter();
+    const row = this.db
+      .prepare(
+        `SELECT COUNT(*) AS n, MIN(ZDATE) AS first, MAX(ZDATE) AS last,
+          COALESCE(ROUND(SUM(ZDURATION)), 0) AS seconds FROM ZCALLRECORD WHERE ${where}`
+      )
+      .get(...values) as { n: number; first: number | null; last: number | null; seconds: number };
+    const byMonth =
+      options.byMonth &&
+      countsByMonth(
+        this.db
+          .prepare(
+            `SELECT ${monthSql(`ZDATE + ${APPLE_EPOCH_OFFSET_SECONDS}`)} AS month, COUNT(*) AS n
+            FROM ZCALLRECORD WHERE ${where} GROUP BY month`
+          )
+          .all(...values) as Array<{ month: string | null; n: number }>
+      );
+    return {
+      calls: {
+        count: row.n,
+        ...(row.first !== null && { earliest: new Date(safariToUnixTimestamp(row.first) * 1000) }),
+        ...(row.last !== null && { latest: new Date(safariToUnixTimestamp(row.last) * 1000) }),
+        ...(byMonth && { byMonth }),
+        measures: [{ key: 'callSeconds', label: 'calls', value: row.seconds, unit: 'seconds' }],
+      },
+    };
   }
 }
 

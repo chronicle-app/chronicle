@@ -4,6 +4,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { monthKey } from '@chronicle.app/etl';
 import { FoodNomsExtractor, FoodNomsTransformer } from '../dist/index.js';
 
 const account = {
@@ -116,6 +117,17 @@ async function records(input, config = {}) {
   }
 }
 
+async function survey(input, config = {}, options = {}) {
+  const extractor = new FoodNomsExtractor({ input, account, ...config });
+  try {
+    await extractor.setup();
+    return await extractor.survey(options);
+  } finally {
+    await extractor.teardown();
+  }
+}
+const surveyBy = input => survey(input, {}, { byMonth: true });
+
 test('food entries become schema-valid EatActions and DrinkActions, newest first', async t => {
   const input = fixture(t);
   const rows = await records(input);
@@ -204,5 +216,53 @@ test('food entries become schema-valid EatActions and DrinkActions, newest first
   assert.deepEqual(
     (await records(input, { since, until })).map(r => r.data.id),
     [3, 2]
+  );
+});
+
+test('a food in a saved collection is left out, and one logged to a day alone is eaten that day', async t => {
+  const input = fixture(t);
+  const db = new DatabaseSync(input);
+  // A recipe's flour, never eaten; leftovers logged to a day, at no time.
+  db.exec(`ALTER TABLE foodEntryRecord ADD COLUMN collectionEditID TEXT;
+    INSERT INTO foodEntryRecord (id, entryID, date, dateCreated, dateLastUpdated, name, day,
+      collectionEditID)
+    VALUES (10, unhex('00112233445566778899aabbccddeeff'), NULL, '2025-01-05 09:00:00.000',
+        '2025-01-05 09:00:00.000', 'Flour', NULL, 'EDIT-1'),
+      (11, unhex('ffeeddccbbaa99887766554433221100'), NULL, '2025-01-05 09:00:00.000',
+        '2025-01-05 09:00:00.000', 'Leftover soup', 2460678.5, NULL);`);
+  db.close();
+  const rows = await records(input);
+  assert.equal(rows.filter(row => row.data.id === 10).length, 0);
+  const leftovers = rows.find(row => row.data.id === 11);
+  // Julian day 2460678.5 is 2025-01-03; newest first, so it leads.
+  assert.equal(rows[0], leftovers);
+  const [eaten] = await new FoodNomsTransformer().performTransform(leftovers);
+  assert.equal(eaten.data.timestamp.toISOString(), '2025-01-03T12:00:00.000Z');
+  const counted = (await survey(input)).meals;
+  assert.equal(counted.count, rows.length);
+  assert.deepEqual(counted.latest, new Date('2025-01-03T12:00:00.000Z'));
+});
+
+test('a survey counts the items a run reads, and when they were eaten', async t => {
+  const input = fixture(t);
+  const rows = await records(input);
+  const times = rows.map(r => Date.parse(r.data.date));
+  assert.deepEqual(await survey(input, { limit: 1 }), {
+    meals: {
+      count: rows.length,
+      label: 'items',
+      earliest: new Date(Math.min(...times)),
+      latest: new Date(Math.max(...times)),
+    },
+  });
+  // By month when asked, by when each item was eaten, in local time.
+  const months = {};
+  for (const time of times)
+    months[monthKey(new Date(time))] = (months[monthKey(new Date(time))] ?? 0) + 1;
+  assert.deepEqual((await surveyBy(input)).meals.byMonth, months);
+  const since = new Date('2025-01-02T14:05:00Z');
+  assert.equal(
+    (await survey(input, { since })).meals.count,
+    (await records(input, { since })).length
   );
 });

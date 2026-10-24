@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
 import { existsSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
 import { ChromeExtractor, ChromeTransformer } from '../dist/index.js';
+import { monthKey } from '@chronicle.app/etl';
 import { ACCOUNTS, DAY_MS, JAN_1, fixture } from './fixture.test-helper.js';
 
 async function extract(config, Extractor = ChromeExtractor) {
@@ -88,6 +89,43 @@ test('visits become schema-valid ViewActions, newest first', async t => {
   } finally {
     await counter.teardown();
   }
+});
+
+async function survey(config, options = {}) {
+  const extractor = new ChromeExtractor(config);
+  try {
+    await extractor.setup();
+    return await extractor.survey(options);
+  } finally {
+    await extractor.teardown();
+  }
+}
+const surveyBy = config => survey(config, { byMonth: true });
+
+test('a survey counts the visits a run reads, when, and to how many pages', async t => {
+  const { input } = fixture(t);
+  const records = await extract({ input });
+  const times = records.map(r => r.data.unix_ms);
+  assert.deepEqual(await survey({ input, limit: 1 }), {
+    views: {
+      count: records.length,
+      earliest: new Date(Math.min(...times)),
+      latest: new Date(Math.max(...times)),
+      measures: [
+        { key: 'pages', label: 'pages', value: new Set(records.map(r => r.data.url)).size },
+      ],
+    },
+  });
+  // By month when asked, by the time of each visit, in local time.
+  const months = {};
+  for (const time of times)
+    months[monthKey(new Date(time))] = (months[monthKey(new Date(time))] ?? 0) + 1;
+  assert.deepEqual((await surveyBy({ input })).views.byMonth, months);
+  const since = new Date(JAN_1 + 2500);
+  assert.equal(
+    (await survey({ input, since })).views.count,
+    (await extract({ input, since })).length
+  );
 });
 
 test('a link or form followed from a page is a NavigateAction beside the view', async t => {

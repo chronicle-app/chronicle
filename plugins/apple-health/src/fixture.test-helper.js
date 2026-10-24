@@ -67,8 +67,8 @@ const ecg = (date, classification) =>
 
 /**
  * A synthetic Health export, as the unzipped `apple_health_export` folder:
- * `export.xml` and two ECG recordings. Every date carries the offset in effect
- * when the export was made (`-0400`), even in winter.
+ * `export.xml`, `export_cda.xml`, and two ECG recordings. Every date carries
+ * the offset in effect when the export was made (`-0400`), even in winter.
  *
  * Heart: a watch's heart rate under two device addresses and two OS releases,
  * an exact duplicate, a different value at the same instant, a reading over a
@@ -386,6 +386,12 @@ ${meta('HKTimeZone', 'America/New_York')}  <WorkoutStatistics type="HKQuantityTy
 ${body}
 </HealthData>
 `
+  );
+
+  // Beside export.xml, the Health app writes the same records as a clinical document.
+  writeFileSync(
+    join(folder, 'export_cda.xml'),
+    '<?xml version="1.0" encoding="UTF-8"?>\n<ClinicalDocument xmlns="urn:hl7-org:v3"/>\n'
   );
 
   writeFileSync(

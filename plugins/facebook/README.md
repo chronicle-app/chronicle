@@ -33,7 +33,7 @@ chronicle extract facebook \
 
 The extractor supports the following options:
 
-- `--input` (required): Path to the facebook file
+- `--input` (required): The Facebook export, as a folder or zip
 - `--type` (required): What to read: `messages`, `reactions`, `comments`, or `searches`
 - `--since`: Extract records from this date onwards
 - `--until`: Extract records up to this date

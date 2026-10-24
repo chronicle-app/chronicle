@@ -68,11 +68,79 @@
               "listens",
               "subscriptions"
             ],
-            "default": true
+            "default": true,
+            "locations": [
+              {
+                "path": "~/Library/Group Containers/243LU875E5.groups.com.apple.podcasts/Documents/MTLibrary.sqlite"
+              }
+            ],
+            "databases": [
+              {
+                "tables": {
+                  "ZMTEPISODE": [
+                    "ZGUID",
+                    "ZTITLE",
+                    "ZAUTHOR",
+                    "ZPLAYHEAD",
+                    "ZPLAYCOUNT",
+                    "ZPLAYSTATELASTMODIFIEDDATE",
+                    "ZLASTDATEPLAYED",
+                    "ZLASTUSERMARKEDASPLAYEDDATE",
+                    "ZISBOOKMARKED",
+                    "ZLASTBOOKMARKEDDATE",
+                    "ZPUBDATE",
+                    "ZSTORETRACKID",
+                    "ZWEBPAGEURL",
+                    "ZARTWORKTEMPLATEURL",
+                    "ZPODCASTUUID",
+                    "ZCURRENTMEDIAENCLOSURE",
+                    "ZDESCRIPTIONOBJECT",
+                    "ZMETADATAIDENTIFIER"
+                  ],
+                  "ZMTPODCAST": [
+                    "ZUUID",
+                    "ZTITLE",
+                    "ZAUTHOR",
+                    "ZCATEGORY",
+                    "ZFEEDURL",
+                    "ZUPDATEDFEEDURL",
+                    "ZIMAGEURL",
+                    "ZSTORECOLLECTIONID",
+                    "ZWEBPAGEURL",
+                    "ZITEMDESCRIPTION",
+                    "ZCHANNEL",
+                    "ZSUBSCRIBED",
+                    "ZADDEDDATE"
+                  ],
+                  "ZMTCHANNEL": [
+                    "Z_PK",
+                    "ZSTOREID",
+                    "ZNAME"
+                  ],
+                  "ZMTMEDIAENCLOSURE": [
+                    "Z_PK",
+                    "ZDURATION",
+                    "ZREMOTEURL",
+                    "ZTRANSCRIPTIDENTIFIER"
+                  ],
+                  "ZMTEPISODEDESCRIPTION": [
+                    "Z_PK",
+                    "ZTEXT"
+                  ],
+                  "ZMTUPPMETADATA": [
+                    "ZMETADATAIDENTIFIER",
+                    "ZTIMESTAMP"
+                  ]
+                }
+              }
+            ]
           }
         },
         "platforms": [
           "darwin"
+        ],
+        "requires": [
+          "full-disk-access"
         ]
       }
     }

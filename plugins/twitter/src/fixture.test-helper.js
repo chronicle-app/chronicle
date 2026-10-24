@@ -2,25 +2,20 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-/** Write one `data/<file>.js` in the archive's `window.YTD.<name>.part0 = [...]` form. */
-function writeYtd(dir, file, name, items) {
-  writeFileSync(
-    join(dir, 'data', `${file}.js`),
-    `window.YTD.${name}.part0 = ${JSON.stringify(items, null, 2)}`
-  );
-}
-
 /**
- * A small synthetic Twitter/X data archive in a temp dir: the account, two
- * tweets (one with entity mentions and links, one relying on the text
- * fallback), a like, a 1:1 DM, and a group DM with its header.
+ * The files of a small synthetic Twitter/X data archive, by their paths in
+ * it: the account, two tweets (one with entity mentions and links, one
+ * relying on the text fallback), a like, a 1:1 DM, and a group DM with its
+ * header.
  */
-export function archive(t) {
-  const dir = mkdtempSync(join(tmpdir(), 'twitter-fixture-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
-  mkdirSync(join(dir, 'data'));
+export function archiveFiles() {
+  const files = {};
+  /** One `data/<file>.js` in the archive's `window.YTD.<name>.part0 = [...]` form. */
+  const writeYtd = (file, name, items) => {
+    files[`data/${file}.js`] = `window.YTD.${name}.part0 = ${JSON.stringify(items, null, 2)}`;
+  };
 
-  writeYtd(dir, 'account', 'account', [
+  writeYtd('account', 'account', [
     {
       account: {
         email: 'owner@example.com',
@@ -33,7 +28,7 @@ export function archive(t) {
     },
   ]);
 
-  writeYtd(dir, 'tweets', 'tweets', [
+  writeYtd('tweets', 'tweets', [
     {
       tweet: {
         created_at: 'Sat Jan 11 17:10:28 +0000 2025',
@@ -71,7 +66,7 @@ export function archive(t) {
     },
   ]);
 
-  writeYtd(dir, 'like', 'like', [
+  writeYtd('like', 'like', [
     {
       like: {
         tweetId: '9876543210987654321',
@@ -81,7 +76,7 @@ export function archive(t) {
     },
   ]);
 
-  writeYtd(dir, 'direct-messages', 'direct_messages', [
+  writeYtd('direct-messages', 'direct_messages', [
     {
       dmConversation: {
         conversationId: '111-222',
@@ -102,7 +97,7 @@ export function archive(t) {
     },
   ]);
 
-  writeYtd(dir, 'direct-message-group-headers', 'direct_message_group_headers', [
+  writeYtd('direct-message-group-headers', 'direct_message_group_headers', [
     {
       dmConversation: {
         conversationId: '1400000000000000001',
@@ -119,7 +114,7 @@ export function archive(t) {
     },
   ]);
 
-  writeYtd(dir, 'direct-messages-group', 'direct_messages_group', [
+  writeYtd('direct-messages-group', 'direct_messages_group', [
     {
       dmConversation: {
         conversationId: '1400000000000000001',
@@ -140,5 +135,15 @@ export function archive(t) {
     },
   ]);
 
+  return files;
+}
+
+/** The synthetic archive, written to a temp dir. */
+export function archive(t) {
+  const dir = mkdtempSync(join(tmpdir(), 'twitter-fixture-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  mkdirSync(join(dir, 'data'));
+  for (const [file, content] of Object.entries(archiveFiles()))
+    writeFileSync(join(dir, file), content);
   return dir;
 }

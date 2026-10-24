@@ -1,6 +1,11 @@
-import { ArchiveExtractor, Extractor } from '@chronicle.app/etl';
-import { readFile } from 'node:fs/promises';
-import { join, resolve, sep } from 'node:path';
+import {
+  ArchiveExtractor,
+  Extractor,
+  countMonth,
+  type KindSurvey,
+  type SurveyOptions,
+} from '@chronicle.app/etl';
+import { posix } from 'node:path';
 import { z } from 'zod';
 
 export abstract class InstagramArchiveExtractor extends ArchiveExtractor<
@@ -10,8 +15,10 @@ export abstract class InstagramArchiveExtractor extends ArchiveExtractor<
   static override strategy = 'archive';
 
   static override schema = Extractor.schema.extend({
-    input: z.string().describe('Path to the Instagram export directory'),
+    input: z.string().describe('The Instagram export, as a folder or zip'),
   });
+
+  protected override readonly exportName = 'Instagram export';
 
   // nameToHandleMap stays out of the record context: it only maps
   // handle→handle (a membership set, not a name resolver) and a Map would
@@ -26,17 +33,10 @@ export abstract class InstagramArchiveExtractor extends ArchiveExtractor<
   }
 
   protected override async loadAccountInfo(): Promise<any> {
-    const config = this.config as z.infer<typeof InstagramArchiveExtractor.schema>;
-
     try {
-      const profileInfoPath = join(
-        config.input,
-        'personal_information',
-        'personal_information',
-        'personal_information.json'
+      const data = await this.readInstagramJson(
+        'personal_information/personal_information/personal_information.json'
       );
-      const content = await readFile(profileInfoPath, 'utf-8');
-      const data = JSON.parse(content);
 
       // No fabricated fallbacks: a missing username stays undefined so the
       // transformer fails loudly instead of keying the self agent on a
@@ -58,9 +58,9 @@ export abstract class InstagramArchiveExtractor extends ArchiveExtractor<
     }
   }
 
+  /** A JSON file of the export, by its path in it. */
   protected async readInstagramJson(filePath: string): Promise<any> {
-    const config = this.config as z.infer<typeof InstagramArchiveExtractor.schema>;
-    return this.readArchiveJson(join(config.input, filePath));
+    return this.readArchiveJson(filePath);
   }
 
   protected convertInstagramTimestamp(timestamp: number): string {
@@ -93,17 +93,42 @@ export abstract class InstagramArchiveExtractor extends ArchiveExtractor<
     return this.isWithinDateRange(new Date(timestampSeconds * 1000));
   }
 
+  /** A record type's survey before it counts any, with months when asked for them. */
+  protected emptySurvey(options: SurveyOptions): KindSurvey {
+    return { count: 0, ...(options.byMonth && { byMonth: {} }) };
+  }
+
+  /** Count one record a run reads into its type's survey, by the time a run dates it. */
+  protected tally(kind: KindSurvey, time: Date): void {
+    kind.count++;
+    if (!kind.earliest || time < kind.earliest) kind.earliest = time;
+    if (!kind.latest || time > kind.latest) kind.latest = time;
+    if (kind.byMonth) countMonth(kind.byMonth, time);
+  }
+
   /**
-   * Absolute path of a media `uri` inside the export directory, or null when
-   * the uri escapes it (`../`, absolute paths) — export JSON is data, not a
-   * trusted path source, and an escaping uri must not be captured into the
-   * attachment store.
+   * A media `uri`'s path in the export, or null when the uri escapes it
+   * (`../`, absolute paths) — export JSON is data, not a trusted path
+   * source, and an escaping uri must not be captured into the attachment
+   * store.
    */
-  protected archiveMediaPath(uri: string): string | null {
-    const config = this.config as z.infer<typeof InstagramArchiveExtractor.schema>;
-    const root = resolve(config.input);
-    const path = resolve(root, uri);
-    return path.startsWith(root + sep) ? path : null;
+  protected archiveMediaFile(uri: string): string | null {
+    const path = posix.normalize(uri);
+    if (posix.isAbsolute(path) || path === '.' || path === '..' || path.startsWith('../')) {
+      return null;
+    }
+    return path;
+  }
+
+  /**
+   * Absolute path of a media `uri`'s file, for the attachment store to
+   * capture: in an unzipped export the file itself, and in a zip a copy the
+   * run keeps until it ends. Null when the uri escapes the export, or a zip
+   * doesn't have it.
+   */
+  protected async archiveMediaPath(uri: string): Promise<string | null> {
+    const file = this.archiveMediaFile(uri);
+    return file === null ? null : this.files.localPath(file);
   }
 
   /** Flatten a `label_values` array into a `{ label: value|href|timestamp }` map. */

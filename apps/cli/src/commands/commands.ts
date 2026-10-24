@@ -4,7 +4,7 @@ import { listedSummary, typed } from '../help/render.js';
 import { stdoutWidth, table, tokens } from '../output/index.js';
 
 export default class Commands extends BaseCommand<typeof Commands> {
-  static override description = 'List every command';
+  static override description = 'List all commands';
 
   static override examples = ['chronicle commands', 'chronicle commands --format json'];
 

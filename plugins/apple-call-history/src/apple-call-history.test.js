@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { DatabaseSync } from 'node:sqlite';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ContactCache } from '@chronicle.app/apple';
+import { monthKey } from '@chronicle.app/etl';
+import { writeSchemaDatabase } from '@chronicle.app/etl-sqlite';
 import { AppleCallHistoryExtractor, CallHistoryTransformer } from '../dist/index.js';
 import { writeCallHistoryFixture, writeContactsFixture } from './fixture.test-helper.js';
 
@@ -34,6 +37,56 @@ async function extract(input, config = {}) {
     await extractor.teardown();
   }
 }
+
+async function survey(input, config = {}, options = {}) {
+  const extractor = new AppleCallHistoryExtractor({ input, ...config });
+  try {
+    await extractor.setup();
+    return await extractor.survey(options);
+  } finally {
+    await extractor.teardown();
+  }
+}
+const surveyBy = input => survey(input, {}, { byMonth: true });
+
+test('its declared schema is all its queries read, and a CallHistory.storedata without it is refused', async t => {
+  const dir = tempDir(t);
+  const [schema] = AppleCallHistoryExtractor.databases;
+  const input = join(dir, 'CallHistory.storedata');
+  writeSchemaDatabase(input, schema, { optional: false });
+  assert.deepEqual((await extract(input)).records, []);
+  assert.equal((await surveyBy(input)).calls.count, 0);
+
+  // One without the join table of a call's other participants, or with its
+  // handles' column under another entity number, extracts the same calls,
+  // with no one else on the group call.
+  const { records } = await extract(writeCallHistoryFixture(tempDir(t)));
+  const alone = records.map(r => (r.context.groupUuid ? { ...r.context, handles: [] } : r.context));
+  for (const change of [
+    'DROP TABLE Z_2REMOTEPARTICIPANTHANDLES',
+    `ALTER TABLE Z_2REMOTEPARTICIPANTHANDLES
+      RENAME COLUMN Z_4REMOTEPARTICIPANTHANDLES TO Z_5REMOTEPARTICIPANTHANDLES`,
+  ]) {
+    const store = writeCallHistoryFixture(tempDir(t));
+    const db = new DatabaseSync(store);
+    db.exec(change);
+    db.close();
+    assert.deepEqual(
+      (await extract(store)).records.map(r => r.context),
+      alone
+    );
+    assert.equal((await surveyBy(store)).calls.count, records.length);
+  }
+
+  // An older Call History's, say, without a column its queries read.
+  const older = join(dir, 'older.storedata');
+  const calls = schema.tables.ZCALLRECORD.filter(column => column !== 'ZNAME');
+  writeSchemaDatabase(older, { tables: { ...schema.tables, ZCALLRECORD: calls } });
+  await assert.rejects(extract(older), {
+    message: /version of the database/,
+    fields: { path: older, missing: ['ZCALLRECORD.ZNAME'] },
+  });
+});
 
 async function actions(dir) {
   const { records } = await extract(writeCallHistoryFixture(dir));
@@ -171,10 +224,36 @@ test('extraction honours the time range and counts calls with an id', async t =>
     since: new Date('2025-01-01T00:02:00Z'),
     until: new Date('2025-01-01T00:04:00Z'),
   });
-  // Both bounds are exclusive.
+  // Both bounds are exclusive, and the count follows them.
   assert.deepEqual(
     records.map(r => r.context.uuid),
     ['CALL-MISSED']
   );
-  assert.equal(count, 5);
+  assert.equal(count, 1);
+  assert.equal((await extract(input)).count, 5);
+});
+
+test('a survey counts the calls a run reads, when, and how long they lasted', async t => {
+  const input = writeCallHistoryFixture(tempDir(t));
+  const { records } = await extract(input);
+  const starts = records.map(r => r.context.startSec * 1000);
+  const seconds = records.reduce((sum, r) => sum + r.context.durationSec, 0);
+  assert.deepEqual(await survey(input, { limit: 1 }), {
+    calls: {
+      count: records.length,
+      earliest: new Date(Math.min(...starts)),
+      latest: new Date(Math.max(...starts)),
+      measures: [{ key: 'callSeconds', label: 'calls', value: seconds, unit: 'seconds' }],
+    },
+  });
+  // By month when asked, by when each call started, in local time.
+  const months = {};
+  for (const start of starts)
+    months[monthKey(new Date(start))] = (months[monthKey(new Date(start))] ?? 0) + 1;
+  assert.deepEqual((await surveyBy(input)).calls.byMonth, months);
+  const since = new Date('2025-01-01T00:02:00Z');
+  assert.equal(
+    (await survey(input, { since })).calls.count,
+    (await extract(input, { since })).records.length
+  );
 });

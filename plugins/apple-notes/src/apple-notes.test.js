@@ -5,6 +5,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { nodeKey } from '@chronicle.app/schema';
+import { monthKey } from '@chronicle.app/etl';
 import {
   AppleNotesEditsExtractor,
   AppleNotesExtractor,
@@ -334,6 +335,48 @@ test('notes are bounded by when they were last edited', async t => {
   // Notes last saved the soup before the window, but its newest text synced in
   // after, inside it.
   assert.deepEqual(await saved({ since: at(86_400 + 460) }), ['NOTE-SOUP']);
+});
+
+async function survey(config, options = {}) {
+  const extractor = new AppleNotesExtractor(config);
+  try {
+    await extractor.setup();
+    return await extractor.survey(options);
+  } finally {
+    await extractor.teardown();
+  }
+}
+
+/** How many of the times each month holds, as a survey's `byMonth` keys them. */
+function monthsOf(times) {
+  const months = {};
+  for (const time of times)
+    months[monthKey(new Date(time))] = (months[monthKey(new Date(time))] ?? 0) + 1;
+  return months;
+}
+
+test('a survey counts the notes a run reads and when they were made, but not since a date', async t => {
+  const { input } = fixture(t);
+  const extractor = new AppleNotesExtractor({ input, limit: 0 });
+  let notes;
+  try {
+    await extractor.setup();
+    notes = await Array.fromAsync(extractor.extract());
+  } finally {
+    await extractor.teardown();
+  }
+  const made = notes.map(note => Date.parse(note.data.created));
+  assert.deepEqual(await survey({ input, limit: 1 }), {
+    notes: {
+      count: notes.length,
+      earliest: new Date(Math.min(...made)),
+      latest: new Date(Math.max(...made)),
+    },
+  });
+  // By month when asked, by when each was made.
+  assert.deepEqual((await survey({ input }, { byMonth: true })).notes.byMonth, monthsOf(made));
+  // Since a date keeps notes by their last edit, which can be in their text.
+  assert.equal(await survey({ input, since: at(0) }), null);
 });
 
 test("each person's writing is its own edit, with the text from it that's still there", async t => {

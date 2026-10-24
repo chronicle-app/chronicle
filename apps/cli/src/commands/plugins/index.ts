@@ -5,6 +5,8 @@ import { PluginScanner } from '../../plugins/PluginScanner.js';
 import { relativePath, stdoutWidth, table, tokens } from '../../output/index.js';
 
 export default class Plugins extends BaseCommand<typeof Plugins> {
+  static override summary = 'Manage plugins';
+
   static override description = 'List the installed plugins and where each one is';
 
   static override examples = [

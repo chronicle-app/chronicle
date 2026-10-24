@@ -16,6 +16,17 @@ export function duration(ms: number): string {
   return `${Math.floor(m / 60)}h ${pad2(m % 60)}m`;
 }
 
+/** A size in the units Finder shows, by thousands: 812 B, 4.2 MB, 107 GB. */
+export function bytes(n: number): string {
+  const units = ['B', 'kB', 'MB', 'GB', 'TB', 'PB'];
+  let i = 0;
+  while (n >= 1000 && i < units.length - 1) {
+    n /= 1000;
+    i++;
+  }
+  return `${i > 0 && n < 10 ? n.toFixed(1) : Math.round(n)} ${units[i]}`;
+}
+
 /** A running clock: 0:07, 12:31, 1:02:09. */
 export function clock(ms: number): string {
   const s = Math.floor(ms / 1000);
@@ -37,6 +48,30 @@ export const date = (d: Date) =>
 /** At most `width` characters, an ellipsis marking the cut. */
 export const truncate = (text: string, width: number) =>
   text.length > width ? `${text.slice(0, Math.max(0, width - 1))}…` : text;
+
+/**
+ * A path at most `width` characters, cut in the middle: its first folder,
+ * then as many of its last parts as fit, so it still says where it is and
+ * the file it names, like `~/Library/…/NoteStore.sqlite`. Too narrow for
+ * that, just the file: `…/NoteStore.sqlite`. Text that isn't a path, or a
+ * file too long even so, is cut at the end.
+ */
+export function truncatePath(text: string, width: number): string {
+  if (text.length <= width) return text;
+  const slash = text.endsWith('/') ? '/' : '';
+  const parts = text.slice(0, text.length - slash.length).split('/');
+  if (parts.length < 4) return truncate(text, width);
+  const head = `${parts.slice(0, 2).join('/')}/…/`;
+  let tail = `${parts.at(-1)}${slash}`;
+  if (head.length + tail.length > width) {
+    return tail.length + 2 <= width ? `…/${tail}` : truncate(text, width);
+  }
+  for (const part of parts.slice(2, -1).reverse()) {
+    if (head.length + part.length + 1 + tail.length > width) break;
+    tail = `${part}/${tail}`;
+  }
+  return head + tail;
+}
 
 /** A file path relative to here, unless that climbs out. */
 export function relativePath(file: string): string {

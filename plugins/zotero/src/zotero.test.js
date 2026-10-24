@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { SystemInfo } from '@chronicle.app/etl';
-import { ZoteroExtractor, ZoteroTransformer } from '../dist/index.js';
+import { SystemInfo, monthKey } from '@chronicle.app/etl';
+import { ZoteroExtractor, ZoteroLocator, ZoteroTransformer, zoteroDataDir } from '../dist/index.js';
 import {
   DB_MTIME,
   LOCAL_USER_KEY,
@@ -433,10 +433,109 @@ test('since, until, and limit filter on each item’s dateModified', async t => 
   );
 });
 
+async function extractAndSurvey(config, options = {}) {
+  const extractor = new ZoteroExtractor(config);
+  try {
+    await extractor.setup();
+    const survey = await extractor.survey(options);
+    return { survey, records: await Array.fromAsync(extractor.extract()) };
+  } finally {
+    await extractor.teardown();
+  }
+}
+
+/** Zotero's UTC `YYYY-MM-DD HH:MM:SS`, as a Date. */
+const zoteroDate = raw => new Date(`${raw.replace(' ', 'T')}Z`);
+
+/** Each record type's count, and its first and last record by when it was added. */
+function surveyOf(records) {
+  const survey = {};
+  for (const recordType of ['works', 'annotations', 'attachments', 'notes']) {
+    const added = records
+      .filter(record => record.extraction.recordType === recordType)
+      .map(record => zoteroDate(record.data.dateAdded));
+    survey[recordType] = {
+      count: added.length,
+      ...(added.length > 0 && {
+        earliest: new Date(Math.min(...added)),
+        latest: new Date(Math.max(...added)),
+      }),
+    };
+  }
+  return survey;
+}
+
+/** Each record type's records by the month they were added, as a survey's `byMonth` keys them. */
+function monthsOf(records) {
+  const months = {};
+  for (const recordType of ['works', 'annotations', 'attachments', 'notes']) {
+    months[recordType] = {};
+    for (const record of records.filter(r => r.extraction.recordType === recordType)) {
+      const month = monthKey(zoteroDate(record.data.dateAdded));
+      months[recordType][month] = (months[recordType][month] ?? 0) + 1;
+    }
+  }
+  return months;
+}
+
+test('a survey counts the items a run reads of each record type, and when they were added', async t => {
+  const input = fixture(t);
+  // The limit is ignored.
+  const { records } = await extractAndSurvey({ input });
+  const { survey } = await extractAndSurvey({ input, limit: 1 });
+  assert.deepEqual(survey, surveyOf(records));
+  // By month when asked, by when each was added.
+  const byMonth = (await extractAndSurvey({ input }, { byMonth: true })).survey;
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(byMonth).map(([type, kind]) => [type, kind.byMonth])),
+    monthsOf(records)
+  );
+
+  // since is on each item's dateModified, as a run's is.
+  const since = new Date('2025-01-12T00:00:00Z');
+  const later = await extractAndSurvey({ input, since });
+  assert.deepEqual(later.survey, surveyOf(later.records));
+  assert.equal(later.survey.works.count, 1);
+});
+
 /** Copies the extractor made of a locked database, by its naming scheme. */
 function lockedCopies() {
   return readdirSync(tmpdir()).filter(f => /^zotero-[0-9a-f-]{36}\.sqlite$/.test(f));
 }
+
+/** A home folder whose Zotero profile names a data folder, or uses the default. */
+function home(t, prefs) {
+  const dir = mkdtempSync(join(tmpdir(), 'zotero-home-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const profile = join(dir, 'Library', 'Application Support', 'Zotero', 'Profiles', 'a1.default');
+  mkdirSync(profile, { recursive: true });
+  writeFileSync(join(profile, 'prefs.js'), prefs);
+  return dir;
+}
+
+test('the data folder is the one the preferences name, else ~/Zotero, and a scan finds it', async t => {
+  const moved = home(
+    t,
+    'user_pref("extensions.zotero.dataDir", "/Papers/Library");\n' +
+      'user_pref("extensions.zotero.useDataDir", true);\n'
+  );
+  assert.equal(zoteroDataDir(moved), '/Papers/Library');
+  // A folder named but not in use, or none named: the default.
+  const unused = home(t, 'user_pref("extensions.zotero.dataDir", "/Papers/Library");\n');
+  assert.equal(zoteroDataDir(unused), join(unused, 'Zotero'));
+  const none = mkdtempSync(join(tmpdir(), 'zotero-none-'));
+  t.after(() => rmSync(none, { recursive: true, force: true }));
+  assert.equal(zoteroDataDir(none), join(none, 'Zotero'));
+
+  // The locator offers the named library, and one left in ~/Zotero.
+  const locator = new ZoteroLocator({ home: moved, platform: 'darwin', env: {} });
+  const leftover = join(moved, 'Zotero', 'zotero.sqlite');
+  const found = await Array.fromAsync(locator.locate([{ path: leftover, options: {} }]));
+  assert.deepEqual(found, [
+    { config: { input: '/Papers/Library' }, path: '/Papers/Library/zotero.sqlite' },
+    { config: { input: join(moved, 'Zotero') }, path: leftover },
+  ]);
+});
 
 test('a library locked by a running Zotero is read from a copy', async t => {
   const dir = fixture(t);

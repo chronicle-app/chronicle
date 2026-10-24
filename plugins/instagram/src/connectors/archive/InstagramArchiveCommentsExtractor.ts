@@ -1,4 +1,4 @@
-import { Record } from '@chronicle.app/etl';
+import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
 import { InstagramArchiveExtractor } from './InstagramArchiveExtractor.js';
 import InstagramTransformer from '../InstagramTransformer.js';
 
@@ -21,19 +21,8 @@ export class InstagramArchiveCommentsExtractor extends InstagramArchiveExtractor
   static override defaultTransformer = InstagramTransformer;
 
   async *extract(): AsyncGenerator<Record> {
-    const items = [
-      ...(await this.readInstagramArray('your_instagram_activity/comments/post_comments_1.json')),
-      ...(await this.readInstagramArray('your_instagram_activity/comments/reels_comments.json')),
-    ];
-
     let index = 0;
-    for (const item of items) {
-      const sm = item?.string_map_data ?? {};
-      const text = sm.Comment?.value;
-      const owner = sm['Media Owner']?.value;
-      const timestamp = sm.Time?.timestamp;
-      if (!text || !timestamp) continue;
-      if (!this.inRange(timestamp)) continue;
+    for await (const { item, text, owner, timestamp } of this.comments()) {
       if (this.shouldStopExtracting(index)) break;
 
       yield this.createRecordWithArchiveContext(
@@ -46,6 +35,38 @@ export class InstagramArchiveCommentsExtractor extends InstagramArchiveExtractor
         { originalData: item }
       );
       index++;
+    }
+  }
+
+  /** The comments a run reads and when each was written. */
+  override async survey(options: SurveyOptions = {}): Promise<Survey> {
+    const comments = this.emptySurvey(options);
+    for await (const { timestamp } of this.comments()) {
+      this.tally(comments, new Date(timestamp * 1000));
+    }
+    return { comments };
+  }
+
+  /** The comments on posts, then on reels, in the run's window. */
+  private async *comments(): AsyncGenerator<{
+    item: any;
+    text: string;
+    owner?: string;
+    timestamp: number;
+  }> {
+    const items = [
+      ...(await this.readInstagramArray('your_instagram_activity/comments/post_comments_1.json')),
+      ...(await this.readInstagramArray('your_instagram_activity/comments/reels_comments.json')),
+    ];
+
+    for (const item of items) {
+      const sm = item?.string_map_data ?? {};
+      const text = sm.Comment?.value;
+      const owner = sm['Media Owner']?.value;
+      const timestamp = sm.Time?.timestamp;
+      if (!text || !timestamp) continue;
+      if (!this.inRange(timestamp)) continue;
+      yield { item, text, owner, timestamp };
     }
   }
 }

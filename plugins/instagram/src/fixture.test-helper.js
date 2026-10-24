@@ -17,10 +17,14 @@ function write(root, file, value) {
   writeFileSync(target, typeof value === 'string' ? value : JSON.stringify(value, null, 2));
 }
 
-/** Writes the export into `root` and returns `root`. */
-export function writeInstagramExport(root, { withProfile = true } = {}) {
+/** The export's files, by their paths in it: JSON as text, media as placeholder bytes. */
+export function instagramExportFiles({ withProfile = true } = {}) {
+  const files = {};
+  const add = (file, value) => {
+    files[file] = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+  };
   if (withProfile) {
-    write(root, 'personal_information/personal_information/personal_information.json', {
+    add('personal_information/personal_information/personal_information.json', {
       profile_user: [
         {
           string_map_data: {
@@ -32,7 +36,7 @@ export function writeInstagramExport(root, { withProfile = true } = {}) {
     });
   }
 
-  write(root, 'connections/followers_and_following/following.json', {
+  add('connections/followers_and_following/following.json', {
     relationships_following: [
       {
         title: 'alexchen',
@@ -53,7 +57,7 @@ export function writeInstagramExport(root, { withProfile = true } = {}) {
       },
     ],
   });
-  write(root, 'connections/followers_and_following/followers_1.json', [
+  add('connections/followers_and_following/followers_1.json', [
     {
       string_list_data: [
         { value: 'alexchen', href: 'https://www.instagram.com/alexchen', timestamp: 1_610_000_000 },
@@ -62,7 +66,7 @@ export function writeInstagramExport(root, { withProfile = true } = {}) {
   ]);
 
   // Newer posts.json shape: media under label_values → "Media".
-  write(root, 'your_instagram_activity/media/posts.json', [
+  add('your_instagram_activity/media/posts.json', [
     {
       timestamp: 1_725_000_000,
       label_values: [
@@ -82,7 +86,7 @@ export function writeInstagramExport(root, { withProfile = true } = {}) {
   ]);
   // Older flat shape: a carousel, a duplicate of the reel, and a uri that
   // escapes the export directory.
-  write(root, 'your_instagram_activity/media/posts_1.json', [
+  add('your_instagram_activity/media/posts_1.json', [
     {
       title: 'Trail day',
       timestamp: 1_500_000_000,
@@ -104,7 +108,7 @@ export function writeInstagramExport(root, { withProfile = true } = {}) {
       media: [{ uri: '../../outside/escape.jpg', creation_timestamp: 1_500_000_001, title: 'x' }],
     },
   ]);
-  write(root, 'your_instagram_activity/media/stories.json', {
+  add('your_instagram_activity/media/stories.json', {
     ig_stories: [
       {
         uri: 'media/stories/202409/4444444444.jpg',
@@ -127,12 +131,12 @@ export function writeInstagramExport(root, { withProfile = true } = {}) {
     'media/stories/202409/4444444444.jpg',
     'media/stories/202409/5555555555.mp4',
   ]) {
-    write(root, file, 'media');
+    add(file, 'media');
   }
 
   // A 1:1 thread whose folder name matches a followed handle, and a group
   // thread whose folder matches no one.
-  write(root, 'your_instagram_activity/messages/inbox/alexchen_123/message_1.json', {
+  add('your_instagram_activity/messages/inbox/alexchen_123/message_1.json', {
     title: 'Alex Chen',
     participants: [{ name: 'Alex Chen' }, { name: SELF.name }],
     messages: [
@@ -159,7 +163,7 @@ export function writeInstagramExport(root, { withProfile = true } = {}) {
       },
     ],
   });
-  write(root, 'your_instagram_activity/messages/inbox/hikeclub_456/message_1.json', {
+  add('your_instagram_activity/messages/inbox/hikeclub_456/message_1.json', {
     title: 'Hike Club',
     participants: [{ name: 'Alex Chen' }, { name: 'Jordan Lee' }, { name: SELF.name }],
     messages: [
@@ -174,7 +178,7 @@ export function writeInstagramExport(root, { withProfile = true } = {}) {
 
   // Likes: an older label_values entry with a mojibake caption, a liked reel,
   // and a 2025 string_list_data entry whose 👍 marker is not a caption.
-  write(root, 'your_instagram_activity/likes/liked_posts.json', {
+  add('your_instagram_activity/likes/liked_posts.json', {
     likes_media_likes: [
       {
         timestamp: 1_725_000_000,
@@ -201,7 +205,7 @@ export function writeInstagramExport(root, { withProfile = true } = {}) {
     ],
   });
   // Story likes: one with a story URL, one 2025 entry with no story id.
-  write(root, 'your_instagram_activity/story_interactions/story_likes.json', {
+  add('your_instagram_activity/story_interactions/story_likes.json', {
     story_activities_story_likes: [
       {
         timestamp: 1_725_200_000,
@@ -215,7 +219,7 @@ export function writeInstagramExport(root, { withProfile = true } = {}) {
 
   // Saves: a label_values collection, a 2025 header + item pair, and a
   // collection-less 2025 saved reel.
-  write(root, 'your_instagram_activity/saved/saved_collections.json', {
+  add('your_instagram_activity/saved/saved_collections.json', {
     saved_saved_collections: [
       {
         label_values: [
@@ -251,7 +255,7 @@ export function writeInstagramExport(root, { withProfile = true } = {}) {
       },
     ],
   });
-  write(root, 'your_instagram_activity/saved/saved_posts.json', {
+  add('your_instagram_activity/saved/saved_posts.json', {
     saved_saved_media: [
       {
         title: 'reels.demo',
@@ -265,7 +269,7 @@ export function writeInstagramExport(root, { withProfile = true } = {}) {
     ],
   });
 
-  write(root, 'your_instagram_activity/comments/post_comments_1.json', [
+  add('your_instagram_activity/comments/post_comments_1.json', [
     {
       string_map_data: {
         Comment: { value: 'Congrats!' },
@@ -281,7 +285,7 @@ export function writeInstagramExport(root, { withProfile = true } = {}) {
       },
     },
   ]);
-  write(root, 'your_instagram_activity/comments/reels_comments.json', {
+  add('your_instagram_activity/comments/reels_comments.json', {
     comments_reels_comments: [
       {
         string_map_data: {
@@ -293,7 +297,7 @@ export function writeInstagramExport(root, { withProfile = true } = {}) {
     ],
   });
 
-  write(root, 'logged_information/recent_searches/profile_searches.json', {
+  add('logged_information/recent_searches/profile_searches.json', {
     searches_user: [
       {
         title: 'jordanlee',
@@ -311,7 +315,7 @@ export function writeInstagramExport(root, { withProfile = true } = {}) {
       },
     ],
   });
-  write(root, 'logged_information/recent_searches/word_or_phrase_searches.json', {
+  add('logged_information/recent_searches/word_or_phrase_searches.json', {
     searches_keyword: [
       {
         title: '',
@@ -324,6 +328,13 @@ export function writeInstagramExport(root, { withProfile = true } = {}) {
     ],
   });
 
+  return files;
+}
+
+/** Writes the export into `root` and returns `root`. */
+export function writeInstagramExport(root, options) {
+  for (const [file, value] of Object.entries(instagramExportFiles(options)))
+    write(root, file, value);
   return root;
 }
 

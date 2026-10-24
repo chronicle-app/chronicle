@@ -1,6 +1,16 @@
-import { Record } from '@chronicle.app/etl';
+import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
 import { InstagramArchiveExtractor } from './InstagramArchiveExtractor.js';
 import InstagramTransformer from '../InstagramTransformer.js';
+
+/** One like a run reads, before it's a record. */
+interface Like {
+  targetId: string;
+  url?: string;
+  caption?: string;
+  ownerHandle?: string;
+  sourceFormat?: string;
+  timestamp: number;
+}
 
 /**
  * Extract likes on posts and stories from an Instagram data export.
@@ -33,12 +43,27 @@ export class InstagramArchiveLikesExtractor extends InstagramArchiveExtractor {
 
   async *extract(): AsyncGenerator<Record> {
     let index = 0;
-    index = yield* this.extractPostLikes(index);
-    yield* this.extractStoryLikes(index);
+    for await (const like of this.likes()) {
+      if (this.shouldStopExtracting(index)) return;
+      yield this.emitLike(like);
+      index++;
+    }
   }
 
-  private async *extractPostLikes(startIndex: number): AsyncGenerator<Record, number> {
-    let index = startIndex;
+  /** The likes a run reads and when each was made. */
+  override async survey(options: SurveyOptions = {}): Promise<Survey> {
+    const likes = this.emptySurvey(options);
+    for await (const like of this.likes()) this.tally(likes, new Date(like.timestamp * 1000));
+    return { likes };
+  }
+
+  /** The post likes, then the story likes, in the run's window. */
+  private async *likes(): AsyncGenerator<Like> {
+    yield* this.postLikes();
+    yield* this.storyLikes();
+  }
+
+  private async *postLikes(): AsyncGenerator<Like> {
     const items = await this.readInstagramArray('your_instagram_activity/likes/liked_posts.json');
     for (const item of items) {
       const labels = this.labelMap(item);
@@ -48,9 +73,8 @@ export class InstagramArchiveLikesExtractor extends InstagramArchiveExtractor {
       const timestamp = item.timestamp ?? entry?.timestamp;
       if (!shortcode || !timestamp) continue;
       if (!this.inRange(timestamp)) continue;
-      if (this.shouldStopExtracting(index)) return index;
 
-      yield this.emitLike({
+      yield {
         targetId: shortcode,
         url: this.permalinkFromUrl(url) ?? undefined,
         // The new dialect's `value` is the 👍 marker, not a caption.
@@ -60,14 +84,11 @@ export class InstagramArchiveLikesExtractor extends InstagramArchiveExtractor {
         // only reels get a sourceFormat — same rule as our own posts.
         ...(/\/reel\//.test(url || '') && { sourceFormat: 'reel' }),
         timestamp,
-      });
-      index++;
+      };
     }
-    return index;
   }
 
-  private async *extractStoryLikes(startIndex: number): AsyncGenerator<Record> {
-    let index = startIndex;
+  private async *storyLikes(): AsyncGenerator<Like> {
     let unkeyable = 0;
     const items = await this.readInstagramArray(
       'your_instagram_activity/story_interactions/story_likes.json'
@@ -84,17 +105,15 @@ export class InstagramArchiveLikesExtractor extends InstagramArchiveExtractor {
       }
       if (!timestamp) continue;
       if (!this.inRange(timestamp)) continue;
-      if (this.shouldStopExtracting(index)) break;
 
-      yield this.emitLike({
+      yield {
         targetId: match[2],
         url,
         caption: labels.Caption,
         ownerHandle: match[1],
         sourceFormat: 'story',
         timestamp,
-      });
-      index++;
+      };
     }
     if (unkeyable > 0) {
       this.logger.warn(
@@ -103,14 +122,7 @@ export class InstagramArchiveLikesExtractor extends InstagramArchiveExtractor {
     }
   }
 
-  private emitLike(data: {
-    targetId: string;
-    url?: string;
-    caption?: string;
-    ownerHandle?: string;
-    sourceFormat?: string;
-    timestamp: number;
-  }): Record {
+  private emitLike(data: Like): Record {
     return this.createRecordWithArchiveContext(
       {
         type: 'likes',

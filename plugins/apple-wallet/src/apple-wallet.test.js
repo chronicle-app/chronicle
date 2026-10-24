@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { DatabaseSync } from 'node:sqlite';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { monthKey } from '@chronicle.app/etl';
+import { writeSchemaDatabase } from '@chronicle.app/etl-sqlite';
 import { AppleWalletExtractor, AppleWalletTransformer } from '../dist/index.js';
 import { account, writeWalletFixture } from './fixture.test-helper.js';
 
@@ -206,4 +209,70 @@ test('extraction honours the time range and counts transactions with an id', asy
   assert.equal(count, 1);
   assert.equal(records[0].data.transactionStatus, 1);
   assert.equal(records[0].data.merchantIndustryCode, 5411);
+});
+
+async function survey(input, config = {}, options = {}) {
+  const extractor = new AppleWalletExtractor({ input, account, ...config });
+  try {
+    await extractor.setup();
+    return await extractor.survey(options);
+  } finally {
+    await extractor.teardown();
+  }
+}
+const surveyBy = input => survey(input, {}, { byMonth: true });
+
+test('its declared schema is all its queries read, and a passes23.sqlite without it is refused', async t => {
+  const dir = tempDir(t);
+  const [schema] = AppleWalletExtractor.databases;
+  const input = join(dir, 'passes23.sqlite');
+  writeSchemaDatabase(input, schema, { optional: false });
+  assert.deepEqual((await extract(input)).records, []);
+  assert.equal((await surveyBy(input)).transactions.count, 0);
+
+  // One from another macOS, whose pass has no `e`, extracts the same, with
+  // the issuer's identifier for the account from pass.json.
+  const { records } = await extract(writeWalletFixture(tempDir(t)));
+  const store = writeWalletFixture(tempDir(t));
+  const db = new DatabaseSync(store);
+  db.exec('ALTER TABLE pass DROP COLUMN e');
+  db.close();
+  const withoutE = (await extract(store)).records;
+  assert.deepEqual(
+    withoutE.map(record => record.data),
+    records.map(record => record.data)
+  );
+  assert.equal(withoutE[0].data.card.issuerAccountIdentifier, 'ACCOUNT-VISA-1');
+
+  // An older Wallet's, say, without a column its queries read.
+  const older = join(dir, 'older.sqlite');
+  const passes = schema.tables.pass.filter(column => column !== 'supports_fpan_notifications');
+  writeSchemaDatabase(older, { tables: { ...schema.tables, pass: passes } });
+  await assert.rejects(extract(older), {
+    message: /version of the database/,
+    fields: { path: older, missing: ['pass.supports_fpan_notifications'] },
+  });
+});
+
+test('a survey counts the transactions a run reads, and when they were made', async t => {
+  const input = writeWalletFixture(tempDir(t));
+  const { records } = await extract(input);
+  const times = records.map(record => new Date(record.data.date));
+  assert.deepEqual(await survey(input, { limit: 1 }), {
+    transactions: {
+      count: records.length,
+      earliest: new Date(Math.min(...times)),
+      latest: new Date(Math.max(...times)),
+    },
+  });
+  // By month when asked, by when each transaction was made, in local time.
+  const months = {};
+  for (const time of times) months[monthKey(time)] = (months[monthKey(time)] ?? 0) + 1;
+  assert.deepEqual((await surveyBy(input)).transactions.byMonth, months);
+
+  const since = new Date('2025-01-01T00:02:00Z');
+  assert.equal(
+    (await survey(input, { since })).transactions.count,
+    (await extract(input, { since })).records.length
+  );
 });

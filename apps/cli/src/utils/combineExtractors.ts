@@ -1,4 +1,10 @@
-import { Extractor, type Record } from '@chronicle.app/etl';
+import {
+  Extractor,
+  mergeSurveys,
+  type Record,
+  type Survey,
+  type SurveyOptions,
+} from '@chronicle.app/etl';
 import type { ExtractorMetadata } from '../plugins/PluginScanner.js';
 
 type ExtractorClass = typeof Extractor & { [key: string]: any };
@@ -99,6 +105,12 @@ export function combineExtractors(chosen: ExtractorMetadata[]): ExtractorClass {
       } finally {
         await Promise.all(streams.map(stream => stream.return?.()));
       }
+    }
+
+    override async survey(options: SurveyOptions = {}): Promise<Survey | null> {
+      const surveys = [];
+      for (const instance of this.instances) surveys.push(await instance.survey(options));
+      return mergeSurveys(surveys);
     }
 
     override async teardown(): Promise<void> {

@@ -1,4 +1,5 @@
 export { default as GitHubExtractor } from './connectors/GitHubExtractor.js';
+export { GitHubLocator } from './connectors/GitHubLocator.js';
 export { default as GitHubCommentsExtractor } from './connectors/GitHubCommentsExtractor.js';
 export { default as GitHubCommitsExtractor } from './connectors/GitHubCommitsExtractor.js';
 export { default as GitHubGistsExtractor } from './connectors/GitHubGistsExtractor.js';

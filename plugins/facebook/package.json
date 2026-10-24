@@ -61,6 +61,14 @@
         "strategies": {
           "archive": {
             "delivery": "export",
+            "layouts": [
+              {
+                "files": [
+                  "personal_information/profile_information/profile_information.json",
+                  "your_facebook_activity"
+                ]
+              }
+            ],
             "recordTypes": [
               "messages",
               "reactions",

@@ -192,11 +192,11 @@ const activityPage = entries =>
   `<html><body><div class="mdl-grid">${entries.join('')}</div></body></html>`;
 
 /**
- * A synthetic Takeout "YouTube and YouTube Music" folder. Pass
- * `{ channel: false }` to leave out channels/channel.csv.
+ * The files of a synthetic Takeout "YouTube and YouTube Music" folder, by
+ * their paths in it. Pass `{ channel: false }` to leave out channels/channel.csv.
  */
-export function writeTakeout(dir, { channel = true } = {}) {
-  const files = {
+export function takeoutFiles({ channel = true } = {}) {
+  return {
     'history/watch-history.html': activityPage([
       activityEntry(
         'Watched <a href="https://www.youtube.com/watch?v=vidAAAAAAA1">Tom &amp; Jerry &#39;65</a><br>' +
@@ -277,8 +277,11 @@ export function writeTakeout(dir, { channel = true } = {}) {
       ]),
     }),
   };
+}
 
-  for (const [name, content] of Object.entries(files)) {
+/** Write the synthetic YouTube folder into `dir`, its files dated {@link ARCHIVE_TIME}. */
+export function writeTakeout(dir, options) {
+  for (const [name, content] of Object.entries(takeoutFiles(options))) {
     const file = join(dir, name);
     mkdirSync(dirname(file), { recursive: true });
     writeFileSync(file, content);

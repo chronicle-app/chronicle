@@ -64,13 +64,30 @@
             "recordTypes": [
               "views"
             ],
-            "default": true
+            "default": true,
+            "locations": [
+              {
+                "path": "~/Library/Application Support/Google/Chrome/{profile}/History",
+                "platforms": [
+                  "darwin"
+                ]
+              },
+              {
+                "path": "~/.config/google-chrome/{profile}/History",
+                "platforms": [
+                  "linux"
+                ]
+              }
+            ]
           }
         },
         "platforms": [
           "darwin",
           "linux",
           "win32"
+        ],
+        "requires": [
+          "full-disk-access"
         ]
       }
     }

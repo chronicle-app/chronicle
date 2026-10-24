@@ -1,5 +1,4 @@
-import { readFile, readdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import type { ExportFiles } from '@chronicle.app/etl';
 import type { ResolvedUser, SlackMessage, SlackMpim, SlackUser } from './types/slack.js';
 
 /**
@@ -21,22 +20,22 @@ export class UserResolver {
     return { id: userId, teamId };
   }
 
-  async resolve(basePath: string): Promise<Map<string, ResolvedUser>> {
+  async resolve(files: ExportFiles): Promise<Map<string, ResolvedUser>> {
     // Phase 1: Load users.json (most complete source)
-    await this.loadUsersJson(basePath);
+    await this.loadUsersJson(files);
 
     // Phase 2: Co-occurrence from mpims.json purpose fields
-    await this.loadMpimCoOccurrence(basePath);
+    await this.loadMpimCoOccurrence(files);
 
     // Phase 3: Scan messages for user_profile fields
-    await this.scanMessagesForProfiles(basePath);
+    await this.scanMessagesForProfiles(files);
 
     return this.users;
   }
 
-  private async loadUsersJson(basePath: string): Promise<void> {
+  private async loadUsersJson(files: ExportFiles): Promise<void> {
     try {
-      const raw = await readFile(join(basePath, 'users.json'), 'utf-8');
+      const raw = await files.readText('users.json');
       const users: SlackUser[] = JSON.parse(raw);
 
       for (const u of users) {
@@ -53,9 +52,9 @@ export class UserResolver {
     }
   }
 
-  private async loadMpimCoOccurrence(basePath: string): Promise<void> {
+  private async loadMpimCoOccurrence(files: ExportFiles): Promise<void> {
     try {
-      const raw = await readFile(join(basePath, 'mpims.json'), 'utf-8');
+      const raw = await files.readText('mpims.json');
       const mpims: SlackMpim[] = JSON.parse(raw);
 
       // Iterate until stable: match member IDs to @usernames in purpose field
@@ -101,21 +100,20 @@ export class UserResolver {
     }
   }
 
-  private async scanMessagesForProfiles(basePath: string): Promise<void> {
+  private async scanMessagesForProfiles(files: ExportFiles): Promise<void> {
     try {
-      const entries = await readdir(basePath, { withFileTypes: true });
-      const dirs = entries.filter(e => e.isDirectory() && e.name !== 'attachments');
+      const dirs = (await files.children(''))
+        .filter(entry => entry.endsWith('/') && entry !== 'attachments/')
+        .map(entry => entry.slice(0, -1));
 
       for (const dir of dirs) {
-        const dirPath = join(basePath, dir.name);
-        const files = await readdir(dirPath).catch(() => []);
-        const jsonFiles = (typeof files[0] === 'string' ? files : []) as string[];
+        const jsonFiles = await files.children(dir);
 
         for (const file of jsonFiles) {
           if (!file.endsWith('.json')) continue;
 
           try {
-            const raw = await readFile(join(dirPath, file), 'utf-8');
+            const raw = await files.readText(`${dir}/${file}`);
             const messages: SlackMessage[] = JSON.parse(raw);
 
             for (const msg of messages) {

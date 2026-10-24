@@ -3,6 +3,7 @@ import { getHelpFlagAdditions, standardizeIDFromArgv } from '@oclif/core/help';
 import { unknownCommand } from '../hooks/commandNotFound.js';
 import { outputFlagsIn, paragraph, tokens, type Tokens } from '../output/index.js';
 import { renderSourceHelp } from '../utils/sourceHelp.js';
+import { SURVEY_HELP } from '../utils/surveyFlags.js';
 import {
   PLUGIN_SUMMARIES,
   commandHelp,
@@ -14,10 +15,40 @@ import {
   type Entry,
 } from './render.js';
 
+/**
+ * The top-level commands in the order they're listed, by group: what there
+ * is, getting it, finding and counting it first, then the rest. Commands not
+ * named here join the last group, then the plugins'.
+ */
+const ROOT_ORDER = [
+  ['sources'],
+  ['extract'],
+  ['scan', 'survey'],
+  ['auth', 'setup', 'config', 'plugins', 'commands'],
+];
+
+/**
+ * A first run, under the commands: one source from finding it to saving it.
+ * Shell history is on almost every computer, and reading it needs no setup.
+ */
+const GET_STARTED = [
+  { comment: 'Find data on this computer', command: 'chronicle scan' },
+  { comment: "See what's in your shell history", command: 'chronicle survey shell' },
+  {
+    comment: 'Show the last week of commands',
+    command: 'chronicle extract shell --since 7d --loader table',
+  },
+  {
+    comment: 'Save all of them as JSON-LD',
+    command: 'chronicle extract shell --limit 0 --output history.json',
+  },
+];
+
 // Verb (or its short alias) -> canonical verb for usage text.
 const SOURCE_VERBS = new Map<string, string>([
   ['extract', 'extract'],
   ['e', 'extract'],
+  ['survey', 'survey'],
 ]);
 
 /**
@@ -48,7 +79,8 @@ export default class ChronicleHelp extends Help {
       const { PluginScanner } = await import('../plugins/PluginScanner.js');
       const candidates = (await PluginScanner.scanAllPlugins()).get(source) ?? [];
       if (candidates.length > 0) {
-        this.log(renderSourceHelp(source, candidates, { verb, theme }));
+        const help = verb === 'survey' ? SURVEY_HELP : undefined;
+        this.log(renderSourceHelp(source, candidates, { verb, theme, help }));
         return;
       }
       const { listSources } = await import('../plugins/catalog.js');
@@ -111,11 +143,20 @@ export default class ChronicleHelp extends Help {
       if (command.pluginName === this.config.name) own.set(command.id, entry);
       else plugins.push(entry);
     }
+    // Every command, nested, is one list by name.
+    const byName = (a: Entry, b: Entry) => a.name.localeCompare(b.name);
+    const groups = nested
+      ? [[...own.values()].sort(byName)]
+      : ROOT_ORDER.map(names => names.flatMap(name => own.get(name) ?? []));
+    const listed = new Set(ROOT_ORDER.flat());
+    const rest = nested ? [] : [...own].filter(([name]) => !listed.has(name)).map(([, e]) => e);
+    groups.at(-1)!.push(...rest.sort(byName), ...plugins);
     return rootHelp(
       {
         version: this.config.version,
         summary: this.config.pjson.description,
-        commands: [...[...own.values()].sort((a, b) => a.name.localeCompare(b.name)), ...plugins],
+        commands: groups,
+        start: GET_STARTED,
       },
       this.t,
       this.width

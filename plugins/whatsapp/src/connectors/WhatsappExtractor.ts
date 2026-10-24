@@ -1,10 +1,21 @@
-import { Delivery, Record, normalizePhoneNumber } from '@chronicle.app/etl';
+import {
+  Delivery,
+  Record,
+  normalizePhoneNumber,
+  type DatabaseSchema,
+  type Survey,
+  type SurveyOptions,
+} from '@chronicle.app/etl';
 import {
   SqliteExtractor,
+  allRows,
+  countsByMonth,
+  monthSql,
   safariToUnixTimestamp,
   timeRangeConditions,
   unixToSafariTimestamp,
   iterateRows,
+  APPLE_EPOCH_OFFSET_SECONDS,
 } from '@chronicle.app/etl-sqlite';
 import {
   getICloudAccount,
@@ -46,6 +57,31 @@ export class WhatsappExtractor extends SqliteExtractor<typeof WhatsappExtractor>
   // buildQuery orders by m.ZMESSAGEDATE DESC, which with keyOf opts this
   // extractor into the frontier cursor (incremental catch-up import).
   static override newestFirst = true;
+  // What extract() and survey() read, which a ChatStorage.sqlite must have.
+  static override databases: DatabaseSchema[] | undefined = [
+    {
+      tables: {
+        ZWAMESSAGE: [
+          'Z_PK',
+          'ZSTANZAID',
+          'ZTEXT',
+          'ZMESSAGEDATE',
+          'ZISFROMME',
+          'ZMESSAGETYPE',
+          'ZFROMJID',
+          'ZCHATSESSION',
+          'ZGROUPMEMBER',
+          'ZPARENTMESSAGE',
+          'ZMEDIAITEM',
+        ],
+        ZWACHATSESSION: ['Z_PK', 'ZCONTACTJID', 'ZSESSIONTYPE', 'ZPARTNERNAME'],
+        ZWAMEDIAITEM: ['ZMESSAGE', 'ZMEDIALOCALPATH', 'ZTITLE', 'ZMETADATA'],
+        ZWAGROUPMEMBER: ['Z_PK', 'ZMEMBERJID', 'ZCONTACTNAME', 'ZCHATSESSION'],
+        ZWAPROFILEPUSHNAME: ['ZJID', 'ZPUSHNAME'],
+      },
+    },
+  ];
+
   static override schema = SqliteExtractor.schema.omit({ input: true }).extend({
     input: z
       .string()
@@ -103,9 +139,46 @@ export class WhatsappExtractor extends SqliteExtractor<typeof WhatsappExtractor>
   }
 
   override async determineCount(): Promise<number | null> {
-    const { sql, values } = this.buildQuery({ count: true });
+    const { sql, values } = this.buildQuery({ aggregate: 'COUNT(*) AS n' });
     const row = this.db!.prepare(sql).get(...values) as { n: number } | undefined;
     return row?.n ?? null;
+  }
+
+  /** The messages a run reads, when, and in how many conversations. */
+  override async survey(options: SurveyOptions = {}): Promise<Survey | null> {
+    if (!this.db) return null;
+    const { sql, values } = this.buildQuery({
+      aggregate: `COUNT(*) AS n, MIN(m.ZMESSAGEDATE) AS first, MAX(m.ZMESSAGEDATE) AS last,
+        COUNT(DISTINCT s.Z_PK) AS chats`,
+    });
+    const { n, first, last, chats } = this.db.prepare(sql).get(...values) as {
+      n: number;
+      first: number | null;
+      last: number | null;
+      chats: number;
+    };
+    const months =
+      options.byMonth &&
+      this.buildQuery({
+        aggregate: `${monthSql(`m.ZMESSAGEDATE + ${APPLE_EPOCH_OFFSET_SECONDS}`)} AS month, COUNT(*) AS n`,
+      });
+    const byMonth =
+      months &&
+      countsByMonth(
+        allRows<{ month: string | null; n: number }>(
+          this.db.prepare(`${months.sql} GROUP BY month`),
+          ...months.values
+        )
+      );
+    return {
+      messages: {
+        count: n,
+        ...(first !== null && { earliest: new Date(safariToUnixTimestamp(first) * 1000) }),
+        ...(last !== null && { latest: new Date(safariToUnixTimestamp(last) * 1000) }),
+        ...(byMonth && { byMonth }),
+        measures: [{ key: 'conversations', label: 'conversations', value: chats }],
+      },
+    };
   }
 
   async *extract(): AsyncGenerator<Record> {
@@ -117,7 +190,7 @@ export class WhatsappExtractor extends SqliteExtractor<typeof WhatsappExtractor>
     const rosterEmitted = new Set<string>();
     const me = await this.resolveMe(pushNames);
 
-    const { sql, values } = this.buildQuery({ count: false });
+    const { sql, values } = this.buildQuery();
     // Stream rows with a cursor (.iterate) rather than materializing the whole
     // result set (.all) — a full-history iPhone backup is ~360k messages. The lookup
     // tables above are already loaded and nothing in the loop queries the DB, so the
@@ -318,16 +391,17 @@ export class WhatsappExtractor extends SqliteExtractor<typeof WhatsappExtractor>
   }
 
   /**
-   * Shared query builder for both the row scan and the count. Keeps the WHERE
-   * clause (the definition of "a real message") in one place.
+   * Shared query builder for the row scan, and for aggregates over its rows
+   * (the count, the survey). Keeps the WHERE clause (the definition of "a real
+   * message") in one place.
    */
-  private buildQuery({ count }: { count: boolean }): {
+  private buildQuery({ aggregate }: { aggregate?: string } = {}): {
     sql: string;
     values: any[];
   } {
-    const selectCols = count
-      ? 'COUNT(*) AS n'
-      : `
+    const selectCols =
+      aggregate ??
+      `
         m.ZSTANZAID        AS stanzaId,
         m.ZTEXT            AS text,
         m.ZMESSAGEDATE     AS messageDate,
@@ -364,7 +438,7 @@ export class WhatsappExtractor extends SqliteExtractor<typeof WhatsappExtractor>
     sql += range.conditions.map(c => ` AND ${c}`).join('');
     values.push(...range.values);
 
-    if (!count) {
+    if (!aggregate) {
       sql += ` ORDER BY m.ZMESSAGEDATE DESC`;
       const limit = this.getEffectiveLimit();
       if (limit !== null) {

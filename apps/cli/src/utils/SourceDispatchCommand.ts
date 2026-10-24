@@ -6,11 +6,12 @@ import { PluginScanner, type ExtractorMetadata } from '../plugins/PluginScanner.
 import { FlagManager } from './FlagManager.js';
 import { recordTypesHint, renderRecordTypes, renderSourceHelp } from './sourceHelp.js';
 import { canAsk, outputFlagsIn } from '../output/index.js';
+import type { ExtractorSelector } from './ExtractorSelector.js';
 
 const EXTRACT_BASE_FLAGS = FlagManager.getBaseFlags(BaseCommand.baseFlags);
 
 /**
- * The native source dispatcher shared by `extract` and `ingest`. A positional
+ * The native source dispatcher shared by `extract` and `survey`. A positional
  * `<source>` is routed by runtime cross-plugin discovery — so multiple
  * extractors / strategies for one source (whether bundled in a plugin or spread
  * across several) are all selectable, and each extractor's own Zod-schema flags
@@ -21,8 +22,26 @@ const EXTRACT_BASE_FLAGS = FlagManager.getBaseFlags(BaseCommand.baseFlags);
  * install a plugin for it.
  */
 export abstract class SourceDispatchCommand<T extends typeof Command> extends BaseCommand<T> {
-  /** Default loader when the user doesn't pass --loader. extract → json, ingest → store. */
-  protected abstract readonly defaultLoaderName: 'json';
+  /** Default loader when the user doesn't pass --loader, for a verb that loads records. */
+  protected readonly defaultLoaderName: 'json' = 'json';
+
+  /**
+   * The flags every run of this verb takes beside a source's own: extract's
+   * loader, output and limit, and the run filters. A source's option with
+   * one of these names is the verb's.
+   */
+  protected commonFlags(): Record<string, any> {
+    return { ...EXTRACT_BASE_FLAGS, loader: FlagManager.loaderFlag(this.defaultLoaderName) };
+  }
+
+  /** A source's options this verb doesn't take, like a limit for a verb that reads it all. */
+  protected readonly unoffered: string[] = [];
+
+  /** The kinds a run reads when it names none: unset for the plugin's defaults, or asking. */
+  protected readonly defaultKinds?: string[];
+
+  /** Whether to say which kinds a run reads, and which it leaves out. */
+  protected readonly announcesKinds: boolean = true;
 
   /** Handle a positional that isn't a discoverable source (file/stdin, or install-prompt). */
   protected abstract handleNonSource(positional: string | undefined): Promise<void>;
@@ -32,7 +51,9 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
    * that only reports an unknown source turns this off, so a source's own flags
    * (`extract old-name --limit 5`) don't fail before the real error.
    */
-  protected readonly parsesFlagsForNonSource: boolean = true;
+  protected parsesFlagsForNonSource(_positional: string): boolean {
+    return true;
+  }
 
   static override args = {
     source: Args.string({ description: 'A source, like shell or imessage', required: false }),
@@ -45,6 +66,10 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
   };
 
   protected selectedExtractor: any;
+  /** What the run reads, once selected: its kinds, and how they were chosen. */
+  protected selection?: ExtractorSelector['selection'];
+  /** The kinds the run names, after the source or with `--type`, if any. */
+  protected namedKinds?: string[];
   private dispatching = false;
   private nonSourceArg: string | undefined;
   private globalLogs: Array<{ timestamp: Date; message: string }> = [];
@@ -86,6 +111,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
       '--fields',
       '--delay',
       '--fold-batch',
+      '--format',
     ]);
     const found: number[] = [];
     for (let i = 0; i < this.argv.length; i++) {
@@ -133,11 +159,12 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     // (a file path / inline JSON for ingest, or an install-prompt for extract).
     if (candidates.length === 0) {
       this.nonSourceArg = positional;
-      if (this.parsesFlagsForNonSource) await super.init();
+      if (this.parsesFlagsForNonSource(positional)) await super.init();
       return;
     }
 
     this.dispatchedSource = positional;
+    this.candidates = candidates;
     const override = candidates[0].localOverride;
     if (override) {
       this.logger.info(`Using the local plugin for ${positional}`, { path: override });
@@ -167,8 +194,10 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     // required (an export it must be handed) overrides the optional base
     // `input` flag — otherwise oclif wouldn't enforce it and the extractor
     // throws a raw Zod error instead of a clean "Missing required flag".
-    const baseForSchema = { ...EXTRACT_BASE_FLAGS };
-    delete (baseForSchema as any).input;
+    const common = this.commonFlags();
+    const baseForSchema: Record<string, unknown> = { ...common };
+    delete baseForSchema.input;
+    for (const name of this.unoffered) baseForSchema[name] = true;
     let schemaFlags: Record<string, any> = {};
     for (const c of candidates) {
       schemaFlags = {
@@ -177,8 +206,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
       };
     }
     const assembled = {
-      ...EXTRACT_BASE_FLAGS,
-      loader: FlagManager.loaderFlag(this.defaultLoaderName),
+      ...common,
       ...FlagManager.strategyFlag(candidates),
       ...schemaFlags,
     };
@@ -214,7 +242,12 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
           ? error.message.match(/Flag --([\w-]+) expects a value/)?.[1]
           : undefined;
       if (valueless) this.missingValue(valueless, positional, verb);
-      // Any other parse failure (a missing required flag, a bad value): the
+      const required =
+        error instanceof Error
+          ? error.message.match(/Missing required flags?:?\s+([\w-]+)/)?.[1]
+          : undefined;
+      if (required) this.missingFlag(required, positional, verb);
+      // Any other parse failure (a bad value, say): the
       // source's help lists its flags, which oclif's generic usage doesn't.
       if (error instanceof Errors.ExitError || (error as any)?.oclif?.exit === 130) throw error;
       this.fail(
@@ -248,11 +281,12 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
         hint: 'Name them after the source or with `--type`, not both.',
       });
     }
+    this.namedKinds = named.length > 0 ? named : requestedRecordTypes(parsed.type);
     const selector = new ExtractorSelector({
       source: positional,
       candidates,
       strategy: parsed.strategy,
-      types: named.length > 0 ? named : requestedRecordTypes(parsed.type),
+      types: this.namedKinds ?? this.defaultKinds,
       // Only a path you gave picks a strategy: an extractor's default input
       // (WhatsApp's Mac database) is not an export you handed it.
       input: metadata?.flags?.input?.setFromDefault ? undefined : parsed.input,
@@ -286,12 +320,14 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
         hint: `Run \`chronicle ${verb} ${positional} --help\` to see its strategies and record types.`,
       });
     }
+    this.selection = selector.selection;
     this.announce(selector.selection, positional, verb);
     // When the extractor reads kinds beyond those chosen, the Runner keeps
-    // only the chosen ones, however they were chosen.
+    // only the chosen ones, however they were chosen. `--type` always names
+    // them, so `-t all` and `-t defaults` aren't kept as kinds of those names.
     const emitted: string[] = this.selectedExtractor?.recordTypes ?? [];
     const kinds = selector.selection?.kinds ?? [];
-    if (emitted.some(kind => !kinds.includes(kind))) parsed.type = kinds.join(',');
+    if (parsed.type || emitted.some(kind => !kinds.includes(kind))) parsed.type = kinds.join(',');
     this.dispatching = true;
   }
 
@@ -315,6 +351,7 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
       );
     }
     // One kind, nothing left out: nothing to say.
+    if (!this.announcesKinds) return;
     if (kinds.length < 2 && (how === 'named' || excluded.length === 0)) return;
     const order = kinds.length > 1 && !merged ? ', one kind after another' : '';
     this.logger.info(`Extracting ${kinds.join(', ')}${order}`);
@@ -324,7 +361,9 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
   }
 
   /** The source being run, once the positional names one. */
-  private dispatchedSource?: string;
+  protected dispatchedSource?: string;
+  /** Every extractor the source has, once the positional names one. */
+  protected candidates: ExtractorMetadata[] = [];
 
   /** A source's own help, which lists its flags; the command's otherwise. */
   protected override helpCommand(): string | undefined {
@@ -372,6 +411,13 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     throw new Errors.ExitError(EXIT_CODES.usage);
   }
 
+  /** Report a required flag not given, with where the source's flags are listed. */
+  protected missingFlag(flag: string, source: string, verb: string): never {
+    this.fail(`${source} needs --${flag}`, {
+      hint: `Run \`chronicle ${verb} ${source} --help\` to see its flags.`,
+    });
+  }
+
   /** Report a flag given without its value, with where its values are listed. */
   private missingValue(flag: string, source: string, verb: string): never {
     this.logger.emit({
@@ -407,7 +453,11 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
     if (!this.dispatching) {
       return this.handleNonSource(this.nonSourceArg);
     }
+    return this.runSelected();
+  }
 
+  /** Run what the source, its flags and kinds selected. Extract's runs it into its loader. */
+  protected async runSelected(): Promise<any> {
     const { runExtraction } = await import('./runExtraction.js');
     return runExtraction(this.selectedExtractor, this.flags, this.flagSources);
   }

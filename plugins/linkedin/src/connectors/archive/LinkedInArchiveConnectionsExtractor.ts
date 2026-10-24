@@ -1,4 +1,4 @@
-import { Record } from '@chronicle.app/etl';
+import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
 import { memberName, parseDayDate, profileHandle, profileUrl } from '../fields.js';
 import LinkedInTransformer from '../LinkedInTransformer.js';
 import { LinkedInArchiveExtractor } from './LinkedInArchiveExtractor.js';
@@ -32,6 +32,26 @@ export class LinkedInArchiveConnectionsExtractor extends LinkedInArchiveExtracto
   }
 
   async *extract(): AsyncGenerator<Record> {
+    let count = 0;
+    for (const connection of await this.connections()) {
+      if (this.shouldStopExtracting(count)) break;
+      if (!this.withinWindow(connection.connectedOn)) continue;
+      yield this.createRecordWithArchiveContext({
+        ...connection,
+        occurredAt: connection.connectedOn,
+      });
+      count++;
+    }
+  }
+
+  /** The connections a run reads, and the day each was made. */
+  override async survey(options: SurveyOptions = {}): Promise<Survey> {
+    const dates = (await this.connections()).map(connection => connection.connectedOn);
+    return { connections: this.surveyDates(dates, options) };
+  }
+
+  /** Every connection in the export that names someone, newest first. */
+  private async connections() {
     const rows = await this.readCsv('Connections.csv');
 
     const connections = rows
@@ -57,16 +77,7 @@ export class LinkedInArchiveConnectionsExtractor extends LinkedInArchiveExtracto
       .filter(connection => connection.handle || connection.name)
       .sort((a, b) => ((a.connectedOn ?? '') < (b.connectedOn ?? '') ? 1 : -1));
 
-    let count = 0;
-    for (const connection of connections) {
-      if (this.shouldStopExtracting(count)) break;
-      if (!this.withinWindow(connection.connectedOn)) continue;
-      yield this.createRecordWithArchiveContext({
-        ...connection,
-        occurredAt: connection.connectedOn,
-      });
-      count++;
-    }
+    return connections;
   }
 
   override async determineCount(): Promise<number> {

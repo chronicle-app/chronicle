@@ -53,7 +53,7 @@ export class LinkedInDefaultExtractor extends MergingExtractor<typeof LinkedInDe
   // The union of the children's flags, so the runner forwards them to the merge
   // and the merge forwards the raw config to each child.
   static override schema = MergingExtractor.schema.extend({
-    input: z.string().describe('Path to the unpacked LinkedIn export directory'),
+    input: z.string().describe('The LinkedIn export, as a zip or its unpacked folder'),
     'profile-url': z
       .string()
       .optional()

@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { countMonth } from '@chronicle.app/etl';
 import { MovesExtractor, MovesTransformer } from '../dist/index.js';
 import { parseMovesTime, shiftDayKey } from '../dist/time.js';
 
@@ -236,6 +237,48 @@ test('reads the full storyline file, and applies since and limit', async t => {
   assert.equal(await new MovesExtractor({ input: file, limit: 2 }).determineCount(), 2);
 
   await assert.rejects(records(join(root, 'missing')), /No Moves storyline found/);
+});
+
+function surveyed(rows, kind) {
+  const times = rows
+    .filter(row => row.context.recordType === kind)
+    .map(row => parseMovesTime(row.data.startTime).getTime());
+  return times.length === 0
+    ? { count: 0 }
+    : {
+        count: times.length,
+        earliest: new Date(Math.min(...times)),
+        latest: new Date(Math.max(...times)),
+      };
+}
+
+test('a survey counts the places and moves a run reads, whatever its limit, and when', async t => {
+  const input = fixture(t);
+  const rows = await records(input);
+  const expected = { places: surveyed(rows, 'places'), moves: surveyed(rows, 'moves') };
+  // The overnight stay is in two days' files, and counts once.
+  const night = parseMovesTime(overnight.startTime).getTime();
+  assert.equal(
+    rows.filter(row => parseMovesTime(row.data.startTime).getTime() === night).length,
+    1
+  );
+  assert.deepEqual(await new MovesExtractor({ input, limit: 1 }).survey(), expected);
+  const since = new Date('2014-05-10T11:05:00Z');
+  const kept = await records(input, { since });
+  assert.deepEqual(await new MovesExtractor({ input, since }).survey(), {
+    places: surveyed(kept, 'places'),
+    moves: surveyed(kept, 'moves'),
+  });
+  assert.equal(await new MovesExtractor({ input, limit: 2 }).determineCount(), 2);
+  assert.equal(await new MovesExtractor({ input }).determineCount(), rows.length);
+  // By month when asked, by when each started, in local time.
+  const months = await new MovesExtractor({ input }).survey({ byMonth: true });
+  for (const kind of ['places', 'moves']) {
+    const tally = {};
+    for (const row of rows.filter(row => row.context.recordType === kind))
+      countMonth(tally, parseMovesTime(row.data.startTime));
+    assert.deepEqual(months[kind].byMonth, tally);
+  }
 });
 
 test('reads the basic ISO times Moves writes', () => {

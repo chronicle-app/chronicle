@@ -95,3 +95,51 @@ test('a card wraps its values when asked, cutting no word', async () => {
   assert.ok(wrapped.every(line => line.length <= 40));
   assert.equal(wrapped.map(line => line.slice('types  '.length)).join(' '), types);
 });
+
+test('root help lines up summaries across groups, and stacks only a name too long', async () => {
+  const { rootHelp } = await import('../dist/help/render.js');
+  const { plainTokens } = await import('../dist/output/index.js');
+  const long = 'a-plugin-command-with-a-very-long-name';
+  const commands = [
+    [{ name: 'sources', summary: 'List the sources' }],
+    [
+      { name: 'scan', summary: 'Find your data' },
+      { name: long, summary: 'Do a long thing' },
+    ],
+  ];
+  const lines = rootHelp({ version: '1.2.3', commands }, plainTokens, 80).split('\n');
+  const start = lines.indexOf('Commands') + 1;
+  assert.deepEqual(lines.slice(start, start + 5), [
+    '  sources  List the sources',
+    '',
+    '  scan     Find your data',
+    `  ${long}`,
+    '           Do a long thing',
+  ]);
+});
+
+test('a path in a table is cut in the middle, keeping where it is and its file', async () => {
+  const { table, truncatePath, plainTokens } = await import('../dist/output/index.js');
+  const notes = '~/Library/Group Containers/group.com.apple.notes/NoteStore.sqlite';
+  assert.equal(truncatePath(notes, 40), '~/Library/…/NoteStore.sqlite');
+  // As many of its last folders as fit.
+  assert.equal(truncatePath(notes, 54), '~/Library/…/group.com.apple.notes/NoteStore.sqlite');
+  assert.equal(truncatePath(notes, notes.length), notes);
+  // Too narrow for where it is, just its file.
+  assert.equal(truncatePath(notes, 20), '…/NoteStore.sqlite');
+  // A folder keeps its slash.
+  assert.equal(
+    truncatePath('takeout/Takeout/YouTube and YouTube Music/history/', 30),
+    'takeout/Takeout/…/history/'
+  );
+  // A name that isn't a path, or a file too long to keep, is cut at the end.
+  assert.equal(truncatePath('Andrew (andrew@example.com)', 10), 'Andrew (a…');
+  assert.equal(truncatePath('~/a/b/a-file-with-a-long-name.sqlite', 20), '~/a/b/a-file-with-a…');
+
+  const { lines } = table(
+    { headings: ['source', 'from'], cells: [['apple-notes', notes]], paths: [false, true] },
+    plainTokens,
+    41
+  );
+  assert.equal(lines.at(-1), 'apple-notes  ~/Library/…/NoteStore.sqlite');
+});

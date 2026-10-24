@@ -62,6 +62,14 @@
         "strategies": {
           "archive": {
             "delivery": "export",
+            "layouts": [
+              {
+                "files": [
+                  "Connections.csv",
+                  "Profile.csv"
+                ]
+              }
+            ],
             "recordTypes": [
               "connections",
               "education",

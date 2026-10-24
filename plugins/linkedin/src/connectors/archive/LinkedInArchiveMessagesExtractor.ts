@@ -1,4 +1,4 @@
-import { htmlToText, Record } from '@chronicle.app/etl';
+import { htmlToText, Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
 import { memberName, parseSpaceStamp, profileHandle, profileUrl } from '../fields.js';
 import LinkedInTransformer from '../LinkedInTransformer.js';
 import { LinkedInArchiveExtractor } from './LinkedInArchiveExtractor.js';
@@ -45,6 +45,33 @@ export class LinkedInArchiveMessagesExtractor extends LinkedInArchiveExtractor<
   static override schema = LinkedInArchiveExtractor.schema;
 
   async *extract(): AsyncGenerator<Record> {
+    let count = 0;
+    for (const message of await this.messages()) {
+      if (this.shouldStopExtracting(count)) break;
+      if (!this.withinWindow(message.sentAt)) continue;
+      yield this.createRecordWithArchiveContext({
+        ...message,
+        occurredAt: message.sentAt,
+      });
+      count++;
+    }
+  }
+
+  /** The messages a run reads and when they were sent, with how many conversations they're in. */
+  override async survey(options: SurveyOptions = {}): Promise<Survey> {
+    const messages = (await this.messages()).filter(message => this.withinWindow(message.sentAt));
+    const dates = messages.map(message => message.sentAt);
+    const conversations = new Set(messages.map(message => message.conversationId)).size;
+    return {
+      messages: {
+        ...this.surveyDates(dates, options),
+        measures: [{ key: 'conversations', label: 'conversations', value: conversations }],
+      },
+    };
+  }
+
+  /** Every message in the export that can be placed, newest first. */
+  private async messages() {
     const rows = await this.readCsv('messages.csv');
 
     const messages = rows
@@ -68,16 +95,7 @@ export class LinkedInArchiveMessagesExtractor extends LinkedInArchiveExtractor<
       .filter(message => message.conversationId && message.sentAt)
       .sort((a, b) => ((a.sentAt ?? '') < (b.sentAt ?? '') ? 1 : -1));
 
-    let count = 0;
-    for (const message of messages) {
-      if (this.shouldStopExtracting(count)) break;
-      if (!this.withinWindow(message.sentAt)) continue;
-      yield this.createRecordWithArchiveContext({
-        ...message,
-        occurredAt: message.sentAt,
-      });
-      count++;
-    }
+    return messages;
   }
 
   override async determineCount(): Promise<number> {

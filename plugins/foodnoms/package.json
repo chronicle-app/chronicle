@@ -66,11 +66,19 @@
             "recordTypes": [
               "meals"
             ],
-            "default": true
+            "default": true,
+            "locations": [
+              {
+                "path": "~/Library/Containers/com.algebraiclabs.foodnoms/Data/Documents/db.db"
+              }
+            ]
           }
         },
         "platforms": [
           "darwin"
+        ],
+        "requires": [
+          "full-disk-access"
         ]
       }
     }

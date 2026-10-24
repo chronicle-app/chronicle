@@ -76,6 +76,21 @@
             "delivery": "export",
             "recordTypes": [
               "messages"
+            ],
+            "files": [
+              {
+                "names": [
+                  "*.mbox"
+                ],
+                "match": [
+                  {
+                    "head": "^\\s*From ",
+                    "headers": [
+                      "X-GM-THRID"
+                    ]
+                  }
+                ]
+              }
             ]
           }
         }
