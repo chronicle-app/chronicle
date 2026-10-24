@@ -880,6 +880,13 @@ test('a sparkline has a column per year, as high as its records against the busi
   assert.equal(sparkline({ '2015-01': 4, '2015-06': 4, '2017-03': 2 }), '2015 █ ▂ 2017');
   assert.equal(sparkline({ '2015-01': 4, '2015-06': 4 }), undefined);
   assert.equal(sparkline({}), undefined);
+  // Too many years for its width, and a column holds several, keeping both ends.
+  const four = { '2015-01': 3, '2016-01': 3, '2017-01': 1, '2018-01': 2 };
+  assert.equal(sparkline(four, 12), '2015 █▄ 2018');
+  const decades = Object.fromEntries(Array.from({ length: 35 }, (_, i) => [`${1991 + i}-01`, 1]));
+  const span = sparkline(decades, 30);
+  assert.match(span, /^1991 \S+ 2025$/);
+  assert.ok(span.length <= 30, span);
 });
 
 test('survey counts what each ready source holds, and lists the rest with what is in the way', t => {
@@ -914,7 +921,11 @@ test('survey counts what each ready source holds, and lists the rest with what i
   assert.equal(shown.status, 0, shown.stderr);
   assert.match(shown.stdout, /^source +records +years +details +from$/m);
   assert.match(shown.stdout, /^shell +1 command +2023 +~\/\.zsh_history$/m);
-  assert.match(shown.stderr, /Counted 2 sources {2}in \S+\n(?:\S+ )? {4}2 records$/m);
+  // Sources it couldn't count mark the outcome failed, and say how many.
+  assert.match(
+    shown.stderr,
+    /✗ Counted 2 sources {2}in \S+\n(?:\S+ )? {4}2 records\n(?:\S+ )? {4}2 failed$/m
+  );
   assert.match(shown.stdout, /^chrome +couldn't count +Personal$/m);
   assert.match(shown.stderr, /Couldn't count 2 sources/);
   assert.match(shown.stdout, /^github +- +not surveyable +GH_TOKEN$/m);
@@ -1181,6 +1192,21 @@ test('scan finds the exports in a folder or zip, with the command that reads eac
   const nowhere = scan('survey', 'apple-health', '--input', join(root, 'export.zip', 'nope'));
   assert.notEqual(nowhere.status, 0);
   assert.match(nowhere.stderr, /Nothing at/);
+  // A zip that's there but won't open says why, and what to do, as extract does.
+  const broken = join(root, 'broken.zip', 'apple_health_export');
+  const unopened = scan('survey', 'apple-health', '--input', broken);
+  assert.equal(unopened.status, 4);
+  assert.match(unopened.stderr, /↳ .*`--input <path>`/);
+  if (process.getuid?.() !== 0) {
+    chmodSync(join(root, 'export.zip'), 0o000);
+    try {
+      const refused = scan('survey', 'apple-health', '--input', inZip);
+      assert.equal(refused.status, 4);
+      assert.match(refused.stderr, /↳ .*permissions/);
+    } finally {
+      chmodSync(join(root, 'export.zip'), 0o644);
+    }
+  }
   // An export with no records is one row that says so, and isn't offered to extract.
   const empty = scan('survey', root);
   assert.equal(empty.status, 0, empty.stderr);
@@ -1390,7 +1416,7 @@ test('preset selection and explicit values override global config', t => {
   assert.equal(JSON.parse(success(run(...args, '--limit', '1'))).command, 'printf fixture');
 });
 
-test('failed setup and transformation release extractor resources and exit nonzero', async t => {
+test('failed setup and transformation, and an interrupted survey, release extractor resources and exit nonzero', async t => {
   const { createRequire } = await import('node:module');
   const { pathToFileURL } = await import('node:url');
   const etlPath = createRequire(bin)
@@ -1436,6 +1462,67 @@ test('failed setup and transformation release extractor resources and exit nonze
     assert.equal(readFileSync(marker, 'utf8'), 'closed');
     assert.equal(result.stdout, '');
   }
+
+  // Ctrl-C during a survey puts away what it set up: a database reader's copy
+  // of the database is gone from the temporary folder when it exits.
+  const { dir, env } = fixture(t);
+  const sqlitePath = createRequire(bin)
+    .resolve.paths('@chronicle.app/etl-sqlite')
+    .map(root => join(root, '@chronicle.app/etl-sqlite/dist/index.js'))
+    .find(path => existsSync(path));
+  const plugin = join(dir, 'data/node_modules/held-fixture');
+  const surveying = join(dir, 'surveying');
+  mkdirSync(plugin, { recursive: true });
+  writeFileSync(
+    join(plugin, 'package.json'),
+    JSON.stringify({
+      name: 'held-fixture',
+      type: 'module',
+      main: './index.js',
+      chronicle: { plugin: true },
+    })
+  );
+  writeFileSync(
+    join(plugin, 'index.js'),
+    `
+    import { SqliteExtractor } from ${JSON.stringify(pathToFileURL(sqlitePath).href)};
+    import { writeFileSync } from 'node:fs';
+    export class Held extends SqliteExtractor {
+      static source = 'held'; static strategy = 'app-db'; static recordTypes = ['rows'];
+      static databases = [{ tables: { rows: ['id'] } }];
+      async survey() {
+        writeFileSync(${JSON.stringify(surveying)}, 'surveying');
+        await new Promise(resolve => setTimeout(resolve, 60000));
+        return null;
+      }
+      async *extract() {}
+    }`
+  );
+  const database = join(dir, 'held.db');
+  const db = new DatabaseSync(database);
+  db.exec('CREATE TABLE rows (id INTEGER PRIMARY KEY)');
+  db.close();
+  const tmp = join(dir, 'tmp');
+  mkdirSync(tmp);
+  const copies = () => readdirSync(tmp).filter(name => name.startsWith('chronicle-sqlite-'));
+  const child = spawn(process.execPath, [bin, 'survey', 'held', '--input', database], {
+    cwd: dir,
+    env: { ...env, TMPDIR: tmp },
+  });
+  t.after(() => child.kill('SIGKILL'));
+  let stderr = '';
+  child.stderr.on('data', chunk => (stderr += chunk));
+  const exited = new Promise(resolve => child.on('exit', resolve));
+  // Interrupted once its copy is made and it's counting, which waits until then.
+  const deadline = Date.now() + 20000;
+  while (!existsSync(surveying)) {
+    assert.ok(Date.now() < deadline && child.exitCode === null, stderr);
+    await new Promise(resolve => setTimeout(resolve, 20));
+  }
+  assert.equal(copies().length, 1);
+  child.kill('SIGINT');
+  assert.equal(await exited, 130, stderr);
+  assert.deepEqual(copies(), []);
 });
 
 test('missing CSV input reports a normal command error instead of an unhandled stream error', t => {

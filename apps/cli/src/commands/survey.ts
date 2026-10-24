@@ -28,7 +28,7 @@ import {
   type PathScanResult,
   type ScanRow,
 } from '../plugins/scan.js';
-import { rowFor, surveyRow, surveyWith, surveyable } from '../plugins/survey.js';
+import { putAwaySurveys, rowFor, surveyRow, surveyWith, surveyable } from '../plugins/survey.js';
 import { SourceDispatchCommand } from '../utils/SourceDispatchCommand.js';
 import { FlagManager } from '../utils/FlagManager.js';
 import { ALL_KINDS } from '../utils/recordKinds.js';
@@ -112,10 +112,14 @@ const total = (survey: Survey | null) =>
 /**
  * A kind's years on one line, from its first to its last: `2015 ▂▃▆█ 2018`,
  * a column per year as high against the busiest year's as the records it
- * holds, to an eighth. A year with none is blank. Nothing for a single year,
- * whose count says it all.
+ * holds, to an eighth. A year with none is blank. Too many years for
+ * `width`, and each column holds as few years as fit, so both ends show.
+ * Nothing for a single year, whose count says it all.
  */
-export function sparkline(byMonth: { [month: string]: number }): string | undefined {
+export function sparkline(
+  byMonth: { [month: string]: number },
+  width = Number.POSITIVE_INFINITY
+): string | undefined {
   const years = new Map<number, number>();
   for (const [month, n] of Object.entries(byMonth)) {
     const year = Number(month.slice(0, 4));
@@ -123,15 +127,21 @@ export function sparkline(byMonth: { [month: string]: number }): string | undefi
   }
   const first = Math.min(...years.keys());
   const last = Math.max(...years.keys());
-  const top = Math.max(0, ...years.values());
-  if (years.size < 2 || top === 0) return undefined;
-  const levels = [...glyphs.levels];
-  let columns = '';
+  if (years.size < 2 || Math.max(0, ...years.values()) === 0) return undefined;
+  // The room between the years, and how many years each column holds to fit it.
+  const room = Math.max(1, width - String(first).length - String(last).length - 2);
+  const step = Math.max(1, Math.ceil((last - first + 1) / room));
+  const columns: number[] = [];
   for (let year = first; year <= last; year++) {
-    const n = years.get(year) ?? 0;
-    columns += n === 0 ? ' ' : levels[Math.max(1, Math.round((n / top) * levels.length)) - 1];
+    const column = Math.floor((year - first) / step);
+    columns[column] = (columns[column] ?? 0) + (years.get(year) ?? 0);
   }
-  return `${first} ${columns} ${last}`;
+  const top = Math.max(...columns);
+  const levels = [...glyphs.levels];
+  const bars = columns
+    .map(n => (n === 0 ? ' ' : levels[Math.max(1, Math.round((n / top) * levels.length)) - 1]))
+    .join('');
+  return `${first} ${bars} ${last}`;
 }
 
 function within<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -343,71 +353,80 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
     const showsUncounted = source !== undefined || path !== undefined;
     const found: Found = { targets, online, waiting, showsUncounted };
     const started = Date.now();
-    const surveys = await this.surveyAll(found, survey, path ? undefined : SURVEY_TIMEOUT_MS);
-    const answer = (i: number) => {
-      const state = surveys[i];
-      return state.state === 'done' ? state.survey : null;
-    };
-    switch (this.flags.format) {
-      case 'json':
-        this.log(
-          JSON.stringify(
-            [
-              ...targets.map((row, i) => {
-                const state = surveys[i];
-                return {
-                  ...this.described(row),
-                  survey: answer(i),
-                  ...(state.state === 'failed' && { error: state.error }),
-                };
-              }),
-              ...online.map(row => ({ ...this.described(row), survey: null, online: true })),
-              ...waiting.map(row => ({ ...this.described(row), survey: null })),
-            ],
-            null,
-            2
-          )
-        );
-        return;
-      case 'csv':
-        this.log('source,strategy,label,kind,count,earliest,latest');
-        for (const [i, row] of targets.entries()) {
-          for (const [kind, part] of Object.entries(answer(i) ?? {})) {
-            this.log(
+    const { states: surveys, settled } = await this.surveyAll(
+      found,
+      survey,
+      path ? undefined : SURVEY_TIMEOUT_MS
+    );
+    try {
+      const answer = (i: number) => {
+        const state = surveys[i];
+        return state.state === 'done' ? state.survey : null;
+      };
+      switch (this.flags.format) {
+        case 'json':
+          this.log(
+            JSON.stringify(
               [
-                row.source,
-                row.strategy,
-                row.label,
-                kind,
-                part.count,
-                part.earliest?.toISOString() ?? '',
-                part.latest?.toISOString() ?? '',
-              ]
-                .map(value => `"${String(value).replaceAll('"', '""')}"`)
-                .join(',')
-            );
+                ...targets.map((row, i) => {
+                  const state = surveys[i];
+                  return {
+                    ...this.described(row),
+                    survey: answer(i),
+                    ...(state.state === 'failed' && { error: state.error }),
+                  };
+                }),
+                ...online.map(row => ({ ...this.described(row), survey: null, online: true })),
+                ...waiting.map(row => ({ ...this.described(row), survey: null })),
+              ],
+              null,
+              2
+            )
+          );
+          return;
+        case 'csv':
+          this.log('source,strategy,label,kind,count,earliest,latest');
+          for (const [i, row] of targets.entries()) {
+            for (const [kind, part] of Object.entries(answer(i) ?? {})) {
+              this.log(
+                [
+                  row.source,
+                  row.strategy,
+                  row.label,
+                  kind,
+                  part.count,
+                  part.earliest?.toISOString() ?? '',
+                  part.latest?.toISOString() ?? '',
+                ]
+                  .map(value => `"${String(value).replaceAll('"', '""')}"`)
+                  .join(',')
+              );
+            }
           }
-        }
-        return;
-    }
+          return;
+      }
 
-    const t = tokens({ stream: 'stdout', theme: this.flags.theme });
-    // One source gets its details; every source, a row each.
-    const summary = source && (await listSources()).find(s => s.source === source)?.summary;
-    const lines = source
-      ? this.details(found, surveys, t, stdoutWidth(), summary)
-      : this.table(found, surveys, t, stdoutWidth());
-    if (lines.length > 0) {
-      for (const line of lines) this.log(line);
-      // A source's details end apart from the hints under them.
-      if (source) this.log('');
-      else this.counted(targets, surveys, Date.now() - started, path !== undefined);
-    } else {
-      this.logger.info(
-        source ? `Nothing of ${source}'s to survey` : 'Nothing to survey on this computer'
-      );
+      const t = tokens({ stream: 'stdout', theme: this.flags.theme });
+      // One source gets its details; every source, a row each.
+      const summary = source && (await listSources()).find(s => s.source === source)?.summary;
+      const lines = source
+        ? this.details(found, surveys, t, stdoutWidth(), summary)
+        : this.table(found, surveys, t, stdoutWidth());
+      if (lines.length > 0) {
+        for (const line of lines) this.log(line);
+        // A source's details end apart from the hints under them.
+        if (source) this.log('');
+        else this.counted(targets, surveys, Date.now() - started, path !== undefined);
+      } else {
+        this.logger.info(
+          source ? `Nothing of ${source}'s to survey` : 'Nothing to survey on this computer'
+        );
+      }
+      this.hints(rows, found, surveys);
+    } finally {
+      // A survey given up on still ends before the command does, putting away what it set up.
+      await settled;
     }
-    this.hints(rows, found, surveys);
   }
 
   /** The table's outcome: how many sources, or exports and databases, were counted, and their records. */
@@ -425,11 +444,19 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
       (sum, row) => sum + total(this.surveyOf(row, targets, states)),
       0
     );
+    // The outcome fails when a survey did, with a line saying how many.
+    const failed = states.filter(state => state.state === 'failed').length;
     this.logger.emit({
       level: 'info',
       kind: 'summary',
       message: `${title}: ${count(records)} ${plural('records', records)}`,
-      fields: { title, counts: records > 0 ? { records } : {}, records, durationMs },
+      fields: {
+        title,
+        counts: records > 0 ? { records } : {},
+        records,
+        ...(failed > 0 && { failed }),
+        durationMs,
+      },
     });
   }
 
@@ -509,7 +536,9 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
             measureValue(measure),
           ]);
         }
-        const years = sparkline(part.byMonth ?? {});
+        // The years fit the room the card leaves a value: its width less the widest key and gap.
+        const keys = [...facts.map(([key]) => key.length), 'years'.length];
+        const years = sparkline(part.byMonth ?? {}, width - 2 - Math.max(...keys) - 2);
         if (years) facts.push(['years', years]);
         return [
           line([[recordsText(kind, part), t.strong]], width),
@@ -546,38 +575,62 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
    * Every target's survey, all started at once, each given up on after
    * `timeout` when there is one. At a terminal the table shows meanwhile on
    * stderr, each source filling in as its survey answers; the finished table
-   * then prints on stdout.
+   * then prints on stdout. `settled` is when every survey has ended and put
+   * away what it set up, one given up on too.
+   *
+   * Ctrl-C until then puts away what the surveys set up before the command
+   * exits, so no copy of a database stays behind.
    */
   private async surveyAll(
     found: Found,
     survey: (row: ScanRow) => Promise<Survey | null>,
     timeout?: number
-  ): Promise<Surveyed[]> {
+  ): Promise<{ states: Surveyed[]; settled: Promise<unknown> }> {
     const { targets } = found;
     const states: Surveyed[] = targets.map(() => ({ state: 'pending' }));
+    let interrupt!: () => void;
+    const cancelled = new Promise<void>(resolve => {
+      interrupt = resolve;
+    }).then(async () => {
+      await putAwaySurveys();
+      throw Object.assign(new Error('Survey cancelled'), { exitCode: 130, oclif: { exit: 130 } });
+    });
+    process.on('SIGINT', interrupt);
     const live =
       this.flags.format === 'table' && process.stderr.isTTY && !this.flags.quiet
         ? new LiveRegion((width, frame) => this.live(found, states, width, frame))
         : undefined;
     live?.start();
+    const surveys = targets.map(row => survey(row));
     try {
-      await Promise.all(
-        targets.map(async (row, i) => {
-          try {
-            const answer = timeout === undefined ? survey(row) : within(survey(row), timeout);
-            states[i] = { state: 'done', survey: await answer };
-          } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            states[i] = { state: 'failed', error: message };
-            this.logger.debug(`Couldn't count ${row.source} (${row.label})`, { error: message });
-          }
-          live?.redraw();
-        })
-      );
+      await Promise.race([
+        cancelled,
+        Promise.all(
+          targets.map(async (row, i) => {
+            try {
+              const answer = timeout === undefined ? surveys[i] : within(surveys[i], timeout);
+              states[i] = { state: 'done', survey: await answer };
+            } catch (error) {
+              const message = error instanceof Error ? error.message : String(error);
+              states[i] = { state: 'failed', error: message };
+              this.logger.debug(`Couldn't count ${row.source} (${row.label})`, { error: message });
+            }
+            live?.redraw();
+          })
+        ),
+      ]);
+    } catch (error) {
+      process.removeListener('SIGINT', interrupt);
+      throw error;
     } finally {
       live?.stop();
     }
-    return states;
+    const settled = Promise.race([cancelled, Promise.allSettled(surveys)]).finally(() =>
+      process.removeListener('SIGINT', interrupt)
+    );
+    // A Ctrl-C while the table prints rejects it before the caller awaits it.
+    settled.catch(() => {});
+    return { states, settled };
   }
 
   /** The table while surveys run, or a line counting them when it's taller than the terminal. */

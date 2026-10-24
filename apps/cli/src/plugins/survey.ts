@@ -1,6 +1,7 @@
 import os from 'node:os';
 import path from 'node:path';
 import { openExport, type Survey, type SurveyOptions } from '@chronicle.app/etl';
+import { describeError } from '@chronicle.app/logging';
 import type { SourceListing } from './catalog.js';
 import type { ExtractorMetadata } from './PluginScanner.js';
 import { check, commandFor, fromHome, withoutDefaults, type ScanRow } from './scan.js';
@@ -14,6 +15,9 @@ export function surveyable(row: ScanRow, extractors: Map<string, ExtractorMetada
   return row.installed && row.status === 'ready' && pool.some(e => e.delivery !== 'api');
 }
 
+/** The extractors surveys have set up, or are setting up, until each is put away. */
+const setUp = new Set<{ teardown(): Promise<void> }>();
+
 /** How much a run of `Selected` with `config` would read: set up, asked, and put away. */
 export async function surveyWith(
   Selected: any,
@@ -21,12 +25,22 @@ export async function surveyWith(
   options: SurveyOptions = {}
 ): Promise<Survey | null> {
   const extractor = new Selected({ ...config, quiet: true });
-  await extractor.setup();
+  setUp.add(extractor);
   try {
+    await extractor.setup();
     return await extractor.survey(options);
   } finally {
+    setUp.delete(extractor);
     await extractor.teardown();
   }
+}
+
+/**
+ * Put away what every survey under way has set up, for a survey cut short:
+ * a database reader's copy of the database goes with it.
+ */
+export async function putAwaySurveys(): Promise<void> {
+  await Promise.allSettled([...setUp].map(extractor => extractor.teardown()));
 }
 
 /**
@@ -52,20 +66,22 @@ export async function surveyRow(
 /**
  * Whether a path through a zip, like `data.zip/apple_health_export`, is an
  * export a run could read, opened as a run opens it: by the zip's index.
- * Null when it isn't in a zip, or the zip doesn't hold it.
+ * Null when it isn't in a zip, or the zip doesn't hold it. A zip that won't
+ * open fails as a run's would, saying why and what to do.
  */
-async function checkInZip(input: string): Promise<{ status: 'ready' | 'empty' } | null> {
+async function checkInZip(input: string): Promise<{ status: 'ready' } | null> {
   let files;
   try {
     files = await openExport(input);
-  } catch {
-    return null;
+  } catch (error) {
+    // A path that isn't there, on disk or in the zip, fails with no hint; a
+    // zip that won't open says what to do.
+    const { code, hint } = describeError(error);
+    if (code === 'input-not-found' && !hint) return null;
+    throw error;
   }
-  try {
-    return { status: (await files.list()).length > 0 ? 'ready' : 'empty' };
-  } finally {
-    await files.close();
-  }
+  await files.close();
+  return { status: 'ready' };
 }
 
 /**
