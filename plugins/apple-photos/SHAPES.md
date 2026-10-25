@@ -17,7 +17,7 @@ PhotographAction | RecordAction | ScreenshotAction | AddAction key(sourceId) {
   sourceId, timestamp
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
   location?: Location { latitude, longitude }
-  instrument[]?: ProductModel | SoftwareApplication key(sourceId) / key(handle) { sourceId?, name*, handle?* }
+  instrument[]?: ProductModel | SoftwareApplication key(name) / key(handle) { name*, handle?* }
   result?: ImageObject | VideoObject key(sourceId) {
     sourceId, name?, handle?, caption?, sourceFormat?, tags[]?, width?, height?, mimeType?*, duration?*
     depicts[]?: Person key(sourceId) { sourceId, name }
@@ -42,6 +42,7 @@ PhotographAction | RecordAction | ScreenshotAction | AddAction key(sourceId) {
         isPartOf[]: Collection key(sourceId) { sourceId, name }
       }
     }
+    location?: Location { latitude, longitude }
   }
 }
 ```

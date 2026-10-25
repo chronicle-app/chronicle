@@ -48,10 +48,10 @@ type Media = ImageObject | VideoObject;
  *   photos:
  *     PhotographAction | RecordAction | ScreenshotAction  agent: you   timestamp (when taken)
  *       instrument?: ProductModel (the camera) | SoftwareApplication (FaceTime)
- *       location?: Location
+ *       location?: Location (where it was taken)
  *       result: ImageObject | VideoObject  (the photo, by iCloud's ID)
  *     AddAction  agent: you   timestamp (when added)   instrument?: SoftwareApplication
- *       object: ImageObject | VideoObject
+ *       object: ImageObject | VideoObject  location?: Location (where it was taken)
  *   activity:
  *     ViewAction | ShareAction | UpdateAction | LikeAction | UnlikeAction | AddAction
  *       agent: you   timestamp   object: the photo, by key   target?: Collection (the album)
@@ -82,7 +82,12 @@ export default class ApplePhotosTransformer extends ChronicleTransformer {
   }
 }
 
-/** What you did to bring a photo or video into your library. */
+/**
+ * What you did to bring a photo or video into your library. Where it was taken
+ * is where you took it, so it's the action's `location`. A photo an app saved
+ * was taken by someone, somewhere, before you saved it, so its position is
+ * the photo's own.
+ */
 function photoAction(photo: Photo, time: string, you: Person | null): ActionAndChildren {
   const timestamp = new Date(time);
   const where = locationOf(photo);
@@ -92,7 +97,7 @@ function photoAction(photo: Photo, time: string, you: Person | null): ActionAndC
     sourceId: photo.id,
     timestamp,
     ...(you && { agent: you }),
-    ...(where && { location: where }),
+    ...(where && photo.origin !== 'saved' && { location: where }),
   };
   switch (photo.origin) {
     case 'camera': {
@@ -121,7 +126,7 @@ function photoAction(photo: Photo, time: string, you: Person | null): ActionAndC
         '@type': 'AddAction',
         ...frame,
         ...(app && { instrument: [app] }),
-        object: mediaOf(photo),
+        object: { ...mediaOf(photo), ...(where && { location: where }) },
       };
     }
   }
@@ -312,8 +317,8 @@ function locationOf(asset: Asset): Location | null {
 /**
  * The kind of camera, from the make and model its file names, such as
  * `Apple iPhone 14 Pro`. Photos can't tell two cameras of one model apart, so
- * it's a `ProductModel`, keyed by that name so other sources reading the
- * same files name the same one.
+ * it's a `ProductModel`. It has no ID, so it's keyed by that name, in the
+ * `exif` namespace, so other sources reading the same files name the same one.
  */
 function cameraOf(asset: Asset): ProductModel | null {
   const make = asset.camera?.make ?? null;
@@ -323,13 +328,7 @@ function cameraOf(asset: Asset): ProductModel | null {
       ? `${make} ${model}`
       : (model ?? make);
   if (!name) return null;
-  return {
-    '@type': 'ProductModel',
-    '@key': ['source', 'sourceId'],
-    source: 'exif',
-    sourceId: name,
-    name,
-  };
+  return { '@type': 'ProductModel', '@key': ['source', 'name'], source: 'exif', name };
 }
 
 /** The app that added a photo, by its bundle identifier. */

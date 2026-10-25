@@ -74,8 +74,8 @@ export const albums = {
  *   A favorite the change log dates.
  * - screenshot, screenRecording: captures of the screen.
  * - faceTime: a Live Photo taken during a FaceTime call, with a face you added.
- * - whatsApp: someone's photo saved from WhatsApp, with camera data, a
- *   caption that came with it, and a face Photos matched.
+ * - whatsApp: someone's photo saved from WhatsApp, with camera data, where
+ *   it was taken, a caption that came with it, and a face Photos matched.
  * - noCamera: a video no app added and with no camera data.
  * - local: a photo from the Messages camera, not in iCloud, with no position,
  *   the one Photos shows of a burst. Unfavorited after the change log began.
@@ -323,6 +323,7 @@ function writeLibrary(root, { model }) {
       created: day(1),
       added: day(5),
       uti: 'public.jpeg',
+      position: [36.7213, -4.4214],
       importer: 'net.whatsapp.WhatsApp',
       importerName: 'WhatsApp',
       camera: ['samsung', 'SM-S911B'],

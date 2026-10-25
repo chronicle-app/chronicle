@@ -120,14 +120,14 @@ test('each photo is what you did to bring it into your library, newest first', a
       ]),
     ])
   );
+  // A camera has no ID, so it's keyed by its name.
   assert.deepEqual(instruments[ids.camera], [
-    ['ProductModel', 'exif', 'Apple iPhone 14 Pro', 'Apple iPhone 14 Pro'],
+    ['ProductModel', 'exif', undefined, 'Apple iPhone 14 Pro'],
   ]);
+  assert.deepEqual(byId.get(ids.camera).instrument[0]['@key'], ['source', 'name']);
   assert.deepEqual(instruments[ids.local], instruments[ids.camera]);
   // A model that already names its make isn't named twice.
-  assert.deepEqual(instruments[ids.unliked], [
-    ['ProductModel', 'exif', 'Canon EOS R6', 'Canon EOS R6'],
-  ]);
+  assert.deepEqual(instruments[ids.unliked], [['ProductModel', 'exif', undefined, 'Canon EOS R6']]);
   assert.deepEqual(instruments[ids.whatsApp], [
     ['SoftwareApplication', 'apple-bundle-id', 'net.whatsapp.WhatsApp', 'WhatsApp'],
   ]);
@@ -202,6 +202,15 @@ test('each photo is what you did to bring it into your library, newest first', a
   // No position, or 0, 0, is no location.
   assert.equal(byId.get(ids.video).location, undefined);
   assert.equal(byId.get(ids.local).location, undefined);
+  // Someone else took a photo you saved, so where is the photo's, not the save's.
+  const saved = byId.get(ids.whatsApp);
+  assert.equal(saved.location, undefined);
+  assert.deepEqual(saved.object.location, {
+    '@type': 'Location',
+    '@asserts': ['*'],
+    latitude: 36.7213,
+    longitude: -4.4214,
+  });
 
   // A video.
   const video = media(byId.get(ids.video));

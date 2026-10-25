@@ -4355,8 +4355,9 @@ example:photo-taken
   rdfs:comment """
 You took a photo with your phone. The :PhotographAction and its :result, the
 :ImageObject, are keyed by iCloud's ID for the photo. The :instrument is the
-kind of camera, a :ProductModel named by the make and model the photo's file
-gives, since nothing says which phone it was.
+kind of camera, a :ProductModel, since nothing says which phone it was. It
+has no ID, so it's keyed by its name: the make and model the photo's file
+gives.
 
 The photo :depicts the people you named in it, and its :caption is the one
 you wrote. It was taken in Portrait mode, its :sourceFormat, and it
@@ -4377,9 +4378,8 @@ you wrote. It was taken in Portrait mode, its :sourceFormat, and it
     ];
     :instrument [
       a :ProductModel;
-      doc:key ("source" "sourceId");
+      doc:key ("source" "name");
       :source "exif";
-      :sourceId "Apple iPhone 14 Pro";
       :name "Apple iPhone 14 Pro"
     ];
     :location [
