@@ -233,6 +233,7 @@ function mediaOf(
     ...(asset.filename && { handle: asset.filename }),
     ...(asset.caption && { caption: asset.caption }),
     ...(asset.format && { sourceFormat: asset.format }),
+    ...(asset.exif && { exifData: asset.exif }),
     ...(asset.keywords.length > 0 && { tags: asset.keywords }),
     ...(asset.people.length > 0 && { depicts: asset.people.map(person => personOf(person)) }),
     ...(asset.albums.length > 0 && {

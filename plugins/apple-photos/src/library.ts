@@ -57,7 +57,23 @@ export const DATABASES: DatabaseSchema[] = [
         'ZSYNDICATIONIDENTIFIER?',
       ],
       ZASSETDESCRIPTION: ['Z_PK', 'ZASSETATTRIBUTES', 'ZLONGDESCRIPTION?'],
-      ZEXTENDEDATTRIBUTES: ['ZASSET', 'ZCAMERAMAKE?', 'ZCAMERAMODEL?'],
+      ZEXTENDEDATTRIBUTES: [
+        'ZASSET',
+        'ZCAMERAMAKE?',
+        'ZCAMERAMODEL?',
+        'ZLENSMODEL?',
+        'ZFOCALLENGTH?',
+        'ZFOCALLENGTHIN35MM?',
+        'ZAPERTURE?',
+        'ZSHUTTERSPEED?',
+        'ZISO?',
+        'ZEXPOSUREBIAS?',
+        'ZMETERINGMODE?',
+        'ZWHITEBALANCE?',
+        'ZFLASHFIRED?',
+        'ZDIGITALZOOMRATIO?',
+        'ZORIENTATION?',
+      ],
       ZGENERICALBUM: [
         'Z_PK',
         'ZKIND',
@@ -104,6 +120,12 @@ export interface PhotoAlbum {
 export type Format =
   'livePhoto' | 'portrait' | 'panorama' | 'burst' | 'sloMo' | 'timeLapse' | 'cinematic';
 
+/**
+ * What a photo's file records about how it was taken, by EXIF 3.0's tag names,
+ * such as `{ FNumber: 1.78, ExposureTime: 0.008 }`.
+ */
+export type Exif = { [tag: string]: string | number };
+
 /** A photo or video, with what its file and you recorded about it. */
 export interface Asset {
   /** iCloud's ID for it (`ZCLOUDASSETGUID`), or the library's own (`ZUUID`) when it isn't in iCloud. */
@@ -124,6 +146,8 @@ export interface Asset {
   importerName: string | null;
   /** The camera's make and model, from the file. */
   camera: { make: string | null; model: string | null } | null;
+  /** The lens and the exposure, from a photo's file. */
+  exif: Exif | null;
   width: number | null;
   height: number | null;
   /** How long a video lasts, in seconds. */
@@ -172,6 +196,18 @@ export interface AssetRow {
   caption: string | null;
   cameraMake: string | null;
   cameraModel: string | null;
+  lens: string | null;
+  focalLength: number | null;
+  focalLength35mm: number | null;
+  aperture: number | null;
+  shutterSpeed: number | null;
+  iso: number | null;
+  exposureBias: number | null;
+  meteringMode: number | null;
+  whiteBalance: number | null;
+  flashFired: number | null;
+  digitalZoom: number | null;
+  orientation: number | null;
   lastViewed: number | null;
   lastShared: number | null;
   adjusted: number | null;
@@ -264,6 +300,18 @@ export class PhotosLibrary {
         ${c('d', 'ZASSETDESCRIPTION', 'ZLONGDESCRIPTION')} AS caption,
         ${c('e', 'ZEXTENDEDATTRIBUTES', 'ZCAMERAMAKE')} AS cameraMake,
         ${c('e', 'ZEXTENDEDATTRIBUTES', 'ZCAMERAMODEL')} AS cameraModel,
+        ${c('e', 'ZEXTENDEDATTRIBUTES', 'ZLENSMODEL')} AS lens,
+        ${c('e', 'ZEXTENDEDATTRIBUTES', 'ZFOCALLENGTH')} AS focalLength,
+        ${c('e', 'ZEXTENDEDATTRIBUTES', 'ZFOCALLENGTHIN35MM')} AS focalLength35mm,
+        ${c('e', 'ZEXTENDEDATTRIBUTES', 'ZAPERTURE')} AS aperture,
+        ${c('e', 'ZEXTENDEDATTRIBUTES', 'ZSHUTTERSPEED')} AS shutterSpeed,
+        ${c('e', 'ZEXTENDEDATTRIBUTES', 'ZISO')} AS iso,
+        ${c('e', 'ZEXTENDEDATTRIBUTES', 'ZEXPOSUREBIAS')} AS exposureBias,
+        ${c('e', 'ZEXTENDEDATTRIBUTES', 'ZMETERINGMODE')} AS meteringMode,
+        ${c('e', 'ZEXTENDEDATTRIBUTES', 'ZWHITEBALANCE')} AS whiteBalance,
+        ${c('e', 'ZEXTENDEDATTRIBUTES', 'ZFLASHFIRED')} AS flashFired,
+        ${c('e', 'ZEXTENDEDATTRIBUTES', 'ZDIGITALZOOMRATIO')} AS digitalZoom,
+        ${c('e', 'ZEXTENDEDATTRIBUTES', 'ZORIENTATION')} AS orientation,
         ${c('x', 'ZADDITIONALASSETATTRIBUTES', 'ZLASTVIEWEDDATE')} AS lastViewed,
         ${c('a', 'ZASSET', 'ZLASTSHAREDDATE')} AS lastShared,
         ${c('a', 'ZASSET', 'ZADJUSTMENTTIMESTAMP')} AS adjusted,
@@ -298,6 +346,7 @@ export class PhotosLibrary {
         importer,
         importerName: clean(row.importerName),
         camera,
+        exif: row.kind === 0 ? exifOf(row) : null,
         width: positive(row.width),
         height: positive(row.height),
         duration: row.kind === 1 ? positive(row.duration) : null,
@@ -497,6 +546,48 @@ function formatOf(row: AssetRow): Format | null {
   if (photo && row.depth === PORTRAIT) return 'portrait';
   if (photo && clean(row.burst)) return 'burst';
   return SUBTYPE_FORMATS[row.subtype ?? 0] ?? null;
+}
+
+/**
+ * What a photo's file records about its lens and exposure, as Photos keeps it,
+ * by EXIF 3.0's tag names. Photos fills these only from a file that records
+ * its exposure, except two it records for any image, such as a screenshot:
+ * 0 for whether the flash fired, and 1, upright, for its orientation. So
+ * `Flash`, and an upright `Orientation`, are kept only with an exposure. A
+ * video's come from its own metadata, which isn't EXIF.
+ */
+function exifOf(row: AssetRow): Exif | null {
+  const exposed = [row.aperture, row.shutterSpeed, row.iso].some(value => positive(value));
+  const tags: { [tag: string]: string | number | null } = {
+    LensModel: clean(row.lens),
+    FocalLength: measure(row.focalLength),
+    FocalLengthIn35mmFilm: measure(row.focalLength35mm),
+    FNumber: measure(row.aperture),
+    ExposureTime: measure(row.shutterSpeed),
+    PhotographicSensitivity: measure(row.iso),
+    ExposureBiasValue: decimal(row.exposureBias),
+    // 0 is EXIF's code for an unknown metering mode.
+    MeteringMode: positive(row.meteringMode),
+    WhiteBalance: decimal(row.whiteBalance),
+    Flash: exposed ? decimal(row.flashFired) : null,
+    DigitalZoomRatio: measure(row.digitalZoom),
+    Orientation: exposed || row.orientation !== 1 ? positive(row.orientation) : null,
+  };
+  const exif = Object.fromEntries(Object.entries(tags).filter(([, value]) => value !== null));
+  return Object.keys(exif).length > 0 ? (exif as Exif) : null;
+}
+
+/**
+ * A number as EXIF's fraction gives it. Photos computes some, such as
+ * 0.06999999999999999 for 0.07, so six significant digits are kept.
+ */
+function decimal(value: number | null | undefined): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? Number(value.toPrecision(6)) : null;
+}
+
+/** A measure that's positive, as a decimal: 0 is what Photos records for none. */
+function measure(value: number | null | undefined): number | null {
+  return positive(value) === null ? null : decimal(value);
 }
 
 /** An asset's key: iCloud's ID for it, or the library's own when it isn't in iCloud. */

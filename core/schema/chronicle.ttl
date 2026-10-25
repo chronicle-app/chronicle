@@ -324,6 +324,8 @@
   owl:equivalentClass [ a rdfs:Datatype; owl:unionOf ( xsd:decimal
     [ a rdfs:Datatype; owl:onDatatype xsd:double; owl:withRestrictions ( [ xsd:minExclusive "-INF"^^xsd:double ] [ xsd:maxExclusive "INF"^^xsd:double ] ) ] ) ];
   skos:broadMatch schemaorg:Number .
+:JSONObject a rdfs:Datatype;
+  rdfs:comment "A JSON object whose values are text or numbers, such as `{\"FNumber\": 1.8, \"LensModel\": \"EF50mm f/1.8 STM\"}`. The property that takes it says what its keys are. Not allowed: an array (`[1.8]`), a nested object (`{\"Lens\": {\"Model\": \"EF50mm\"}}`), or `true`, `false`, or `null` as a value." .
 :startTime a owl:DatatypeProperty;
   rdfs:comment "When the action started. A date gives the start at that date's precision.";
   rdfs:domain :Action;
@@ -1022,6 +1024,12 @@
   rdfs:range :Text;
   skos:exactMatch schemaorg:caption .
 [] a sh:PropertyShape; sh:path :caption; sh:targetSubjectsOf :caption; sh:maxCount 1 .
+:exifData a owl:DatatypeProperty;
+  rdfs:comment "What the image's file records about how it was taken, as EXIF tags. Each key is the tag's name in EXIF 3.0, such as `FNumber`, `ExposureTime`, or `LensModel`. Each value is the tag's value as EXIF defines it. A fraction is a decimal (`0.008`), a code is its number (`5`), and text is as written. Not allowed: another name for a tag (`ISO` for `PhotographicSensitivity`), a fraction as text (`1/125`), or a code's meaning (`Pattern`).";
+  rdfs:domain :ImageObject;
+  rdfs:range :JSONObject;
+  skos:closeMatch schemaorg:exifData .
+[] a sh:PropertyShape; sh:path :exifData; sh:targetSubjectsOf :exifData; sh:maxCount 1 .
 :depicts a owl:ObjectProperty;
   rdfs:comment "A person who appears in the image or video.";
   rdfs:subPropertyOf :relation;

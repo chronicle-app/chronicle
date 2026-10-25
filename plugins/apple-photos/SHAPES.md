@@ -20,6 +20,7 @@ PhotographAction | RecordAction | ScreenshotAction | AddAction key(sourceId) {
   instrument[]?: ProductModel | SoftwareApplication key(name) / key(handle) { name*, handle?* }
   result?: ImageObject | VideoObject key(sourceId) {
     sourceId, name?, handle?, caption?, sourceFormat?, tags[]?, width?, height?, mimeType?*, duration?*
+    exifData?: object { LensModel, FocalLength, FocalLengthIn35mmFilm?, FNumber, ExposureTime, PhotographicSensitivity, ExposureBiasValue, MeteringMode?, WhiteBalance, Flash, Orientation?, DigitalZoomRatio? }
     depicts[]?: Person key(sourceId) { sourceId, name }
     isPartOf[]?: Collection key(sourceId) {
       sourceId, name
@@ -35,6 +36,7 @@ PhotographAction | RecordAction | ScreenshotAction | AddAction key(sourceId) {
   }
   object?: ImageObject | VideoObject key(sourceId) {
     sourceId, caption?, mimeType*, duration?*
+    exifData?: object { Orientation }
     isPartOf[]?: Collection key(sourceId) {
       sourceId, name
       isPartOf[]: Collection key(sourceId) {

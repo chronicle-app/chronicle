@@ -1351,6 +1351,7 @@ export interface ImageObject extends Omit<MediaObject, '@type'> {
   '@type': 'ImageObject';
   caption?: string;
   depicts?: PersonAndChildren[];
+  exifData?: { [key: string]: string | number };
   height?: number;
   width?: number;
 }
@@ -1361,6 +1362,7 @@ const ImageObjectProperties = {
   ...MediaObjectProperties,
   caption: z.lazy(() => z.string()).optional(),
   depicts: z.lazy(() => z.array(PersonAndChildrenSchema)).optional(),
+  exifData: z.lazy(() => z.record(z.string(), z.union([z.string(), z.number()]))).optional(),
   height: z.lazy(() => z.number()).optional(),
   width: z.lazy(() => z.number()).optional(),
 };

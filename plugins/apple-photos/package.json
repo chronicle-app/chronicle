@@ -128,7 +128,19 @@
                   "ZEXTENDEDATTRIBUTES": [
                     "ZASSET",
                     "ZCAMERAMAKE?",
-                    "ZCAMERAMODEL?"
+                    "ZCAMERAMODEL?",
+                    "ZLENSMODEL?",
+                    "ZFOCALLENGTH?",
+                    "ZFOCALLENGTHIN35MM?",
+                    "ZAPERTURE?",
+                    "ZSHUTTERSPEED?",
+                    "ZISO?",
+                    "ZEXPOSUREBIAS?",
+                    "ZMETERINGMODE?",
+                    "ZWHITEBALANCE?",
+                    "ZFLASHFIRED?",
+                    "ZDIGITALZOOMRATIO?",
+                    "ZORIENTATION?"
                   ],
                   "ZGENERICALBUM": [
                     "Z_PK",

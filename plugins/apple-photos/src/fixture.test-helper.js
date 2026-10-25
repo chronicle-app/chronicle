@@ -68,18 +68,20 @@ export const albums = {
  * - camera: a Live Photo from the iPhone's camera in Portrait mode, with no app, with a title,
  *   caption, keywords, faces (someone you named, someone you named in a group
  *   of faces who was merged into another person, someone unnamed, and a pet),
- *   and an album in two folders. An undated favorite, last viewed, shared,
- *   and edited.
+ *   and an album in two folders, with its lens and exposure. An undated
+ *   favorite, last viewed, shared, and edited.
  * - video: a slo-mo video from the Camera app, at 0, 0, with a face Photos matched.
  *   A favorite the change log dates.
  * - screenshot, screenRecording: captures of the screen.
  * - faceTime: a Live Photo taken during a FaceTime call, with a face you added.
  * - whatsApp: someone's photo saved from WhatsApp, with camera data, where
- *   it was taken, a caption that came with it, and a face Photos matched.
+ *   it was taken, which way it's turned, a caption that came with it, and a
+ *   face Photos matched.
  * - noCamera: a video no app added and with no camera data.
  * - local: a photo from the Messages camera, not in iCloud, with no position,
  *   the one Photos shows of a burst. Unfavorited after the change log began.
- * - unliked: liked, then unliked.
+ * - unliked: a photo from a Canon camera, with its lens and exposure, liked,
+ *   then unliked.
  * - trashed, burst, sharedAlbum: in Recently Deleted, a burst photo Photos
  *   hides, and a photo in a shared album. None is extracted.
  *
@@ -234,7 +236,10 @@ function writeLibrary(root, { model }) {
       ZASSETDESCRIPTION INTEGER, ZTITLE VARCHAR, ZORIGINALFILENAME VARCHAR,
       ZIMPORTEDBYBUNDLEIDENTIFIER VARCHAR, ZIMPORTEDBYDISPLAYNAME VARCHAR, ZLASTVIEWEDDATE TIMESTAMP, ZVIDEOCPDURATIONTIMESCALE INTEGER, ZSYNDICATIONIDENTIFIER VARCHAR);
     CREATE TABLE ZASSETDESCRIPTION (Z_PK INTEGER PRIMARY KEY, ZASSETATTRIBUTES INTEGER, ZLONGDESCRIPTION VARCHAR);
-    CREATE TABLE ZEXTENDEDATTRIBUTES (Z_PK INTEGER PRIMARY KEY, ZASSET INTEGER, ZCAMERAMAKE VARCHAR, ZCAMERAMODEL VARCHAR);
+    CREATE TABLE ZEXTENDEDATTRIBUTES (Z_PK INTEGER PRIMARY KEY, ZASSET INTEGER, ZCAMERAMAKE VARCHAR, ZCAMERAMODEL VARCHAR,
+      ZLENSMODEL VARCHAR, ZFOCALLENGTH FLOAT, ZFOCALLENGTHIN35MM FLOAT, ZAPERTURE FLOAT, ZSHUTTERSPEED FLOAT,
+      ZISO FLOAT, ZEXPOSUREBIAS FLOAT, ZMETERINGMODE INTEGER, ZWHITEBALANCE INTEGER, ZFLASHFIRED INTEGER,
+      ZDIGITALZOOMRATIO FLOAT, ZORIENTATION INTEGER);
     CREATE TABLE ZKEYWORD (Z_PK INTEGER PRIMARY KEY, ZTITLE VARCHAR);
     CREATE TABLE Z_13ASSETATTRIBUTES (Z_12ASSETATTRIBUTES INTEGER, Z_13KEYWORDS INTEGER);
     CREATE TABLE ZGENERICALBUM (Z_PK INTEGER PRIMARY KEY, Z_ENT INTEGER, ZKIND INTEGER, ZTITLE VARCHAR,
@@ -273,6 +278,17 @@ function writeLibrary(root, { model }) {
       filename: 'IMG_0001.HEIC',
       caption: 'Breakfast on the porch',
       camera: iPhone,
+      // Photos computes some fractions, such as this exposure bias of 0.07,
+      // which is 0.06999999999999999.
+      exif: {
+        lens: 'iPhone 14 Pro back triple camera 6.86mm f/1.78',
+        focal: [6.86, 24],
+        exposure: [1.78, 0.008, 64, 0.1 * 0.7],
+        metering: 5,
+        whiteBalance: 0,
+        flash: 0,
+        orientation: 6,
+      },
       lastViewed: day(20),
       lastShared: day(21),
       adjusted: day(22),
@@ -290,6 +306,7 @@ function writeLibrary(root, { model }) {
       importer: 'com.apple.camera',
       filename: 'IMG_0002.MOV',
       camera: iPhone,
+      exif: { lens: 'iPhone 14 Pro back triple camera 6.86mm f/1.78', focal: [null, 24] },
     },
     screenshot: {
       subtype: 10,
@@ -299,6 +316,8 @@ function writeLibrary(root, { model }) {
       uti: 'public.png',
       importer: 'com.apple.springboard',
       filename: 'IMG_0003.PNG',
+      // What Photos records for an image with no exposure.
+      exif: { flash: 0, orientation: 1 },
     },
     screenRecording: {
       kind: 1,
@@ -327,6 +346,7 @@ function writeLibrary(root, { model }) {
       importer: 'net.whatsapp.WhatsApp',
       importerName: 'WhatsApp',
       camera: ['samsung', 'SM-S911B'],
+      exif: { flash: 0, orientation: 8 },
       caption: 'Sent from the beach',
     },
     noCamera: { kind: 1, created: day(4) - 3600, added: day(4), duration: 8, uti: 'public.mpeg-4' },
@@ -345,6 +365,15 @@ function writeLibrary(root, { model }) {
       added: day(2),
       uti: 'public.jpeg',
       camera: ['Canon', 'Canon EOS R6'],
+      exif: {
+        lens: 'RF50mm F1.8 STM',
+        focal: [50, 0],
+        exposure: [1.8, 0.004, 1250, -0.33],
+        metering: 0,
+        whiteBalance: 1,
+        flash: 1,
+        zoom: 2,
+      },
     },
     trashed: { created: day(30), added: day(30), trashed: 1, camera: iPhone },
     burst: { created: day(29), added: day(29), visibility: 2, camera: iPhone, burst: 'BURST-1' },
@@ -358,7 +387,9 @@ function writeLibrary(root, { model }) {
     'INSERT INTO ZADDITIONALASSETATTRIBUTES VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)'
   );
   const insertDescription = db.prepare('INSERT INTO ZASSETDESCRIPTION VALUES (?, ?, ?)');
-  const insertExtended = db.prepare('INSERT INTO ZEXTENDEDATTRIBUTES VALUES (?, ?, ?, ?)');
+  const insertExtended = db.prepare(
+    'INSERT INTO ZEXTENDEDATTRIBUTES VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  );
   const pk = {};
   let next = 1;
   for (const [name, row] of Object.entries(rows)) {
@@ -404,7 +435,24 @@ function writeLibrary(root, { model }) {
       row.clip?.[1] ?? 0
     );
     if (description) insertDescription.run(id, id, row.caption);
-    if (row.camera) insertExtended.run(id, id, ...row.camera);
+    const { exif = {} } = row;
+    if (row.camera || row.exif) {
+      insertExtended.run(
+        id,
+        id,
+        row.camera?.[0] ?? null,
+        row.camera?.[1] ?? null,
+        exif.lens ?? null,
+        exif.focal?.[0] ?? null,
+        exif.focal?.[1] ?? null,
+        ...(exif.exposure ?? [null, null, null, null]),
+        exif.metering ?? null,
+        exif.whiteBalance ?? null,
+        exif.flash ?? null,
+        exif.zoom ?? null,
+        exif.orientation ?? null
+      );
+    }
   }
   // A lone NUL is what Photos leaves for an app with no bundle identifier.
   db.prepare(

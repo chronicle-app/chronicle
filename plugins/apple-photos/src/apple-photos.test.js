@@ -191,6 +191,37 @@ test('each photo is what you did to bring it into your library, newest first', a
   for (const id of [ids.screenshot, ids.whatsApp, ids.unliked]) {
     assert.equal(media(byId.get(id)).sourceFormat, undefined, id);
   }
+  // What its file records about the lens and the exposure, by EXIF's tag names.
+  assert.deepEqual(photo.exifData, {
+    LensModel: 'iPhone 14 Pro back triple camera 6.86mm f/1.78',
+    FocalLength: 6.86,
+    FocalLengthIn35mmFilm: 24,
+    FNumber: 1.78,
+    ExposureTime: 0.008,
+    PhotographicSensitivity: 64,
+    ExposureBiasValue: 0.07,
+    MeteringMode: 5,
+    WhiteBalance: 0,
+    Flash: 0,
+    Orientation: 6,
+  });
+  // No 35mm equivalent or metering mode, and a flash that fired.
+  assert.deepEqual(media(byId.get(ids.unliked)).exifData, {
+    LensModel: 'RF50mm F1.8 STM',
+    FocalLength: 50,
+    FNumber: 1.8,
+    ExposureTime: 0.004,
+    PhotographicSensitivity: 1250,
+    ExposureBiasValue: -0.33,
+    WhiteBalance: 1,
+    Flash: 1,
+    DigitalZoomRatio: 2,
+  });
+  // A video's settings aren't EXIF. A screenshot has no exposure, so its flash
+  // and its upright orientation aren't known, but a saved photo's turn is.
+  assert.equal(media(byId.get(ids.video)).exifData, undefined);
+  assert.equal(media(byId.get(ids.screenshot)).exifData, undefined);
+  assert.deepEqual(media(byId.get(ids.whatsApp)).exifData, { Orientation: 8 });
 
   // Where it was taken, as the camera recorded it.
   assert.deepEqual(byId.get(ids.camera).location, {
