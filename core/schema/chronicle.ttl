@@ -237,9 +237,9 @@
   rdfs:subClassOf :MediaObject;
   rdfs:comment "A document file, such as a PDF, a text file, or a document attachment." .
 :recipient a owl:ObjectProperty;
-  rdfs:comment "An agent the message, call, transaction, or share was directed to, such as each other participant in a group conversation, the merchant that was paid, or the person a photo was shared with.";
+  rdfs:comment "An agent the message, call, or transaction was directed to, such as each other participant in a group conversation or the merchant that was paid.";
   rdfs:subPropertyOf :involvement;
-  rdfs:domain [ a owl:Class; owl:unionOf ( :Message :CallSession :FinancialTransaction :ShareAction ) ];
+  rdfs:domain [ a owl:Class; owl:unionOf ( :Message :CallSession :FinancialTransaction ) ];
   rdfs:range :Agent;
   skos:exactMatch schemaorg:recipient .
 :contains a owl:ObjectProperty;
@@ -494,7 +494,7 @@
   rdfs:comment "The agent made a phone or video call. Its :result is the :CallSession.";
   rdfs:subClassOf :CommunicateAction .
 :ShareAction a owl:Class;
-  rdfs:comment "The agent shared the :object with others, such as by sending a photo in a conversation. Its :recipient is who it was shared with, when that is known.";
+  rdfs:comment "The agent shared the :object with others, such as by sending a photo in a conversation.";
   rdfs:subClassOf :CommunicateAction;
   skos:exactMatch schemaorg:ShareAction .
 :Session a owl:Class;

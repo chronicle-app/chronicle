@@ -4449,11 +4449,12 @@ example:photo-shared-in-messages
   rdfs:label "A photo shared in Messages";
   rdfs:comment """
 Sam sent you a photo in Messages. The :ShareAction is keyed by Messages' ID
-for the attachment, and you are its :recipient. Sam is known by the handle
-Messages has for them, the same as Messages' participant through :sameAs.
+for the attachment. Sam is known by the handle Messages has for them, the same
+as Messages' participant through :sameAs.
 
 The photo is keyed by the same ID, and is :sameAs the attachment as Messages
 keys it, so what's known about the photo lands on the message's attachment.
+Who it was sent to is the message's :recipient, as Messages has it.
 """;
   rdf:value [
     a :ShareAction;
@@ -4472,13 +4473,6 @@ keys it, so what's known about the photo lands on the message's attachment.
         :source "icloud";
         :handle "sam@example.com"
       ]
-    ];
-    :recipient [
-      a :Person;
-      doc:key ("@type" "source" "sourceId");
-      :source "icloud";
-      :sourceId "1234567890";
-      :sameAs "@me"
     ];
     :object [
       a :ImageObject;
@@ -4555,6 +4549,5 @@ You made a photo a favorite, but nothing records when. The :LikeAction has no
 :exifData skos:example example:photo-taken .
 :ScreenshotAction skos:example example:screenshot .
 :ShareAction skos:example example:photo-shared-in-messages .
-:recipient skos:example example:photo-shared-in-messages .
 :UnlikeAction skos:example example:favorite-removed .
 :likes skos:example example:favorite-undated .

@@ -2328,14 +2328,12 @@ export const ScreenshotActionSchema: z.ZodType<ScreenshotAction> = z
 // ShareAction, child of https://schema.chronicle.app/CommunicateAction
 export interface ShareAction extends Omit<CommunicateAction, '@type'> {
   '@type': 'ShareAction';
-  recipient?: AgentAndChildren[];
 }
 
 export type ShareActionAndChildren = ShareAction;
 
 const ShareActionProperties = {
   ...CommunicateActionProperties,
-  recipient: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
 };
 
 export const ShareActionSchema: z.ZodType<ShareAction> = z

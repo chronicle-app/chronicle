@@ -53,7 +53,7 @@ const you = { '@type': 'Person', source: 'icloud', sourceId: account.dsid };
 const isYou = node =>
   node?.['@type'] === you['@type'] && node.source === you.source && node.sourceId === you.sourceId;
 const media = action => action.result ?? action.object;
-// Who an agent or recipient is: you, or a handle with the participants it's the same as.
+// Who an agent is: you, or a handle with the participants it's the same as.
 const who = node => {
   if (!node) return;
   if (isYou(node)) return 'you';
@@ -377,7 +377,6 @@ test('shared with you credits each photo to who sent it in Messages', async t =>
       action.sourceId,
       action.object['@type'],
       who(action.agent),
-      action.recipient?.map(who),
       action.timestamp.toISOString(),
     ]),
     [
@@ -385,32 +384,21 @@ test('shared with you credits each photo to who sent it in Messages', async t =>
         attachments.received,
         'ImageObject',
         'apple-photos:friend@example.com>Agent:icloud:friend@example.com',
-        ['you'],
         at.day(40),
       ],
-      // You sent it to the one person in the conversation.
-      [
-        attachments.sent,
-        'ImageObject',
-        'you',
-        ['apple-photos:friend@example.com>Agent:icloud:friend@example.com'],
-        at.day(39),
-      ],
+      [attachments.sent, 'ImageObject', 'you', at.day(39)],
       [
         attachments.group,
         'VideoObject',
         'apple-photos:member@example.com>Agent:icloud:member@example.com',
-        ['you'],
         at.day(38),
       ],
-      // Who's in a group isn't known.
-      [attachments.groupSent, 'ImageObject', 'you', undefined, at.day(37)],
+      [attachments.groupSent, 'ImageObject', 'you', at.day(37)],
       // An SMS sender is a phone number in the `phone` namespace, as iMessage has it.
       [
         attachments.sms,
         'ImageObject',
         'apple-photos:+15555550123>Agent:phone:+15555550123',
-        ['you'],
         at.day(36),
       ],
     ]

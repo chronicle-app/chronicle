@@ -625,36 +625,29 @@ function writeMessages(path) {
   const db = new DatabaseSync(path);
   db.exec(`
     CREATE TABLE handle (ROWID INTEGER PRIMARY KEY, id TEXT, service TEXT);
-    CREATE TABLE chat (ROWID INTEGER PRIMARY KEY, style INTEGER, chat_identifier TEXT);
-    CREATE TABLE chat_handle_join (chat_id INTEGER, handle_id INTEGER);
     CREATE TABLE message (ROWID INTEGER PRIMARY KEY, is_from_me INTEGER, service TEXT, handle_id INTEGER);
-    CREATE TABLE chat_message_join (chat_id INTEGER, message_id INTEGER);
     CREATE TABLE attachment (ROWID INTEGER PRIMARY KEY, guid TEXT UNIQUE);
     CREATE TABLE message_attachment_join (message_id INTEGER, attachment_id INTEGER);
 
     INSERT INTO handle VALUES (1, 'friend@example.com', 'iMessage'), (2, '+15555550123', 'SMS'),
       (3, 'member@example.com', 'iMessage');
-    INSERT INTO chat VALUES (1, 45, 'friend@example.com'), (2, 43, 'chat123'), (3, 45, '+15555550123');
-    INSERT INTO chat_handle_join VALUES (1, 1), (2, 1), (2, 3), (3, 2);
   `);
   const message = db.prepare('INSERT INTO message VALUES (?, ?, ?, ?)');
-  const inChat = db.prepare('INSERT INTO chat_message_join VALUES (?, ?)');
   const attachment = db.prepare('INSERT INTO attachment VALUES (?, ?)');
   const attach = db.prepare('INSERT INTO message_attachment_join VALUES (?, ?)');
   const sent = [
-    // [attachment, from me, service, handle, chat]
-    [attachments.received, 0, 'iMessage', 1, 1],
-    // A message you send in a one-to-one conversation has no handle of its own.
-    [attachments.sent, 1, 'iMessage', 0, 1],
-    [attachments.group, 0, 'iMessage', 3, 2],
-    [attachments.groupSent, 1, 'iMessage', 0, 2],
-    [attachments.sms, 0, 'SMS', 2, 3],
-    [attachments.sticker, 0, 'iMessage', 1, 1],
+    // [attachment, from me, service, handle]
+    [attachments.received, 0, 'iMessage', 1],
+    // A message you send usually has no handle of its own.
+    [attachments.sent, 1, 'iMessage', 0],
+    [attachments.group, 0, 'iMessage', 3],
+    [attachments.groupSent, 1, 'iMessage', 0],
+    [attachments.sms, 0, 'SMS', 2],
+    [attachments.sticker, 0, 'iMessage', 1],
   ];
-  for (const [i, [guid, fromMe, service, handle, chat]] of sent.entries()) {
+  for (const [i, [guid, fromMe, service, handle]] of sent.entries()) {
     const id = i + 1;
     message.run(id, fromMe, service, handle);
-    inChat.run(chat, id);
     attachment.run(id, guid);
     attach.run(id, id);
   }

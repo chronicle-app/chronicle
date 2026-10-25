@@ -58,7 +58,7 @@ type Media = ImageObject | VideoObject;
  *   favorites:
  *     LikeAction  agent: you   object: the photo, by key   (no timestamp: when isn't known)
  *   shared-with-you:
- *     ShareAction  agent: who sent it   recipient?: who it was sent to   timestamp
+ *     ShareAction  agent: who sent it   timestamp
  *       object: ImageObject | VideoObject  (by Messages' attachment ID)  sameAs: the attachment
  */
 export default class ApplePhotosTransformer extends ChronicleTransformer {
@@ -179,14 +179,14 @@ function likeOf(favorite: Favorite, you: Person | null): ActionAndChildren {
   };
 }
 
-/** A photo or video shared in Messages, keyed by its Messages attachment. */
+/**
+ * A photo or video shared in Messages, keyed by its Messages attachment. Who
+ * it was sent to is the message's recipient, as Messages has it.
+ */
 function shareAction(shared: SharedPhoto, time: string, you: Person | null): ActionAndChildren {
   const { message, attachment } = shared;
-  const other = message.handle ? senderOf(message.handle, message.service) : null;
-  const agent = message.fromMe ? you : other;
-  // You sent it to the other person in a one-to-one conversation. Who's in a
-  // group isn't known.
-  const recipient = message.fromMe ? (!message.group && other ? [other] : []) : you ? [you] : [];
+  const sender = message.handle ? senderOf(message.handle, message.service) : null;
+  const agent = message.fromMe ? you : sender;
   const where = locationOf(shared);
   const object = mediaOf(shared, { id: attachment, clip: false });
   return {
@@ -196,7 +196,6 @@ function shareAction(shared: SharedPhoto, time: string, you: Person | null): Act
     sourceId: attachment,
     timestamp: new Date(time),
     ...(agent && { agent }),
-    ...(recipient.length > 0 && { recipient }),
     object: {
       ...object,
       ...(where && { location: where }),

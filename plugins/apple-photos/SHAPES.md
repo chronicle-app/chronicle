@@ -84,10 +84,6 @@ ShareAction key(sourceId) {
     handle, sourceId?
     sameAs[]: Agent key(handle) { handle }
   }
-  recipient[]?: Person key(sourceId) / key(handle) {
-    sourceId?, handle
-    sameAs[]: Agent key(handle) { handle }
-  }
   object: ImageObject | VideoObject key(sourceId) {
     sourceId, handle, mimeType*, duration?*
     location?: Location { latitude, longitude }
