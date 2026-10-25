@@ -1349,7 +1349,6 @@ export const FollowActionSchema: z.ZodType<FollowAction> = z
 // ImageObject, child of https://schema.chronicle.app/MediaObject
 export interface ImageObject extends Omit<MediaObject, '@type'> {
   '@type': 'ImageObject';
-  aiDescription?: string;
   caption?: string;
   depicts?: PersonAndChildren[];
   height?: number;
@@ -1360,7 +1359,6 @@ export type ImageObjectAndChildren = ImageObject;
 
 const ImageObjectProperties = {
   ...MediaObjectProperties,
-  aiDescription: z.lazy(() => z.string()).optional(),
   caption: z.lazy(() => z.string()).optional(),
   depicts: z.lazy(() => z.array(PersonAndChildrenSchema)).optional(),
   height: z.lazy(() => z.number()).optional(),
@@ -2586,7 +2584,6 @@ export const VenueSchema: z.ZodType<Venue> = z
 // VideoObject, child of https://schema.chronicle.app/MediaObject
 export interface VideoObject extends Omit<MediaObject, '@type'> {
   '@type': 'VideoObject';
-  aiDescription?: string;
   caption?: string;
   depicts?: PersonAndChildren[];
   duration?: string;
@@ -2599,7 +2596,6 @@ export type VideoObjectAndChildren = VideoObject;
 
 const VideoObjectProperties = {
   ...MediaObjectProperties,
-  aiDescription: z.lazy(() => z.string()).optional(),
   caption: z.lazy(() => z.string()).optional(),
   depicts: z.lazy(() => z.array(PersonAndChildrenSchema)).optional(),
   duration: z.lazy(() => z.string()).optional(),

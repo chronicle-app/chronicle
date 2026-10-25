@@ -1,6 +1,12 @@
 import { z } from 'zod';
 import { appleDate } from '../coredata.js';
-import { SHARED_WITH_YOU_LIBRARY, Scope, type Asset, type PhotosLibrary } from '../library.js';
+import {
+  SHARED_WITH_YOU_LIBRARY,
+  Scope,
+  type Asset,
+  type AssetRow,
+  type PhotosLibrary,
+} from '../library.js';
 import { MESSAGES_DATABASE, MessagesDatabase, type SharedMessage } from '../messages.js';
 import ApplePhotosExtractor, { type Found } from './ApplePhotosExtractor.js';
 
@@ -16,9 +22,9 @@ const SCREENSHOT = 10;
 
 /**
  * The photos and videos shared with you, and by you, in Messages, from the
- * library Photos keeps of them. Photos adds what it knows about each one:
- * who is in it, what's in it, and where it was taken. Each one's sender comes
- * from Messages, so a photo whose message is gone is left out.
+ * library Photos keeps of them, with where each was taken and who you said
+ * is in it. Each one's sender comes from Messages, so a photo whose message
+ * is gone is left out.
  */
 export class ApplePhotosSharedWithYouExtractor extends ApplePhotosExtractor {
   static override description = 'Photos and videos shared in Messages, with who sent them';
@@ -50,26 +56,43 @@ export class ApplePhotosSharedWithYouExtractor extends ApplePhotosExtractor {
     return this.config.syndication;
   }
 
-  /**
-   * Photos with camera data, videos, and screenshots. An image with no camera
-   * data is usually a sticker, a meme, or an image saved from the web.
-   */
   protected read(library: PhotosLibrary): Array<Found<SharedPhoto>> {
-    const rows = library
+    const shared = this.shared(library);
+    const assets = library.describe(shared.map(({ row }) => row));
+    return shared.map(({ attachment, message, time }, i) => ({
+      key: attachment,
+      time,
+      data: { ...assets[i], attachment, message },
+    }));
+  }
+
+  /** When each was shared, without who and what is in it. */
+  protected override times(library: PhotosLibrary): string[] {
+    return this.shared(library).map(({ time }) => time);
+  }
+
+  /**
+   * Photos with camera data, videos, and screenshots, with the message each
+   * came in and when. An image with no camera data is usually a sticker, a
+   * meme, or an image saved from the web.
+   */
+  private shared(
+    library: PhotosLibrary
+  ): Array<{ row: AssetRow; attachment: string; message: SharedMessage; time: string }> {
+    return library
       .rows(Scope.sharedWithYou)
       .filter(
         row =>
           row.syndicationId &&
           (row.kind === 1 || row.subtype === SCREENSHOT || row.cameraMake?.trim())
-      );
-    const assets = library.describe(rows);
-    return rows.flatMap((row, i) => {
-      const attachment = row.syndicationId!;
-      const message = this.messages!.message(attachment);
-      // Who sent it is unknown when the message is gone, or has no sender.
-      if (!message || (!message.fromMe && !message.handle)) return [];
-      const time = appleDate(row.addedDate);
-      return time ? [{ key: attachment, time, data: { ...assets[i], attachment, message } }] : [];
-    });
+      )
+      .flatMap(row => {
+        const attachment = row.syndicationId!;
+        const message = this.messages!.message(attachment);
+        // Who sent it is unknown when the message is gone, or has no sender.
+        if (!message || (!message.fromMe && !message.handle)) return [];
+        const time = appleDate(row.addedDate);
+        return time ? [{ row, attachment, message, time }] : [];
+      });
   }
 }

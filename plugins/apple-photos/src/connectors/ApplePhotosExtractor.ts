@@ -1,7 +1,14 @@
-import { Extractor, Record } from '@chronicle.app/etl';
+import {
+  Extractor,
+  Record,
+  countMonth,
+  type KindSurvey,
+  type Survey,
+  type SurveyOptions,
+} from '@chronicle.app/etl';
 import { getICloudAccount, type ICloudAccount } from '@chronicle.app/apple';
 import { z } from 'zod';
-import { PhotosLibrary, SYSTEM_LIBRARY } from '../library.js';
+import { DATABASES, PhotosLibrary, SYSTEM_LIBRARY } from '../library.js';
 import ApplePhotosTransformer from './ApplePhotosTransformer.js';
 
 /** One record of a kind, with when it happened, which orders the kind. */
@@ -21,6 +28,8 @@ export default abstract class ApplePhotosExtractor extends Extractor<typeof Appl
   static override strategy = 'app-db';
   static override defaultTransformer = ApplePhotosTransformer;
   static override newestFirst = true;
+  // What a run and a survey read, which a library's Photos.sqlite must have.
+  static databases = DATABASES;
 
   static override schema = Extractor.schema.extend({
     input: z.string().describe('Path to the Photos library').default(SYSTEM_LIBRARY),
@@ -65,6 +74,15 @@ export default abstract class ApplePhotosExtractor extends Extractor<typeof Appl
   protected abstract read(library: PhotosLibrary): Array<Found<unknown>>;
 
   /**
+   * When each of this kind's records happened, as `read()` dates them, for a
+   * survey. A kind that can date its records without reading all of each
+   * says so more cheaply.
+   */
+  protected times(library: PhotosLibrary): string[] {
+    return this.read(library).map(found => found.time);
+  }
+
+  /**
    * When the library last changed, not when the run started, so an
    * unchanged library gives the same records on every run.
    */
@@ -96,15 +114,35 @@ export default abstract class ApplePhotosExtractor extends Extractor<typeof Appl
     return limit === null ? count : Math.min(limit, count);
   }
 
+  /** The records a run reads within `--since` and `--until`, and when they happened. */
+  override async survey(options: SurveyOptions = {}): Promise<Survey | null> {
+    if (!this.library) return null;
+    const kind: KindSurvey = { count: 0, ...(options.byMonth && { byMonth: {} }) };
+    for (const time of this.times(this.library)) {
+      const at = new Date(time);
+      if (!this.inRange(at.getTime())) continue;
+      kind.count++;
+      if (!kind.earliest || at < kind.earliest) kind.earliest = at;
+      if (!kind.latest || at > kind.latest) kind.latest = at;
+      if (kind.byMonth) countMonth(kind.byMonth, at);
+    }
+    const [recordType] = (this.constructor as typeof ApplePhotosExtractor).recordTypes;
+    return { [recordType]: kind };
+  }
+
+  /** Whether a time, in milliseconds, is within `--since` and `--until`. */
+  protected inRange(time: number): boolean {
+    const { since, until } = this.config;
+    return (!since || time >= since.getTime()) && (!until || time <= until.getTime());
+  }
+
   /** What this kind found within `--since` and `--until`, newest first. */
   private all(): Array<Found<unknown>> {
     if (!this.found) {
       if (!this.library) throw new Error('Library not opened');
-      const since = this.config.since?.getTime() ?? Number.NEGATIVE_INFINITY;
-      const until = this.config.until?.getTime() ?? Number.POSITIVE_INFINITY;
       const at = (found: Found<unknown>) => Date.parse(found.time);
       this.found = this.read(this.library)
-        .filter(found => at(found) >= since && at(found) <= until)
+        .filter(found => this.inRange(at(found)))
         // Newest first. Ties keep the order they were read in.
         .sort((a, b) => at(b) - at(a));
     }

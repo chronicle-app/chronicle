@@ -16,11 +16,11 @@ converted from the record. Every node also has `source`.
 PhotographAction | RecordAction | ScreenshotAction | AddAction key(sourceId) {
   sourceId, timestamp
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
-  location?: Location { latitude, longitude, address }
+  location?: Location { latitude, longitude }
   instrument[]?: ProductModel | SoftwareApplication key(sourceId) / key(handle) { sourceId?, name*, handle?* }
   result?: ImageObject | VideoObject key(sourceId) {
-    sourceId, name?, handle?, caption?, aiDescription?, tags[]?, category[]?, width?, height?, mimeType?*, duration?*
-    depicts[]?: Person key(sourceId) { sourceId, name, sameAs[]? }
+    sourceId, name?, handle?, caption?, sourceFormat?, tags[]?, width?, height?, mimeType?*, duration?*
+    depicts[]?: Person key(sourceId) { sourceId, name }
     isPartOf[]?: Collection key(sourceId) {
       sourceId, name
       isPartOf[]?: Collection key(sourceId) {
@@ -29,7 +29,7 @@ PhotographAction | RecordAction | ScreenshotAction | AddAction key(sourceId) {
       }
     }
     contains[]?: VideoObject | ImageObject key(sourceId) {
-      sourceId, duration?, mimeType?*
+      sourceId, duration?, sourceFormat?, mimeType?*
       depicts[]?: Person key(sourceId) { sourceId, name }
     }
   }
@@ -66,13 +66,9 @@ UpdateAction | ShareAction | ViewAction | AddAction | UnlikeAction | LikeAction 
 ## favorites
 
 ```ts
-UpdateAction key(object.sourceId, timestamp) {
-  timestamp*
-  agent: Person key(sourceId) { sourceId }
-  object: Person key(sourceId) {
-    sourceId, handle, sameAs[]
-    likes[]: ImageObject key(sourceId) { sourceId }
-  }
+LikeAction key(object.sourceId) {
+  agent: Person key(sourceId) { sourceId, handle, sameAs[] }
+  object: ImageObject key(sourceId) { sourceId }
 }
 ```
 
@@ -90,8 +86,7 @@ ShareAction key(sourceId) {
     sameAs[]: Agent key(handle) { handle }
   }
   object: ImageObject | VideoObject key(sourceId) {
-    sourceId, handle, aiDescription?, mimeType*, duration?*
-    depicts[]?: Person key(sourceId) { sourceId, name }
+    sourceId, handle, mimeType*, duration?*
     location?: Location { latitude, longitude }
     sameAs[]: ImageObject | VideoObject key(sourceId) { sourceId }
   }

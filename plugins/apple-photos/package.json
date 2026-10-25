@@ -71,11 +71,97 @@
               "favorites",
               "shared-with-you"
             ],
-            "default": true
+            "default": true,
+            "locations": [
+              {
+                "path": "~/Pictures/Photos Library.photoslibrary/database/Photos.sqlite"
+              }
+            ],
+            "databases": [
+              {
+                "tables": {
+                  "Z_PRIMARYKEY": [
+                    "Z_NAME",
+                    "Z_ENT"
+                  ],
+                  "ZASSET": [
+                    "Z_PK",
+                    "ZUUID",
+                    "ZKIND",
+                    "ZDATECREATED",
+                    "ZWIDTH",
+                    "ZHEIGHT",
+                    "ZDURATION",
+                    "ZLATITUDE",
+                    "ZLONGITUDE",
+                    "ZFAVORITE",
+                    "ZCLOUDASSETGUID?",
+                    "ZKINDSUBTYPE?",
+                    "ZDEPTHTYPE?",
+                    "ZAVALANCHEUUID?",
+                    "ZADDEDDATE?",
+                    "ZUNIFORMTYPEIDENTIFIER?",
+                    "ZVIDEOCPDURATIONVALUE?",
+                    "ZLASTSHAREDDATE?",
+                    "ZADJUSTMENTTIMESTAMP?",
+                    "ZADJUSTMENTSSTATE?",
+                    "ZBUNDLESCOPE?",
+                    "ZTRASHEDSTATE?",
+                    "ZVISIBILITYSTATE?"
+                  ],
+                  "ZADDITIONALASSETATTRIBUTES": [
+                    "Z_PK",
+                    "ZASSET",
+                    "ZVIDEOCPDURATIONTIMESCALE?",
+                    "ZTITLE?",
+                    "ZORIGINALFILENAME?",
+                    "ZIMPORTEDBYBUNDLEIDENTIFIER?",
+                    "ZIMPORTEDBYDISPLAYNAME?",
+                    "ZLASTVIEWEDDATE?",
+                    "ZSYNDICATIONIDENTIFIER?"
+                  ],
+                  "ZASSETDESCRIPTION": [
+                    "Z_PK",
+                    "ZASSETATTRIBUTES",
+                    "ZLONGDESCRIPTION?"
+                  ],
+                  "ZEXTENDEDATTRIBUTES": [
+                    "ZASSET",
+                    "ZCAMERAMAKE?",
+                    "ZCAMERAMODEL?"
+                  ],
+                  "ZGENERICALBUM": [
+                    "Z_PK",
+                    "ZKIND",
+                    "ZTITLE",
+                    "ZUUID",
+                    "ZPARENTFOLDER",
+                    "ZTRASHEDSTATE",
+                    "ZCLOUDGUID?"
+                  ],
+                  "ZPERSON": [
+                    "Z_PK",
+                    "ZPERSONUUID",
+                    "ZFULLNAME",
+                    "ZDETECTIONTYPE",
+                    "ZMERGETARGETPERSON"
+                  ],
+                  "ZDETECTEDFACE": [
+                    "ZASSETFORFACE",
+                    "ZPERSONFORFACE",
+                    "ZNAMESOURCE?",
+                    "ZMANUAL?"
+                  ]
+                }
+              }
+            ]
           }
         },
         "platforms": [
           "darwin"
+        ],
+        "requires": [
+          "full-disk-access"
         ]
       }
     },

@@ -48,7 +48,7 @@ export const attachments = {
 };
 
 export const people = {
-  me: 'PERSON-ALEX',
+  alex: 'PERSON-ALEX',
   sam: 'PERSON-SAM',
 };
 
@@ -65,18 +65,20 @@ export const albums = {
  * Entity numbers aren't Photos' own, so the plugin must read them.
  *
  * Own library (`ZBUNDLESCOPE` 0):
- * - camera: a Live Photo from the iPhone's camera, with no app, with a title,
- *   caption, keywords, AI captions, labels, an address, people (you, someone
- *   merged into another person, someone unnamed, and a pet), and an album in
- *   two folders. An undated favorite, last viewed, shared, and edited.
- * - video: a video from the Camera app, at 0, 0. A favorite the change log dates.
+ * - camera: a Live Photo from the iPhone's camera in Portrait mode, with no app, with a title,
+ *   caption, keywords, faces (someone you named, someone you named in a group
+ *   of faces who was merged into another person, someone unnamed, and a pet),
+ *   and an album in two folders. An undated favorite, last viewed, shared,
+ *   and edited.
+ * - video: a slo-mo video from the Camera app, at 0, 0, with a face Photos matched.
+ *   A favorite the change log dates.
  * - screenshot, screenRecording: captures of the screen.
- * - faceTime: a Live Photo taken during a FaceTime call, with a postal address.
- * - whatsApp: someone's photo saved from WhatsApp, with camera data, and a
- *   caption that came with it.
+ * - faceTime: a Live Photo taken during a FaceTime call, with a face you added.
+ * - whatsApp: someone's photo saved from WhatsApp, with camera data, a
+ *   caption that came with it, and a face Photos matched.
  * - noCamera: a video no app added and with no camera data.
- * - local: a photo from the Messages camera, not in iCloud, with no position.
- *   Unfavorited after the change log began.
+ * - local: a photo from the Messages camera, not in iCloud, with no position,
+ *   the one Photos shows of a burst. Unfavorited after the change log began.
  * - unliked: liked, then unliked.
  * - trashed, burst, sharedAlbum: in Recently Deleted, a burst photo Photos
  *   hides, and a photo in a shared album. None is extracted.
@@ -226,11 +228,11 @@ function writeLibrary(root, { model }) {
       ZVISIBILITYSTATE INTEGER, ZDATECREATED TIMESTAMP, ZADDEDDATE TIMESTAMP, ZWIDTH INTEGER,
       ZHEIGHT INTEGER, ZDURATION FLOAT, ZUNIFORMTYPEIDENTIFIER VARCHAR, ZLATITUDE FLOAT,
       ZLONGITUDE FLOAT, ZFAVORITE INTEGER, ZVIDEOCPDURATIONVALUE INTEGER, ZLASTSHAREDDATE TIMESTAMP,
-      ZADJUSTMENTTIMESTAMP TIMESTAMP, ZADJUSTMENTSSTATE INTEGER);
+      ZADJUSTMENTTIMESTAMP TIMESTAMP, ZADJUSTMENTSSTATE INTEGER, ZDEPTHTYPE INTEGER,
+      ZAVALANCHEUUID VARCHAR);
     CREATE TABLE ZADDITIONALASSETATTRIBUTES (Z_PK INTEGER PRIMARY KEY, ZASSET INTEGER,
       ZASSETDESCRIPTION INTEGER, ZTITLE VARCHAR, ZORIGINALFILENAME VARCHAR,
-      ZIMPORTEDBYBUNDLEIDENTIFIER VARCHAR, ZIMPORTEDBYDISPLAYNAME VARCHAR, ZREVERSELOCATIONDATA BLOB,
-      ZLASTVIEWEDDATE TIMESTAMP, ZVIDEOCPDURATIONTIMESCALE INTEGER, ZSYNDICATIONIDENTIFIER VARCHAR);
+      ZIMPORTEDBYBUNDLEIDENTIFIER VARCHAR, ZIMPORTEDBYDISPLAYNAME VARCHAR, ZLASTVIEWEDDATE TIMESTAMP, ZVIDEOCPDURATIONTIMESCALE INTEGER, ZSYNDICATIONIDENTIFIER VARCHAR);
     CREATE TABLE ZASSETDESCRIPTION (Z_PK INTEGER PRIMARY KEY, ZASSETATTRIBUTES INTEGER, ZLONGDESCRIPTION VARCHAR);
     CREATE TABLE ZEXTENDEDATTRIBUTES (Z_PK INTEGER PRIMARY KEY, ZASSET INTEGER, ZCAMERAMAKE VARCHAR, ZCAMERAMODEL VARCHAR);
     CREATE TABLE ZKEYWORD (Z_PK INTEGER PRIMARY KEY, ZTITLE VARCHAR);
@@ -239,8 +241,9 @@ function writeLibrary(root, { model }) {
       ZCLOUDGUID VARCHAR, ZUUID VARCHAR, ZPARENTFOLDER INTEGER, ZTRASHEDSTATE INTEGER);
     CREATE TABLE Z_7ASSETS (Z_7ALBUMS INTEGER, Z_5ASSETS INTEGER);
     CREATE TABLE ZPERSON (Z_PK INTEGER PRIMARY KEY, ZPERSONUUID VARCHAR, ZFULLNAME VARCHAR,
-      ZDETECTIONTYPE INTEGER, ZMERGETARGETPERSON INTEGER, ZISMECONFIDENCE FLOAT);
-    CREATE TABLE ZDETECTEDFACE (Z_PK INTEGER PRIMARY KEY, ZASSETFORFACE INTEGER, ZPERSONFORFACE INTEGER);
+      ZDETECTIONTYPE INTEGER, ZMERGETARGETPERSON INTEGER);
+    CREATE TABLE ZDETECTEDFACE (Z_PK INTEGER PRIMARY KEY, ZASSETFORFACE INTEGER, ZPERSONFORFACE INTEGER,
+      ZNAMESOURCE INTEGER, ZMANUAL INTEGER);
     CREATE TABLE ATRANSACTION (Z_PK INTEGER PRIMARY KEY, ZTIMESTAMP FLOAT);
     CREATE TABLE ACHANGE (Z_PK INTEGER PRIMARY KEY, ZTRANSACTIONID INTEGER, ZENTITY INTEGER,
       ZENTITYPK INTEGER, ZCHANGETYPE INTEGER, ZCOLUMNS BLOB);
@@ -258,12 +261,12 @@ function writeLibrary(root, { model }) {
   const rows = {
     camera: {
       subtype: 2,
+      depth: 1,
       created: day(10),
       added: day(10) + 60,
       size: [4032, 3024],
       uti: 'public.heic',
       position: [43.6532, -79.3832],
-      place: placeData({ addressString: '1 Front St W\nToronto ON M5J 2X5\nCanada' }),
       favorite: 1,
       clip: [2500, 1000],
       title: 'Morning',
@@ -276,6 +279,7 @@ function writeLibrary(root, { model }) {
     },
     video: {
       kind: 1,
+      subtype: 101,
       created: day(9),
       added: day(9) + 60,
       size: [1920, 1080],
@@ -311,9 +315,6 @@ function writeLibrary(root, { model }) {
       added: day(6) + 5,
       uti: 'public.heic',
       position: [51.5072, -0.1276],
-      place: placeData({
-        postal: { _street: '10 Downing St', _city: 'London', _country: 'United Kingdom' },
-      }),
       clip: [3000, 1000],
       importer: 'com.apple.FTLivePhotoService',
       camera: iPhone,
@@ -336,6 +337,7 @@ function writeLibrary(root, { model }) {
       position: [-180, -180],
       importer: 'com.apple.camera.CameraMessagesApp',
       camera: iPhone,
+      burst: 'BURST-1',
     },
     unliked: {
       created: day(2),
@@ -344,15 +346,15 @@ function writeLibrary(root, { model }) {
       camera: ['Canon', 'Canon EOS R6'],
     },
     trashed: { created: day(30), added: day(30), trashed: 1, camera: iPhone },
-    burst: { created: day(29), added: day(29), visibility: 2, camera: iPhone },
+    burst: { created: day(29), added: day(29), visibility: 2, camera: iPhone, burst: 'BURST-1' },
     sharedAlbum: { created: day(28), added: day(28), scope: 2, camera: iPhone },
   };
 
   const insertAsset = db.prepare(
-    `INSERT INTO ZASSET VALUES (?, ${ENT.Asset}, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO ZASSET VALUES (?, ${ENT.Asset}, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
   const insertAttributes = db.prepare(
-    'INSERT INTO ZADDITIONALASSETATTRIBUTES VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)'
+    'INSERT INTO ZADDITIONALASSETATTRIBUTES VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)'
   );
   const insertDescription = db.prepare('INSERT INTO ZASSETDESCRIPTION VALUES (?, ?, ?)');
   const insertExtended = db.prepare('INSERT INTO ZEXTENDEDATTRIBUTES VALUES (?, ?, ?, ?)');
@@ -384,7 +386,9 @@ function writeLibrary(root, { model }) {
       row.clip?.[0] ?? 0,
       row.lastShared ?? null,
       row.adjusted ?? null,
-      row.adjusted ? 1 : 0
+      row.adjusted ? 1 : 0,
+      row.depth ?? 0,
+      row.burst ?? null
     );
     const description = row.caption ? id : null;
     insertAttributes.run(
@@ -395,7 +399,6 @@ function writeLibrary(root, { model }) {
       row.filename ?? null,
       row.importer ?? null,
       row.importerName ?? null,
-      row.place ?? null,
       row.lastViewed ?? null,
       row.clip?.[1] ?? 0
     );
@@ -427,20 +430,30 @@ function writeLibrary(root, { model }) {
   member.run(5, pk.video);
   member.run(6, pk.camera);
 
-  // People: you, someone merged into another person, someone unnamed, and a pet.
+  // People: Alex, someone merged into another person, someone unnamed, and a pet.
   db.exec(`
     INSERT INTO ZPERSON VALUES
-      (1, '${people.me}', 'Alex Doe', 1, NULL, 1),
-      (2, 'PERSON-SAM-OLD', 'Sam', 1, 3, 0),
-      (3, '${people.sam}', 'Sam Lee', 1, NULL, 0),
-      (4, 'PERSON-UNNAMED', '', 1, NULL, 0),
-      (5, 'PERSON-REX', 'Rex', 4, NULL, 0);
+      (1, '${people.alex}', 'Alex Doe', 1, NULL),
+      (2, 'PERSON-SAM-OLD', 'Sam', 1, 3),
+      (3, '${people.sam}', 'Sam Lee', 1, NULL),
+      (4, 'PERSON-UNNAMED', '', 1, NULL),
+      (5, 'PERSON-REX', 'Rex', 4, NULL);
   `);
-  const face = db.prepare(
-    'INSERT INTO ZDETECTEDFACE (ZASSETFORFACE, ZPERSONFORFACE) VALUES (?, ?)'
-  );
-  for (const person of [1, 2, 4, 5]) face.run(pk.camera, person);
-  face.run(pk.faceTime, 3);
+  // Faces, by how each came to be its person's (`ZNAMESOURCE`): you named one
+  // face (3) or a group of them (1), or Photos matched it itself (0, 2, 6). A
+  // face you added (`ZMANUAL`) has none.
+  const face = db.prepare('INSERT INTO ZDETECTEDFACE VALUES (NULL, ?, ?, ?, ?)');
+  for (const [asset, person, source, manual] of [
+    [pk.camera, 1, 3, 0],
+    [pk.camera, 2, 1, 0],
+    [pk.camera, 4, 0, 0],
+    [pk.camera, 5, 3, 0],
+    [pk.video, 1, 6, 0],
+    [pk.whatsApp, 3, 2, 0],
+    [pk.faceTime, 3, 0, 1],
+  ]) {
+    face.run(asset, person, source, manual);
+  }
 
   // The change log.
   const transaction = db.prepare('INSERT INTO ATRANSACTION VALUES (?, ?)');
@@ -494,26 +507,11 @@ function writeLibrary(root, { model }) {
     ['AdditionalAssetAttributes', pk.video, UPDATE, MASK.attributes.lastViewedDate],
   ]);
   db.close();
-
-  writeMediaAnalysis(root, [
-    { uuid: 'UUID-CAMERA', table: 'image', caption: 'A plate on a table', confidence: 0.4 },
-    {
-      uuid: 'UUID-CAMERA',
-      table: 'image',
-      caption: 'A table with breakfast food',
-      confidence: 0.9,
-    },
-    { uuid: 'UUID-VIDEO', table: 'video', caption: 'A person walking a dog', confidence: 0.8 },
-  ]);
-  writeSearchIndex(root, [
-    { identifier: 'UUID-CAMERA', terms: [1, 2, 3, 4, 5, 1] },
-    { identifier: 'uuid-video', terms: [1] },
-  ]);
 }
 
 function writeSharedWithYou(root) {
   const db = openDatabase(join(root, 'database', 'Photos.sqlite'));
-  // An older library: no ZISMECONFIDENCE, no ZCLOUDGUID, no change log.
+  // An older library: no ZCLOUDGUID, no name sources, no change log.
   db.exec(`
     CREATE TABLE Z_PRIMARYKEY (Z_ENT INTEGER PRIMARY KEY, Z_NAME VARCHAR, Z_SUPER INTEGER, Z_MAX INTEGER);
     CREATE TABLE ZASSET (Z_PK INTEGER PRIMARY KEY, ZUUID VARCHAR, ZKIND INTEGER, ZKINDSUBTYPE INTEGER,
@@ -567,14 +565,11 @@ function writeSharedWithYou(root) {
     insertAttributes.run(id, id, `IMG_${1000 + id}.JPG`, item.attachment);
     if (item.camera) insertExtended.run(id, id, 'Apple', 'iPhone 15');
   }
-  // Sam, by the same ID as in your library, in the photo you received.
+  // Sam, by the same ID as in your library, in the photo you received. With
+  // no name source, it isn't a face you named.
   db.exec(`INSERT INTO ZPERSON VALUES (1, '${people.sam}', 'Sam Lee', 1, NULL)`);
   db.exec('INSERT INTO ZDETECTEDFACE (ZASSETFORFACE, ZPERSONFORFACE) VALUES (1, 1)');
   db.close();
-
-  writeMediaAnalysis(root, [
-    { uuid: 'UUID-SHARED-1', table: 'image', caption: 'Two people at a market', confidence: 0.7 },
-  ]);
 }
 
 function writeMessages(path) {
@@ -617,73 +612,9 @@ function writeMessages(path) {
   db.close();
 }
 
-/** The library's media analysis: the captions Photos' model wrote. */
-function writeMediaAnalysis(root, captions) {
-  const db = openDatabase(
-    join(root, 'private', 'com.apple.mediaanalysisd', 'MediaAnalysis', 'MediaAnalysis.sqlite')
-  );
-  db.exec(`
-    CREATE TABLE ZASSET (Z_PK INTEGER PRIMARY KEY, ZLOCALIDENTIFIER VARCHAR);
-    CREATE TABLE ZIMAGECAPTIONRESULT (Z_PK INTEGER PRIMARY KEY, ZISUNSAFE INTEGER, ZASSET INTEGER, ZCONFIDENCE FLOAT, ZCAPTION VARCHAR);
-    CREATE TABLE ZVIDEOCAPTIONRESULT (Z_PK INTEGER PRIMARY KEY, ZASSET INTEGER, ZCONFIDENCE FLOAT, ZCAPTION VARCHAR);
-  `);
-  const asset = db.prepare('INSERT OR IGNORE INTO ZASSET VALUES (?, ?)');
-  const image = db.prepare(
-    'INSERT INTO ZIMAGECAPTIONRESULT (ZISUNSAFE, ZASSET, ZCONFIDENCE, ZCAPTION) VALUES (0, ?, ?, ?)'
-  );
-  const video = db.prepare(
-    'INSERT INTO ZVIDEOCAPTIONRESULT (ZASSET, ZCONFIDENCE, ZCAPTION) VALUES (?, ?, ?)'
-  );
-  const pks = new Map();
-  for (const { uuid, table, caption, confidence } of captions) {
-    if (!pks.has(uuid)) {
-      pks.set(uuid, pks.size + 1);
-      asset.run(pks.get(uuid), `${uuid}/L0/001`);
-    }
-    (table === 'video' ? video : image).run(pks.get(uuid), confidence, caption);
-  }
-  db.close();
-}
-
-/**
- * The library's search index: each item lists its search terms as
- * little-endian 32-bit IDs. Category 4000 is a label; type 2 is a synonym.
- */
-function writeSearchIndex(root, items) {
-  const db = openDatabase(join(root, 'database', 'search', 'leo.sqlite'));
-  db.exec(`
-    CREATE TABLE items (pk INTEGER PRIMARY KEY, identifier TEXT UNIQUE, type INTEGER, lexeme_ids BLOB);
-    CREATE TABLE lexicon (pk INTEGER PRIMARY KEY, lexeme_id INTEGER, type INTEGER, category INTEGER, content TEXT);
-    INSERT INTO lexicon (lexeme_id, type, category, content) VALUES
-      (1, 1, 4000, 'Food'), (2, 1, 4000, 'Table'), (3, 1, 4000, 'PGSceneSearchableText'),
-      (4, 2, 4000, 'Meal'), (5, 1, 2060, 'Toronto');
-  `);
-  const item = db.prepare('INSERT INTO items (identifier, type, lexeme_ids) VALUES (?, 1, ?)');
-  for (const { identifier, terms } of items) {
-    const ids = Buffer.alloc(terms.length * 4);
-    for (const [i, term] of terms.entries()) ids.writeUInt32LE(term, i * 4);
-    item.run(identifier, ids);
-  }
-  db.close();
-}
-
 function openDatabase(path) {
   mkdirSync(join(path, '..'), { recursive: true });
   return new DatabaseSync(path);
-}
-
-/** Where a photo was taken, as Photos archives it: a `PLRevGeoLocationInfo`. */
-function placeData({ addressString, postal }) {
-  const archive = keyedArchive();
-  const fields = { version: 13, isHome: false };
-  if (addressString) fields.addressString = archive.add(addressString);
-  if (postal) {
-    fields.postalAddress = archive.object(
-      'CNPostalAddress',
-      Object.fromEntries(Object.entries(postal).map(([key, value]) => [key, archive.add(value)]))
-    );
-  }
-  return archive.finish(archive.object('PLRevGeoLocationInfo', fields));
 }
 
 /**

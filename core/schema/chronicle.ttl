@@ -1022,11 +1022,6 @@
   rdfs:range :Text;
   skos:exactMatch schemaorg:caption .
 [] a sh:PropertyShape; sh:path :caption; sh:targetSubjectsOf :caption; sh:maxCount 1 .
-:aiDescription a owl:DatatypeProperty;
-  rdfs:comment "A description of the image or video that an AI model wrote, such as `A dog running on a beach`. A description a person wrote is its :caption.";
-  rdfs:domain [ a owl:Class; owl:unionOf ( :ImageObject :VideoObject ) ];
-  rdfs:range :Text .
-[] a sh:PropertyShape; sh:path :aiDescription; sh:targetSubjectsOf :aiDescription; sh:maxCount 1 .
 :depicts a owl:ObjectProperty;
   rdfs:comment "A person who appears in the image or video.";
   rdfs:subPropertyOf :relation;

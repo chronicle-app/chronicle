@@ -1,15 +1,77 @@
-import { existsSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { assertReadable } from '@chronicle.app/etl';
-import { allRows } from '@chronicle.app/etl-sqlite';
-import { placeAddress } from './archive.js';
+import { assertReadable, type DatabaseSchema } from '@chronicle.app/etl';
+import { allRows, assertDatabaseSchema } from '@chronicle.app/etl-sqlite';
 import { CoreDataStore, appleDate, lastChanged } from './coredata.js';
 
 /** The library Photos opens by default. */
 export const SYSTEM_LIBRARY = `${process.env.HOME}/Pictures/Photos Library.photoslibrary`;
 /** The library Photos keeps of what was shared with you in Messages. */
 export const SHARED_WITH_YOU_LIBRARY = `${process.env.HOME}/Library/Photos/Libraries/Syndication.photoslibrary`;
+
+/**
+ * What a library's `Photos.sqlite` must have for a run and a survey to read
+ * it. A column ending in `?` is one a query reads only when it's there. The
+ * change log's tables, the model cache, the join tables, which Core Data
+ * names by entity number, and the keywords, read through one of them, are
+ * read only when they're there, so they aren't declared.
+ */
+export const DATABASES: DatabaseSchema[] = [
+  {
+    tables: {
+      Z_PRIMARYKEY: ['Z_NAME', 'Z_ENT'],
+      ZASSET: [
+        'Z_PK',
+        'ZUUID',
+        'ZKIND',
+        'ZDATECREATED',
+        'ZWIDTH',
+        'ZHEIGHT',
+        'ZDURATION',
+        'ZLATITUDE',
+        'ZLONGITUDE',
+        'ZFAVORITE',
+        'ZCLOUDASSETGUID?',
+        'ZKINDSUBTYPE?',
+        'ZDEPTHTYPE?',
+        'ZAVALANCHEUUID?',
+        'ZADDEDDATE?',
+        'ZUNIFORMTYPEIDENTIFIER?',
+        'ZVIDEOCPDURATIONVALUE?',
+        'ZLASTSHAREDDATE?',
+        'ZADJUSTMENTTIMESTAMP?',
+        'ZADJUSTMENTSSTATE?',
+        'ZBUNDLESCOPE?',
+        'ZTRASHEDSTATE?',
+        'ZVISIBILITYSTATE?',
+      ],
+      ZADDITIONALASSETATTRIBUTES: [
+        'Z_PK',
+        'ZASSET',
+        'ZVIDEOCPDURATIONTIMESCALE?',
+        'ZTITLE?',
+        'ZORIGINALFILENAME?',
+        'ZIMPORTEDBYBUNDLEIDENTIFIER?',
+        'ZIMPORTEDBYDISPLAYNAME?',
+        'ZLASTVIEWEDDATE?',
+        'ZSYNDICATIONIDENTIFIER?',
+      ],
+      ZASSETDESCRIPTION: ['Z_PK', 'ZASSETATTRIBUTES', 'ZLONGDESCRIPTION?'],
+      ZEXTENDEDATTRIBUTES: ['ZASSET', 'ZCAMERAMAKE?', 'ZCAMERAMODEL?'],
+      ZGENERICALBUM: [
+        'Z_PK',
+        'ZKIND',
+        'ZTITLE',
+        'ZUUID',
+        'ZPARENTFOLDER',
+        'ZTRASHEDSTATE',
+        'ZCLOUDGUID?',
+      ],
+      ZPERSON: ['Z_PK', 'ZPERSONUUID', 'ZFULLNAME', 'ZDETECTIONTYPE', 'ZMERGETARGETPERSON'],
+      ZDETECTEDFACE: ['ZASSETFORFACE', 'ZPERSONFORFACE', 'ZNAMESOURCE?', 'ZMANUAL?'],
+    },
+  },
+];
 
 /** Which part of a library an asset is in (`ZBUNDLESCOPE`). */
 export const Scope = {
@@ -19,13 +81,11 @@ export const Scope = {
   sharedWithYou: 3,
 } as const;
 
-/** One person Photos recognized in a photo, by the name you gave them. */
+/** One person you said is in a photo, by the name you gave them. */
 export interface PhotoPerson {
   /** Photos' ID for the person (`ZPERSONUUID`), the same on every Mac on the iCloud library. */
   id: string;
   name: string;
-  /** Whether Photos knows this person is you. */
-  me: boolean;
 }
 
 /** An album, with the folders it's in, innermost first. */
@@ -36,7 +96,15 @@ export interface PhotoAlbum {
   folders: Array<{ id: string; title: string | null }>;
 }
 
-/** A photo or video, with what Photos knows about it. */
+/**
+ * The camera's mode a photo or video was taken in, as Photos' Media Types
+ * name them: a Live Photo, a Portrait, a panorama, a burst, a slo-mo video,
+ * a time-lapse, or a Cinematic video.
+ */
+export type Format =
+  'livePhoto' | 'portrait' | 'panorama' | 'burst' | 'sloMo' | 'timeLapse' | 'cinematic';
+
+/** A photo or video, with what its file and you recorded about it. */
 export interface Asset {
   /** iCloud's ID for it (`ZCLOUDASSETGUID`), or the library's own (`ZUUID`) when it isn't in iCloud. */
   id: string;
@@ -45,6 +113,8 @@ export interface Asset {
   kind: 'photo' | 'video';
   /** Photos' kind of photo or video (`ZKINDSUBTYPE`): 2 is a Live Photo, 10 a screenshot, 103 a screen recording. */
   subtype: number;
+  /** The camera's mode it was taken in, when it was one. */
+  format: Format | null;
   /** When it was taken, as Photos has it, in UTC. */
   created: string | null;
   /** When it was added to the library. */
@@ -67,11 +137,7 @@ export interface Asset {
   /** The caption you wrote. */
   caption: string | null;
   keywords: string[];
-  /** The caption Photos' model wrote. */
-  aiDescription: string | null;
-  /** What Photos recognized in it, as its search shows it. */
-  labels: string[];
-  location: { latitude: number; longitude: number; address: string | null } | null;
+  location: { latitude: number; longitude: number } | null;
   people: PhotoPerson[];
   albums: PhotoAlbum[];
   /** A Live Photo's video, with how long it lasts in seconds. */
@@ -86,6 +152,8 @@ export interface AssetRow {
   cloudGuid: string | null;
   kind: number;
   subtype: number | null;
+  depth: number | null;
+  burst: string | null;
   dateCreated: number | null;
   addedDate: number | null;
   width: number | null;
@@ -101,7 +169,6 @@ export interface AssetRow {
   filename: string | null;
   importer: string | null;
   importerName: string | null;
-  place: Uint8Array | null;
   caption: string | null;
   cameraMake: string | null;
   cameraModel: string | null;
@@ -117,10 +184,11 @@ const ALBUM = 2;
 const FOLDER = 4000;
 // Photos' detection type for a person rather than a pet.
 const HUMAN = 1;
-// What Photos' search calls a label: something recognized in the image.
-const LABEL_CATEGORY = 4000;
-// Search terms Photos keeps for itself, not words a person would search for.
-const PLACEHOLDER = /^PG[A-Za-z0-9]+SearchableText$/;
+// How a face came to be a person's (`ZDETECTEDFACE.ZNAMESOURCE`), as Photos
+// names them: you named a group of faces (`user-cluster`), one face
+// (`user-single`), or one in iPhoto or Aperture (`user-migration`). The rest
+// are Photos' own matches.
+const NAMED_BY_YOU = [1, 3, 4];
 
 /** Where a library's databases are, given the library or its `Photos.sqlite`. */
 export function libraryFiles(input: string) {
@@ -129,14 +197,6 @@ export function libraryFiles(input: string) {
   return {
     root,
     photos: join(root, 'database', 'Photos.sqlite'),
-    mediaAnalysis: join(
-      root,
-      'private',
-      'com.apple.mediaanalysisd',
-      'MediaAnalysis',
-      'MediaAnalysis.sqlite'
-    ),
-    search: join(root, 'database', 'search', 'leo.sqlite'),
   };
 }
 
@@ -156,10 +216,18 @@ export class PhotosLibrary {
     this.store = new CoreDataStore(db);
   }
 
+  /** Open a library, refusing one whose `Photos.sqlite` isn't in {@link DATABASES}. */
   static open(input: string): PhotosLibrary {
     const files = libraryFiles(input);
     assertReadable(files.photos, 'Photos library');
-    return new PhotosLibrary(files, new DatabaseSync(files.photos, { readOnly: true }));
+    const db = new DatabaseSync(files.photos, { readOnly: true });
+    try {
+      assertDatabaseSchema(db, DATABASES, files.photos);
+    } catch (error) {
+      db.close();
+      throw error;
+    }
+    return new PhotosLibrary(files, db);
   }
 
   close(): void {
@@ -182,6 +250,7 @@ export class PhotosLibrary {
       SELECT a.Z_PK AS pk, x.Z_PK AS attributes, a.ZUUID AS uuid,
         ${c('a', 'ZASSET', 'ZCLOUDASSETGUID')} AS cloudGuid,
         a.ZKIND AS kind, ${c('a', 'ZASSET', 'ZKINDSUBTYPE')} AS subtype,
+        ${c('a', 'ZASSET', 'ZDEPTHTYPE')} AS depth, ${c('a', 'ZASSET', 'ZAVALANCHEUUID')} AS burst,
         a.ZDATECREATED AS dateCreated, ${c('a', 'ZASSET', 'ZADDEDDATE')} AS addedDate,
         a.ZWIDTH AS width, a.ZHEIGHT AS height, a.ZDURATION AS duration,
         ${c('a', 'ZASSET', 'ZUNIFORMTYPEIDENTIFIER')} AS uti,
@@ -192,7 +261,6 @@ export class PhotosLibrary {
         ${c('x', 'ZADDITIONALASSETATTRIBUTES', 'ZORIGINALFILENAME')} AS filename,
         ${c('x', 'ZADDITIONALASSETATTRIBUTES', 'ZIMPORTEDBYBUNDLEIDENTIFIER')} AS importer,
         ${c('x', 'ZADDITIONALASSETATTRIBUTES', 'ZIMPORTEDBYDISPLAYNAME')} AS importerName,
-        ${c('x', 'ZADDITIONALASSETATTRIBUTES', 'ZREVERSELOCATIONDATA')} AS place,
         ${c('d', 'ZASSETDESCRIPTION', 'ZLONGDESCRIPTION')} AS caption,
         ${c('e', 'ZEXTENDEDATTRIBUTES', 'ZCAMERAMAKE')} AS cameraMake,
         ${c('e', 'ZEXTENDEDATTRIBUTES', 'ZCAMERAMODEL')} AS cameraModel,
@@ -217,39 +285,36 @@ export class PhotosLibrary {
     const people = this.people();
     const albums = this.albumsOfAssets();
     const keywords = this.keywords();
-    const captions = this.aiDescriptions();
-    const labels = this.labels();
-    return rows.map(row => ({
-      id: assetId(row),
-      uuid: row.uuid,
-      kind: row.kind === 1 ? 'video' : 'photo',
-      subtype: row.subtype ?? 0,
-      created: appleDate(row.dateCreated),
-      added: appleDate(row.addedDate),
-      importer: clean(row.importer),
-      importerName: clean(row.importerName),
-      camera:
-        clean(row.cameraMake) || clean(row.cameraModel)
-          ? { make: clean(row.cameraMake), model: clean(row.cameraModel) }
-          : null,
-      width: positive(row.width),
-      height: positive(row.height),
-      duration: row.kind === 1 ? positive(row.duration) : null,
-      uti: clean(row.uti),
-      title: clean(row.title),
-      filename: clean(row.filename),
-      caption: clean(row.caption),
-      keywords: (row.attributes !== null && keywords.get(row.attributes)) || [],
-      aiDescription: captions.get(row.uuid.toUpperCase()) ?? null,
-      labels: labels.get(row.uuid.toUpperCase()) ?? [],
-      location: locationOf(row),
-      people: people.get(row.pk) ?? [],
-      albums: albums.get(row.pk) ?? [],
-      clip:
-        row.subtype === 2
-          ? { duration: row.clipScale ? positive((row.clipValue ?? 0) / row.clipScale) : null }
-          : null,
-    }));
+    return rows.map(row => {
+      const { subtype, created, added, importer, camera } = provenanceOf(row);
+      return {
+        id: assetId(row),
+        uuid: row.uuid,
+        kind: row.kind === 1 ? 'video' : 'photo',
+        subtype,
+        format: formatOf(row),
+        created,
+        added,
+        importer,
+        importerName: clean(row.importerName),
+        camera,
+        width: positive(row.width),
+        height: positive(row.height),
+        duration: row.kind === 1 ? positive(row.duration) : null,
+        uti: clean(row.uti),
+        title: clean(row.title),
+        filename: clean(row.filename),
+        caption: clean(row.caption),
+        keywords: (row.attributes !== null && keywords.get(row.attributes)) || [],
+        location: locationOf(row),
+        people: people.get(row.pk) ?? [],
+        albums: albums.get(row.pk) ?? [],
+        clip:
+          row.subtype === 2
+            ? { duration: row.clipScale ? positive((row.clipValue ?? 0) / row.clipScale) : null }
+            : null,
+      };
+    });
   }
 
   /** The albums you made, with their folders, by row. */
@@ -336,9 +401,11 @@ export class PhotosLibrary {
   }
 
   /**
-   * The people you named in each asset, by the asset's row. A person merged
-   * into another is the one they were merged into. Pets and people you
-   * haven't named are left out.
+   * The people you said are in each asset, by the asset's row: a face you
+   * named, on its own or in a group of faces, or one you added. A face Photos
+   * matched to a person itself is left out, as are pets and people you
+   * haven't named. A person merged into another is the one they were merged
+   * into.
    */
   private people(): Map<number, PhotoPerson[]> {
     const people = new Map(
@@ -348,13 +415,11 @@ export class PhotosLibrary {
         name: string | null;
         detection: number | null;
         mergedInto: number | null;
-        me: number | null;
       }>(
         this.db.prepare(`
           SELECT Z_PK AS pk, ZPERSONUUID AS uuid, ZFULLNAME AS name, ZDETECTIONTYPE AS detection,
-            ZMERGETARGETPERSON AS mergedInto,
-            ${this.store.column('p', 'ZPERSON', 'ZISMECONFIDENCE')} AS me
-          FROM ZPERSON p`)
+            ZMERGETARGETPERSON AS mergedInto
+          FROM ZPERSON`)
       ).map(row => [row.pk, row])
     );
     const resolved = new Map<number, PhotoPerson | null>();
@@ -368,18 +433,19 @@ export class PhotosLibrary {
       }
       const name = clean(person?.name);
       const found =
-        person?.uuid && name && person.detection === HUMAN
-          ? { id: person.uuid, name, me: (person.me ?? 0) >= 1 }
-          : null;
+        person?.uuid && name && person.detection === HUMAN ? { id: person.uuid, name } : null;
       resolved.set(pk, found);
       return found;
     };
 
     const byAsset = new Map<number, PhotoPerson[]>();
+    const nameSource = this.store.column('f', 'ZDETECTEDFACE', 'ZNAMESOURCE');
+    const manual = this.store.column('f', 'ZDETECTEDFACE', 'ZMANUAL');
     const faces = allRows<{ asset: number; person: number }>(
       this.db.prepare(`
-        SELECT ZASSETFORFACE AS asset, ZPERSONFORFACE AS person FROM ZDETECTEDFACE
-        WHERE ZASSETFORFACE IS NOT NULL AND ZPERSONFORFACE IS NOT NULL`)
+        SELECT ZASSETFORFACE AS asset, ZPERSONFORFACE AS person FROM ZDETECTEDFACE f
+        WHERE ZASSETFORFACE IS NOT NULL AND ZPERSONFORFACE IS NOT NULL
+          AND (${nameSource} IN (${NAMED_BY_YOU.join(', ')}) OR ${manual} = 1)`)
     );
     for (const face of faces) {
       const person = personOf(face.person);
@@ -391,78 +457,46 @@ export class PhotosLibrary {
     for (const list of byAsset.values()) list.sort((a, b) => a.id.localeCompare(b.id));
     return byAsset;
   }
+}
 
-  /**
-   * The caption Photos' model wrote for each asset, by its UUID, from the
-   * library's media analysis. A video's caption is its own.
-   */
-  private aiDescriptions(): Map<string, string> {
-    const captions = new Map<string, { caption: string; confidence: number }>();
-    withDatabase(this.files.mediaAnalysis, db => {
-      for (const table of ['ZIMAGECAPTIONRESULT', 'ZVIDEOCAPTIONRESULT']) {
-        const columns = new Set(
-          allRows<{ name: string }>(db.prepare(`PRAGMA table_info(${table})`)).map(c => c.name)
-        );
-        if (!columns.has('ZCAPTION')) continue;
-        const rows = allRows<{
-          id: string | null;
-          caption: string | null;
-          confidence: number | null;
-        }>(
-          db.prepare(`
-            SELECT a.ZLOCALIDENTIFIER AS id, r.ZCAPTION AS caption,
-              ${columns.has('ZCONFIDENCE') ? 'r.ZCONFIDENCE' : 'NULL'} AS confidence
-            FROM ${table} r JOIN ZASSET a ON a.Z_PK = r.ZASSET`)
-        );
-        for (const row of rows) {
-          // A local identifier is the asset's UUID and its resource, `<UUID>/L0/001`.
-          const uuid = row.id?.split('/')[0]?.toUpperCase();
-          const caption = clean(row.caption);
-          if (!uuid || !caption) continue;
-          const confidence = row.confidence ?? 0;
-          const best = captions.get(uuid);
-          if (!best || confidence > best.confidence) captions.set(uuid, { caption, confidence });
-        }
-      }
-    });
-    return new Map([...captions].map(([uuid, { caption }]) => [uuid, caption]));
-  }
+/** How an asset came to be in the library, and when: what its row says without the joins. */
+export type Provenance = Pick<Asset, 'subtype' | 'created' | 'added' | 'importer' | 'camera'>;
 
-  /**
-   * What Photos recognized in each asset, by its UUID, as its search shows
-   * it: the labels in the library's search index, `leo.sqlite`. Each asset
-   * lists its search terms as little-endian 32-bit IDs.
-   */
-  private labels(): Map<string, string[]> {
-    const labels = new Map<string, string[]>();
-    withDatabase(this.files.search, db => {
-      const terms = new Map(
-        allRows<{ id: number; content: string | null }>(
-          db.prepare(
-            'SELECT lexeme_id AS id, content FROM lexicon WHERE category = ? AND type = 1'
-          ),
-          LABEL_CATEGORY
-        ).flatMap(row => {
-          const content = clean(row.content);
-          return content && !PLACEHOLDER.test(content) ? [[row.id, content]] : [];
-        })
-      );
-      const items = allRows<{ identifier: string | null; ids: Uint8Array | null }>(
-        db.prepare('SELECT identifier, lexeme_ids AS ids FROM items WHERE type = 1')
-      );
-      for (const item of items) {
-        if (!item.identifier || !item.ids) continue;
-        const ids = Buffer.from(item.ids.buffer, item.ids.byteOffset, item.ids.byteLength);
-        const found: string[] = [];
-        for (let at = 0; at + 4 <= ids.length; at += 4) {
-          const term = terms.get(ids.readUInt32LE(at));
-          if (term && !found.includes(term)) found.push(term);
-        }
-        if (found.length > 0) labels.set(item.identifier.toUpperCase(), found);
-      }
-    });
-    return labels;
-  }
+/** An asset's provenance, from its row alone, as {@link PhotosLibrary.describe} gives it. */
+export function provenanceOf(row: AssetRow): Provenance {
+  const make = clean(row.cameraMake);
+  const model = clean(row.cameraModel);
+  return {
+    subtype: row.subtype ?? 0,
+    created: appleDate(row.dateCreated),
+    added: appleDate(row.addedDate),
+    importer: clean(row.importer),
+    camera: make || model ? { make, model } : null,
+  };
+}
+
+// Photos' kinds of photo and video (`ZKINDSUBTYPE`) that are a camera's mode.
+const SUBTYPE_FORMATS: { [subtype: number]: Format } = {
+  1: 'panorama',
+  2: 'livePhoto',
+  101: 'sloMo',
+  102: 'timeLapse',
+};
+// What depth a photo or video was taken with (`ZDEPTHTYPE`): a Portrait's,
+// or a Cinematic video's.
+const PORTRAIT = 1;
+const CINEMATIC = 2;
+
+/**
+ * The camera's mode an asset was taken in. A Portrait or a burst can be a
+ * Live Photo too, so it's named as the Portrait or the burst.
+ */
+function formatOf(row: AssetRow): Format | null {
+  const photo = row.kind === 0;
+  if (!photo && row.depth === CINEMATIC) return 'cinematic';
+  if (photo && row.depth === PORTRAIT) return 'portrait';
+  if (photo && clean(row.burst)) return 'burst';
+  return SUBTYPE_FORMATS[row.subtype ?? 0] ?? null;
 }
 
 /** An asset's key: iCloud's ID for it, or the library's own when it isn't in iCloud. */
@@ -479,32 +513,7 @@ function locationOf(row: AssetRow): Asset['location'] {
   if (typeof latitude !== 'number' || typeof longitude !== 'number') return null;
   if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return null;
   if (latitude === -180 || (latitude === 0 && longitude === 0)) return null;
-  let address: string | null = null;
-  if (row.place) {
-    try {
-      address = placeAddress(row.place);
-    } catch {
-      address = null;
-    }
-  }
-  return { latitude, longitude, address };
-}
-
-/**
- * Read a database beside the library, when it's there. The library is
- * complete without it, so one that's missing or doesn't open is skipped.
- */
-function withDatabase(path: string, read: (db: DatabaseSync) => void): void {
-  if (!existsSync(path)) return;
-  let db: DatabaseSync | null = null;
-  try {
-    db = new DatabaseSync(path, { readOnly: true });
-    read(db);
-  } catch {
-    // A database Photos hasn't finished writing, or in a newer format.
-  } finally {
-    db?.close();
-  }
+  return { latitude, longitude };
 }
 
 function groupBy<T, K, V>(rows: T[], key: (row: T) => K, value: (row: T) => V | null): Map<K, V[]> {

@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { monthKey } from '@chronicle.app/etl';
+import { writeSchemaDatabase } from '@chronicle.app/etl-sqlite';
 import {
   ApplePhotosActivityExtractor,
   ApplePhotosFavoritesExtractor,
@@ -20,12 +22,17 @@ import {
   writeApplePhotosFixture,
 } from './fixture.test-helper.js';
 
-// An explicit account keeps the host's iCloud account out of the test.
-async function extract(t, Extractor, { model } = {}) {
+function tempDir(t) {
   const dir = mkdtempSync(join(tmpdir(), 'apple-photos-fixture-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const files = writeApplePhotosFixture(dir, { model });
-  const extractor = new Extractor({ ...files, account, limit: 0 });
+  return dir;
+}
+
+const fixture = (t, { model } = {}) => writeApplePhotosFixture(tempDir(t), { model });
+
+// An explicit account keeps the host's iCloud account out of the test.
+async function extract(t, Extractor, { model, files = fixture(t, { model }), ...config } = {}) {
+  const extractor = new Extractor({ ...files, account, limit: 0, ...config });
   const events = [];
   extractor.useOutput({ emit: event => events.push(event) });
   try {
@@ -136,22 +143,23 @@ test('each photo is what you did to bring it into your library, newest first', a
   assert.equal(photo.name, 'Morning');
   assert.equal(photo.handle, 'IMG_0001.HEIC');
   assert.equal(photo.caption, 'Breakfast on the porch');
-  assert.equal(photo.aiDescription, 'A table with breakfast food');
   assert.deepEqual(photo.tags, ['family', 'porch']);
-  // Labels from Photos' search, without its own placeholders, synonyms, or places.
-  assert.deepEqual(photo.category, ['Food', 'Table']);
   assert.equal(photo.width, 4032);
   assert.equal(photo.height, 3024);
   assert.equal(photo.mimeType, 'image/heic');
-  // The people you named: you, and someone merged into another person, as that
-  // person. Someone unnamed and a pet are left out.
+  // The people you named in it: Alex, and someone you named in a group of
+  // faces, who was merged into another person, as that person. Someone
+  // unnamed and a pet are left out.
   assert.deepEqual(
-    photo.depicts.map(person => [person.sourceId, person.name, person.sameAs]),
+    photo.depicts.map(person => [person.sourceId, person.name]),
     [
-      [people.me, 'Alex Doe', ['@me']],
-      [people.sam, 'Sam Lee', undefined],
+      [people.alex, 'Alex Doe'],
+      [people.sam, 'Sam Lee'],
     ]
   );
+  // A face Photos matched to someone itself isn't one you named.
+  assert.equal(media(byId.get(ids.video)).depicts, undefined);
+  assert.equal(media(byId.get(ids.whatsApp)).depicts, undefined);
   // Its album, in its folders, keyed by iCloud's IDs. A trashed album is left out.
   const [trips] = photo.isPartOf;
   assert.equal(photo.isPartOf.length, 1);
@@ -172,30 +180,37 @@ test('each photo is what you did to bring it into your library, newest first', a
       duration: 'PT2.5S',
     },
   ]);
-  // Each run is the library as it is now, so the lists close when one empties.
-  assert.deepEqual(photo['@asserts'], ['isPartOf', 'tags', 'depicts', 'category', '*']);
+  // Each run is the library as it is now: what it has is complete.
+  assert.deepEqual(photo['@asserts'], ['*']);
+  // The camera's mode it was taken in. A Portrait that's also a Live Photo is
+  // the Portrait.
+  assert.equal(photo.sourceFormat, 'portrait');
+  assert.equal(media(byId.get(ids.video)).sourceFormat, 'sloMo');
+  assert.equal(media(byId.get(ids.local)).sourceFormat, 'burst');
+  assert.equal(byId.get(ids.faceTime).result.contains[0].sourceFormat, 'livePhoto');
+  for (const id of [ids.screenshot, ids.whatsApp, ids.unliked]) {
+    assert.equal(media(byId.get(id)).sourceFormat, undefined, id);
+  }
 
-  // Where it was taken, with Photos' address on one line.
+  // Where it was taken, as the camera recorded it.
   assert.deepEqual(byId.get(ids.camera).location, {
     '@type': 'Location',
     '@asserts': ['*'],
     latitude: 43.6532,
     longitude: -79.3832,
-    address: '1 Front St W, Toronto ON M5J 2X5, Canada',
   });
-  // Or the postal address's parts. No position, or 0, 0, is no location.
-  assert.equal(byId.get(ids.faceTime).location.address, '10 Downing St, London, United Kingdom');
+  // No position, or 0, 0, is no location.
   assert.equal(byId.get(ids.video).location, undefined);
   assert.equal(byId.get(ids.local).location, undefined);
 
-  // A video, and its AI caption.
+  // A video.
   const video = media(byId.get(ids.video));
   assert.equal(video.duration, 'PT12.5S');
   assert.equal(video.mimeType, 'video/quicktime');
-  assert.equal(video.aiDescription, 'A person walking a dog');
   assert.equal(video.isPartOf[0].sourceId, albums.food);
 
-  // What FaceTime recorded is the clip, which contains the still.
+  // What FaceTime recorded is the clip, which contains the still, with the
+  // face you added in it.
   const call = byId.get(ids.faceTime).result;
   assert.equal(call.duration, 'PT3S');
   assert.equal(call.contains[0]['@type'], 'ImageObject');
@@ -260,32 +275,29 @@ test('activity dates what you did with each photo, from its dates and the change
   );
 });
 
-test('favorites lists the favorites the change log has no date for, as one record', async t => {
+test('favorites likes each photo the change log has no date for, with no date', async t => {
   const { records, outputs } = await extract(t, ApplePhotosFavoritesExtractor);
-  assert.equal(outputs.length, 1);
-  const [reading] = outputs;
-  // A record is an action, so the list arrives on the reading that saw it,
-  // dated when the library last changed.
-  assert.equal(reading['@type'], 'UpdateAction');
-  assert.deepEqual(reading['@key'], ['@type', 'source', 'object.sourceId', 'timestamp']);
-  assert.equal(reading.timestamp.toISOString(), records[0].extraction.assertedAt);
-  assert.ok(isYou(reading.agent));
-  assert.equal(reading.agent.likes, undefined);
-  const favorites = reading.object;
-  assert.ok(isYou(favorites));
-  assert.deepEqual(favorites.sameAs, ['@me']);
   // The video's like has a date, so it's in activity instead.
-  assert.deepEqual(favorites.likes, [
-    {
-      '@type': 'ImageObject',
-      '@key': ['@type', 'source', 'sourceId'],
-      '@asserts': ['*'],
-      source: 'apple-photos',
-      sourceId: ids.camera,
-    },
-  ]);
-  // The list is complete, even when it's empty.
-  assert.deepEqual(favorites['@asserts'], ['likes', '*']);
+  assert.deepEqual(
+    records.map(record => record.data.id),
+    [ids.camera]
+  );
+  const [like] = outputs;
+  assert.equal(outputs.length, 1);
+  assert.equal(like['@type'], 'LikeAction');
+  // When you liked it isn't known, so it's keyed by the photo alone, and
+  // read as of when the library last changed.
+  assert.deepEqual(like['@key'], ['@type', 'source', 'object.sourceId']);
+  assert.equal(like.timestamp, undefined);
+  assert.equal(like['@assertedAt'], records[0].extraction.assertedAt);
+  assert.ok(isYou(like.agent));
+  assert.deepEqual(like.object, {
+    '@type': 'ImageObject',
+    '@key': ['@type', 'source', 'sourceId'],
+    '@asserts': ['*'],
+    source: 'apple-photos',
+    sourceId: ids.camera,
+  });
 });
 
 test('a library whose model doesn’t read still gives its dates, and says what it left out', async t => {
@@ -302,7 +314,7 @@ test('a library whose model doesn’t read still gives its dates, and says what 
   // Every favorite is then one with no date.
   const { outputs: favorites } = await extract(t, ApplePhotosFavoritesExtractor, { model: false });
   assert.deepEqual(
-    favorites[0].object.likes.map(photo => photo.sourceId),
+    favorites.map(like => like.object.sourceId),
     [ids.camera, ids.video]
   );
 });
@@ -378,16 +390,127 @@ test('shared with you credits each photo to who sent it in Messages', async t =>
     },
   ]);
   assert.equal(received.object.handle, 'IMG_1001.JPG');
-  // What the Shared with You library's own analysis found in it.
-  assert.equal(received.object.aiDescription, 'Two people at a market');
-  assert.deepEqual(
-    received.object.depicts.map(person => person.sourceId),
-    [people.sam]
-  );
+  // Photos matched Sam's face in it itself, so it depicts no one.
+  assert.equal(received.object.depicts, undefined);
+  assert.deepEqual(received.object['@asserts'], ['*']);
   assert.deepEqual(received.object.location, {
     '@type': 'Location',
     '@asserts': ['*'],
     latitude: 45.5017,
     longitude: -73.5673,
   });
+});
+
+async function survey(files, Extractor, config = {}, options = {}) {
+  const extractor = new Extractor({ ...files, account, ...config });
+  try {
+    await extractor.setup();
+    return await extractor.survey(options);
+  } finally {
+    await extractor.teardown();
+  }
+}
+
+/** How many of the times each month holds, as a survey's `byMonth` keys them. */
+function monthsOf(times) {
+  const months = {};
+  for (const time of times) months[monthKey(time)] = (months[monthKey(time)] ?? 0) + 1;
+  return months;
+}
+
+// The kinds a survey dates each record of, by the record type each surveys.
+const dated = [
+  [ApplePhotosPhotosExtractor, 'photos'],
+  [ApplePhotosActivityExtractor, 'activity'],
+  [ApplePhotosSharedWithYouExtractor, 'shared-with-you'],
+];
+
+test('a survey counts what each kind reads, and when, by month, and since a date', async t => {
+  const files = fixture(t);
+  for (const [Extractor, kind] of dated) {
+    const { records, outputs } = await extract(t, Extractor, { files });
+    const times = outputs.map(action => action.timestamp);
+    assert.ok(records.length > 1, kind);
+    // Not the limit, which a run stops at.
+    assert.deepEqual(
+      await survey(files, Extractor, { limit: 1 }),
+      {
+        [kind]: {
+          count: records.length,
+          earliest: new Date(Math.min(...times)),
+          latest: new Date(Math.max(...times)),
+        },
+      },
+      kind
+    );
+    // By month when asked, by the same times.
+    assert.deepEqual(
+      (await survey(files, Extractor, {}, { byMonth: true }))[kind].byMonth,
+      monthsOf(times),
+      kind
+    );
+    // Since a date, the records a run reads since it.
+    const since = times[Math.floor(times.length / 2)];
+    const after = await extract(t, Extractor, { files, since });
+    assert.ok(after.records.length < records.length, kind);
+    assert.equal(
+      (await survey(files, Extractor, { since }))[kind].count,
+      after.records.length,
+      kind
+    );
+  }
+});
+
+test('a survey of favorites counts them, as of when the library last changed', async t => {
+  const files = fixture(t);
+  const { records } = await extract(t, ApplePhotosFavoritesExtractor, { files });
+  const asOf = new Date(records[0].extraction.assertedAt);
+  assert.deepEqual(await survey(files, ApplePhotosFavoritesExtractor, { limit: 0 }), {
+    favorites: { count: records.length, asOf },
+  });
+  // None since after the library last changed.
+  const since = new Date(asOf.getTime() + 1);
+  assert.deepEqual(await survey(files, ApplePhotosFavoritesExtractor, { since }), {
+    favorites: { count: 0 },
+  });
+});
+
+test('its declared schema is all a run and a survey read, and a library without it is refused', async t => {
+  const [schema] = ApplePhotosPhotosExtractor.databases;
+  const library = (name, tables) => {
+    const input = join(tempDir(t), name);
+    mkdirSync(join(input, 'database'), { recursive: true });
+    writeSchemaDatabase(join(input, 'database', 'Photos.sqlite'), tables, { optional: false });
+    return input;
+  };
+  const { messages } = fixture(t);
+  const bare = library('Photos Library.photoslibrary', schema);
+  const files = { input: bare, syndication: bare, messages };
+  for (const [Extractor, kind] of dated) {
+    assert.deepEqual((await extract(t, Extractor, { files })).records, [], kind);
+    assert.equal((await survey(files, Extractor))[kind].count, 0, kind);
+  }
+  assert.deepEqual((await extract(t, ApplePhotosFavoritesExtractor, { files })).records, []);
+  assert.equal((await survey(files, ApplePhotosFavoritesExtractor)).favorites.count, 0);
+
+  // An older Photos', say, without a column its queries read.
+  const people = schema.tables.ZPERSON.filter(column => column !== 'ZFULLNAME');
+  const older = library('Older.photoslibrary', {
+    tables: { ...schema.tables, ZPERSON: people },
+  });
+  await assert.rejects(
+    extract(t, ApplePhotosPhotosExtractor, { files: { ...files, input: older } }),
+    {
+      message: /version of the database/,
+      fields: { path: join(older, 'database', 'Photos.sqlite'), missing: ['ZPERSON.ZFULLNAME'] },
+    }
+  );
+  // And a folder of something else isn't a library at all.
+  const other = library('Other.photoslibrary', { tables: { ZOTHER: ['Z_PK'] } });
+  await assert.rejects(
+    extract(t, ApplePhotosPhotosExtractor, { files: { ...files, input: other } }),
+    {
+      message: /isn’t the database/,
+    }
+  );
 });

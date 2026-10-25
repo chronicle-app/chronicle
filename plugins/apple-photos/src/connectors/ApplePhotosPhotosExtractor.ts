@@ -1,4 +1,10 @@
-import { Scope, type Asset, type PhotosLibrary } from '../library.js';
+import {
+  Scope,
+  provenanceOf,
+  type Asset,
+  type PhotosLibrary,
+  type Provenance,
+} from '../library.js';
 import ApplePhotosExtractor, { type Found } from './ApplePhotosExtractor.js';
 
 /**
@@ -32,7 +38,7 @@ const FACETIME_APPS = new Set(['com.apple.FTLivePhotoService', 'com.apple.Teleph
  * app, or none, and the camera's make in its file: an app's save of a photo,
  * even one you took, such as a post saved from Instagram, is a save.
  */
-export function originOf(asset: Asset): Origin {
+export function originOf(asset: Provenance): Origin {
   if (asset.subtype === SCREENSHOT) return 'screenshot';
   if (asset.subtype === SCREEN_RECORDING) return 'screenRecording';
   if (asset.importer && FACETIME_APPS.has(asset.importer)) return 'faceTime';
@@ -40,9 +46,14 @@ export function originOf(asset: Asset): Origin {
   return 'saved';
 }
 
+/** When an asset happened: what you made when you made it, and a save when it was added. */
+function timeOf(asset: Provenance, origin = originOf(asset)): string | null {
+  return origin === 'saved' ? (asset.added ?? asset.created) : asset.created;
+}
+
 /**
  * Your photos and videos: one record for each in your library, with what you
- * did to make it, who is in it, what's in it, and the albums it's in. Each run
+ * did to make it, who you said is in it, and the albums it's in. Each run
  * reads the library as it is now.
  */
 export class ApplePhotosPhotosExtractor extends ApplePhotosExtractor {
@@ -54,9 +65,13 @@ export class ApplePhotosPhotosExtractor extends ApplePhotosExtractor {
   protected read(library: PhotosLibrary): Array<Found<Photo>> {
     return library.describe(library.rows(Scope.own)).flatMap(asset => {
       const origin = originOf(asset);
-      // A save is dated when it was added. What you made is dated when you made it.
-      const time = origin === 'saved' ? (asset.added ?? asset.created) : asset.created;
+      const time = timeOf(asset, origin);
       return time ? [{ key: asset.id, time, data: { ...asset, origin } }] : [];
     });
+  }
+
+  /** When each was made or saved, from its row, without who and what is in it. */
+  protected override times(library: PhotosLibrary): string[] {
+    return library.rows(Scope.own).flatMap(row => timeOf(provenanceOf(row)) ?? []);
   }
 }

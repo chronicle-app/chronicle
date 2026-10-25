@@ -1,4 +1,4 @@
-import { ChronicleTransformer, Record, reference } from '@chronicle.app/etl';
+import { ChronicleTransformer, Record } from '@chronicle.app/etl';
 import type {
   ActionAndChildren,
   Agent,
@@ -14,7 +14,7 @@ import type {
 import { buildICloudPersonSchema } from '@chronicle.app/apple';
 import type { Asset, PhotoAlbum, PhotoPerson } from '../library.js';
 import type { Activity } from './ApplePhotosActivityExtractor.js';
-import type { Favorites } from './ApplePhotosFavoritesExtractor.js';
+import type { Favorite } from './ApplePhotosFavoritesExtractor.js';
 import type { Photo } from './ApplePhotosPhotosExtractor.js';
 import type { SharedPhoto } from './ApplePhotosSharedWithYouExtractor.js';
 
@@ -56,8 +56,7 @@ type Media = ImageObject | VideoObject;
  *     ViewAction | ShareAction | UpdateAction | LikeAction | UnlikeAction | AddAction
  *       agent: you   timestamp   object: the photo, by key   target?: Collection (the album)
  *   favorites:
- *     UpdateAction  agent: you   timestamp (when the library last changed)
- *       object: Person (you)  likes[]: the photos, by key
+ *     LikeAction  agent: you   object: the photo, by key   (no timestamp: when isn't known)
  *   shared-with-you:
  *     ShareAction  agent: who sent it   recipient?: who it was sent to   timestamp
  *       object: ImageObject | VideoObject  (by Messages' attachment ID)  sameAs: the attachment
@@ -74,7 +73,7 @@ export default class ApplePhotosTransformer extends ChronicleTransformer {
       case 'activity':
         return [activityAction(record.data as Activity, you)];
       case 'favorites':
-        return you ? [favoritesOf(record.data as Favorites, record.context.occurredAt, you)] : [];
+        return [likeOf(record.data as Favorite, you)];
       case 'shared-with-you':
         return [shareAction(record.data as SharedPhoto, record.context.occurredAt, you)];
       default:
@@ -161,23 +160,17 @@ function activityAction(activity: Activity, you: Person | null): ActionAndChildr
 }
 
 /**
- * Your favorites with no date, as one list on you, which is the whole list:
- * a favorite you remove drops out of it, and you assert `likes` so the last
- * one dropping out still counts. A record is an action, so the list arrives
- * on the reading that saw it, as you, dated when the library last changed.
+ * A favorite the change log has no date for. When you liked it isn't known,
+ * so the like has no timestamp and is keyed by the photo alone. Removing it
+ * is an `UnlikeAction` in `activity`, which the change log dates.
  */
-function favoritesOf(favorites: Favorites, time: string, you: Person): ActionAndChildren {
+function likeOf(favorite: Favorite, you: Person | null): ActionAndChildren {
   return {
-    '@type': 'UpdateAction',
-    '@key': ['@type', 'source', 'object.sourceId', 'timestamp'],
+    '@type': 'LikeAction',
+    '@key': ['@type', 'source', 'object.sourceId'],
     source: SOURCE,
-    timestamp: new Date(time),
-    agent: reference(you),
-    object: {
-      ...you,
-      '@asserts': ['likes'],
-      likes: favorites.favorites.map(photo => photoRef(photo)),
-    },
+    ...(you && { agent: you }),
+    object: photoRef(favorite),
   };
 }
 
@@ -190,7 +183,7 @@ function shareAction(shared: SharedPhoto, time: string, you: Person | null): Act
   // group isn't known.
   const recipient = message.fromMe ? (!message.group && other ? [other] : []) : you ? [you] : [];
   const where = locationOf(shared);
-  const object = mediaOf(shared, { id: attachment, clip: false, asserts: ['depicts', 'category'] });
+  const object = mediaOf(shared, { id: attachment, clip: false });
   return {
     '@type': 'ShareAction',
     '@key': ['@type', 'source', 'sourceId'],
@@ -217,30 +210,25 @@ function shareAction(shared: SharedPhoto, time: string, you: Person | null): Act
 
 /**
  * The photo or video, keyed by iCloud's ID for it. Each run is the library as
- * it is now, so it asserts its albums, keywords, people, and labels, which
- * closes one that's gone even when none are left.
+ * it is now, so an album, keyword, or person taken off it closes while it has
+ * others. Taking off the last one leaves it: listing them in `@asserts` would
+ * close it, at the cost of a marker on every photo that has none.
  */
 function mediaOf(
   asset: Asset,
-  {
-    id = asset.id,
-    clip = true,
-    asserts = ['isPartOf', 'tags', 'depicts', 'category'],
-  }: { id?: string; clip?: boolean; asserts?: string[] } = {}
+  { id = asset.id, clip = true }: { id?: string; clip?: boolean } = {}
 ): Media {
   const mimeType = asset.uti ? MIME_TYPES[asset.uti] : undefined;
   return {
     '@type': asset.kind === 'video' ? 'VideoObject' : 'ImageObject',
     '@key': ['@type', 'source', 'sourceId'],
-    '@asserts': asserts,
     source: SOURCE,
     sourceId: id,
     ...(asset.title && { name: asset.title }),
     ...(asset.filename && { handle: asset.filename }),
     ...(asset.caption && { caption: asset.caption }),
-    ...(asset.aiDescription && { aiDescription: asset.aiDescription }),
+    ...(asset.format && { sourceFormat: asset.format }),
     ...(asset.keywords.length > 0 && { tags: asset.keywords }),
-    ...(asset.labels.length > 0 && { category: asset.labels }),
     ...(asset.people.length > 0 && { depicts: asset.people.map(person => personOf(person)) }),
     ...(asset.albums.length > 0 && {
       isPartOf: asset.albums.map(album => collectionOf(album, { asserts: true })),
@@ -285,7 +273,6 @@ function personOf(person: PhotoPerson): Person {
     source: SOURCE,
     sourceId: person.id,
     name: person.name,
-    ...(person.me && { sameAs: ['@me'] }),
   };
 }
 
@@ -315,11 +302,11 @@ function collectionOf(album: PhotoAlbum, { asserts }: { asserts: boolean }): Col
   };
 }
 
-/** Where it was taken, with the address Photos looked up. */
+/** Where it was taken. */
 function locationOf(asset: Asset): Location | null {
   if (!asset.location) return null;
-  const { latitude, longitude, address } = asset.location;
-  return { '@type': 'Location', latitude, longitude, ...(address && { address }) };
+  const { latitude, longitude } = asset.location;
+  return { '@type': 'Location', latitude, longitude };
 }
 
 /**
