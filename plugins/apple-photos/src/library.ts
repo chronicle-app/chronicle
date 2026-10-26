@@ -229,14 +229,14 @@ const HUMAN = 1;
 // are Photos' own matches.
 const NAMED_BY_YOU = [1, 3, 4];
 
-/** Where a library's databases are, given the library or its `Photos.sqlite`. */
+/**
+ * Where a library's databases are, given the library or its `Photos.sqlite`.
+ * A `Photos.sqlite` is read where it is, such as a copy a scan found.
+ */
 export function libraryFiles(input: string) {
   const path = resolve(input);
-  const root = basename(path) === 'Photos.sqlite' ? dirname(dirname(path)) : path;
-  return {
-    root,
-    photos: join(root, 'database', 'Photos.sqlite'),
-  };
+  if (basename(path) === 'Photos.sqlite') return { root: dirname(dirname(path)), photos: path };
+  return { root: path, photos: join(path, 'database', 'Photos.sqlite') };
 }
 
 /**
@@ -630,14 +630,15 @@ export function assetId(row: Pick<AssetRow, 'cloudGuid' | 'uuid'>): string {
 }
 
 /**
- * Where a photo was taken. Photos records no position as -180, -180, and a
- * device without a fix can record 0, 0, so both are left out.
+ * Where a photo was taken. Photos records no position as -180, -180, which
+ * is out of range, and a device without a fix can record 0, 0, so both are
+ * left out.
  */
 function locationOf(row: AssetRow): Asset['location'] {
   const { latitude, longitude } = row;
   if (typeof latitude !== 'number' || typeof longitude !== 'number') return null;
   if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return null;
-  if (latitude === -180 || (latitude === 0 && longitude === 0)) return null;
+  if (latitude === 0 && longitude === 0) return null;
   return { latitude, longitude };
 }
 

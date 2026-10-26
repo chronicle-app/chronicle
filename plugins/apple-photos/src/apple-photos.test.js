@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -266,6 +266,17 @@ test('each photo is what you did to bring it into your library, newest first', a
 
   // A photo not in iCloud is keyed by the library's own ID.
   assert.equal(media(byId.get(ids.local)).sourceId, 'UUID-LOCAL');
+
+  // Given a copy of its Photos.sqlite, wherever it is, it reads that copy.
+  const files = fixture(t);
+  const copy = join(tempDir(t), 'backup', 'Photos.sqlite');
+  mkdirSync(join(copy, '..'));
+  copyFileSync(join(files.input, 'database', 'Photos.sqlite'), copy);
+  const copied = await extract(t, ApplePhotosPhotosExtractor, { files: { ...files, input: copy } });
+  assert.deepEqual(
+    copied.records.map(record => record.data),
+    records.map(record => record.data)
+  );
 });
 
 test('activity dates what you did with each photo, from its dates and the change log', async t => {
