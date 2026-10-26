@@ -41,7 +41,7 @@ Most actions use these fields from :Action:
 - :instrument is the tool, device, application, or model that was used. An action can have several.
 - :timestamp is when the action happened, not when Chronicle read it.
 
-More specific actions use the same fields. A :CompleteAction completes its :object, and a :MessageAction sends its :object, a :Message.
+More specific actions use the same fields. A :CompleteAction completes its :object, and a :MessageAction's :result is the :Message it sends.
 
 ## Values
 

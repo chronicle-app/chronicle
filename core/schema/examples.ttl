@@ -3658,7 +3658,7 @@ course is saved but not when, so the action has no :timestamp.
 :StructuredValue skos:example example:place-visit .
 :Location skos:example example:place-visit .
 :Message skos:example example:message-with-photo, example:assistant-reply .
-:MessageAction skos:example example:message-with-photo, example:assistant-prompt .
+:MessageAction skos:example example:message-with-photo, example:voice-message .
 :Thread skos:example example:assistant-reply .
 :CreativeWork skos:example example:group-reply .
 :Channel skos:example example:group-reply .
