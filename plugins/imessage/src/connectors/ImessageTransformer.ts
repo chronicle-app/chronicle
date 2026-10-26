@@ -52,7 +52,11 @@ export default class ImessageTransformer extends ChronicleTransformer {
       sourceId: record.context.guid, // Use GUID instead of ROWID
       '@key': ['source', 'sourceId', '@type'],
       // Sending brings the message into being, so it's the action's result.
-      result: this.buildMessage(record, recipients, this.buildChannel(record, participants)),
+      result: this.buildMessage(
+        record,
+        recipients,
+        this.buildChannel(record, participants, myIdentity)
+      ),
       ...(agent && { agent }),
     };
 
@@ -95,15 +99,21 @@ export default class ImessageTransformer extends ChronicleTransformer {
   /**
    * The group chat a message is in, keyed by Apple's ID for the group, as
    * `groupChatChannel` keys it for every plugin. Its members are the chat's
-   * roster, which goes on it from the first message the extractor saw in the
-   * chat, as WhatsApp does, rather than from every message.
+   * roster and you: chat.db's roster lists only the others, but every group
+   * chat in it is one you're in. They go on it from the first message the
+   * extractor saw in the chat, as WhatsApp does, rather than from every message.
    */
-  private buildChannel(record: Record, participants: AgentAndChildren[]): Channel | null {
+  private buildChannel(
+    record: Record,
+    participants: AgentAndChildren[],
+    myIdentity: Person | null
+  ): Channel | null {
     const { group, groupRoster } = record.context;
     const channel = group ? groupChatChannel(group) : null;
     if (!channel) return null;
     if (group.name) channel.name = group.name;
-    if (groupRoster && participants.length > 0) channel.member = participants;
+    const members = [...participants, ...(myIdentity ? [myIdentity] : [])];
+    if (groupRoster && members.length > 0) channel.member = members;
     return channel;
   }
 

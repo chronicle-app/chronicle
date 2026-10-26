@@ -158,8 +158,8 @@ test('native SQLite preserves large timestamps, BLOB text, chat participants, gr
   assert.equal(action.data.result.isPartOf, undefined);
 
   // A group chat's messages are part of its Channel, keyed by the ID the group
-  // started with and the same as the one it has now. Its roster goes on it
-  // from the first message seen in it, the newest.
+  // started with and the same as the one it has now. Its roster, and you, go
+  // on it from the first message seen in it, the newest.
   const transformer = new ImessageTransformer({ lookupContact });
   const [latest] = await transformer.performTransform(rows[2]);
   const [earlier] = await transformer.performTransform(rows[3]);
@@ -180,7 +180,7 @@ test('native SQLite preserves large timestamps, BLOB text, chat participants, gr
   };
   assert.deepEqual(channel(latest.data.result.isPartOf[0]), {
     ...group,
-    member: ['Friend@Example.com', '+15555550102'],
+    member: ['Friend@Example.com', '+15555550102', 'me@example.com'],
   });
   assert.deepEqual(channel(earlier.data.result.isPartOf[0]), { ...group, member: undefined });
   // Who received it is still each other member, and you.
