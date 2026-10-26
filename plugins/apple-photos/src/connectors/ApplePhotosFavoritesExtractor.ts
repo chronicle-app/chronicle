@@ -10,8 +10,9 @@ export interface Favorite {
 }
 
 /**
- * The photos you made favorites before the library's change log begins, one
- * record each. When you liked one isn't known, so each is read as of when the
+ * The photos you made favorites that the library's change log has no date
+ * for, one record each: from before it begins, or that arrived with the photo
+ * from iCloud. When you liked one isn't known, so each is read as of when the
  * library last changed. A favorite the change log dates is a like in
  * `activity` instead, and so is removing one.
  */
@@ -21,10 +22,13 @@ export class ApplePhotosFavoritesExtractor extends ApplePhotosExtractor {
   static override temporality = 'snapshot' as const;
 
   protected read(library: PhotosLibrary): Array<Found<Favorite>> {
-    const history = readHistory(library.store, new Set());
+    const rows = library.rows(Scope.own);
+    const history = readHistory(library.store, {
+      added: new Map(rows.map(row => [row.pk, row.addedDate])),
+      membership: new Set(),
+    });
     const time = this.asOfTime().toISOString();
-    return library
-      .rows(Scope.own)
+    return rows
       .filter(row => row.favorite === 1 && !history?.favorites.has(row.pk))
       .map(row => {
         const id = assetId(row);

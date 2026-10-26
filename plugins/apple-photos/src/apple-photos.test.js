@@ -293,7 +293,9 @@ test('activity dates what you did with each photo, from its dates and the change
       ['UnlikeAction', ids.unliked, undefined, at.day(14)],
       ['LikeAction', ids.unliked, undefined, at.day(13)],
       ['LikeAction', ids.video, undefined, at.day(12)],
-      // A caption added later. The one WhatsApp's photo came with isn't an edit.
+      // A caption added later. The one WhatsApp's photo came with isn't an
+      // edit, and nor is the video's caption row with nothing in it. What
+      // followed the FaceTime photo from iCloud isn't something you did.
       ['UpdateAction', ids.camera, undefined, at.day(11)],
     ]
   );
@@ -320,13 +322,13 @@ test('activity dates what you did with each photo, from its dates and the change
 
 test('favorites likes each photo the change log has no date for, with no date', async t => {
   const { records, outputs } = await extract(t, ApplePhotosFavoritesExtractor);
-  // The video's like has a date, so it's in activity instead.
+  // The video's like has a date, so it's in activity instead. The FaceTime
+  // photo's arrived with it from iCloud, so it has none.
   assert.deepEqual(
     records.map(record => record.data.id),
-    [ids.camera]
+    [ids.camera, ids.faceTime]
   );
   const [like] = outputs;
-  assert.equal(outputs.length, 1);
   assert.equal(like['@type'], 'LikeAction');
   // When you liked it isn't known, so it's keyed by the photo alone, and
   // read as of when the library last changed.
@@ -358,7 +360,7 @@ test('a library whose model doesn’t read still gives its dates, and says what 
   const { outputs: favorites } = await extract(t, ApplePhotosFavoritesExtractor, { model: false });
   assert.deepEqual(
     favorites.map(like => like.object.sourceId),
-    [ids.camera, ids.video]
+    [ids.camera, ids.faceTime, ids.video]
   );
 });
 

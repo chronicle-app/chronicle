@@ -32,6 +32,7 @@ PhotographAction | RecordAction | ScreenshotAction | AddAction key(sourceId) {
     contains[]?: VideoObject | ImageObject key(sourceId) {
       sourceId, duration?, sourceFormat?, mimeType?*
       depicts[]?: Person key(sourceId) { sourceId, name }
+      isPartOf[]?: Collection key(sourceId) { sourceId, name }
     }
   }
   object?: ImageObject | VideoObject key(sourceId) {

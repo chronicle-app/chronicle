@@ -63,10 +63,10 @@ export class ApplePhotosActivityExtractor extends ApplePhotosExtractor {
     }
 
     const membership = library.membership();
-    const history = readHistory(
-      library.store,
-      new Set(membership.map(({ album, asset }) => `${album}/${asset}`))
-    );
+    const history = readHistory(library.store, {
+      added: new Map(rows.map(row => [row.pk, row.addedDate])),
+      membership: new Set(membership.map(({ album, asset }) => `${album}/${asset}`)),
+    });
     if (!history) {
       if (library.store.columns('ACHANGE').size > 0) this.hintUnreadableHistory();
       return found;

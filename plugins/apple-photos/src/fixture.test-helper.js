@@ -87,9 +87,11 @@ export const albums = {
  *   and an album in two folders, with its lens and exposure. An undated
  *   favorite, last viewed, shared, and edited.
  * - video: a slo-mo video from the Camera app, at 0, 0, with a face Photos matched.
- *   A favorite the change log dates.
+ *   A favorite the change log dates, given a caption's row with nothing in it.
  * - screenshot, screenRecording: captures of the screen.
- * - faceTime: a Live Photo taken during a FaceTime call, with a face you added.
+ * - faceTime: a Live Photo taken during a FaceTime call, with a face you added,
+ *   a favorite in Food. It arrived from iCloud two weeks after it was added, as
+ *   when a library is rebuilt, and its album, favorite, and title followed it.
  * - whatsApp: someone's photo saved from WhatsApp, with camera data, where
  *   it was taken, which way it's turned, a caption that came with it, and a
  *   face Photos matched.
@@ -359,6 +361,7 @@ function writeLibrary(root, { model }) {
       uti: 'public.heic',
       position: [51.5072, -0.1276],
       clip: [3000, 1000],
+      favorite: 1,
       importer: 'com.apple.FTLivePhotoService',
       camera: iPhone,
     },
@@ -520,6 +523,7 @@ function writeLibrary(root, { model }) {
   member.run(4, pk.camera);
   member.run(4, pk.whatsApp);
   member.run(5, pk.video);
+  member.run(5, pk.faceTime);
   member.run(6, pk.camera);
 
   // People: Alex, someone merged into another person, someone unnamed, and a pet.
@@ -598,6 +602,17 @@ function writeLibrary(root, { model }) {
     ['AdditionalAssetAttributes', pk.camera, UPDATE, MASK.attributes.title],
     ['AdditionalAssetAttributes', pk.video, UPDATE, MASK.attributes.lastViewedDate],
   ]);
+  // The FaceTime photo arrives two weeks after it was added, and its album,
+  // favorite, and title follow it: none is something you did then.
+  log(11, day(20), [['Asset', pk.faceTime, INSERT]]);
+  log(12, day(20) + 600, [
+    ['Album', 5, UPDATE, MASK.album.assets],
+    ['Asset', pk.faceTime, UPDATE, [MASK.asset.favorite[0], MASK.asset.albums[1]]],
+    ['AdditionalAssetAttributes', pk.faceTime, UPDATE, MASK.attributes.title],
+  ]);
+  // A caption's row with nothing in it, added to the video.
+  db.prepare('INSERT INTO ZASSETDESCRIPTION VALUES (?, ?, NULL)').run(pk.video, pk.video);
+  log(13, day(21), [['AssetDescription', pk.video, INSERT]]);
   db.close();
 }
 

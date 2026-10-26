@@ -1,5 +1,6 @@
 import { allRows, iterateRows } from '@chronicle.app/etl-sqlite';
 import { CoreDataStore, appleDate, changed } from './coredata.js';
+import { clean } from './library.js';
 
 /**
  * What Photos' change log says happened to the library and when. Core Data
@@ -11,6 +12,12 @@ import { CoreDataStore, appleDate, changed } from './coredata.js';
  * A change made on this Mac is dated when it was made. A change made on
  * another device arrives from iCloud, and is dated when this Mac received
  * it: usually soon after, but later if the Mac was asleep.
+ *
+ * A photo that was in the library before this Mac had it, such as when the
+ * library is rebuilt from iCloud, arrives first, and its albums, favorite,
+ * caption, and title follow it over the next hour or so, in transactions of
+ * their own. A change to such a photo within a day of it arriving is it
+ * arriving, not something you did then, so it's left out.
  */
 export interface History {
   /** When each asset's favorite flag changed, oldest first, by the asset's row. */
@@ -25,6 +32,8 @@ export interface History {
 const INSERT = 0;
 const UPDATE = 1;
 
+const DAY = 86_400;
+
 interface ChangeRow {
   tx: number;
   entity: number;
@@ -36,10 +45,14 @@ interface ChangeRow {
 
 /**
  * Read the change log, or null when the library keeps none or its model
- * can't be read. `membership` is which album each asset is in now, as
- * `album/asset` rows.
+ * can't be read. `added` is when each asset was added to the library
+ * (`ZADDEDDATE`), by its row, and `membership` is which album each asset is
+ * in now, as `album/asset` rows.
  */
-export function readHistory(store: CoreDataStore, membership: Set<string>): History | null {
+export function readHistory(
+  store: CoreDataStore,
+  { added, membership }: { added: Map<number, number | null>; membership: Set<string> }
+): History | null {
   if (store.columns('ACHANGE').size === 0 || store.columns('ATRANSACTION').size === 0) return null;
   const entity = {
     asset: store.entity('Asset'),
@@ -66,18 +79,33 @@ export function readHistory(store: CoreDataStore, membership: Set<string>): Hist
       store.db.prepare('SELECT Z_PK AS pk, ZASSET AS asset FROM ZADDITIONALASSETATTRIBUTES')
     ).map(row => [row.pk, row.asset])
   );
-  const attributesOfDescription = new Map(
-    allRows<{ pk: number; attributes: number | null }>(
-      store.db.prepare('SELECT Z_PK AS pk, ZASSETATTRIBUTES AS attributes FROM ZASSETDESCRIPTION')
-    ).map(row => [row.pk, row.attributes])
+  const descriptions = allRows<{ pk: number; attributes: number | null; caption: string | null }>(
+    store.db.prepare(`
+      SELECT Z_PK AS pk, ZASSETATTRIBUTES AS attributes,
+        ${store.column('d', 'ZASSETDESCRIPTION', 'ZLONGDESCRIPTION')} AS caption
+      FROM ZASSETDESCRIPTION d`)
   );
+  const attributesOfDescription = new Map(descriptions.map(row => [row.pk, row.attributes]));
+  const captioned = new Set(descriptions.filter(row => clean(row.caption)).map(row => row.pk));
   const assetOfDescription = (pk: number) =>
     assetOfAttributes.get(attributesOfDescription.get(pk) ?? -1) ?? null;
+
+  // When each asset arrived on this Mac, as its insert dates it, by its row.
+  const arrived = new Map<number, number>();
+  // Whether a change at `seconds` is the asset arriving: within a day of the
+  // insert of a photo that was in the library a day before.
+  const arriving = (asset: number, seconds: number) => {
+    const at = arrived.get(asset);
+    const inLibrary = added.get(asset);
+    if (at === undefined || typeof inLibrary !== 'number') return false;
+    return at - inLibrary > DAY && seconds - at < DAY;
+  };
 
   const history: History = { favorites: new Map(), edits: [], albumAdds: [] };
 
   // One transaction's changes, gathered until the next one starts.
   let current: number | null = null;
+  let seconds: number | null = null;
   let time: string | null = null;
   let inserted = new Set<number>();
   let favorited: number[] = [];
@@ -87,27 +115,32 @@ export function readHistory(store: CoreDataStore, membership: Set<string>): Hist
   let titles: number[] = [];
 
   const finish = () => {
-    if (current === null || time === null) return;
+    if (current === null || seconds === null || time === null) return;
+    const at = seconds;
     for (const asset of favorited) {
+      if (arriving(asset, at)) continue;
       const times = history.favorites.get(asset) ?? [];
       times.push(time);
       history.favorites.set(asset, times);
     }
     for (const { pk, inserted: isNew } of captions) {
       const asset = assetOfDescription(pk);
-      // A caption that arrives with its photo, such as on import, isn't an edit.
-      if (asset !== null && !(isNew && inserted.has(asset))) {
-        history.edits.push({ asset, what: 'caption', time });
-      }
+      if (asset === null || arriving(asset, at)) continue;
+      // A caption that arrives with its photo, such as on import, isn't an
+      // edit, and nor is a caption's row added with nothing in it.
+      if (isNew && (inserted.has(asset) || !captioned.has(pk))) continue;
+      history.edits.push({ asset, what: 'caption', time });
     }
     for (const pk of titles) {
       const asset = assetOfAttributes.get(pk);
-      if (asset !== undefined && asset !== null) history.edits.push({ asset, what: 'title', time });
+      if (asset === undefined || asset === null || arriving(asset, at)) continue;
+      history.edits.push({ asset, what: 'title', time });
     }
     // Adding photos to an album changes both: the album's photos and each
     // photo's albums. A photo added to one of several albums changed together
     // was added to whichever of them it's in now.
     for (const asset of regrouped) {
+      if (arriving(asset, at)) continue;
       for (const album of changedAlbums) {
         if (membership.has(`${album}/${asset}`)) history.albumAdds.push({ asset, album, time });
       }
@@ -130,6 +163,7 @@ export function readHistory(store: CoreDataStore, membership: Set<string>): Hist
     if (row.tx !== current) {
       finish();
       current = row.tx;
+      seconds = row.time;
       time = appleDate(row.time);
       inserted = new Set();
       favorited = [];
@@ -142,6 +176,7 @@ export function readHistory(store: CoreDataStore, membership: Set<string>): Hist
     switch (row.entity) {
       case entity.asset:
         if (!updated) inserted.add(row.pk);
+        if (!updated && row.time !== null && !arrived.has(row.pk)) arrived.set(row.pk, row.time);
         if (updated && changed(row.columns, favorite)) favorited.push(row.pk);
         if (updated && changed(row.columns, albums)) regrouped.push(row.pk);
         break;
