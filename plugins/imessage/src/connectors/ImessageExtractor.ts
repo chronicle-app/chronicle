@@ -47,6 +47,7 @@ export class ImessageExtractor extends SqliteExtractor<typeof ImessageExtractor>
           'total_bytes',
           'transfer_name',
           'is_outgoing',
+          'hide_attachment?',
         ],
       },
     },
@@ -137,7 +138,7 @@ export class ImessageExtractor extends SqliteExtractor<typeof ImessageExtractor>
     const { bytes } = this.db!.prepare(
       `SELECT COALESCE(SUM(a.total_bytes), 0) AS bytes
       FROM message_attachment_join AS maj INNER JOIN attachment AS a ON maj.attachment_id = a.ROWID
-      WHERE a.filename IS NOT NULL AND EXISTS (${read} WHERE m.ROWID = maj.message_id${inRange})`
+      WHERE ${this.attachmentFilter()} AND EXISTS (${read} WHERE m.ROWID = maj.message_id${inRange})`
     ).get(...values) as { bytes: number };
     const at = (date: bigint | null) =>
       date === null ? undefined : new Date(iosToUnixTimestamp(Number(date)));
@@ -281,6 +282,17 @@ export class ImessageExtractor extends SqliteExtractor<typeof ImessageExtractor>
     return this.has(`chat.${name}`) ? name : 'NULL';
   }
 
+  /**
+   * The attachments a run reads: files Messages shows. It keeps others hidden,
+   * such as the images and icon of a link preview, which no one sent.
+   */
+  private attachmentFilter(): string {
+    const shown = this.has('attachment.hide_attachment')
+      ? ' AND COALESCE(a.hide_attachment, 0) = 0'
+      : '';
+    return `a.filename IS NOT NULL${shown}`;
+  }
+
   private loadAttachments(): { [key: string]: any[] } {
     const sql = `
       SELECT 
@@ -295,7 +307,7 @@ export class ImessageExtractor extends SqliteExtractor<typeof ImessageExtractor>
         a.is_outgoing
       FROM message_attachment_join AS maj
       INNER JOIN attachment AS a ON maj.attachment_id = a.ROWID
-      WHERE a.filename IS NOT NULL
+      WHERE ${this.attachmentFilter()}
     `;
 
     const stmt = this.db!.prepare(sql);

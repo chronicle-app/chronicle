@@ -27,7 +27,7 @@ function fixture(t) {
     CREATE TABLE chat (ROWID INTEGER PRIMARY KEY, style INTEGER, display_name TEXT, group_id TEXT, original_group_id TEXT);
     CREATE TABLE chat_message_join (chat_id INTEGER, message_id INTEGER);
     CREATE TABLE chat_handle_join (chat_id INTEGER, handle_id INTEGER);
-    CREATE TABLE attachment (ROWID INTEGER PRIMARY KEY, guid TEXT, filename TEXT, mime_type TEXT, uti TEXT, total_bytes INTEGER, transfer_name TEXT, is_outgoing INTEGER);
+    CREATE TABLE attachment (ROWID INTEGER PRIMARY KEY, guid TEXT, filename TEXT, mime_type TEXT, uti TEXT, total_bytes INTEGER, transfer_name TEXT, is_outgoing INTEGER, hide_attachment INTEGER);
     CREATE TABLE message_attachment_join (message_id INTEGER, attachment_id INTEGER);
     INSERT INTO handle VALUES (1, 'Friend@Example.com', 'iMessage');
     INSERT INTO chat VALUES (1, 45, '', 'ONE-TO-ONE-ID', 'ONE-TO-ONE-ID');
@@ -35,12 +35,13 @@ function fixture(t) {
     INSERT INTO message VALUES (1,'message-1','Hello','iMessage',800000000000000000,0,1,NULL,0);
     INSERT INTO message VALUES (2,'message-2',NULL,'SMS',800000001000000001,1,1,X'426C6F622074657874',0);
     INSERT INTO chat_message_join VALUES (1,1),(1,2);
-    INSERT INTO message_attachment_join VALUES (1,1);`);
-  db.prepare('INSERT INTO attachment VALUES (1, ?, ?, NULL, NULL, 4, ?, 0)').run(
-    'attachment-1',
-    attachment,
-    'Picture'
+    INSERT INTO message_attachment_join VALUES (1,1),(1,2);`);
+  // The picture, and a link preview's image, which Messages keeps hidden.
+  const insertAttachment = db.prepare(
+    'INSERT INTO attachment VALUES (?, ?, ?, NULL, NULL, ?, ?, 0, ?)'
   );
+  insertAttachment.run(1, 'attachment-1', attachment, 4, 'Picture', 0);
+  insertAttachment.run(2, 'attachment-2', attachment, 100, 'Preview.pluginPayloadAttachment', 1);
   db.close();
   const contacts = join(dir, 'contacts.db');
   const address = new DatabaseSync(contacts);

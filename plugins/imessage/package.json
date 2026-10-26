@@ -115,7 +115,8 @@
                     "uti",
                     "total_bytes",
                     "transfer_name",
-                    "is_outgoing"
+                    "is_outgoing",
+                    "hide_attachment?"
                   ]
                 }
               }
