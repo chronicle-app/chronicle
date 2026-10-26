@@ -15,16 +15,16 @@ The library is `~/Pictures/Photos Library.photoslibrary`, and the plugin reads i
 
 It reads what Photos knows about each photo, not the photo itself. Most originals in an iCloud library aren't on the Mac, so no file is read or downloaded, and no record has a `contentPath`.
 
-| Record type       | Default | What it is                                                                                 |
-| ----------------- | ------- | ------------------------------------------------------------------------------------------ |
-| `photos`          | yes     | One record for each photo and video in your library                                        |
-| `activity`        | no      | Views, shares, edits, caption and title changes, likes and unlikes, and adds to albums     |
-| `favorites`       | no      | Your favorites that have no date, one like each                                            |
-| `shared-with-you` | no      | The photos and videos shared in Messages, with who sent them, from `--syndication` (below) |
+| Record type       | Default | What it is                                                                                          |
+| ----------------- | ------- | --------------------------------------------------------------------------------------------------- |
+| `photos`          | yes     | One record for each photo and video in your library                                                 |
+| `activity`        | no      | Views, shares, edits, caption and title changes, likes and unlikes, and adds to albums              |
+| `favorites`       | no      | Your favorites that have no date, one like each                                                     |
+| `shared-with-you` | no      | The photos and videos shared with you in Messages, with who sent them, from `--syndication` (below) |
 
 Each kind comes out newest first, and `--since` and `--until` bound when each record happened.
 
-`shared-with-you` reads the library Photos keeps of what was shared in Messages, `~/Library/Photos/Libraries/Syndication.photoslibrary` (`--syndication`), and Messages' `~/Library/Messages/chat.db` (`--messages`) for who sent each one.
+`shared-with-you` reads the library Photos keeps of what was shared with you in Messages, `~/Library/Photos/Libraries/Syndication.photoslibrary` (`--syndication`), and Messages' `~/Library/Messages/chat.db` (`--messages`) for who sent each one.
 
 ## Schema
 
@@ -87,7 +87,7 @@ A change made on this Mac is dated when it was made. One made on another device 
 
 **A favorite with no date is a like with no date.** A favorite from before the change log begins has no date, so `favorites` gives each as its own `LikeAction` with no `timestamp`, keyed by the photo alone, and read as of when the library last changed. Removing one is a change the log dates, so it's an `UnlikeAction` in `activity`, which takes the photo out of your `likes`. An unchanged library gives the same records on every run.
 
-**Shared with You.** The photos and videos shared with you, and by you, in Messages are in a library of their own. Each is a `ShareAction` keyed by Messages' ID for the attachment, which Photos keeps (`ZSYNDICATIONIDENTIFIER`), and its photo is keyed by the same ID, with `sameAs` the attachment as the `imessage` plugin keys it, so what Photos has for it lands on the iMessage attachment. Who sent it comes from Messages: a `Person` keyed by their handle, `sameAs` Messages' participant. You're the `agent` when you sent it. Who it was sent to is left to the message, which the `imessage` plugin records with its recipients. Photos with camera data, videos, and screenshots are included. Other images, mostly stickers and images from the web, are left out, and so is a photo whose message is gone from Messages.
+**Shared with You.** The photos and videos shared with you in Messages are in a library of their own. Each is a `ShareAction` keyed by Messages' ID for the attachment, which Photos keeps (`ZSYNDICATIONIDENTIFIER`), and its photo is keyed by the same ID, with `sameAs` the attachment as the `imessage` plugin keys it, so what Photos has for it lands on the iMessage attachment. Who sent it comes from Messages: a `Person` keyed by their handle, `sameAs` Messages' participant. Who it was sent to is left to the message, which the `imessage` plugin records with its recipients. Photos with camera data, videos, and screenshots are included. Other images, mostly stickers and images from the web, are left out, and so is a photo whose message is gone from Messages. So is a photo you sent: Photos keeps it as a copy with no link to the photo in your library, and `activity` already has your share of that photo.
 
 **The agent is your iCloud account,** whose library this is, from `@chronicle.app/apple`. It's omitted when no account can be read. An explicit `account` object (or null) describes a copied library without a host account lookup.
 

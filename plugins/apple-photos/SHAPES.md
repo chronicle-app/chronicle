@@ -80,8 +80,8 @@ LikeAction key(object.sourceId) {
 ```ts
 ShareAction key(sourceId) {
   sourceId, timestamp
-  agent: Person key(handle) / key(sourceId) {
-    handle, sourceId?
+  agent: Person key(handle) {
+    handle
     sameAs[]: Agent key(handle) { handle }
   }
   object: ImageObject | VideoObject key(sourceId) {

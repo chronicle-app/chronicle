@@ -361,16 +361,10 @@ test('a library whose model doesn’t read still gives its dates, and says what 
 
 test('shared with you credits each photo to who sent it in Messages', async t => {
   const { records, outputs } = await extract(t, ApplePhotosSharedWithYouExtractor);
-  // An image with no camera data, and a photo whose message is gone, are left out.
+  // An image with no camera data, a photo whose message is gone, and one you sent are left out.
   assert.deepEqual(
     records.map(record => record.data.attachment),
-    [
-      attachments.received,
-      attachments.sent,
-      attachments.group,
-      attachments.groupSent,
-      attachments.sms,
-    ]
+    [attachments.received, attachments.group, attachments.screenshot, attachments.sms]
   );
   assert.deepEqual(
     outputs.map(action => [
@@ -386,14 +380,18 @@ test('shared with you credits each photo to who sent it in Messages', async t =>
         'apple-photos:friend@example.com>Agent:icloud:friend@example.com',
         at.day(40),
       ],
-      [attachments.sent, 'ImageObject', 'you', at.day(39)],
       [
         attachments.group,
         'VideoObject',
         'apple-photos:member@example.com>Agent:icloud:member@example.com',
         at.day(38),
       ],
-      [attachments.groupSent, 'ImageObject', 'you', at.day(37)],
+      [
+        attachments.screenshot,
+        'ImageObject',
+        'apple-photos:member@example.com>Agent:icloud:member@example.com',
+        at.day(37),
+      ],
       // An SMS sender is a phone number in the `phone` namespace, as iMessage has it.
       [
         attachments.sms,

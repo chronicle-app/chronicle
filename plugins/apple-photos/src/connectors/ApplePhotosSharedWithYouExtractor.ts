@@ -10,7 +10,7 @@ import {
 import { MESSAGES_DATABASE, MessagesDatabase, type SharedMessage } from '../messages.js';
 import ApplePhotosExtractor, { type Found } from './ApplePhotosExtractor.js';
 
-/** A photo or video shared in Messages, with the message it came in. */
+/** A photo or video shared with you in Messages, with the message it came in. */
 export interface SharedPhoto extends Asset {
   /** Messages' ID for the attachment (`at_0_…`), which Photos keeps. */
   attachment: string;
@@ -21,13 +21,14 @@ export interface SharedPhoto extends Asset {
 const SCREENSHOT = 10;
 
 /**
- * The photos and videos shared with you, and by you, in Messages, from the
- * library Photos keeps of them, with where each was taken and who you said
- * is in it. Each one's sender comes from Messages, so a photo whose message
- * is gone is left out.
+ * The photos and videos shared with you in Messages, from the library Photos
+ * keeps of them, with where each was taken and who you said is in it. Each
+ * one's sender comes from Messages, so a photo whose message is gone is left
+ * out. So is one you sent: Photos keeps it as a copy with no link to your
+ * library's photo, whose share `activity` already has.
  */
 export class ApplePhotosSharedWithYouExtractor extends ApplePhotosExtractor {
-  static override description = 'Photos and videos shared in Messages, with who sent them';
+  static override description = 'Photos and videos shared with you in Messages, with who sent them';
   static override recordTypes = ['shared-with-you'];
   static override temporality = 'snapshot' as const;
 
@@ -90,7 +91,7 @@ export class ApplePhotosSharedWithYouExtractor extends ApplePhotosExtractor {
         const attachment = row.syndicationId!;
         const message = this.messages!.message(attachment);
         // Who sent it is unknown when the message is gone, or has no sender.
-        if (!message || (!message.fromMe && !message.handle)) return [];
+        if (!message || message.fromMe || !message.handle) return [];
         const time = appleDate(row.addedDate);
         return time ? [{ row, attachment, message, time }] : [];
       });

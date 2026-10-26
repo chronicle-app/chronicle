@@ -41,7 +41,7 @@ export const attachments = {
   received: 'at_0_RECEIVED',
   sent: 'at_0_SENT',
   group: 'at_0_GROUP',
-  groupSent: 'at_0_GROUP_SENT',
+  screenshot: 'at_0_SCREENSHOT',
   sms: 'at_0_SMS',
   sticker: 'at_0_STICKER',
   gone: 'at_0_GONE',
@@ -86,8 +86,9 @@ export const albums = {
  *   hides, and a photo in a shared album. None is extracted.
  *
  * Shared with You (`ZBUNDLESCOPE` 3), with who sent each in Messages:
- * - received, sent: in a one-to-one iMessage conversation
- * - group, groupSent: in a group conversation, a video and a screenshot
+ * - received: in a one-to-one iMessage conversation
+ * - sent: a photo you sent, left out
+ * - group, screenshot: in a group conversation, a video and a screenshot
  * - sms: received over SMS
  * - sticker: an image with no camera data, left out
  * - gone: a photo whose message is gone from Messages, left out
@@ -587,7 +588,7 @@ function writeSharedWithYou(root) {
     },
     { attachment: attachments.sent, added: day(39), camera: true },
     { attachment: attachments.group, added: day(38), kind: 1, duration: 4 },
-    { attachment: attachments.groupSent, added: day(37), subtype: 10 },
+    { attachment: attachments.screenshot, added: day(37), subtype: 10 },
     { attachment: attachments.sms, added: day(36), camera: true },
     { attachment: attachments.sticker, added: day(35) },
     { attachment: attachments.gone, added: day(34), camera: true },
@@ -641,7 +642,7 @@ function writeMessages(path) {
     // A message you send usually has no handle of its own.
     [attachments.sent, 1, 'iMessage', 0],
     [attachments.group, 0, 'iMessage', 3],
-    [attachments.groupSent, 1, 'iMessage', 0],
+    [attachments.screenshot, 0, 'iMessage', 3],
     [attachments.sms, 0, 'SMS', 2],
     [attachments.sticker, 0, 'iMessage', 1],
   ];
