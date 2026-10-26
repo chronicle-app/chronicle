@@ -12,9 +12,10 @@ export const SHARED_WITH_YOU_LIBRARY = `${process.env.HOME}/Library/Photos/Libra
 /**
  * What a library's `Photos.sqlite` must have for a run and a survey to read
  * it. A column ending in `?` is one a query reads only when it's there. The
- * change log's tables, the model cache, the join tables, which Core Data
- * names by entity number, and the keywords, read through one of them, are
- * read only when they're there, so they aren't declared.
+ * change log's tables, the model cache, the join tables and a Shared
+ * Library's contributors, whose columns Core Data names by entity number,
+ * and the keywords, read through one of them, are read only when they're
+ * there, so they aren't declared.
  */
 export const DATABASES: DatabaseSchema[] = [
   {
@@ -44,6 +45,8 @@ export const DATABASES: DatabaseSchema[] = [
         'ZBUNDLESCOPE?',
         'ZTRASHEDSTATE?',
         'ZVISIBILITYSTATE?',
+        'ZHIDDEN?',
+        'ZACTIVELIBRARYSCOPEPARTICIPATIONSTATE?',
       ],
       ZADDITIONALASSETATTRIBUTES: [
         'Z_PK',
@@ -277,7 +280,8 @@ export class PhotosLibrary {
 
   /**
    * The photos and videos in one part of the library, as Photos shows them:
-   * not in Recently Deleted, and of a burst, only the photos Photos shows.
+   * not in Recently Deleted or hidden, and of a burst, only the photos Photos
+   * shows. Of an iCloud Shared Library, only the ones you added are yours.
    */
   rows(scope: number): AssetRow[] {
     const { store } = this;
@@ -324,8 +328,33 @@ export class PhotosLibrary {
       WHERE COALESCE(${c('a', 'ZASSET', 'ZBUNDLESCOPE')}, 0) = ?
         AND COALESCE(${c('a', 'ZASSET', 'ZTRASHEDSTATE')}, 0) = 0
         AND COALESCE(${c('a', 'ZASSET', 'ZVISIBILITYSTATE')}, 0) = 0
+        AND COALESCE(${c('a', 'ZASSET', 'ZHIDDEN')}, 0) = 0
+        AND (COALESCE(${c('a', 'ZASSET', 'ZACTIVELIBRARYSCOPEPARTICIPATIONSTATE')}, 0) = 0
+          OR ${this.addedByYou('a')})
         AND a.ZUUID IS NOT NULL`;
     return allRows<AssetRow>(this.db.prepare(sql), scope);
+  }
+
+  /**
+   * Whether you added an asset in a Shared Library to it, as SQL: one of the
+   * people Photos says contributed it is you. Core Data names the column for
+   * the asset by the asset entity's number, such as
+   * `Z3LIBRARYSCOPEASSETCONTRIBUTORS`. Without them, none is yours.
+   */
+  private addedByYou(alias: string): string {
+    const { store } = this;
+    const asset = `Z${store.entity('Asset')}LIBRARYSCOPEASSETCONTRIBUTORS`;
+    const contributors = store.columns('ZASSETCONTRIBUTOR');
+    if (
+      !contributors.has(asset) ||
+      !contributors.has('ZPARTICIPANT') ||
+      !store.columns('ZSHAREPARTICIPANT').has('ZISCURRENTUSER')
+    ) {
+      return '0';
+    }
+    return `EXISTS (
+      SELECT 1 FROM ZASSETCONTRIBUTOR k JOIN ZSHAREPARTICIPANT p ON p.Z_PK = k.ZPARTICIPANT
+      WHERE k.${asset} = ${alias}.Z_PK AND p.ZISCURRENTUSER = 1)`;
   }
 
   /** Each row as an asset, with what's joined to it. */

@@ -65,7 +65,8 @@ const who = node => {
 
 test('each photo is what you did to bring it into your library, newest first', async t => {
   const { records, outputs, count } = await extract(t, ApplePhotosPhotosExtractor);
-  // Recently Deleted, a burst photo Photos hides, and a shared album's photo are left out.
+  // Recently Deleted, a burst photo Photos hides, a shared album's photo, a
+  // hidden photo, and one someone else added to the Shared Library are left out.
   assert.deepEqual(
     records.map(record => record.data.id),
     [

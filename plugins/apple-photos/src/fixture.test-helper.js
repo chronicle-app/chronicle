@@ -34,6 +34,8 @@ export const ids = {
   trashed: 'CLOUD-TRASHED',
   burst: 'CLOUD-BURST',
   sharedAlbum: 'CLOUD-SHARED-ALBUM',
+  hidden: 'CLOUD-HIDDEN',
+  family: 'CLOUD-FAMILY',
 };
 
 /** The Shared with You photos, by Messages' attachment ID. */
@@ -95,9 +97,11 @@ export const albums = {
  * - local: a photo from the Messages camera, not in iCloud, with no position,
  *   the one Photos shows of a burst. Unfavorited after the change log began.
  * - unliked: a photo from a Canon camera, with its lens and exposure, liked,
- *   then unliked.
- * - trashed, burst, sharedAlbum: in Recently Deleted, a burst photo Photos
- *   hides, and a photo in a shared album. None is extracted.
+ *   then unliked, which you added to your iCloud Shared Library.
+ * - trashed, burst, sharedAlbum, hidden, family: in Recently Deleted, a burst
+ *   photo Photos hides, a photo in a shared album, a hidden photo, and a
+ *   favorite someone in your family added to the Shared Library. None is
+ *   extracted.
  *
  * Shared with You (`ZBUNDLESCOPE` 3), rebuilt on day 50, so Photos dates each
  * photo then, with who sent each in Messages and when:
@@ -248,7 +252,7 @@ function writeLibrary(root, { model }) {
       ZHEIGHT INTEGER, ZDURATION FLOAT, ZUNIFORMTYPEIDENTIFIER VARCHAR, ZLATITUDE FLOAT,
       ZLONGITUDE FLOAT, ZFAVORITE INTEGER, ZVIDEOCPDURATIONVALUE INTEGER, ZLASTSHAREDDATE TIMESTAMP,
       ZADJUSTMENTTIMESTAMP TIMESTAMP, ZADJUSTMENTSSTATE INTEGER, ZDEPTHTYPE INTEGER,
-      ZAVALANCHEUUID VARCHAR);
+      ZAVALANCHEUUID VARCHAR, ZHIDDEN INTEGER, ZACTIVELIBRARYSCOPEPARTICIPATIONSTATE INTEGER);
     CREATE TABLE ZADDITIONALASSETATTRIBUTES (Z_PK INTEGER PRIMARY KEY, ZASSET INTEGER,
       ZASSETDESCRIPTION INTEGER, ZTITLE VARCHAR, ZORIGINALFILENAME VARCHAR,
       ZIMPORTEDBYBUNDLEIDENTIFIER VARCHAR, ZIMPORTEDBYDISPLAYNAME VARCHAR, ZLASTVIEWEDDATE TIMESTAMP, ZVIDEOCPDURATIONTIMESCALE INTEGER, ZSYNDICATIONIDENTIFIER VARCHAR);
@@ -266,6 +270,9 @@ function writeLibrary(root, { model }) {
       ZDETECTIONTYPE INTEGER, ZMERGETARGETPERSON INTEGER);
     CREATE TABLE ZDETECTEDFACE (Z_PK INTEGER PRIMARY KEY, ZASSETFORFACE INTEGER, ZPERSONFORFACE INTEGER,
       ZNAMESOURCE INTEGER, ZMANUAL INTEGER);
+    CREATE TABLE ZSHAREPARTICIPANT (Z_PK INTEGER PRIMARY KEY, ZISCURRENTUSER INTEGER);
+    CREATE TABLE ZASSETCONTRIBUTOR (Z_PK INTEGER PRIMARY KEY, ZPARTICIPANT INTEGER,
+      Z${ENT.Asset}LIBRARYSCOPEASSETCONTRIBUTORS INTEGER);
     CREATE TABLE ATRANSACTION (Z_PK INTEGER PRIMARY KEY, ZTIMESTAMP FLOAT);
     CREATE TABLE ACHANGE (Z_PK INTEGER PRIMARY KEY, ZTRANSACTIONID INTEGER, ZENTITY INTEGER,
       ZENTITYPK INTEGER, ZCHANGETYPE INTEGER, ZCOLUMNS BLOB);
@@ -391,14 +398,23 @@ function writeLibrary(root, { model }) {
         flash: 1,
         zoom: 2,
       },
+      sharedLibrary: 'you',
     },
     trashed: { created: day(30), added: day(30), trashed: 1, camera: iPhone },
     burst: { created: day(29), added: day(29), visibility: 2, camera: iPhone, burst: 'BURST-1' },
     sharedAlbum: { created: day(28), added: day(28), scope: 2, camera: iPhone },
+    hidden: { created: day(27), added: day(27), hidden: 1, camera: iPhone },
+    family: {
+      created: day(26),
+      added: day(26),
+      favorite: 1,
+      camera: iPhone,
+      sharedLibrary: 'family',
+    },
   };
 
   const insertAsset = db.prepare(
-    `INSERT INTO ZASSET VALUES (?, ${ENT.Asset}, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO ZASSET VALUES (?, ${ENT.Asset}, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
   const insertAttributes = db.prepare(
     'INSERT INTO ZADDITIONALASSETATTRIBUTES VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)'
@@ -437,7 +453,9 @@ function writeLibrary(root, { model }) {
       row.adjusted ?? null,
       row.adjusted ? 1 : 0,
       row.depth ?? 0,
-      row.burst ?? null
+      row.burst ?? null,
+      row.hidden ?? 0,
+      row.sharedLibrary ? 1 : 0
     );
     const description = row.caption ? id : null;
     insertAttributes.run(
@@ -471,6 +489,14 @@ function writeLibrary(root, { model }) {
       );
     }
   }
+  // Who added each photo in the Shared Library: you, and someone in your family.
+  db.exec('INSERT INTO ZSHAREPARTICIPANT VALUES (1, 1), (2, 0)');
+  const contributor = db.prepare(
+    `INSERT INTO ZASSETCONTRIBUTOR (ZPARTICIPANT, Z${ENT.Asset}LIBRARYSCOPEASSETCONTRIBUTORS) VALUES (?, ?)`
+  );
+  contributor.run(1, pk.unliked);
+  contributor.run(2, pk.family);
+
   // A lone NUL is what Photos leaves for an app with no bundle identifier.
   db.prepare(
     'UPDATE ZADDITIONALASSETATTRIBUTES SET ZIMPORTEDBYBUNDLEIDENTIFIER = ? WHERE Z_PK = ?'

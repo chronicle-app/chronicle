@@ -74,7 +74,7 @@ Each kind comes out newest first, and `--since` and `--until` bound when each re
 
 **Albums are what you made.** A photo `isPartOf` each album you made that it's in, and an album `isPartOf` its folder. Recently Deleted, shared albums, Memories, and the albums Photos makes are left out. Each run reads the library as it is now, so an album, keyword, or person taken off a photo closes while the photo has others. Taking off its last one doesn't close it: listing them in `@asserts` would, at the cost of a marker on every photo that has none, and few photos have any.
 
-**What's left out.** Photos in Recently Deleted, the burst photos Photos hides, and photos in iCloud shared albums are left out, and so are Memories and the albums Photos makes.
+**What's left out.** Photos in Recently Deleted, the burst photos Photos hides, photos you hid, and photos in iCloud shared albums are left out, and so are Memories and the albums Photos makes. A photo in an iCloud Shared Library is yours when you added it: Photos records who added each one, and a photo someone else added is left out, since you didn't take or save it.
 
 **What you did with a photo is dated.** Photos keeps only when a photo was last viewed, shared, and edited, so `activity` records each as it sees it, and history builds up over runs. The rest comes from the library's change log, Core Data's persistent history, which goes back as far as Photos has kept it:
 

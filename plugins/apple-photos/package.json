@@ -107,7 +107,9 @@
                     "ZADJUSTMENTSSTATE?",
                     "ZBUNDLESCOPE?",
                     "ZTRASHEDSTATE?",
-                    "ZVISIBILITYSTATE?"
+                    "ZVISIBILITYSTATE?",
+                    "ZHIDDEN?",
+                    "ZACTIVELIBRARYSCOPEPARTICIPATIONSTATE?"
                   ],
                   "ZADDITIONALASSETATTRIBUTES": [
                     "Z_PK",
