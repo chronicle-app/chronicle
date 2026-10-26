@@ -84,7 +84,7 @@
   skos:exactMatch schemaorg:url .
 [] a sh:PropertyShape; sh:path :url; sh:targetSubjectsOf :url; sh:maxCount 1 .
 :object a owl:ObjectProperty;
-  rdfs:comment "The entity an action was carried out on, such as the article read, the message sent, or the place visited. For a movement, such as a :TravelAction, the :object is where it began.";
+  rdfs:comment "The entity an action was carried out on, such as the article read, the photo shared, or the place visited. For a movement, such as a :TravelAction, the :object is where it began.";
   rdfs:domain :Action;
   rdfs:range :Entity;
   skos:exactMatch schemaorg:object .
@@ -216,7 +216,7 @@
   skos:broadMatch schemaorg:Message .
 :MessageAction a owl:Class;
   rdfs:subClassOf :Action;
-  rdfs:comment "The agent sent a message. The :object is the message." .
+  rdfs:comment "The agent sent a message. Its :result is the :Message." .
 :MediaObject a owl:Class;
   rdfs:subClassOf :CreativeWork;
   rdfs:comment "A media file, such as an image, an audio recording, a video, or a document. Its :contentPath or :url locates the file, and its :mimeType gives its format.";

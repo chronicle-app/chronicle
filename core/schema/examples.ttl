@@ -47,7 +47,7 @@ address can use the same key.
         :handle "alex@example.com"
       ]
     ];
-    :object [
+    :result [
       a :Message;
       doc:key ("@type" "source" "sourceId");
       :source "imessage";
@@ -282,7 +282,7 @@ source. The photo is an :ImageObject with a :contentPath and :mimeType.
         :handle "alex@example.com"
       ]
     ];
-    :object [
+    :result [
       a :Message;
       doc:key ("@type" "source" "sourceId");
       :source "imessage";
@@ -326,7 +326,7 @@ A message you sent, so you are the :agent and the other person is the
       :handle "+15555550123";
       :sameAs "@me"
     ];
-    :object [
+    :result [
       a :Message;
       doc:key ("@type" "source" "sourceId");
       :source "imessage";
@@ -354,8 +354,10 @@ A message you sent, so you are the :agent and the other person is the
 example:group-message-attachments
   rdfs:label "Sharing a video and a PDF with a group";
   rdfs:comment """
-A message to a group has one :recipient per person. This one has two
-attachments, a :VideoObject and a :DocumentObject.
+A message to a group has one :recipient per person. The group chat is a
+:Channel the :Message is :isPartOf, keyed by Apple's ID for the group, and its
+:member edges list the people in it. This message has two attachments, a
+:VideoObject and a :DocumentObject.
 """;
   rdf:value [
     a :MessageAction;
@@ -370,7 +372,7 @@ attachments, a :VideoObject and a :DocumentObject.
       :handle "+15555550123";
       :sameAs "@me"
     ];
-    :object [
+    :result [
       a :Message;
       doc:key ("@type" "source" "sourceId");
       :source "imessage";
@@ -388,6 +390,24 @@ attachments, a :VideoObject and a :DocumentObject.
         :source "phone";
         :handle "+15555550188";
         :name "Jordan Lee"
+      ];
+      :isPartOf [
+        a :Channel;
+        doc:key ("@type" "source" "sourceId");
+        :source "imessage";
+        :sourceId "5E2B9C14-8A3F-4D71-B6E0-9F4C2A7D1E58";
+        :name "Summit crew";
+        :member [
+          a :Agent;
+          doc:key ("@type" "source" "handle");
+          :source "icloud";
+          :handle "alex@example.com"
+        ], [
+          a :Agent;
+          doc:key ("@type" "source" "handle");
+          :source "phone";
+          :handle "+15555550188"
+        ]
       ];
       :contains [
         a :VideoObject;

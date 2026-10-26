@@ -7,7 +7,7 @@ import {
   timeRangeConditions,
   APPLE_EPOCH_OFFSET_SECONDS,
 } from '@chronicle.app/etl-sqlite';
-import { getICloudAccount } from '@chronicle.app/apple';
+import { GROUP_CHAT_STYLE, getICloudAccount, type GroupChatIds } from '@chronicle.app/apple';
 import ImessageTransformer from './ImessageTransformer.js';
 import { z } from 'zod';
 
@@ -33,7 +33,7 @@ export class ImessageExtractor extends SqliteExtractor<typeof ImessageExtractor>
           'attributedBody',
         ],
         handle: ['ROWID', 'id', 'service'],
-        chat: ['ROWID'],
+        chat: ['ROWID', 'style', 'display_name?', 'group_id?', 'original_group_id?'],
         chat_message_join: ['chat_id', 'message_id'],
         chat_handle_join: ['chat_id', 'handle_id'],
         message_attachment_join: ['message_id', 'attachment_id'],
@@ -76,6 +76,7 @@ export class ImessageExtractor extends SqliteExtractor<typeof ImessageExtractor>
 
   override async *extract(): AsyncGenerator<Record> {
     const chats = this.loadChats();
+    const groups = this.loadGroups();
     const rows = this.queryMessages();
     const attachments = this.loadAttachments();
 
@@ -83,7 +84,15 @@ export class ImessageExtractor extends SqliteExtractor<typeof ImessageExtractor>
     const realIcloudAccount =
       this.config.account === undefined ? await getICloudAccount() : this.config.account;
 
+    // The group chats whose roster a message has carried, so each goes on its
+    // Channel once, on the first message seen in it, not on every message.
+    const rostered = new Set<number>();
+
     for (const row of rows) {
+      const chatId = (row as any).chat_id;
+      const group = groups[chatId];
+      const groupRoster = group !== undefined && !rostered.has(chatId);
+      if (groupRoster) rostered.add(chatId);
       const attributedBody = this.processAttributedBody((row as any).attributedBody);
       const timestamp = iosToUnixTimestamp(Number.parseInt((row as any).date, 10));
       const participants = chats[(row as any).chat_id] || [];
@@ -100,6 +109,8 @@ export class ImessageExtractor extends SqliteExtractor<typeof ImessageExtractor>
         handleIdText: (row as any).handle_id_text,
         participants,
         attachments: messageAttachments,
+        group,
+        groupRoster,
         myIcloudAccount: realIcloudAccount,
         includeContactNames: this.config.includeContactNames,
       });
@@ -232,6 +243,34 @@ export class ImessageExtractor extends SqliteExtractor<typeof ImessageExtractor>
     }
 
     return chats;
+  }
+
+  /**
+   * The group chats, by chat, with their names and Apple's IDs for them. An
+   * older Messages without a column has none of what it holds.
+   */
+  private loadGroups(): { [key: string]: GroupChatIds & { name: string | null } } {
+    const rows = this.db!.prepare(
+      `SELECT ROWID AS chat_id, ${this.chatColumn('display_name')} AS name,
+        ${this.chatColumn('group_id')} AS group_id,
+        ${this.chatColumn('original_group_id')} AS original_group_id
+      FROM chat WHERE style = ?`
+    ).all(GROUP_CHAT_STYLE) as any[];
+
+    const groups: { [key: string]: GroupChatIds & { name: string | null } } = {};
+    for (const row of rows) {
+      groups[row.chat_id] = {
+        name: row.name?.trim() || null,
+        groupId: row.group_id,
+        originalGroupId: row.original_group_id,
+      };
+    }
+    return groups;
+  }
+
+  /** A column of `chat` the schema marks optional, or NULL when this Messages has none. */
+  private chatColumn(name: string): string {
+    return this.has(`chat.${name}`) ? name : 'NULL';
   }
 
   private loadAttachments(): { [key: string]: any[] } {

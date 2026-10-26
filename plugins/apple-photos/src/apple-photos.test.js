@@ -17,6 +17,7 @@ import {
   albums,
   at,
   attachments,
+  groupChat,
   ids,
   people,
   writeApplePhotosFixture,
@@ -372,6 +373,7 @@ test('shared with you credits each photo to who sent it in Messages', async t =>
       action.object['@type'],
       who(action.agent),
       action.timestamp.toISOString(),
+      action.target?.sourceId,
     ]),
     [
       [
@@ -379,18 +381,22 @@ test('shared with you credits each photo to who sent it in Messages', async t =>
         'ImageObject',
         'apple-photos:friend@example.com>Agent:icloud:friend@example.com',
         at.day(40),
+        undefined,
       ],
+      // A photo shared in a group chat targets the group.
       [
         attachments.group,
         'VideoObject',
         'apple-photos:member@example.com>Agent:icloud:member@example.com',
         at.day(38),
+        groupChat,
       ],
       [
         attachments.screenshot,
         'ImageObject',
         'apple-photos:member@example.com>Agent:icloud:member@example.com',
         at.day(37),
+        groupChat,
       ],
       // An SMS sender is a phone number in the `phone` namespace, as iMessage has it.
       [
@@ -398,9 +404,18 @@ test('shared with you credits each photo to who sent it in Messages', async t =>
         'ImageObject',
         'apple-photos:+15555550123>Agent:phone:+15555550123',
         at.day(36),
+        undefined,
       ],
     ]
   );
+  // The group's Channel, as the iMessage plugin keys it.
+  const { '@asserts': _, ...group } = outputs[1].target;
+  assert.deepEqual(group, {
+    '@type': 'Channel',
+    '@key': ['@type', 'source', 'sourceId'],
+    source: 'imessage',
+    sourceId: groupChat,
+  });
 
   const [received] = outputs;
   assert.deepEqual(received['@key'], ['@type', 'source', 'sourceId']);

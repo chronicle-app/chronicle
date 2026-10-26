@@ -11,7 +11,7 @@ import type {
   SoftwareApplication,
   VideoObject,
 } from '@chronicle.app/schema';
-import { buildICloudPersonSchema } from '@chronicle.app/apple';
+import { buildICloudPersonSchema, groupChatChannel } from '@chronicle.app/apple';
 import type { Asset, PhotoAlbum, PhotoPerson } from '../library.js';
 import type { Activity } from './ApplePhotosActivityExtractor.js';
 import type { Favorite } from './ApplePhotosFavoritesExtractor.js';
@@ -58,7 +58,7 @@ type Media = ImageObject | VideoObject;
  *   favorites:
  *     LikeAction  agent: you   object: the photo, by key   (no timestamp: when isn't known)
  *   shared-with-you:
- *     ShareAction  agent: who sent it to you   timestamp
+ *     ShareAction  agent: who sent it to you   timestamp   target?: Channel (the group chat)
  *       object: ImageObject | VideoObject  (by Messages' attachment ID)  sameAs: the attachment
  */
 export default class ApplePhotosTransformer extends ChronicleTransformer {
@@ -182,10 +182,13 @@ function likeOf(favorite: Favorite, you: Person | null): ActionAndChildren {
 /**
  * A photo or video shared with you in Messages, keyed by its Messages
  * attachment. Who it was sent to is the message's recipient, as Messages has it.
+ * One shared in a group chat targets the group's Channel, keyed as the iMessage
+ * plugin keys it. A one-to-one chat has no Channel, and the share no target.
  */
 function shareAction(shared: SharedPhoto, time: string): ActionAndChildren {
   const { message, attachment } = shared;
   const agent = message.handle ? senderOf(message.handle, message.service) : null;
+  const group = message.group ? groupChatChannel(message.group) : null;
   const where = locationOf(shared);
   const object = mediaOf(shared, { id: attachment, clip: false });
   return {
@@ -195,6 +198,7 @@ function shareAction(shared: SharedPhoto, time: string): ActionAndChildren {
     sourceId: attachment,
     timestamp: new Date(time),
     ...(agent && { agent }),
+    ...(group && { target: group }),
     object: {
       ...object,
       ...(where && { location: where }),

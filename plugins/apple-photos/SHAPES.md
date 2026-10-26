@@ -89,5 +89,6 @@ ShareAction key(sourceId) {
     location?: Location { latitude, longitude }
     sameAs[]: ImageObject | VideoObject key(sourceId) { sourceId }
   }
+  target?: Channel key(sourceId) { sourceId }
 }
 ```

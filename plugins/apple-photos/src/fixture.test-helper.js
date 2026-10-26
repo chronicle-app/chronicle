@@ -47,6 +47,9 @@ export const attachments = {
   gone: 'at_0_GONE',
 };
 
+/** Apple's ID for the group chat the group and screenshot photos came in. */
+export const groupChat = 'GROUP-CHAT-ID';
+
 export const people = {
   alex: 'PERSON-ALEX',
   sam: 'PERSON-SAM',
@@ -88,7 +91,8 @@ export const albums = {
  * Shared with You (`ZBUNDLESCOPE` 3), with who sent each in Messages:
  * - received: in a one-to-one iMessage conversation
  * - sent: a photo you sent, left out
- * - group, screenshot: in a group conversation, a video and a screenshot
+ * - group, screenshot: in a group conversation, a video and a screenshot,
+ *   whose chat keeps the same ID it started with
  * - sms: received over SMS
  * - sticker: an image with no camera data, left out
  * - gone: a photo whose message is gone from Messages, left out
@@ -629,28 +633,35 @@ function writeMessages(path) {
     CREATE TABLE message (ROWID INTEGER PRIMARY KEY, is_from_me INTEGER, service TEXT, handle_id INTEGER);
     CREATE TABLE attachment (ROWID INTEGER PRIMARY KEY, guid TEXT UNIQUE);
     CREATE TABLE message_attachment_join (message_id INTEGER, attachment_id INTEGER);
+    CREATE TABLE chat (ROWID INTEGER PRIMARY KEY, style INTEGER, group_id TEXT, original_group_id TEXT);
+    CREATE TABLE chat_message_join (chat_id INTEGER, message_id INTEGER);
 
     INSERT INTO handle VALUES (1, 'friend@example.com', 'iMessage'), (2, '+15555550123', 'SMS'),
       (3, 'member@example.com', 'iMessage');
+    -- One-to-one chats have group IDs too, but no Channel.
+    INSERT INTO chat VALUES (1, 45, 'FRIEND-CHAT-ID', 'FRIEND-CHAT-ID'),
+      (2, 45, 'SMS-CHAT-ID', 'SMS-CHAT-ID'), (3, 43, '${groupChat}', '${groupChat}');
   `);
   const message = db.prepare('INSERT INTO message VALUES (?, ?, ?, ?)');
   const attachment = db.prepare('INSERT INTO attachment VALUES (?, ?)');
   const attach = db.prepare('INSERT INTO message_attachment_join VALUES (?, ?)');
+  const inChat = db.prepare('INSERT INTO chat_message_join VALUES (?, ?)');
   const sent = [
-    // [attachment, from me, service, handle]
-    [attachments.received, 0, 'iMessage', 1],
+    // [attachment, from me, service, handle, chat]
+    [attachments.received, 0, 'iMessage', 1, 1],
     // A message you send usually has no handle of its own.
-    [attachments.sent, 1, 'iMessage', 0],
-    [attachments.group, 0, 'iMessage', 3],
-    [attachments.screenshot, 0, 'iMessage', 3],
-    [attachments.sms, 0, 'SMS', 2],
-    [attachments.sticker, 0, 'iMessage', 1],
+    [attachments.sent, 1, 'iMessage', 0, 1],
+    [attachments.group, 0, 'iMessage', 3, 3],
+    [attachments.screenshot, 0, 'iMessage', 3, 3],
+    [attachments.sms, 0, 'SMS', 2, 2],
+    [attachments.sticker, 0, 'iMessage', 1, 1],
   ];
-  for (const [i, [guid, fromMe, service, handle]] of sent.entries()) {
+  for (const [i, [guid, fromMe, service, handle, chat]] of sent.entries()) {
     const id = i + 1;
     message.run(id, fromMe, service, handle);
     attachment.run(id, guid);
     attach.run(id, id);
+    inChat.run(chat, id);
   }
   db.close();
 }

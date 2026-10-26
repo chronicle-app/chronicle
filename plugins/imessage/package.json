@@ -88,7 +88,11 @@
                     "service"
                   ],
                   "chat": [
-                    "ROWID"
+                    "ROWID",
+                    "style",
+                    "display_name?",
+                    "group_id?",
+                    "original_group_id?"
                   ],
                   "chat_message_join": [
                     "chat_id",
