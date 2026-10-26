@@ -39,6 +39,9 @@
 :retractedBy a owl:AnnotationProperty .
 :runPredicate a owl:AnnotationProperty .
 
+# Derived query vocabulary. These are not rdf:Property payload fields.
+:DerivedProperty a rdfs:Class .
+
 :Base a owl:Class;
   rdfs:comment "Anything a source describes, either an :Entity or an :Action. Each one has an identity, so other records can refer to it.";
   owl:disjointUnionOf ( :Entity :Action );
@@ -660,6 +663,8 @@
   :runPredicate :liked;
   rdfs:domain :Agent;
   rdfs:range :Entity .
+:liked a :DerivedProperty;
+  rdfs:comment "An agent's standing like for the object, opened by LikeAction and closed by UnlikeAction. The writable relationship is likes; this derived query name preserves the object-and-agent view of the action history." .
 :ReactAction a owl:Class;
   rdfs:comment "The agent took a stance on the :object with no content, such as a like. A reaction with content, such as an emoji or a comment, is a :RespondAction.";
   rdfs:subClassOf :AssessAction;
