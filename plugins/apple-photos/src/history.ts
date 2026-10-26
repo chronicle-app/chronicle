@@ -44,8 +44,8 @@ interface ChangeRow {
 }
 
 /**
- * Read the change log, or null when the library keeps none or its model
- * can't be read. `added` is when each asset was added to the library
+ * Read the change log, or null when the library keeps none, or its model
+ * can't be read or lacks a property it's read by. `added` is when each asset was added to the library
  * (`ZADDEDDATE`), by its row, and `membership` is which album each asset is
  * in now, as `album/asset` rows.
  */
@@ -72,6 +72,9 @@ export function readHistory(
   const albumAssets = slots.album!.get('assets');
   const caption = slots.description!.get('longDescription');
   const title = slots.attributes!.get('title');
+  // A property the model doesn't have, such as one a macOS release renamed,
+  // would never show as changed.
+  if ([favorite, albums, albumAssets, caption, title].includes(undefined)) return null;
 
   // A caption and a title are on rows of their own, which belong to an asset.
   const assetOfAttributes = new Map(

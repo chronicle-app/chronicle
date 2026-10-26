@@ -115,7 +115,8 @@ export const albums = {
  * - sticker: an image with no camera data, left out
  * - gone: a photo whose message is gone from Messages, left out
  *
- * `model: false` writes a model cache that doesn't read.
+ * `model: false` writes a model cache that doesn't read, and `model: 'renamed'`
+ * one whose `Asset.favorite` has another name, as a later macOS might.
  */
 export function writeApplePhotosFixture(dir, { model = true } = {}) {
   const input = join(dir, 'Photos Library.photoslibrary');
@@ -231,6 +232,17 @@ const MODEL = [
   },
 ];
 
+/** The model with `Asset.favorite` renamed. */
+const withFavoriteRenamed = model =>
+  model.map(entity => ({
+    ...entity,
+    properties: entity.properties.map(property =>
+      entity.name === 'Asset' && property.name === 'favorite'
+        ? { ...property, name: 'isFavorite' }
+        : property
+    ),
+  }));
+
 // Change bitmasks for the properties the plugin reads, by the layout above.
 const MASK = {
   asset: { favorite: [0x01, 0], albums: [0, 0x10], dateCreated: [0x02, 0] },
@@ -285,7 +297,9 @@ function writeLibrary(root, { model }) {
     primaryKey.run(ent, name, parent ? ENT[parent] : 0);
   }
   db.prepare('INSERT INTO Z_MODELCACHE VALUES (?)').run(
-    model ? modelCache(MODEL) : Buffer.from('not a model')
+    model === false
+      ? Buffer.from('not a model')
+      : modelCache(model === 'renamed' ? withFavoriteRenamed(MODEL) : MODEL)
   );
 
   const iPhone = ['Apple', 'iPhone 14 Pro'];

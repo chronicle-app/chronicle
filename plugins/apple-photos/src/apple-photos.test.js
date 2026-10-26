@@ -345,23 +345,27 @@ test('favorites likes each photo the change log has no date for, with no date', 
   });
 });
 
-test('a library whose model doesn’t read still gives its dates, and says what it left out', async t => {
-  const { outputs, events } = await extract(t, ApplePhotosActivityExtractor, { model: false });
-  assert.deepEqual([...new Set(outputs.map(action => action['@type']))].sort(), [
-    'ShareAction',
-    'UpdateAction',
-    'ViewAction',
-  ]);
-  const hints = events.filter(event => event.kind === 'hint');
-  assert.equal(hints.length, 1);
-  assert.match(hints[0].hint.action, /Update Chronicle/);
+test('a library whose model doesn’t read, or lacks a property, still gives its dates, and says what it left out', async t => {
+  // A model that doesn't read, and one whose favorite a later macOS renamed.
+  for (const model of [false, 'renamed']) {
+    const { outputs, events } = await extract(t, ApplePhotosActivityExtractor, { model });
+    assert.deepEqual(
+      [...new Set(outputs.map(action => action['@type']))].sort(),
+      ['ShareAction', 'UpdateAction', 'ViewAction'],
+      model
+    );
+    const hints = events.filter(event => event.kind === 'hint');
+    assert.equal(hints.length, 1, model);
+    assert.match(hints[0].hint.action, /Update Chronicle/);
 
-  // Every favorite is then one with no date.
-  const { outputs: favorites } = await extract(t, ApplePhotosFavoritesExtractor, { model: false });
-  assert.deepEqual(
-    favorites.map(like => like.object.sourceId),
-    [ids.camera, ids.faceTime, ids.video]
-  );
+    // Every favorite is then one with no date.
+    const { outputs: favorites } = await extract(t, ApplePhotosFavoritesExtractor, { model });
+    assert.deepEqual(
+      favorites.map(like => like.object.sourceId),
+      [ids.camera, ids.faceTime, ids.video],
+      model
+    );
+  }
 });
 
 test('shared with you credits each photo to who sent it in Messages', async t => {
