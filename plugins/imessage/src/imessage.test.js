@@ -223,6 +223,12 @@ test('sender absent from roster still has source handle and email identity', asy
   const [record] = await new ImessageTransformer({ lookupContact }).performTransform(rows[1]);
   assert.equal(record.data.agent.handle, 'Friend@Example.com');
   assert.equal(record.data.agent.sameAs[0].handle, 'Friend@Example.com');
+
+  // A sender whose handle is gone from chat.db is unknown, and the message is still read.
+  rows[1].context.handleIdText = null;
+  const [unknown] = await new ImessageTransformer({ lookupContact }).performTransform(rows[1]);
+  assert.equal(unknown.data.agent, undefined);
+  assert.equal(unknown.data.result.body, 'Hello');
 });
 test('complete Messages → contacts → schema → JSON pipeline runs on synthetic fixtures', async t => {
   const { input, dir, lookupContact } = fixture(t);

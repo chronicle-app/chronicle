@@ -241,6 +241,8 @@ export default class ImessageTransformer extends ChronicleTransformer {
     const agent = participants.find(p => p.handle === handleIdText);
 
     if (!agent) {
+      // A sender whose handle is gone from chat.db is unknown.
+      if (!handleIdText) return { agent: undefined, recipients: myIdentity ? [myIdentity] : [] };
       // The sender is not among the chat's participants: build them from the
       // message's own handle, the same way as any other participant.
       const agentSource = this.getAgentSource(record.context.service);
