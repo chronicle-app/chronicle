@@ -80,7 +80,8 @@
                     "date",
                     "is_from_me",
                     "handle_id",
-                    "attributedBody"
+                    "attributedBody",
+                    "item_type?"
                   ],
                   "handle": [
                     "ROWID",

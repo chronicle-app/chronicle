@@ -22,7 +22,7 @@ function fixture(t) {
   const attachment = join(dir, 'picture.png');
   writeFileSync(attachment, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
   const db = new DatabaseSync(input);
-  db.exec(`CREATE TABLE message (ROWID INTEGER PRIMARY KEY, guid TEXT, text TEXT, service TEXT, date INTEGER, is_from_me INTEGER, handle_id INTEGER, attributedBody BLOB);
+  db.exec(`CREATE TABLE message (ROWID INTEGER PRIMARY KEY, guid TEXT, text TEXT, service TEXT, date INTEGER, is_from_me INTEGER, handle_id INTEGER, attributedBody BLOB, item_type INTEGER);
     CREATE TABLE handle (ROWID INTEGER PRIMARY KEY, id TEXT, service TEXT);
     CREATE TABLE chat (ROWID INTEGER PRIMARY KEY, style INTEGER, display_name TEXT, group_id TEXT, original_group_id TEXT);
     CREATE TABLE chat_message_join (chat_id INTEGER, message_id INTEGER);
@@ -32,8 +32,8 @@ function fixture(t) {
     INSERT INTO handle VALUES (1, 'Friend@Example.com', 'iMessage');
     INSERT INTO chat VALUES (1, 45, '', 'ONE-TO-ONE-ID', 'ONE-TO-ONE-ID');
     INSERT INTO chat_handle_join VALUES (1,1);
-    INSERT INTO message VALUES (1,'message-1','Hello','iMessage',800000000000000000,0,1,NULL);
-    INSERT INTO message VALUES (2,'message-2',NULL,'SMS',800000001000000001,1,1,X'426C6F622074657874');
+    INSERT INTO message VALUES (1,'message-1','Hello','iMessage',800000000000000000,0,1,NULL,0);
+    INSERT INTO message VALUES (2,'message-2',NULL,'SMS',800000001000000001,1,1,X'426C6F622074657874',0);
     INSERT INTO chat_message_join VALUES (1,1),(1,2);
     INSERT INTO message_attachment_join VALUES (1,1);`);
   db.prepare('INSERT INTO attachment VALUES (1, ?, ?, NULL, NULL, 4, ?, 0)').run(
@@ -124,16 +124,23 @@ test('a survey counts the messages a run reads, when, in how many conversations'
 });
 test('native SQLite preserves large timestamps, BLOB text, chat participants, group chats and attachments', async t => {
   const { input, lookupContact } = fixture(t);
-  // A group chat, older than the one-to-one chat, whose ID Messages replaced.
+  // A group chat, older than the one-to-one chat, whose ID Messages replaced,
+  // renamed last. The rename is a system event, with no text or sender, not a
+  // message.
   const db = new DatabaseSync(input);
   db.exec(`INSERT INTO handle VALUES (2, '+15555550102', 'iMessage');
     INSERT INTO chat VALUES (2, 43, ' Climbing ', 'GROUP-ID-NOW', 'GROUP-ID-FIRST');
     INSERT INTO chat_handle_join VALUES (2,1),(2,2);
-    INSERT INTO message VALUES (3,'message-3','Saturday?','iMessage',700000000000000000,0,2,NULL);
-    INSERT INTO message VALUES (4,'message-4','Yes','iMessage',700000001000000000,1,0,NULL);
-    INSERT INTO chat_message_join VALUES (2,3),(2,4);`);
+    INSERT INTO message VALUES (3,'message-3','Saturday?','iMessage',700000000000000000,0,2,NULL,0);
+    INSERT INTO message VALUES (4,'message-4','Yes','iMessage',700000001000000000,1,0,NULL,0);
+    INSERT INTO message VALUES (5,'message-5',NULL,'iMessage',700000002000000000,0,0,NULL,2);
+    INSERT INTO chat_message_join VALUES (2,3),(2,4),(2,5);`);
   db.close();
   const rows = await extract(input);
+  assert.deepEqual(
+    rows.map(row => row.data.guid),
+    ['message-2', 'message-1', 'message-4', 'message-3']
+  );
   assert.equal(rows[0].data.date, '800000001000000001');
   assert.equal(rows[0].context.attributedBody, 'Blob text');
   assert.equal(rows[1].context.participants[0].id, 'Friend@Example.com');

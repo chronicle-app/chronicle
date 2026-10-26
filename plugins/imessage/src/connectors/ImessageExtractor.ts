@@ -31,6 +31,7 @@ export class ImessageExtractor extends SqliteExtractor<typeof ImessageExtractor>
           'is_from_me',
           'handle_id',
           'attributedBody',
+          'item_type?',
         ],
         handle: ['ROWID', 'id', 'service'],
         chat: ['ROWID', 'style', 'display_name?', 'group_id?', 'original_group_id?'],
@@ -164,15 +165,22 @@ export class ImessageExtractor extends SqliteExtractor<typeof ImessageExtractor>
     };
   }
 
-  /** Messages within since and until. chat.db stores message.date as nanoseconds since the Apple epoch. */
+  /**
+   * Messages within since and until. chat.db stores message.date as nanoseconds
+   * since the Apple epoch. A system event, such as a group being renamed or
+   * someone joining it, is a row too, with no text and often no sender, so
+   * only rows that are messages (`item_type` 0) are read.
+   */
   private messageFilter(): { conditions: string[]; values: Array<number | string> } {
-    return timeRangeConditions('m.date', this.config, {
+    const filter = timeRangeConditions('m.date', this.config, {
       convert: date =>
         (
           BigInt(date.getTime()) * 1_000_000n -
           BigInt(APPLE_EPOCH_OFFSET_SECONDS) * 1_000_000_000n
         ).toString(),
     });
+    if (this.has('message.item_type')) filter.conditions.push('m.item_type = 0');
+    return filter;
   }
 
   private queryMessages() {

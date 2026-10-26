@@ -6,7 +6,7 @@ A message in a group chat is part of the group's `Channel` (`isPartOf`), keyed i
 
 Automatic iCloud account and AddressBook enrichment comes from `@chronicle.app/apple`. `includeContactNames: false` skips contacts. An explicit `account` object (or null) lets callers describe exported data without host account lookup. Transformer config can inject `lookupContact` for exported contacts. Missing permissions/account/contact data fall back to source-local identity and unlabelled participants. When no identifier for the account owner is available, the owner is left out of the agent and recipients.
 
-Attachments are local file references with MIME metadata, not copied bytes. Missing files are skipped. Attributed-body decoding retains the existing heuristic; it is not a complete typedstream decoder. Raw records preserve the source blob, and large integer timestamps are decimal strings so serialization is safe.
+Messages keeps system events, such as a group being renamed or someone joining it, as rows beside the messages, with no text and often no sender. They aren't messages, so they're left out, and a survey doesn't count them. Attachments are local file references with MIME metadata, not copied bytes. Missing files are skipped. Attributed-body decoding retains the existing heuristic; it is not a complete typedstream decoder. Raw records preserve the source blob, and large integer timestamps are decimal strings so serialization is safe.
 
 The plugin declares a `deepLinks` template for `Message` (`messages://open?message-guid=<GUID>`), so a host can open the message in Messages. SMS messages are linked the same way, since they are in `chat.db` too. Attachments are not linked, because an attachment's GUID is not a message GUID.
 
