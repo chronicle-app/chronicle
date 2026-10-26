@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { monthKey } from '@chronicle.app/etl';
 import { writeSchemaDatabase } from '@chronicle.app/etl-sqlite';
 import {
@@ -367,6 +368,7 @@ test('shared with you credits each photo to who sent it in Messages', async t =>
     records.map(record => record.data.attachment),
     [attachments.received, attachments.group, attachments.screenshot, attachments.sms]
   );
+  // Each is dated when its message was sent, not when Photos rebuilt its library.
   assert.deepEqual(
     outputs.map(action => [
       action.sourceId,
@@ -440,6 +442,17 @@ test('shared with you credits each photo to who sent it in Messages', async t =>
     latitude: 45.5017,
     longitude: -73.5673,
   });
+
+  // An older Messages has no group IDs, so a photo shared in a group has no Channel.
+  const files = fixture(t);
+  const db = new DatabaseSync(files.messages);
+  db.exec('ALTER TABLE chat DROP COLUMN group_id; ALTER TABLE chat DROP COLUMN original_group_id');
+  db.close();
+  const older = await extract(t, ApplePhotosSharedWithYouExtractor, { files });
+  assert.deepEqual(
+    older.outputs.map(action => [action.sourceId, action.target]),
+    records.map(record => [record.data.attachment, undefined])
+  );
 });
 
 async function survey(files, Extractor, config = {}, options = {}) {

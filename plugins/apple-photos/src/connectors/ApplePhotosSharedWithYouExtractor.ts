@@ -74,8 +74,8 @@ export class ApplePhotosSharedWithYouExtractor extends ApplePhotosExtractor {
 
   /**
    * Photos with camera data, videos, and screenshots, with the message each
-   * came in and when. An image with no camera data is usually a sticker, a
-   * meme, or an image saved from the web.
+   * came in and when it was sent. An image with no camera data is usually a
+   * sticker, a meme, or an image saved from the web.
    */
   private shared(
     library: PhotosLibrary
@@ -92,7 +92,9 @@ export class ApplePhotosSharedWithYouExtractor extends ApplePhotosExtractor {
         const message = this.messages!.message(attachment);
         // Who sent it is unknown when the message is gone, or has no sender.
         if (!message || message.fromMe || !message.handle) return [];
-        const time = appleDate(row.addedDate);
+        // When the message was sent. Photos dates a photo when it added it to
+        // the Shared with You library, which is the rebuild after a rebuild.
+        const time = message.sent ?? appleDate(row.addedDate);
         return time ? [{ row, attachment, message, time }] : [];
       });
   }

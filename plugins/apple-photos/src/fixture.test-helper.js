@@ -47,6 +47,17 @@ export const attachments = {
   gone: 'at_0_GONE',
 };
 
+/** When each Shared with You photo's message was sent, in seconds since 2001. */
+const sentOn = {
+  [attachments.received]: day(40),
+  [attachments.sent]: day(39),
+  [attachments.group]: day(38),
+  [attachments.screenshot]: day(37),
+  [attachments.sms]: day(36),
+  [attachments.sticker]: day(35),
+  [attachments.gone]: day(34),
+};
+
 /** Apple's ID for the group chat the group and screenshot photos came in. */
 export const groupChat = 'GROUP-CHAT-ID';
 
@@ -88,7 +99,8 @@ export const albums = {
  * - trashed, burst, sharedAlbum: in Recently Deleted, a burst photo Photos
  *   hides, and a photo in a shared album. None is extracted.
  *
- * Shared with You (`ZBUNDLESCOPE` 3), with who sent each in Messages:
+ * Shared with You (`ZBUNDLESCOPE` 3), rebuilt on day 50, so Photos dates each
+ * photo then, with who sent each in Messages and when:
  * - received: in a one-to-one iMessage conversation
  * - sent: a photo you sent, left out
  * - group, screenshot: in a group conversation, a video and a screenshot,
@@ -584,18 +596,13 @@ function writeSharedWithYou(root) {
   `);
   db.exec("INSERT INTO Z_PRIMARYKEY VALUES (3, 'Asset', 0, 0)");
   const items = [
-    {
-      attachment: attachments.received,
-      added: day(40),
-      position: [45.5017, -73.5673],
-      camera: true,
-    },
-    { attachment: attachments.sent, added: day(39), camera: true },
-    { attachment: attachments.group, added: day(38), kind: 1, duration: 4 },
-    { attachment: attachments.screenshot, added: day(37), subtype: 10 },
-    { attachment: attachments.sms, added: day(36), camera: true },
-    { attachment: attachments.sticker, added: day(35) },
-    { attachment: attachments.gone, added: day(34), camera: true },
+    { attachment: attachments.received, position: [45.5017, -73.5673], camera: true },
+    { attachment: attachments.sent, camera: true },
+    { attachment: attachments.group, kind: 1, duration: 4 },
+    { attachment: attachments.screenshot, subtype: 10 },
+    { attachment: attachments.sms, camera: true },
+    { attachment: attachments.sticker },
+    { attachment: attachments.gone, camera: true },
   ];
   const insertAsset = db.prepare(
     'INSERT INTO ZASSET VALUES (?, ?, ?, ?, 3, 0, 0, ?, ?, 0, 0, ?, ?, ?, ?, 0)'
@@ -609,8 +616,8 @@ function writeSharedWithYou(root) {
       `UUID-SHARED-${id}`,
       item.kind ?? 0,
       item.subtype ?? 0,
-      item.added - DAY,
-      item.added,
+      sentOn[item.attachment] - DAY,
+      day(50),
       item.duration ?? 0,
       item.kind ? 'public.mpeg-4' : 'public.jpeg',
       item.position?.[0] ?? -180,
@@ -630,7 +637,8 @@ function writeMessages(path) {
   const db = new DatabaseSync(path);
   db.exec(`
     CREATE TABLE handle (ROWID INTEGER PRIMARY KEY, id TEXT, service TEXT);
-    CREATE TABLE message (ROWID INTEGER PRIMARY KEY, is_from_me INTEGER, service TEXT, handle_id INTEGER);
+    CREATE TABLE message (ROWID INTEGER PRIMARY KEY, is_from_me INTEGER, service TEXT, handle_id INTEGER,
+      date INTEGER);
     CREATE TABLE attachment (ROWID INTEGER PRIMARY KEY, guid TEXT UNIQUE);
     CREATE TABLE message_attachment_join (message_id INTEGER, attachment_id INTEGER);
     CREATE TABLE chat (ROWID INTEGER PRIMARY KEY, style INTEGER, group_id TEXT, original_group_id TEXT);
@@ -642,7 +650,7 @@ function writeMessages(path) {
     INSERT INTO chat VALUES (1, 45, 'FRIEND-CHAT-ID', 'FRIEND-CHAT-ID'),
       (2, 45, 'SMS-CHAT-ID', 'SMS-CHAT-ID'), (3, 43, '${groupChat}', '${groupChat}');
   `);
-  const message = db.prepare('INSERT INTO message VALUES (?, ?, ?, ?)');
+  const message = db.prepare('INSERT INTO message VALUES (?, ?, ?, ?, ?)');
   const attachment = db.prepare('INSERT INTO attachment VALUES (?, ?)');
   const attach = db.prepare('INSERT INTO message_attachment_join VALUES (?, ?)');
   const inChat = db.prepare('INSERT INTO chat_message_join VALUES (?, ?)');
@@ -658,7 +666,8 @@ function writeMessages(path) {
   ];
   for (const [i, [guid, fromMe, service, handle, chat]] of sent.entries()) {
     const id = i + 1;
-    message.run(id, fromMe, service, handle);
+    // Messages dates a message in nanoseconds since 2001.
+    message.run(id, fromMe, service, handle, BigInt(sentOn[guid]) * 1_000_000_000n);
     attachment.run(id, guid);
     attach.run(id, id);
     inChat.run(chat, id);
