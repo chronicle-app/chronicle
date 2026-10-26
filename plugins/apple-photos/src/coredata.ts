@@ -2,6 +2,7 @@ import { statSync } from 'node:fs';
 import type { DatabaseSync } from 'node:sqlite';
 import { inflateRawSync } from 'node:zlib';
 import { parseBinaryPlist, Uid, type PlistValue } from '@chronicle.app/apple';
+import type { DatabaseColumns } from '@chronicle.app/etl';
 import { APPLE_EPOCH_OFFSET_SECONDS, allRows, getRow } from '@chronicle.app/etl-sqlite';
 
 /**
@@ -15,11 +16,13 @@ import { APPLE_EPOCH_OFFSET_SECONDS, allRows, getRow } from '@chronicle.app/etl-
 export class CoreDataStore {
   readonly db: DatabaseSync;
   private readonly entities: Map<string, number>;
-  private readonly tables = new Map<string, Set<string>>();
+  private readonly tables: Map<string, Set<string>>;
   private model: Map<string, ModelEntity> | null | undefined;
 
-  constructor(db: DatabaseSync) {
+  /** `columns` is each table's columns, when they've been read already. */
+  constructor(db: DatabaseSync, columns: DatabaseColumns = new Map()) {
     this.db = db;
+    this.tables = new Map(columns);
     const rows = allRows<{ name: string; ent: number }>(
       db.prepare('SELECT Z_NAME AS name, Z_ENT AS ent FROM Z_PRIMARYKEY')
     );

@@ -45,13 +45,14 @@ interface ChangeRow {
 
 /**
  * Read the change log, or null when the library keeps none, or its model
- * can't be read or lacks a property it's read by. `added` is when each asset was added to the library
- * (`ZADDEDDATE`), by its row, and `membership` is which album each asset is
- * in now, as `album/asset` rows.
+ * can't be read or lacks a property it's read by. `added` is when each asset
+ * was added to the library (`ZADDEDDATE`), by its row, and `membership` is
+ * which album each asset is in now, as `album/asset` rows. Without
+ * `membership`, only favorites are read, from the assets' own changes.
  */
 export function readHistory(
   store: CoreDataStore,
-  { added, membership }: { added: Map<number, number | null>; membership: Set<string> }
+  { added, membership }: { added: Map<number, number | null>; membership?: Set<string> }
 ): History | null {
   if (store.columns('ACHANGE').size === 0 || store.columns('ATRANSACTION').size === 0) return null;
   const entity = {
@@ -77,21 +78,15 @@ export function readHistory(
   if ([favorite, albums, albumAssets, caption, title].includes(undefined)) return null;
 
   // A caption and a title are on rows of their own, which belong to an asset.
-  const assetOfAttributes = new Map(
-    allRows<{ pk: number; asset: number | null }>(
-      store.db.prepare('SELECT Z_PK AS pk, ZASSET AS asset FROM ZADDITIONALASSETATTRIBUTES')
-    ).map(row => [row.pk, row.asset])
-  );
-  const descriptions = allRows<{ pk: number; attributes: number | null; caption: string | null }>(
-    store.db.prepare(`
-      SELECT Z_PK AS pk, ZASSETATTRIBUTES AS attributes,
-        ${store.column('d', 'ZASSETDESCRIPTION', 'ZLONGDESCRIPTION')} AS caption
-      FROM ZASSETDESCRIPTION d`)
-  );
-  const attributesOfDescription = new Map(descriptions.map(row => [row.pk, row.attributes]));
-  const captioned = new Set(descriptions.filter(row => clean(row.caption)).map(row => row.pk));
+  // They're read the first time a change needs them.
+  let owners: ReturnType<typeof readOwners> | undefined;
+  const ownersOf = () => {
+    owners ??= readOwners(store);
+    return owners;
+  };
+  const assetOfAttributes = (pk: number) => ownersOf().assetOfAttributes.get(pk) ?? null;
   const assetOfDescription = (pk: number) =>
-    assetOfAttributes.get(attributesOfDescription.get(pk) ?? -1) ?? null;
+    assetOfAttributes(ownersOf().attributesOfDescription.get(pk) ?? -1);
 
   // When each asset arrived on this Mac, as its insert dates it, by its row.
   const arrived = new Map<number, number>();
@@ -131,12 +126,12 @@ export function readHistory(
       if (asset === null || arriving(asset, at)) continue;
       // A caption that arrives with its photo, such as on import, isn't an
       // edit, and nor is a caption's row added with nothing in it.
-      if (isNew && (inserted.has(asset) || !captioned.has(pk))) continue;
+      if (isNew && (inserted.has(asset) || !ownersOf().captioned.has(pk))) continue;
       history.edits.push({ asset, what: 'caption', time });
     }
     for (const pk of titles) {
-      const asset = assetOfAttributes.get(pk);
-      if (asset === undefined || asset === null || arriving(asset, at)) continue;
+      const asset = assetOfAttributes(pk);
+      if (asset === null || arriving(asset, at)) continue;
       history.edits.push({ asset, what: 'title', time });
     }
     // Adding photos to an album changes both: the album's photos and each
@@ -145,22 +140,23 @@ export function readHistory(
     for (const asset of regrouped) {
       if (arriving(asset, at)) continue;
       for (const album of changedAlbums) {
-        if (membership.has(`${album}/${asset}`)) history.albumAdds.push({ asset, album, time });
+        if (membership?.has(`${album}/${asset}`)) history.albumAdds.push({ asset, album, time });
       }
     }
   };
 
+  const read = membership
+    ? [entity.asset!, entity.album!, entity.description!, entity.attributes!]
+    : [entity.asset!];
   const rows = iterateRows<ChangeRow>(
     store.db.prepare(`
       SELECT c.ZTRANSACTIONID AS tx, c.ZENTITY AS entity, c.ZENTITYPK AS pk,
         c.ZCHANGETYPE AS type, c.ZCOLUMNS AS columns, t.ZTIMESTAMP AS time
       FROM ACHANGE c JOIN ATRANSACTION t ON t.Z_PK = c.ZTRANSACTIONID
-      WHERE c.ZENTITY IN (?, ?, ?, ?) AND c.ZCHANGETYPE IN (${INSERT}, ${UPDATE})
+      WHERE c.ZENTITY IN (${read.map(() => '?').join(', ')})
+        AND c.ZCHANGETYPE IN (${INSERT}, ${UPDATE})
       ORDER BY c.Z_PK`),
-    entity.asset,
-    entity.album,
-    entity.description,
-    entity.attributes
+    ...read
   );
   for (const row of rows) {
     if (row.tx !== current) {
@@ -198,4 +194,24 @@ export function readHistory(
   }
   finish();
   return history;
+}
+
+/** Which asset each caption's and title's row belongs to, and the captions that have text. */
+function readOwners(store: CoreDataStore) {
+  const assetOfAttributes = new Map(
+    allRows<{ pk: number; asset: number | null }>(
+      store.db.prepare('SELECT Z_PK AS pk, ZASSET AS asset FROM ZADDITIONALASSETATTRIBUTES')
+    ).map(row => [row.pk, row.asset])
+  );
+  const descriptions = allRows<{ pk: number; attributes: number | null; caption: string | null }>(
+    store.db.prepare(`
+      SELECT Z_PK AS pk, ZASSETATTRIBUTES AS attributes,
+        ${store.column('d', 'ZASSETDESCRIPTION', 'ZLONGDESCRIPTION')} AS caption
+      FROM ZASSETDESCRIPTION d`)
+  );
+  return {
+    assetOfAttributes,
+    attributesOfDescription: new Map(descriptions.map(row => [row.pk, row.attributes])),
+    captioned: new Set(descriptions.filter(row => clean(row.caption)).map(row => row.pk)),
+  };
 }

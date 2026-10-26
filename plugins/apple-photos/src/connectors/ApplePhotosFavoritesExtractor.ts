@@ -25,7 +25,6 @@ export class ApplePhotosFavoritesExtractor extends ApplePhotosExtractor {
     const rows = library.rows(Scope.own);
     const history = readHistory(library.store, {
       added: new Map(rows.map(row => [row.pk, row.addedDate])),
-      membership: new Set(),
     });
     const time = this.asOfTime().toISOString();
     return rows

@@ -1,6 +1,6 @@
 import { basename, dirname, join, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { assertReadable, type DatabaseSchema } from '@chronicle.app/etl';
+import { assertReadable, type DatabaseColumns, type DatabaseSchema } from '@chronicle.app/etl';
 import { allRows, assertDatabaseSchema } from '@chronicle.app/etl-sqlite';
 import { CoreDataStore, appleDate, lastChanged } from './coredata.js';
 
@@ -249,10 +249,14 @@ export class PhotosLibrary {
   readonly store: CoreDataStore;
   private readonly db: DatabaseSync;
 
-  private constructor(files: ReturnType<typeof libraryFiles>, db: DatabaseSync) {
+  private constructor(
+    files: ReturnType<typeof libraryFiles>,
+    db: DatabaseSync,
+    columns: DatabaseColumns
+  ) {
     this.files = files;
     this.db = db;
-    this.store = new CoreDataStore(db);
+    this.store = new CoreDataStore(db, columns);
   }
 
   /** Open a library, refusing one whose `Photos.sqlite` isn't in {@link DATABASES}. */
@@ -260,13 +264,14 @@ export class PhotosLibrary {
     const files = libraryFiles(input);
     assertReadable(files.photos, 'Photos library');
     const db = new DatabaseSync(files.photos, { readOnly: true });
+    let columns: DatabaseColumns;
     try {
-      assertDatabaseSchema(db, DATABASES, files.photos);
+      columns = assertDatabaseSchema(db, DATABASES, files.photos);
     } catch (error) {
       db.close();
       throw error;
     }
-    return new PhotosLibrary(files, db);
+    return new PhotosLibrary(files, db, columns);
   }
 
   close(): void {
