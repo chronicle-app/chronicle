@@ -4,25 +4,25 @@ What each record type becomes, from the transformer’s output for the test
 fixtures. Generated: run `npm run shapes` in this plugin to update it.
 
 Each node is its type, its key, and its properties in braces; a property
-that links to another node names that node’s type. `key(…)` lists the key
-fields after `@type` and `source`, and says `any source` when the key has
-no `source`. `?` marks a property that is sometimes absent, `[]` a list,
+that links to another node names that node’s type. `key(…)` lists the
+fields of the node’s key, `@type` and `source` too, so a key without one
+shows it. `?` marks a property that is sometimes absent, `[]` a list,
 and `*` a value computed in the transformer rather than copied or
 converted from the record. Every node also has `source`.
 
 ## pull-requests
 
 ```ts
-PublishAction key(result.isPartOf[*].creator[*].handle, result.isPartOf[*].handle, result.handle) {
+PublishAction key(@type, source, result.isPartOf[*].creator[*].handle, result.isPartOf[*].handle, result.handle) {
   timestamp
-  agent: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
-  result: Changeset key(isPartOf[*].creator[*].handle, isPartOf[*].handle, handle) {
+  agent: Person key(@type, source, sourceId) { sourceId, handle, name, sameAs[], url }
+  result: Changeset key(@type, source, isPartOf[*].creator[*].handle, isPartOf[*].handle, handle) {
     handle, url, name, description?, visibility
-    author[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
-    isPartOf[]: Repository key(creator[*].handle, handle) {
+    author[]: Person key(@type, source, sourceId) { sourceId, handle, name, sameAs[], url }
+    isPartOf[]: Repository key(@type, source, creator[*].handle, handle) {
       handle, url, name, description, tags[], visibility
-      references[]: Entity key(url, any source) { url }
-      creator[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
+      references[]: Entity key(url) { url }
+      creator[]: Person key(@type, source, sourceId) { sourceId, handle, name, sameAs[], url }
     }
   }
 }
@@ -31,15 +31,15 @@ PublishAction key(result.isPartOf[*].creator[*].handle, result.isPartOf[*].handl
 ## issues
 
 ```ts
-PlanAction key(object.isPartOf[*].creator[*].handle, object.isPartOf[*].handle, object.handle) {
+PlanAction key(@type, source, object.isPartOf[*].creator[*].handle, object.isPartOf[*].handle, object.handle) {
   timestamp
-  agent: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
-  object: Task key(isPartOf[*].creator[*].handle, isPartOf[*].handle, handle) {
+  agent: Person key(@type, source, sourceId) { sourceId, handle, name, sameAs[], url }
+  object: Task key(@type, source, isPartOf[*].creator[*].handle, isPartOf[*].handle, handle) {
     handle, url, name, description
-    isPartOf[]: Repository key(creator[*].handle, handle) {
+    isPartOf[]: Repository key(@type, source, creator[*].handle, handle) {
       handle, url, name, description, tags[], visibility
-      references[]: Entity key(url, any source) { url }
-      creator[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
+      references[]: Entity key(url) { url }
+      creator[]: Person key(@type, source, sourceId) { sourceId, handle, name, sameAs[], url }
     }
   }
 }
@@ -48,27 +48,27 @@ PlanAction key(object.isPartOf[*].creator[*].handle, object.isPartOf[*].handle, 
 ## comments
 
 ```ts
-RespondAction key(result.sourceId) {
+RespondAction key(@type, source, result.sourceId) {
   timestamp
-  agent: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
-  object: Changeset | Task key(isPartOf[*].creator[*].handle, isPartOf[*].handle, handle) {
+  agent: Person key(@type, source, sourceId) { sourceId, handle, name, sameAs[], url }
+  object: Changeset | Task key(@type, source, isPartOf[*].creator[*].handle, isPartOf[*].handle, handle) {
     handle, url, name, visibility?
-    author[]?: Person key(sourceId) { sourceId, handle, name, sameAs[]?, url }
-    isPartOf[]: Repository key(creator[*].handle, handle) {
+    author[]?: Person key(@type, source, sourceId) { sourceId, handle, name, sameAs[]?, url }
+    isPartOf[]: Repository key(@type, source, creator[*].handle, handle) {
       handle, url, name, description?, tags[]?, visibility
-      references[]?: Entity key(url, any source) { url }
-      creator[]: Person | Organization key(sourceId) { sourceId, handle, name, sameAs[]?, url }
+      references[]?: Entity key(url) { url }
+      creator[]: Person | Organization key(@type, source, sourceId) { sourceId, handle, name, sameAs[]?, url }
     }
   }
-  result: Comment key(sourceId) {
+  result: Comment key(@type, source, sourceId) {
     sourceId, url, body, visibility
-    author[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
-    about[]: Changeset | Task key(isPartOf[*].creator[*].handle, isPartOf[*].handle, handle) {
+    author[]: Person key(@type, source, sourceId) { sourceId, handle, name, sameAs[], url }
+    about[]: Changeset | Task key(@type, source, isPartOf[*].creator[*].handle, isPartOf[*].handle, handle) {
       handle
-      isPartOf[]: Repository key(creator[*].handle, handle) {
+      isPartOf[]: Repository key(@type, source, creator[*].handle, handle) {
         handle, url, name, description?, tags[]?, visibility
-        references[]?: Entity key(url, any source) { url }
-        creator[]: Person | Organization key(sourceId) { sourceId, handle, name, sameAs[]?, url }
+        references[]?: Entity key(url) { url }
+        creator[]: Person | Organization key(@type, source, sourceId) { sourceId, handle, name, sameAs[]?, url }
       }
     }
   }
@@ -78,28 +78,28 @@ RespondAction key(result.sourceId) {
 ## commits
 
 ```ts
-UpdateAction key(result.sourceId) {
+UpdateAction key(@type, source, result.sourceId) {
   timestamp
-  agent: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
-  object: Repository key(creator[*].handle, handle) {
+  agent: Person key(@type, source, sourceId) { sourceId, handle, name, sameAs[], url }
+  object: Repository key(@type, source, creator[*].handle, handle) {
     handle, url, name, description?, tags[]?, visibility
-    references[]?: Entity key(url, any source) { url }
-    creator[]: Person | Organization key(sourceId) { sourceId, handle, name, sameAs[]?, url }
+    references[]?: Entity key(url) { url }
+    creator[]: Person | Organization key(@type, source, sourceId) { sourceId, handle, name, sameAs[]?, url }
   }
-  result: Revision key(sourceId, any source) {
+  result: Revision key(@type, sourceId) {
     sourceId, url, name, description?
-    author[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
-    isPartOf[]: Repository | Changeset key(creator[*].handle, handle) / key(isPartOf[*].creator[*].handle, isPartOf[*].handle, handle) {
+    author[]: Person key(@type, source, sourceId) { sourceId, handle, name, sameAs[], url }
+    isPartOf[]: Repository | Changeset key(@type, source, creator[*].handle, handle) / key(@type, source, isPartOf[*].creator[*].handle, isPartOf[*].handle, handle) {
       handle, url?, name?, description?, tags[]?, visibility?
-      references[]?: Entity key(url, any source) { url }
-      creator[]?: Person | Organization key(sourceId) { sourceId, handle, name, sameAs[]?, url }
-      isPartOf[]?: Repository key(creator[*].handle, handle) {
+      references[]?: Entity key(url) { url }
+      creator[]?: Person | Organization key(@type, source, sourceId) { sourceId, handle, name, sameAs[]?, url }
+      isPartOf[]?: Repository key(@type, source, creator[*].handle, handle) {
         handle, url, name, description?, tags[]?, visibility
-        references[]?: Entity key(url, any source) { url }
-        creator[]: Person | Organization key(sourceId) { sourceId, handle, name, sameAs[]?, url }
+        references[]?: Entity key(url) { url }
+        creator[]: Person | Organization key(@type, source, sourceId) { sourceId, handle, name, sameAs[]?, url }
       }
     }
-    isBasedOn[]?: Revision key(sourceId, any source) { sourceId }
+    isBasedOn[]?: Revision key(@type, sourceId) { sourceId }
   }
 }
 ```
@@ -107,17 +107,17 @@ UpdateAction key(result.sourceId) {
 ## repositories
 
 ```ts
-CreateAction key(result.creator[*].handle, result.handle) {
+CreateAction key(@type, source, result.creator[*].handle, result.handle) {
   timestamp
-  agent: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
-  result: Repository key(creator[*].handle, handle) {
+  agent: Person key(@type, source, sourceId) { sourceId, handle, name, sameAs[], url }
+  result: Repository key(@type, source, creator[*].handle, handle) {
     handle, url, name, visibility, description?, tags[]?
-    creator[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
-    isBasedOn[]?: Repository key(creator[*].handle, handle) {
+    creator[]: Person key(@type, source, sourceId) { sourceId, handle, name, sameAs[], url }
+    isBasedOn[]?: Repository key(@type, source, creator[*].handle, handle) {
       handle, url, name, visibility
-      creator[]: Organization key(sourceId) { sourceId, handle, name, url }
+      creator[]: Organization key(@type, source, sourceId) { sourceId, handle, name, url }
     }
-    references[]?: Entity key(url, any source) { url }
+    references[]?: Entity key(url) { url }
   }
 }
 ```
@@ -125,27 +125,27 @@ CreateAction key(result.creator[*].handle, result.handle) {
 ## replies
 
 ```ts
-RespondAction key(result.sourceId) {
+RespondAction key(@type, source, result.sourceId) {
   timestamp
-  agent: Person | SoftwareAgent key(sourceId) { sourceId, handle, name?, url }
-  object: Changeset | Task key(isPartOf[*].creator[*].handle, isPartOf[*].handle, handle) {
+  agent: Person | SoftwareAgent key(@type, source, sourceId) { sourceId, handle, name?, url }
+  object: Changeset | Task key(@type, source, isPartOf[*].creator[*].handle, isPartOf[*].handle, handle) {
     handle, url, name, visibility?
-    author[]?: Person key(sourceId) { sourceId, handle, name, sameAs[]?, url }
-    isPartOf[]: Repository key(creator[*].handle, handle) {
+    author[]?: Person key(@type, source, sourceId) { sourceId, handle, name, sameAs[]?, url }
+    isPartOf[]: Repository key(@type, source, creator[*].handle, handle) {
       handle, url, name, description?, tags[]?, visibility
-      references[]?: Entity key(url, any source) { url }
-      creator[]: Person | Organization key(sourceId) { sourceId, handle, name, sameAs[]?, url }
+      references[]?: Entity key(url) { url }
+      creator[]: Person | Organization key(@type, source, sourceId) { sourceId, handle, name, sameAs[]?, url }
     }
   }
-  result: Comment key(sourceId) {
+  result: Comment key(@type, source, sourceId) {
     sourceId, url, body, visibility
-    author[]: Person | SoftwareAgent key(sourceId) { sourceId, handle, name?, url }
-    about[]: Changeset | Task key(isPartOf[*].creator[*].handle, isPartOf[*].handle, handle) {
+    author[]: Person | SoftwareAgent key(@type, source, sourceId) { sourceId, handle, name?, url }
+    about[]: Changeset | Task key(@type, source, isPartOf[*].creator[*].handle, isPartOf[*].handle, handle) {
       handle
-      isPartOf[]: Repository key(creator[*].handle, handle) {
+      isPartOf[]: Repository key(@type, source, creator[*].handle, handle) {
         handle, url, name, description?, tags[]?, visibility
-        references[]?: Entity key(url, any source) { url }
-        creator[]: Person | Organization key(sourceId) { sourceId, handle, name, sameAs[]?, url }
+        references[]?: Entity key(url) { url }
+        creator[]: Person | Organization key(@type, source, sourceId) { sourceId, handle, name, sameAs[]?, url }
       }
     }
   }
@@ -155,31 +155,31 @@ RespondAction key(result.sourceId) {
 ## resolutions
 
 ```ts
-AcceptAction | CompleteAction | CancelAction | RejectAction key(sourceId) {
+AcceptAction | CompleteAction | CancelAction | RejectAction key(@type, source, sourceId) {
   sourceId, timestamp
-  agent: Person key(sourceId) { sourceId, handle, name, url, sameAs[]? }
-  object: Changeset | Task key(isPartOf[*].creator[*].handle, isPartOf[*].handle, handle) {
+  agent: Person key(@type, source, sourceId) { sourceId, handle, name, url, sameAs[]? }
+  object: Changeset | Task key(@type, source, isPartOf[*].creator[*].handle, isPartOf[*].handle, handle) {
     handle, url, name, visibility?
-    author[]?: Person key(sourceId) { sourceId, handle, name?, sameAs[]?, url }
-    isPartOf[]: Repository key(creator[*].handle, handle) {
+    author[]?: Person key(@type, source, sourceId) { sourceId, handle, name?, sameAs[]?, url }
+    isPartOf[]: Repository key(@type, source, creator[*].handle, handle) {
       handle, url, name, description, tags[], visibility
-      references[]: Entity key(url, any source) { url }
-      creator[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
+      references[]: Entity key(url) { url }
+      creator[]: Person key(@type, source, sourceId) { sourceId, handle, name, sameAs[], url }
     }
   }
-  result?: Revision key(sourceId, any source) { sourceId }
+  result?: Revision key(@type, sourceId) { sourceId }
 }
 ```
 
 ## stars
 
 ```ts
-LikeAction key(object.creator[*].handle, object.handle) {
+LikeAction key(@type, source, object.creator[*].handle, object.handle) {
   timestamp
-  agent: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
-  object: Repository key(creator[*].handle, handle) {
+  agent: Person key(@type, source, sourceId) { sourceId, handle, name, sameAs[], url }
+  object: Repository key(@type, source, creator[*].handle, handle) {
     handle, url, name, visibility
-    creator[]: Person | Organization key(sourceId) { sourceId, handle, url, name? }
+    creator[]: Person | Organization key(@type, source, sourceId) { sourceId, handle, url, name? }
   }
 }
 ```
@@ -187,12 +187,12 @@ LikeAction key(object.creator[*].handle, object.handle) {
 ## gists
 
 ```ts
-PublishAction key(result.sourceId) {
+PublishAction key(@type, source, result.sourceId) {
   timestamp
-  agent: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
-  result: SoftwareSourceCode key(sourceId) {
+  agent: Person key(@type, source, sourceId) { sourceId, handle, name, sameAs[], url }
+  result: SoftwareSourceCode key(@type, source, sourceId) {
     sourceId, url, name, visibility*
-    author[]: Person key(sourceId) { sourceId, handle, name, sameAs[], url }
+    author[]: Person key(@type, source, sourceId) { sourceId, handle, name, sameAs[], url }
   }
 }
 ```

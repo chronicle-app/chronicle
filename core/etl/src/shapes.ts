@@ -314,13 +314,12 @@ function addNode(
 }
 
 /**
- * A key without the `@type` and `source` nearly every key starts with; a key
- * without `source` is shared across sources, which matters, so it says so.
+ * A key's fields as the transformer declares them, `@type` and `source` too, so
+ * a key that leaves one out shows it: one without `source` is shared across
+ * sources, and one without `@type` keeps its identity when its type changes.
  */
 function keyLabel(key: string[]): string {
-  const fields = key.filter(field => field !== '@type' && field !== 'source');
-  if (!key.includes('source')) fields.push('any source');
-  return `key(${fields.join(', ') || '@type'})`;
+  return `key(${key.join(', ')})`;
 }
 
 // ---------------------------------------------------------------------------
@@ -333,10 +332,10 @@ const UNREMARKABLE = new Set(['source']);
  * The summary as a tree per record type, for a plugin's SHAPES.md: each node's
  * type, key, and properties, with the nodes it links to nested inside.
  *
- *   PublishAction key(result.sourceId) {
+ *   PublishAction key(@type, source, result.sourceId) {
  *     timestamp
- *     agent: Agent key(handle) { handle, url, sameAs[]? }
- *     result: Post key(sourceId) { sourceId, url, name, body? }
+ *     agent: Agent key(@type, source, handle) { handle, url, sameAs[]? }
+ *     result: Post key(@type, source, sourceId) { sourceId, url, name, body? }
  *   }
  */
 export function renderShapes(shapes: Shapes, { title }: { title: string }): string {
@@ -347,9 +346,9 @@ export function renderShapes(shapes: Shapes, { title }: { title: string }): stri
     'fixtures. Generated: run `npm run shapes` in this plugin to update it.',
     '',
     'Each node is its type, its key, and its properties in braces; a property',
-    'that links to another node names that node’s type. `key(…)` lists the key',
-    'fields after `@type` and `source`, and says `any source` when the key has',
-    'no `source`. `?` marks a property that is sometimes absent, `[]` a list,',
+    'that links to another node names that node’s type. `key(…)` lists the',
+    'fields of the node’s key, `@type` and `source` too, so a key without one',
+    'shows it. `?` marks a property that is sometimes absent, `[]` a list,',
     'and `*` a value computed in the transformer rather than copied or',
     'converted from the record. Every node also has `source`.',
   ];
