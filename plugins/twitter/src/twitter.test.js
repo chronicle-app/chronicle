@@ -92,13 +92,12 @@ test('tweets become PublishActions of Posts with their mentions and links', asyn
   assert.deepEqual(await transform(rows[0]), [
     {
       '@type': 'PublishAction',
-      '@key': key,
+      '@key': ['@type', 'source', 'result.sourceId'],
       source: 'twitter',
-      sourceId: '1234567890123456789',
       timestamp: '2025-01-11T17:10:28.000Z',
       '@assertedAt': '2025-01-11T17:10:28.000Z',
       agent: owner,
-      object: {
+      result: {
         '@type': 'Post',
         '@key': key,
         source: 'twitter',
@@ -123,7 +122,7 @@ test('tweets become PublishActions of Posts with their mentions and links', asyn
 
   // With empty entities, mentions and links are parsed from the text.
   const [fallback] = await transform(rows[1]);
-  assert.deepEqual(fallback.object.references, [
+  assert.deepEqual(fallback.result.references, [
     {
       '@type': 'Agent',
       '@key': ['@type', 'source', 'handle'],
@@ -151,9 +150,8 @@ test('likes become LikeActions on the liked Post', async t => {
   assert.deepEqual(await transform(rows[0]), [
     {
       '@type': 'LikeAction',
-      '@key': key,
+      '@key': ['@type', 'source', 'object.sourceId'],
       source: 'twitter',
-      sourceId: '9876543210987654321-like',
       agent: owner,
       object: {
         '@type': 'Post',
@@ -179,13 +177,12 @@ test('1:1 and group DMs become MessageActions, newest first', async t => {
   assert.deepEqual(await transform(rows[0]), [
     {
       '@type': 'MessageAction',
-      '@key': key,
+      '@key': ['@type', 'source', 'result.sourceId'],
       source: 'twitter',
-      sourceId: '1300000000000000002',
       timestamp: '2025-01-12T09:00:00.000Z',
       '@assertedAt': '2025-01-12T09:00:00.000Z',
       agent: user('222'),
-      object: {
+      result: {
         '@type': 'Message',
         '@key': key,
         source: 'twitter',
@@ -200,13 +197,12 @@ test('1:1 and group DMs become MessageActions, newest first', async t => {
   assert.deepEqual(await transform(rows[1]), [
     {
       '@type': 'MessageAction',
-      '@key': key,
+      '@key': ['@type', 'source', 'result.sourceId'],
       source: 'twitter',
-      sourceId: '1300000000000000001',
       timestamp: '2025-01-11T17:10:28.000Z',
       '@assertedAt': '2025-01-11T17:10:28.000Z',
       agent: user('111'),
-      object: {
+      result: {
         '@type': 'Message',
         '@key': key,
         source: 'twitter',

@@ -64,7 +64,7 @@ test('messages become schema-valid MessageActions, newest first', async t => {
   const dir = writeWhatsappFixture(tempDir(t));
   const byId = new Map(
     (await actions(WhatsappExtractor, { input: join(dir, 'ChatStorage.sqlite') })).map(a => [
-      a.sourceId,
+      a.result.sourceId,
       a,
     ])
   );
@@ -74,14 +74,14 @@ test('messages become schema-valid MessageActions, newest first', async t => {
   // A group member known only by LID resolves to a phone through ContactsV2.
   assert.deepEqual(byId.get('G1'), {
     '@type': 'MessageAction',
-    '@key': ['@type', 'source', 'sourceId'],
+    // Keyed by the message it sent.
+    '@key': ['@type', 'source', 'result.sourceId'],
     source: 'whatsapp',
-    sourceId: 'G1',
     // The timestamp stays the ISO string the transformer writes.
     timestamp: '2025-01-01T00:00:03.000Z',
     '@assertedAt': '2025-01-01T00:00:03.000Z',
     agent: riley,
-    object: {
+    result: {
       '@type': 'Message',
       '@key': ['@type', 'source', 'sourceId'],
       source: 'whatsapp',
@@ -93,38 +93,37 @@ test('messages become schema-valid MessageActions, newest first', async t => {
   });
 
   // The roster rides on the first message seen for the group; a voice note with no
-  // file on disk is a placeholder keyed by its message.
+  // file on disk is a placeholder, keyed as the attachment of its message.
   const g3 = byId.get('G3');
   assert.deepEqual(g3.agent, me);
-  assert.equal(g3.object.recipient, undefined);
-  assert.deepEqual(g3.object.isPartOf, [
+  assert.equal(g3.result.recipient, undefined);
+  assert.deepEqual(g3.result.isPartOf, [
     {
       ...channel,
       member: [person('14165550001@s.whatsapp.net', '+14165550001', 'Sam'), riley],
     },
   ]);
-  assert.deepEqual(g3.object.contains, [
+  assert.deepEqual(g3.result.contains, [
     {
       '@type': 'AudioObject',
-      '@key': ['@type', 'source', 'sourceId'],
+      '@key': ['@type', 'source', 'action.result.sourceId'],
       type: 'AudioObject',
       description: undefined,
       source: 'whatsapp',
-      sourceId: 'G3',
     },
   ]);
 
   // A photo on disk carries its path, and its caption is the message body.
-  const g2 = byId.get('G2').object;
+  const g2 = byId.get('G2').result;
   assert.equal(g2.body, 'Summit!');
   assert.equal(g2.contains[0].contentPath, join(dir, 'Message', 'Media', 'photo.jpg'));
   assert.equal(g2.contains[0].mimeType, 'image/jpeg');
 
   // A quoted reply points at its parent by stanza id; a DM has no Channel.
   const a2 = byId.get('A2');
-  assert.deepEqual(a2.object.recipient, [alex]);
-  assert.equal(a2.object.isPartOf, undefined);
-  assert.deepEqual(a2.object.inReplyTo, [
+  assert.deepEqual(a2.result.recipient, [alex]);
+  assert.equal(a2.result.isPartOf, undefined);
+  assert.deepEqual(a2.result.inReplyTo, [
     {
       '@type': 'Message',
       '@key': ['@type', 'source', 'sourceId'],
@@ -140,7 +139,7 @@ test('messages become schema-valid MessageActions, newest first', async t => {
         input: join(dir, 'ChatStorage.sqlite'),
         since: new Date('2025-01-01T00:00:03.500Z'),
       })
-    ).map(a => a.sourceId),
+    ).map(a => a.result.sourceId),
     ['G3', 'G2']
   );
 });
@@ -183,13 +182,13 @@ test('an iPhone backup yields the same messages, with media linked out of the ba
 
   const out = await actions(WhatsappBackupExtractor, { input, iosWorkDir });
   assert.deepEqual(
-    out.map(a => a.sourceId),
+    out.map(a => a.result.sourceId),
     ['G3', 'G2', 'G1', 'A2', PARENT_ID]
   );
   // ContactsV2 came along, so the LID member still resolves to a phone.
   assert.deepEqual(out[2].agent, riley);
 
-  const photo = out[1].object.contains[0].contentPath;
+  const photo = out[1].result.contains[0].contentPath;
   assert.equal(photo, join(iosWorkDir, 'Message', 'Media', 'photo.jpg'));
   const backedUp = join(
     input,

@@ -101,8 +101,11 @@ test('groups streaming reply blocks and maps messages, authors, model, thread an
     const [result] = await transformer.performTransform(record);
     const action = result.data;
     assert.equal(action['@type'], 'MessageAction');
-    assert.equal(action.object.isPartOf[0].name, 'My session');
-    assert.equal(action.object.isPartOf[0].isPartOf[0].inRealm.handle, 'fixture');
+    // Keyed by the message it sent.
+    assert.deepEqual(action['@key'], ['@type', 'source', 'result.sourceId']);
+    assert.equal(action.sourceId, undefined);
+    assert.equal(action.result.isPartOf[0].name, 'My session');
+    assert.equal(action.result.isPartOf[0].isPartOf[0].inRealm.handle, 'fixture');
     if (record.data.role === 'human') assert.deepEqual(action.agent.sameAs, ['@me']);
     else {
       assert.equal(action.agent.handle, 'claude');

@@ -49,8 +49,8 @@ export default class ImessageTransformer extends ChronicleTransformer {
       '@type': 'MessageAction',
       timestamp: new Date(record.context.timestamp),
       source: service,
-      sourceId: record.context.guid, // Use GUID instead of ROWID
-      '@key': ['source', 'sourceId', '@type'],
+      // Keyed by the message it sent.
+      '@key': ['@type', 'source', 'result.sourceId'],
       // Sending brings the message into being, so it's the action's result.
       result: this.buildMessage(
         record,

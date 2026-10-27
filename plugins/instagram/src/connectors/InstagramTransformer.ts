@@ -353,12 +353,12 @@ export default class InstagramTransformer extends ChronicleTransformer {
 
     const messageAction: MessageAction = {
       '@type': 'MessageAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      // Keyed by the message it sent.
+      '@key': ['@type', 'source', 'result.sourceId'],
       source: 'instagram',
-      sourceId: d.id,
       timestamp: d.created_at || d.timestamp,
       agent: sender,
-      object: message,
+      result: message,
     };
 
     actions.push(messageAction, ...this.buildReactionActions(record, message, self, other));

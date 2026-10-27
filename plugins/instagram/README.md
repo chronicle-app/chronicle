@@ -83,7 +83,7 @@ directory are skipped.
 - `posts`, `stories`: a `PublishAction` of a `Post` that `contains` its
   `ImageObject`/`VideoObject` files, with a `sourceFormat` of `feed`, `reel`
   or `story`.
-- `messages`: a `MessageAction` of a `Message`; a shared post, profile or link
+- `messages`: a `MessageAction` whose `result` is a `Message`, keyed by it; a shared post, profile or link
   is in its `references`. Emoji reactions are `RespondAction`s with a
   `Response` result.
 - `likes`: a `LikeAction` on another account's `Post`.

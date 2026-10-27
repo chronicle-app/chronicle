@@ -63,10 +63,10 @@ script wrapping a JSON array:
 
 ## Schema
 
-- Each tweet is a `PublishAction` whose object is a `Post`. The post's
+- Each tweet is a `PublishAction` whose `result` is a `Post`, keyed by it. The post's
   `references` are the accounts it mentions and the links it contains.
 - Each like is a `LikeAction` on the liked `Post`.
-- Each direct message is a `MessageAction` whose object is a `Message`, sent to
+- Each direct message is a `MessageAction` whose `result` is a `Message`, keyed by it, sent to
   the other participants of the conversation.
 
 The archive owner is an `Agent` linked to `@me`; other accounts are `Agent`s

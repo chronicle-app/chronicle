@@ -62,7 +62,8 @@ export default class SlackTransformer extends ChronicleTransformer {
       source: 'slack',
       timestamp: new Date(Number.parseFloat(msg.ts) * 1000),
       agent: sender,
-      object: message,
+      // Sending makes the message, so it's the action's result.
+      result: message,
     };
 
     return [messageAction];

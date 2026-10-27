@@ -9,7 +9,9 @@ import type { MailAddress, MailMessage } from './parse.js';
 const MESSAGE_KEY = ['@type', 'source', 'sourceId'];
 /** Without a Message-ID: who sent it, when, and under what subject. */
 const KEYLESS_MESSAGE_KEY = ['@type', 'source', 'action.timestamp', 'action.agent.handle', 'name'];
-const KEYLESS_ACTION_KEY = ['@type', 'source', 'timestamp', 'agent.handle', 'object.name'];
+const KEYLESS_ACTION_KEY = ['@type', 'source', 'timestamp', 'agent.handle', 'result.name'];
+/** Sending makes the message, so the action is keyed by the message it made. */
+const ACTION_KEY = ['@type', 'source', 'result.sourceId'];
 /** Identifiers defined by the email protocol (RFC 5322) live in its namespace. */
 const EMAIL = 'email';
 /**
@@ -75,11 +77,10 @@ export interface MessageNodeOptions {
 }
 
 /**
- * The sending of a message: a `MessageAction` by its sender, whose object is
+ * The sending of a message: a `MessageAction` by its sender, whose result is
  * the `Message`, with its recipients, the message it replies to, and its
  * thread and labels when the source has them. The sending happened once, so
- * the action is keyed by the Message-ID wherever the message is read, as the
- * message is.
+ * the action is keyed by the message it made, wherever the message is read.
  */
 export function messageAction(mail: MailMessage, options: MessageNodeOptions = {}): MessageAction {
   const me = new Set((options.me ?? []).map(address => address.toLowerCase()));
@@ -125,12 +126,11 @@ export function messageAction(mail: MailMessage, options: MessageNodeOptions = {
 
   return {
     '@type': 'MessageAction',
-    ...(messageId
-      ? { '@key': MESSAGE_KEY, source: EMAIL, sourceId: messageId }
-      : { '@key': KEYLESS_ACTION_KEY, source: EMAIL }),
+    '@key': messageId ? ACTION_KEY : KEYLESS_ACTION_KEY,
+    source: EMAIL,
     timestamp: new Date(sentAt),
     agent: sender,
-    object: message,
+    result: message,
   };
 }
 

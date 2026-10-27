@@ -376,14 +376,15 @@ export default class LinkedInTransformer extends ChronicleTransformer {
         '@type',
         'source',
         'timestamp',
-        'object.isPartOf[*].sourceId',
+        'result.isPartOf[*].sourceId',
         'agent.handle',
         'agent.name',
       ],
       source: SOURCE,
       timestamp: data.sentAt,
       ...(sender && { agent: sender }),
-      object: message,
+      // Sending makes the message, so it's the action's result.
+      result: message,
     };
     return [sent];
   }

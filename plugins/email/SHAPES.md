@@ -13,11 +13,11 @@ converted from the record. Every node also has `source`.
 ## emails
 
 ```ts
-MessageAction key(sourceId) / key(timestamp, agent.handle, object.name) {
-  sourceId?, timestamp
+MessageAction key(result.sourceId) / key(timestamp, agent.handle, result.name) {
+  timestamp
   agent: Agent key(handle) { handle, alternateName[] }
-  object: Message key(sourceId) / key(action.timestamp, action.agent.handle, name) {
-    sourceId?, name, body
+  result: Message key(sourceId) / key(action.timestamp, action.agent.handle, name) {
+    sourceId?*, name, body
     author[]: Agent key(handle) { handle }
     recipient[]: Agent key(handle) { handle, alternateName[]? }
   }

@@ -166,7 +166,8 @@ test('direct messages become MessageActions, with reactions as RespondActions', 
   // Newest first. The reaction echo message is dropped; the reactions[] entries
   // on the messages they react to become RespondActions.
   assert.deepEqual(
-    out.map(a => [a['@type'], a.object.sourceId]),
+    // A message is what its action made; a reaction is to a message.
+    out.map(a => [a['@type'], (a.object ?? a.result).sourceId]),
     [
       ['MessageAction', 'alexchen_123/1700000001000'],
       ['MessageAction', 'alexchen_123/1700000000000'],
@@ -181,12 +182,12 @@ test('direct messages become MessageActions, with reactions as RespondActions', 
   // resolves to, and a shared post is a referenced Post keyed by its shortcode.
   assert.deepEqual(out[0], {
     '@type': 'MessageAction',
-    '@key': postKey,
+    // Keyed by the message it sent.
+    '@key': ['@type', 'source', 'result.sourceId'],
     source: 'instagram',
-    sourceId: 'alexchen_123/1700000001000',
     ...at('2023-11-14T22:13:21.000Z'),
     agent: alex,
-    object: {
+    result: {
       '@type': 'Message',
       '@key': postKey,
       source: 'instagram',
@@ -216,7 +217,7 @@ test('direct messages become MessageActions, with reactions as RespondActions', 
     recipient: [alex],
   };
   assert.deepEqual(out[1].agent, me);
-  assert.deepEqual(out[1].object, sent);
+  assert.deepEqual(out[1].result, sent);
   assert.deepEqual(out[2], {
     '@type': 'RespondAction',
     '@key': ['@type', 'source', 'object.sourceId', 'agent.handle', 'agent.name', 'result.body'],
@@ -242,7 +243,7 @@ test('direct messages become MessageActions, with reactions as RespondActions', 
   // A group thread: members are known only by display name, and no recipient
   // is asserted. A reaction with no timestamp has no time.
   assert.deepEqual(out[3].agent, named('Jordan Lee'));
-  assert.equal(out[3].object.recipient, undefined);
+  assert.equal(out[3].result.recipient, undefined);
   assert.deepEqual(out[4].agent, named('Alex Chen'));
   assert.equal(out[4].timestamp, undefined);
   assert.equal(out[4]['@assertedAt'], undefined);

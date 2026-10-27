@@ -50,12 +50,12 @@ export default class TwitterTransformer extends ChronicleTransformer {
 
     const publishAction: PublishAction = {
       '@type': 'PublishAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      // Keyed by the tweet it published.
+      '@key': ['@type', 'source', 'result.sourceId'],
       source: 'twitter',
-      sourceId: record.data.id,
       timestamp: record.data.created_at,
       agent: user,
-      object: tweet,
+      result: tweet,
     };
 
     actions.push(publishAction);
@@ -76,9 +76,9 @@ export default class TwitterTransformer extends ChronicleTransformer {
 
     const likeAction: LikeAction = {
       '@type': 'LikeAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      // You like a tweet once, so the tweet identifies the like.
+      '@key': ['@type', 'source', 'object.sourceId'],
       source: 'twitter',
-      sourceId: `${record.data.tweetId}-like`,
       agent: user,
       object: targetTweet,
     };
@@ -107,12 +107,12 @@ export default class TwitterTransformer extends ChronicleTransformer {
 
     const sendAction: MessageAction = {
       '@type': 'MessageAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      // Keyed by the message it sent.
+      '@key': ['@type', 'source', 'result.sourceId'],
       source: 'twitter',
-      sourceId: record.data.id,
       timestamp: record.data.created_at,
       agent: sender,
-      object: message,
+      result: message,
     };
 
     actions.push(sendAction);
@@ -244,12 +244,12 @@ export default class TwitterTransformer extends ChronicleTransformer {
 
     const sendAction: MessageAction = {
       '@type': 'MessageAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      // Keyed by the message it sent.
+      '@key': ['@type', 'source', 'result.sourceId'],
       source: 'twitter',
-      sourceId: record.data.id,
       timestamp: record.data.created_at,
       agent: sender,
-      object: message,
+      result: message,
     };
 
     actions.push(sendAction);
