@@ -4342,13 +4342,13 @@ example:podcast
   rdfs:label "Listening to a podcast episode";
   rdfs:comment """
 An episode belongs to a podcast through :series. The series carries its feed
-URL. The episode's audio file is its :rendition, keyed by its URL.
+URL. The episode's audio file is its :rendition, keyed by its URL. The
+:ListenAction is keyed by the episode it acted on.
 """;
   rdf:value [
     a :ListenAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "object.sourceId");
     :source "apple-podcasts";
-    :sourceId "1000762841935";
     :object [
       a :PodcastEpisode;
       doc:key ("@type" "source" "sourceId");

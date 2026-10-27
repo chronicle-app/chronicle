@@ -161,12 +161,16 @@ test('played and saved episodes become listens, completions, and bookmarks, and 
   );
   assert.equal(count, 6);
 
-  // Each action is keyed by Apple's catalog ID for its episode or show, which
-  // is the same on each device.
+  // Each action is keyed by the episode or show it acted on, by Apple's catalog
+  // ID for it, which is the same on each device. No action has an ID of its own.
   assert.deepEqual(
-    [...new Set(actions.map(action => action.sourceId))],
+    [...new Set(actions.map(action => action.object.sourceId))],
     ['2002', '2005', '2001', '2003', '2006', '1001']
   );
+  for (const action of actions) {
+    assert.deepEqual(action['@key'], ['@type', 'source', 'object.sourceId']);
+    assert.equal(action.sourceId, undefined);
+  }
 
   // The episode carries its show, its author, when it was released, its audio
   // file, its artwork, its description as Markdown, and its transcript, a
@@ -174,9 +178,8 @@ test('played and saved episodes become listens, completions, and bookmarks, and 
   // show carries its publisher.
   assert.deepEqual(actions[3], {
     '@type': 'ListenAction',
-    '@key': key,
+    '@key': ['@type', 'source', 'object.sourceId'],
     source: 'apple-podcasts',
-    sourceId: '2001',
     timestamp: new Date('2025-01-01T00:50:00.000Z'),
     agent: me,
     object: finishedEpisode,
@@ -200,7 +203,7 @@ test('played and saved episodes become listens, completions, and bookmarks, and 
 
   // A show reached only through an episode is keyed the same way. A retired
   // show has no name either.
-  const older = actions.find(action => action.sourceId === '2006').object;
+  const older = actions.find(action => action.object.sourceId === '2006').object;
   assert.equal(older.name, undefined);
   assert.deepEqual(older.series, [unfollowedShow]);
   assert.deepEqual(actions.at(-1).object, followedShow);
