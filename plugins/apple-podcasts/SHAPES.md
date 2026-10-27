@@ -13,8 +13,8 @@ converted from the record. Every node also has `source`.
 ## listens
 
 ```ts
-ListenAction | BookmarkAction key(sourceId) {
-  sourceId, timestamp
+ListenAction | BookmarkAction key(object.sourceId) {
+  timestamp
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
   object: PodcastEpisode key(sourceId) {
     sourceId, name?, url, duration*, datePublished, description?*, transcript?
@@ -32,8 +32,8 @@ ListenAction | BookmarkAction key(sourceId) {
   }
 }
 // Some records also become:
-CompleteAction key(sourceId) {
-  sourceId, timestamp
+CompleteAction key(object.sourceId) {
+  timestamp
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
   object: PodcastEpisode key(sourceId) {
     sourceId, name?, url, duration*, datePublished, description?*, transcript?
@@ -51,8 +51,8 @@ CompleteAction key(sourceId) {
   }
 }
 // Some records also become:
-BookmarkAction key(sourceId) {
-  sourceId, timestamp
+BookmarkAction key(object.sourceId) {
+  timestamp
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
   object: PodcastEpisode key(sourceId) {
     sourceId, name, description*, url, duration, datePublished, transcript
@@ -74,8 +74,8 @@ BookmarkAction key(sourceId) {
 ## subscriptions
 
 ```ts
-FollowAction key(sourceId) {
-  sourceId, timestamp
+FollowAction key(object.sourceId) {
+  timestamp
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
   object: PodcastSeries key(sourceId) {
     sourceId, url, name, description, webFeed[], genre[]

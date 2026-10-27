@@ -93,6 +93,7 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
 
   // A played/bookmarked episode fans out into the acts it took part in: a
   // ListenAction (and a CompleteAction once finished) and a BookmarkAction.
+  // Each is keyed by the episode it acted on, so none shares the episode's ID.
   private async buildEpisodeActions(record: Record): Promise<ActionAndChildren[]> {
     const { data } = record;
     const actions: ActionAndChildren[] = [];
@@ -120,9 +121,8 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
     if (played) {
       actions.push({
         '@type': 'ListenAction',
-        '@key': ['@type', 'source', 'sourceId'],
+        '@key': ['@type', 'source', 'object.sourceId'],
         source: SOURCE,
-        sourceId,
         ...(listenAt && { timestamp: listenAt }),
         agent: user,
         object: episode,
@@ -133,9 +133,8 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
       if (data.playCount > 0) {
         actions.push({
           '@type': 'CompleteAction',
-          '@key': ['@type', 'source', 'sourceId'],
+          '@key': ['@type', 'source', 'object.sourceId'],
           source: SOURCE,
-          sourceId,
           ...(listenAt && { timestamp: listenAt }),
           agent: user,
           object: episode,
@@ -147,9 +146,8 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
       const bookmarkedAt = date(data.lastBookmarkedDate) ?? listenAt;
       actions.push({
         '@type': 'BookmarkAction',
-        '@key': ['@type', 'source', 'sourceId'],
+        '@key': ['@type', 'source', 'object.sourceId'],
         source: SOURCE,
-        sourceId,
         ...(bookmarkedAt && { timestamp: bookmarkedAt }),
         agent: user,
         object: episode,
@@ -161,6 +159,7 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
 
   // A subscribed show becomes a FollowAction dated when it was added to the
   // library — capturing shows the user follows even if they never played one.
+  // It's keyed by the show it follows.
   private async buildSubscriptionActions(record: Record): Promise<ActionAndChildren[]> {
     const { data } = record;
     // The extractor leaves out followed shows that aren't in Apple's catalog.
@@ -172,9 +171,8 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
     return [
       {
         '@type': 'FollowAction',
-        '@key': ['@type', 'source', 'sourceId'],
+        '@key': ['@type', 'source', 'object.sourceId'],
         source: SOURCE,
-        sourceId: podcast.sourceId,
         ...(followedAt && { timestamp: followedAt }),
         agent: user,
         object: podcast,
