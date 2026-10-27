@@ -116,7 +116,7 @@ const finishedEpisode = {
   duration: 'PT3121S',
   datePublished: new Date('2024-12-30T00:00:00.000Z'),
   emblem: image('https://example.com/art/600x600bb.jpg'),
-  contains: [
+  rendition: [
     {
       '@type': 'AudioObject',
       '@key': ['url'],
