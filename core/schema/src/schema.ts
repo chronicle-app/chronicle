@@ -484,6 +484,7 @@ export const AssessActionSchema: z.ZodType<AssessAction> = z
 export interface MediaObject extends Omit<CreativeWork, '@type'> {
   '@type': 'MediaObject';
   contentPath?: string;
+  contentSize?: number;
   mimeType?: string;
   snapshotOf?: EntityAndChildren[];
   renditionOf?: CreativeWorkAndChildren[];
@@ -499,6 +500,7 @@ export type MediaObjectAndChildren =
 const MediaObjectProperties = {
   ...CreativeWorkProperties,
   contentPath: z.lazy(() => z.string()).optional(),
+  contentSize: z.lazy(() => z.number()).optional(),
   mimeType: z.lazy(() => z.string()).optional(),
   snapshotOf: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
   renditionOf: z.lazy(() => z.array(CreativeWorkAndChildrenSchema)).optional(),

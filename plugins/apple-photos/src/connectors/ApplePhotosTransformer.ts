@@ -250,15 +250,20 @@ function workOf(
 
 /**
  * The asset's original files, each keyed by iCloud's fingerprint of it, so a
- * file that's in two assets is one node. The still or the video has what
- * Photos knows of the asset's file: its name, size, type, length, and a
- * photo's EXIF. A Live Photo's clip is a QuickTime movie with a length of its
- * own. A file with no fingerprint has no rendition.
+ * file that's in two assets is one node, with its size in bytes. The still or
+ * the video has what Photos knows of the asset's file: its name, dimensions,
+ * type, length, and a photo's EXIF. A Live Photo's clip is a QuickTime movie
+ * with a length of its own. A file with no fingerprint has no rendition.
  */
 function renditionsOf(asset: Asset): Media[] {
   const mimeType = asset.uti ? MIME_TYPES[asset.uti] : undefined;
-  return asset.files.map(({ role, fingerprint }) => {
-    const key = { '@key': ['@type', 'source', 'sourceId'], source: SOURCE, sourceId: fingerprint };
+  return asset.files.map(({ role, fingerprint, bytes }) => {
+    const key = {
+      '@key': ['@type', 'source', 'sourceId'],
+      source: SOURCE,
+      sourceId: fingerprint,
+      ...(bytes && { contentSize: bytes }),
+    };
     if (role === 'clip') {
       return {
         '@type': 'VideoObject',

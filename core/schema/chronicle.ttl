@@ -275,6 +275,12 @@
   rdfs:range :Text;
   skos:closeMatch schemaorg:encodingFormat .
 [] a sh:PropertyShape; sh:path :mimeType; sh:targetSubjectsOf :mimeType; sh:maxCount 1 .
+:contentSize a owl:DatatypeProperty;
+  rdfs:comment "The size of the file, in bytes.";
+  rdfs:domain :MediaObject;
+  rdfs:range :Number;
+  skos:closeMatch schemaorg:contentSize .
+[] a sh:PropertyShape; sh:path :contentSize; sh:targetSubjectsOf :contentSize; sh:maxCount 1 .
 :transcript a owl:DatatypeProperty;
   rdfs:comment "The words spoken in a recording or an episode, written out, such as a voice memo's transcript, a podcast episode's transcript, or a video's captions. It is plain text with no timings. It belongs to the work rather than to one of its files, so a podcast episode's transcript is the episode's, not its audio file's. Spoken words are a :transcript, not a :body.";
   rdfs:domain [ a owl:Class; owl:unionOf ( :AudioObject :VideoObject :PodcastEpisode ) ];

@@ -4443,6 +4443,7 @@ short :VideoObject captured with it.
         :sourceId "AQ3vK8mT2xP9cL5nR7wB4yD6fH1j";
         :handle "IMG_4821.HEIC";
         :mimeType "image/heic";
+        :contentSize 2841766;
         :width 4032;
         :height 3024;
         :exifData """{"LensModel": "iPhone 14 Pro back triple camera 6.86mm f/1.78", "FocalLength": 6.86, "FocalLengthIn35mmFilm": 24, "FNumber": 1.78, "ExposureTime": 0.008, "PhotographicSensitivity": 64, "ExposureBiasValue": 0, "MeteringMode": 5, "WhiteBalance": 0, "Flash": 0}"""^^rdf:JSON
@@ -4594,6 +4595,7 @@ You made a photo a favorite, but nothing records when. The :LikeAction has no
 :caption skos:example example:photo-taken .
 :sourceFormat skos:example example:photo-taken .
 :exifData skos:example example:photo-taken .
+:contentSize skos:example example:photo-taken .
 :ScreenshotAction skos:example example:screenshot .
 :StillImage skos:example example:photo-taken, example:screenshot .
 :rendition skos:example example:photo-taken, example:podcast .

@@ -297,7 +297,7 @@ function writeLibrary(root, { model }) {
     CREATE TABLE ZASSETCONTRIBUTOR (Z_PK INTEGER PRIMARY KEY, ZPARTICIPANT INTEGER,
       Z${ENT.Asset}LIBRARYSCOPEASSETCONTRIBUTORS INTEGER);
     CREATE TABLE ZINTERNALRESOURCE (Z_PK INTEGER PRIMARY KEY, ZASSET INTEGER, ZRESOURCETYPE INTEGER,
-      ZVERSION INTEGER, ZRECIPEID INTEGER, ZFINGERPRINT VARCHAR);
+      ZVERSION INTEGER, ZRECIPEID INTEGER, ZFINGERPRINT VARCHAR, ZDATALENGTH INTEGER);
     CREATE TABLE ATRANSACTION (Z_PK INTEGER PRIMARY KEY, ZTIMESTAMP FLOAT);
     CREATE TABLE ACHANGE (Z_PK INTEGER PRIMARY KEY, ZTRANSACTIONID INTEGER, ZENTITY INTEGER,
       ZENTITYPK INTEGER, ZCHANGETYPE INTEGER, ZCOLUMNS BLOB);
@@ -521,15 +521,23 @@ function writeLibrary(root, { model }) {
   // (1), or a Live Photo's clip (3), as originals (version 0, no recipe). A
   // photo not in iCloud has no fingerprint.
   const file = db.prepare(
-    'INSERT INTO ZINTERNALRESOURCE (ZASSET, ZRESOURCETYPE, ZVERSION, ZRECIPEID, ZFINGERPRINT) VALUES (?, ?, ?, ?, ?)'
+    'INSERT INTO ZINTERNALRESOURCE (ZASSET, ZRESOURCETYPE, ZVERSION, ZRECIPEID, ZFINGERPRINT, ZDATALENGTH) VALUES (?, ?, ?, ?, ?, ?)'
   );
   for (const [name, row] of Object.entries(rows)) {
-    file.run(pk[name], row.kind === 1 ? 1 : 0, 0, 0, name === 'local' ? null : fingerprint(name));
-    if (row.subtype === 2) file.run(pk[name], 3, 0, 0, fingerprint(name, 'clip'));
+    const bytes = name === 'camera' ? 2_841_766 : 1_000_000;
+    file.run(
+      pk[name],
+      row.kind === 1 ? 1 : 0,
+      0,
+      0,
+      name === 'local' ? null : fingerprint(name),
+      bytes
+    );
+    if (row.subtype === 2) file.run(pk[name], 3, 0, 0, fingerprint(name, 'clip'), 3_145_728);
   }
   // A preview and an edit's data aren't originals.
-  file.run(pk.camera, 0, 0, 65_741, fingerprint('camera', 'preview'));
-  file.run(pk.camera, 14, 3, 327_689, null);
+  file.run(pk.camera, 0, 0, 65_741, fingerprint('camera', 'preview'), 40_000);
+  file.run(pk.camera, 14, 3, 327_689, null, 2000);
 
   // Who added each photo in the Shared Library: you, and someone in your family.
   db.exec('INSERT INTO ZSHAREPARTICIPANT VALUES (1, 1), (2, 0)');

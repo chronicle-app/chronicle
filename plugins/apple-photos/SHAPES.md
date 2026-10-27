@@ -29,7 +29,7 @@ PhotographAction | RecordAction | ScreenshotAction | AddAction key(result.source
       }
     }
     rendition[]?: ImageObject | VideoObject key(sourceId) {
-      sourceId, handle?, width?, height?, mimeType*, duration?*
+      sourceId, contentSize, handle?, width?, height?, mimeType*, duration?*
       exifData?: object { LensModel, FocalLength, FocalLengthIn35mmFilm?, FNumber, ExposureTime, PhotographicSensitivity, ExposureBiasValue, MeteringMode?, WhiteBalance, Flash, Orientation?, DigitalZoomRatio? }
     }
   }
@@ -43,7 +43,7 @@ PhotographAction | RecordAction | ScreenshotAction | AddAction key(result.source
       }
     }
     rendition[]: ImageObject | VideoObject key(sourceId) {
-      sourceId, mimeType*, duration?*
+      sourceId, contentSize, mimeType*, duration?*
       exifData?: object { Orientation }
     }
     location?: Location { latitude, longitude }

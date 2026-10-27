@@ -201,6 +201,8 @@ test('each photo is what you did to bring it into your library, newest first', a
       '@asserts': ['*'],
       source: 'apple-photos',
       sourceId: fingerprint('camera'),
+      // Its size in bytes.
+      contentSize: 2_841_766,
       handle: 'IMG_0001.HEIC',
       width: 4032,
       height: 3024,
@@ -226,6 +228,7 @@ test('each photo is what you did to bring it into your library, newest first', a
       '@asserts': ['*'],
       source: 'apple-photos',
       sourceId: fingerprint('camera', 'clip'),
+      contentSize: 3_145_728,
       duration: 'PT2.5S',
       mimeType: 'video/quicktime',
     },

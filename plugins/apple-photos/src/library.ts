@@ -138,6 +138,8 @@ export type Exif = { [tag: string]: string | number };
 export interface AssetFile {
   role: 'still' | 'video' | 'clip';
   fingerprint: string;
+  /** Its size in bytes (`ZDATALENGTH`). */
+  bytes: number | null;
 }
 
 /** A photo or video, with what its file and you recorded about it. */
@@ -429,10 +431,16 @@ export class PhotosLibrary {
     const needed = ['ZASSET', 'ZRESOURCETYPE', 'ZVERSION', 'ZRECIPEID', 'ZFINGERPRINT'];
     if (!needed.every(column => columns.has(column))) return new Map();
     const types = Object.keys(FILE_ROLES).join(', ');
-    const rows = allRows<{ asset: number; type: number; fingerprint: string }>(
+    const rows = allRows<{
+      asset: number;
+      type: number;
+      fingerprint: string;
+      bytes: number | null;
+    }>(
       this.db.prepare(`
-        SELECT ZASSET AS asset, ZRESOURCETYPE AS type, ZFINGERPRINT AS fingerprint
-        FROM ZINTERNALRESOURCE
+        SELECT ZASSET AS asset, ZRESOURCETYPE AS type, ZFINGERPRINT AS fingerprint,
+          ${this.store.column('r', 'ZINTERNALRESOURCE', 'ZDATALENGTH')} AS bytes
+        FROM ZINTERNALRESOURCE r
         WHERE ZVERSION = 0 AND ZRECIPEID = 0 AND ZRESOURCETYPE IN (${types})
           AND ZFINGERPRINT IS NOT NULL AND ZASSET IS NOT NULL
         ORDER BY ZASSET, ZRESOURCETYPE`)
@@ -441,7 +449,9 @@ export class PhotosLibrary {
       rows,
       row => row.asset,
       row =>
-        clean(row.fingerprint) ? { role: FILE_ROLES[row.type], fingerprint: row.fingerprint } : null
+        clean(row.fingerprint)
+          ? { role: FILE_ROLES[row.type], fingerprint: row.fingerprint, bytes: positive(row.bytes) }
+          : null
     );
   }
 
