@@ -320,8 +320,10 @@ function locationOf(asset: Asset): Location | null {
 /**
  * The kind of camera, from the make and model its file names, such as
  * `Apple iPhone 14 Pro`. Photos can't tell two cameras of one model apart, so
- * it's a `ProductModel`. It has no ID, so it's keyed by that name, in the
- * `exif` namespace, so other sources reading the same files name the same one.
+ * it's a `ProductModel`. It has no ID, so it's keyed by its type and that
+ * name, in the `exif` namespace, so other sources reading the same files name
+ * the same one. A name isn't an ID, so the type keeps a lens or a device of
+ * that name apart from it.
  */
 function cameraOf(asset: Asset): ProductModel | null {
   const make = asset.camera?.make ?? null;
@@ -331,7 +333,7 @@ function cameraOf(asset: Asset): ProductModel | null {
       ? `${make} ${model}`
       : (model ?? make);
   if (!name) return null;
-  return { '@type': 'ProductModel', '@key': ['source', 'name'], source: 'exif', name };
+  return { '@type': 'ProductModel', '@key': ['@type', 'source', 'name'], source: 'exif', name };
 }
 
 /** The app that added a photo, by its bundle identifier. */

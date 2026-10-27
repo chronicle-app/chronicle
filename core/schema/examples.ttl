@@ -4399,7 +4399,7 @@ about the lens and the exposure.
     ];
     :instrument [
       a :ProductModel;
-      doc:key ("source" "name");
+      doc:key ("@type" "source" "name");
       :source "exif";
       :name "Apple iPhone 14 Pro"
     ];

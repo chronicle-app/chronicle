@@ -127,7 +127,7 @@ test('each photo is what you did to bring it into your library, newest first', a
   assert.deepEqual(instruments[ids.camera], [
     ['ProductModel', 'exif', undefined, 'Apple iPhone 14 Pro'],
   ]);
-  assert.deepEqual(byId.get(ids.camera).instrument[0]['@key'], ['source', 'name']);
+  assert.deepEqual(byId.get(ids.camera).instrument[0]['@key'], ['@type', 'source', 'name']);
   assert.deepEqual(instruments[ids.local], instruments[ids.camera]);
   // A model that already names its make isn't named twice.
   assert.deepEqual(instruments[ids.unliked], [['ProductModel', 'exif', undefined, 'Canon EOS R6']]);
