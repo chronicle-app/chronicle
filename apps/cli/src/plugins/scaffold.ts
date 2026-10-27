@@ -448,7 +448,8 @@ ${START[kind](name, P)}
   https://schema.chronicle.app, or read its TypeScript types.
 - Model what happened as an action (\`BookmarkAction\`, \`ReadAction\`,
   \`ListenAction\`, \`MessageAction\`, \`CheckInAction\`, and so on) with a
-  \`timestamp\`, and what it happened to as its \`object\`.
+  \`timestamp\`, what it happened to as its \`object\`, and what it made, such
+  as a message or a post, as its \`result\`.
 - Use an existing type and property before inventing one. Validation rejects an
   unknown \`@type\` or property.
 
@@ -458,6 +459,11 @@ ${START[kind](name, P)}
   keys are the same thing, across runs and across sources.
 - Something only this source identifies: \`['@type', 'source', 'sourceId']\`,
   with the source's own id.
+- An id names one node. An action the source gives no id of its own is keyed
+  by what it acted on or made, such as
+  \`['@type', 'source', 'object.sourceId']\` or
+  \`['@type', 'source', 'result.sourceId']\`, never by that node's id as its
+  own \`sourceId\`.
 - Something identified in the world: its global identifier, such as
   \`['url']\` for a web page.
 - The person running Chronicle: add \`sameAs: ['@me']\`.

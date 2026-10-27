@@ -21,7 +21,7 @@ Validation checks that every record, including nested ones, declares one of thes
 
 :sourceId is the identifier the source gave the record, such as a row ID, message GUID, or UUID. It only needs to be unique within its source.
 
-If the source has IDs, use them in the key. In [completing a to-do](example:task-completed), every record uses this key:
+If the source has IDs, use them in the key. In [completing a to-do](example:task-completed), the task, its project, its area, and its tag use this key:
 
 ```json
 "@key": ["@type", "source", "sourceId"]
@@ -54,6 +54,30 @@ A path can also follow a property backwards, by the name of its inverse. A sessi
 ```
 
 A record under an action's :result is `resultOf` that action without saying so. Anywhere else, it gives `resultOf` itself. In [a stage of sleep](example:sleep-stage), the night is under the stage, so it gives its own action by its key alone, and its key reads the same times there as in its own record.
+
+## An ID names one thing
+
+A source ID is the :sourceId of one record. Many sources give an action no ID of its own, only an ID for the thing it acted on. Don't give the action that ID too, or two records will share it. Key the action through the thing instead. [Completing a to-do](example:task-completed) is keyed by the task it completed, its :object:
+
+```json
+"@key": ["@type", "source", "object.sourceId"]
+```
+
+An action that makes something, such as sending a message or publishing a post, has it as its :result and is keyed through it. In [a message from Alex](example:message-from-alex), the :Message has iMessage's ID, and the :MessageAction is keyed by the message:
+
+```json
+"@key": ["@type", "source", "result.sourceId"]
+```
+
+If an action can happen to the same thing more than once, its key also includes when it happened. [A favorite removed](example:favorite-removed) is keyed by the photo and the :timestamp.
+
+A record inside an action can be keyed through the action, with the `action.` prefix. FoodNoms gives a food entry one ID, and it's the action's, so in [logging a meal](example:meal-logged) the :Meal is keyed by the action it was eaten in:
+
+```json
+"@key": ["@type", "source", "action.sourceId"]
+```
+
+A key starts with `@type`, unless the type is a guess that might change. FoodNoms doesn't say whether an entry is food or drink, so in [logging a drink](example:drink-logged) the action is keyed by its source and ID alone, and the entry keeps its identity if the guess changes.
 
 ## sameAs
 

@@ -20,8 +20,9 @@
 example:message-from-alex
   rdfs:label "A message from Alex";
   rdfs:comment """
-Alex sent you a message on iMessage. The :MessageAction and the :Message are
-keyed by iMessage's own ID for the message, its :source and :sourceId.
+Alex sent you a message on iMessage. The :Message is keyed by
+iMessage's own ID for it, its :source and :sourceId, and the :MessageAction by
+the message it sent, its :result.
 
 Alex is keyed twice. The first key is a :handle in the `icloud` source. The
 second, through :sameAs, is Alex's email address in the `email` namespace.
@@ -30,9 +31,8 @@ address can use the same key.
 """;
   rdf:value [
     a :MessageAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "result.sourceId");
     :source "imessage";
-    :sourceId "9B1C5E2A-7F43-4D8E-A6B0-3C2F9E14D7A5";
     :timestamp "2026-05-09T18:22:07.000Z"^^xsd:dateTime;
     :agent [
       a :Agent;
@@ -99,14 +99,14 @@ example:task-completed
 A :CompleteAction for a finished :Task. The task is part of a :Project and
 an area (:isPartOf), and has a :Tag (:about).
 
-Records are keyed by the app's own IDs. The app has one user, so the :agent is
-keyed by source only and marked as you with :sameAs.
+Records are keyed by the app's own IDs, and the action by the task it acted
+on. The app has one user, so the :agent is keyed by source only and marked as
+you with :sameAs.
 """;
   rdf:value [
     a :CompleteAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "object.sourceId");
     :source "things-todo";
-    :sourceId "5nT2kQv8Lw3xRb1YcHd9pA";
     :timestamp "2026-04-02T17:45:10.000Z"^^xsd:dateTime;
     :agent [
       a :Agent;
@@ -154,9 +154,8 @@ created, not when it is due.
 """;
   rdf:value [
     a :PlanAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "object.sourceId");
     :source "things-todo";
-    :sourceId "5nT2kQv8Lw3xRb1YcHd9pA";
     :timestamp "2026-03-20T08:12:31.000Z"^^xsd:dateTime;
     :agent [
       a :Agent;
@@ -181,9 +180,8 @@ values.
 """;
   rdf:value [
     a :UpdateAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "object.sourceId");
     :source "things-todo";
-    :sourceId "5nT2kQv8Lw3xRb1YcHd9pA";
     :timestamp "2026-03-28T19:03:44.000Z"^^xsd:dateTime;
     :agent [
       a :Agent;
@@ -208,9 +206,8 @@ A :CancelAction for a :Task that was cancelled instead of completed.
 """;
   rdf:value [
     a :CancelAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "object.sourceId");
     :source "things-todo";
-    :sourceId "Rw8Ke2Nd5Sg1Hx4Vb7Qm3t";
     :timestamp "2026-04-11T12:30:00.000Z"^^xsd:dateTime;
     :agent [
       a :Agent;
@@ -234,9 +231,8 @@ A :DeleteAction for a :Task moved to the trash in its source.
 """;
   rdf:value [
     a :DeleteAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "object.sourceId");
     :source "things-todo";
-    :sourceId "Pb3Lx9Tc6Mw2Jf8Ry5Dk1h";
     :timestamp "2026-04-12T08:05:19.000Z"^^xsd:dateTime;
     :agent [
       a :Agent;
@@ -265,9 +261,8 @@ source. The photo is an :ImageObject with a :contentPath and :mimeType.
 """;
   rdf:value [
     a :MessageAction;
-    doc:key ("source" "sourceId" "@type");
+    doc:key ("@type" "source" "result.sourceId");
     :source "imessage";
-    :sourceId "9B1C5E2A-7F43-4D8E-A6B0-3C2F9E14D7A5";
     :timestamp "2026-05-09T18:22:07.000Z"^^xsd:dateTime;
     :agent [
       a :Agent;
@@ -315,9 +310,8 @@ A message you sent, so you are the :agent and the other person is the
 """;
   rdf:value [
     a :MessageAction;
-    doc:key ("source" "sourceId" "@type");
+    doc:key ("@type" "source" "result.sourceId");
     :source "imessage";
-    :sourceId "3F8D2B6C-5A19-4E7B-9C4D-1E6A8F2B0C97";
     :timestamp "2026-05-09T18:25:41.000Z"^^xsd:dateTime;
     :agent [
       a :Person;
@@ -361,9 +355,8 @@ A message to a group has one :recipient per person. The group chat is a
 """;
   rdf:value [
     a :MessageAction;
-    doc:key ("source" "sourceId" "@type");
+    doc:key ("@type" "source" "result.sourceId");
     :source "imessage";
-    :sourceId "C7A3E1F5-2D8B-4C6A-9E0F-4B7D2A5C8E31";
     :timestamp "2026-06-21T14:10:02.000Z"^^xsd:dateTime;
     :agent [
       a :Person;
@@ -443,9 +436,8 @@ phone number in the `phone` namespace, which other sources can share.
 """;
   rdf:value [
     a :MessageAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "result.sourceId");
     :source "whatsapp";
-    :sourceId "3EB0C9A1F27D4B6E8A15";
     :timestamp "2026-05-09T18:40:12.000Z"^^xsd:dateTime;
     :agent [
       a :Person;
@@ -461,7 +453,7 @@ phone number in the `phone` namespace, which other sources can share.
         :name "Sam"
       ]
     ];
-    :object [
+    :result [
       a :Message;
       doc:key ("@type" "source" "sourceId");
       :source "whatsapp";
@@ -504,9 +496,8 @@ which is only unique on one machine, so the key includes the :Realm from
 """;
   rdf:value [
     a :MessageAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "result.sourceId");
     :source "claude-code";
-    :sourceId "0b7e4c2a-9f13-4d6b-8a5e-2c1f7d9b3e40";
     :timestamp "2026-07-02T10:41:26.000Z"^^xsd:dateTime;
     :agent [
       a :SoftwareAgent;
@@ -522,7 +513,7 @@ which is only unique on one machine, so the key includes the :Realm from
       :handle "claude-sonnet-5";
       :name "claude-sonnet-5"
     ];
-    :object [
+    :result [
       a :Message;
       doc:key ("@type" "source" "sourceId");
       :source "claude-code";
@@ -568,9 +559,8 @@ the person as you.
 """;
   rdf:value [
     a :MessageAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "result.sourceId");
     :source "claude-code";
-    :sourceId "a3c81f6e-2b94-4e7d-9c05-7f1b8d2e6a53";
     :timestamp "2026-07-02T10:40:58.000Z"^^xsd:dateTime;
     :agent [
       a :Person;
@@ -587,7 +577,7 @@ the person as you.
         :name "Sam Rivera"
       ], "@me"
     ];
-    :object [
+    :result [
       a :Message;
       doc:key ("@type" "source" "sourceId");
       :source "claude-code";
@@ -735,9 +725,8 @@ travelled and when; its :result is the :Journey with the :travelMode, the
 """;
   rdf:value [
     a :TravelAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "result.sourceId");
     :source "arc";
-    :sourceId "B4E7A1C2-9D3F-4A6B-8E5C-1F2D3A4B5C6D";
     :startTime "2026-05-09T10:40:00.000Z"^^xsd:dateTime;
     :endTime "2026-05-09T10:58:00.000Z"^^xsd:dateTime;
     :agent [
@@ -763,7 +752,7 @@ example:meal-logged
   rdfs:label "Logging a meal";
   rdfs:comment """
 An :EatAction for one food entry in FoodNoms, at the entry's :timestamp. The
-action and its :Meal are both keyed by the entry's ID. The meal's slot is its
+action is keyed by the entry's ID, and its :Meal by the action it was eaten in. The meal's slot is its
 :category, and its brand, amount and calories are summed up in its
 :description. The :agent is the iCloud account that owns the app.
 """;
@@ -783,9 +772,8 @@ action and its :Meal are both keyed by the entry's ID. The meal's slot is its
     ];
     :object [
       a :Meal;
-      doc:key ("@type" "source" "sourceId");
+      doc:key ("@type" "source" "action.sourceId");
       :source "foodnoms";
-      :sourceId "3f6c2a9e-1b4d-4c8e-9a7f-2d5e8b1c4a60";
       :name "Lentil soup";
       :category "Lunch";
       :description "Lunch - Brand: Hearth Kitchen - 1.5 cup - 270 calories"
@@ -816,9 +804,8 @@ identity if the guess changes.
     ];
     :object [
       a :Meal;
-      doc:key ("@type" "source" "sourceId");
+      doc:key ("@type" "source" "action.sourceId");
       :source "foodnoms";
-      :sourceId "8b1e4d7a-2c9f-4e3b-b6a1-5f0d3c7e9a24";
       :name "Iced latte";
       :category "Breakfast";
       :description "Breakfast - 12 fl oz - 190 calories"
@@ -828,15 +815,17 @@ identity if the guess changes.
 example:instagram-story
   rdfs:label "Publishing a story";
   rdfs:comment """
-You posted a photo story on Instagram. The :PublishAction's :object is a
-:Post, keyed by the media ID Instagram wrote into the file name. Its
-:sourceFormat says it was a story rather than a feed post or a reel, and its
-:visibility is `private` because only the archive link reaches it. The photo
-itself is an :ImageObject the post :contains, with the same ID.
+You posted a photo story on Instagram. The :PublishAction's :result is a
+:Post. Its :sourceFormat says it was a story rather than a feed post or a
+reel, and its :visibility is `private` because only the archive link reaches
+it. The photo itself is an :ImageObject the post :contains, keyed by the media
+ID Instagram wrote into the file name. The export gives the post no ID of its
+own, so the post is keyed by the files it contains, and the action by the
+post.
 """;
   rdf:value [
     a :PublishAction;
-    doc:key ("@type" "source" "object.sourceId");
+    doc:key ("@type" "source" "result.contains[*].sourceId");
     :source "instagram";
     :timestamp "2024-09-02T18:00:00.000Z"^^xsd:dateTime;
     :agent [
@@ -847,11 +836,10 @@ itself is an :ImageObject the post :contains, with the same ID.
       :name "Sam Rivera";
       :sameAs "@me"
     ];
-    :object [
+    :result [
       a :Post;
-      doc:key ("@type" "source" "sourceId");
+      doc:key ("@type" "source" "contains[*].sourceId");
       :source "instagram";
-      :sourceId "4444444444";
       :sourceFormat "story";
       :visibility "private";
       :url "https://www.instagram.com/stories/archive/4444444444/";
@@ -1097,7 +1085,7 @@ its pixel :width and :height and a :contentPath to the exported file.
         :sourceId "T0EXAMPLE"
       ]
     ];
-    :object [
+    :result [
       a :Message;
       doc:key ("@type" "source" "body" "author");
       :source "slack";
@@ -1198,7 +1186,8 @@ example:phone-call
 You called Alex from your iPhone. The :CallAction spans the call from
 :startTime to :endTime; a missed call is a zero-length span. You are the
 :agent, and the :result is the :CallSession, which carries Alex as its
-:recipient. Both are keyed by Apple's ID for the call.
+:recipient. The session is keyed by Apple's ID for the call, and the action by its
+session.
 
 Alex is keyed by the number in the `apple-call-history` namespace and linked through
 :sameAs to the same number in the `phone` namespace, which other sources can
@@ -1206,9 +1195,8 @@ share, and to Alex's card in Contacts.
 """;
   rdf:value [
     a :CallAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "result.sourceId");
     :source "apple-call-history";
-    :sourceId "4E7C2A91-3B5D-4F08-9A6E-1D2C3B4A5F60";
     :startTime "2026-05-09T17:02:00.000Z"^^xsd:dateTime;
     :endTime "2026-05-09T17:06:41.000Z"^^xsd:dateTime;
     :agent [
@@ -1256,9 +1244,8 @@ edges list the other people on the call.
 """;
   rdf:value [
     a :CallAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "result.sourceId");
     :source "apple-call-history";
-    :sourceId "B21F6D3E-8C4A-4E59-A7D0-6F1E2C3B4A59";
     :startTime "2026-05-10T19:30:00.000Z"^^xsd:dateTime;
     :endTime "2026-05-10T20:12:15.000Z"^^xsd:dateTime;
     :result [
@@ -1309,8 +1296,8 @@ edges list the other people on the call.
 example:tweet-published
   rdfs:label "Publishing a tweet";
   rdfs:comment """
-You posted a tweet, read from a Twitter archive. The :PublishAction and the
-:Post it published are both keyed by the tweet's ID. The :Post keeps the tweet
+You posted a tweet, read from a Twitter archive. The :Post it published, its
+:result, is keyed by the tweet's ID, and the :PublishAction by the post. The :Post keeps the tweet
 text as its :body, with Twitter's shortened links left in place.
 
 Each @mention and each link in the tweet is one of its :references. A mentioned
@@ -1319,9 +1306,8 @@ its expanded :url, so other sources that see the same page share the node.
 """;
   rdf:value [
     a :PublishAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "result.sourceId");
     :source "twitter";
-    :sourceId "1234567890123456789";
     :timestamp "2025-01-11T17:10:28.000Z"^^xsd:dateTime;
     :agent [
       a :Agent;
@@ -1333,7 +1319,7 @@ its expanded :url, so other sources that see the same page share the node.
       :url "https://twitter.com/owner_example";
       :sameAs "@me"
     ];
-    :object [
+    :result [
       a :Post;
       doc:key ("@type" "source" "sourceId");
       :source "twitter";
@@ -1369,14 +1355,14 @@ example:tweet-liked
   rdfs:label "Liking a tweet";
   rdfs:comment """
 You liked someone else's tweet. The :LikeAction's :object is the liked :Post,
-keyed by the tweet's ID and carrying its text as its :body. A Twitter archive
+keyed by the tweet's ID and carrying its text as its :body, and the action is
+keyed by the post. A Twitter archive
 does not record when a like happened, so the action has no :timestamp.
 """;
   rdf:value [
     a :LikeAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "object.sourceId");
     :source "twitter";
-    :sourceId "9876543210987654321-like";
     :agent [
       a :Agent;
       doc:key ("@type" "source" "sourceId");
@@ -1642,15 +1628,14 @@ example:followed-friend
   rdfs:comment """
 A :FollowAction for a user the listener follows on Last.fm. Last.fm gives no
 date for the follow, so the action has no :timestamp; it is keyed by the
-followed user's username as :sourceId, and each read of the friends list
+followed user's account, by its :handle, and each read of the friends list
 reports it again. The friend is an :Agent keyed by :handle, with their real
 :name and avatar as :emblem.
 """;
   rdf:value [
     a :FollowAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "object.handle");
     :source "lastfm";
-    :sourceId "alex_plays";
     :agent [
       a :Agent;
       doc:key ("@type" "source" "handle");
@@ -1679,15 +1664,14 @@ example:account-created
   rdfs:comment """
 A :CreateAction for the day a Last.fm account was registered. The account's
 :Agent is both the :agent and the :result: the account came into being. The
-action is keyed by the username as :sourceId, and the agent is a bare :handle
-reference, so the friend's current name and avatar are not dated to the
+action is keyed by the account it made, by its :handle, and the agent is a
+bare :handle reference, so the friend's current name and avatar are not dated to the
 registration.
 """;
   rdf:value [
     a :CreateAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "result.handle");
     :source "lastfm";
-    :sourceId "alex_plays";
     :timestamp "2012-03-14T16:20:00.000Z"^^xsd:dateTime;
     :agent [
       a :Agent;
@@ -1754,14 +1738,13 @@ example:channel-followed
   rdfs:label "Subscribing to a channel";
   rdfs:comment """
 A :FollowAction for a YouTube subscription. It is keyed by the followed
-channel's id, so each re-read of the subscription list updates the same action.
+channel, whose ID is its :handle, so each re-read of the subscription list updates the same action.
 The :object is the channel as an :Agent.
 """;
   rdf:value [
     a :FollowAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "object.handle");
     :source "youtube";
-    :sourceId "UCexampleWorkshop0000000";
     :timestamp "2025-11-02T08:30:00.000Z"^^xsd:dateTime;
     :agent [
       a :Agent;
@@ -1788,9 +1771,8 @@ Its :result is the playlist as a :Collection, with its :visibility.
 """;
   rdf:value [
     a :CreateAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "result.sourceId");
     :source "youtube";
-    :sourceId "PLexample0001";
     :timestamp "2024-02-20T19:45:10.000Z"^^xsd:dateTime;
     :agent [
       a :Agent;
@@ -1855,9 +1837,8 @@ A :PublishAction for a video uploaded to your channel. The action's
 """;
   rdf:value [
     a :PublishAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "result.sourceId");
     :source "youtube";
-    :sourceId "vid00000002";
     :timestamp "2025-08-01T12:00:00.000Z"^^xsd:dateTime;
     :agent [
       a :Agent;
@@ -1866,7 +1847,7 @@ A :PublishAction for a video uploaded to your channel. The action's
       :handle "UCexampleOwner0000000000";
       :sameAs "@me"
     ];
-    :object [
+    :result [
       a :VideoObject;
       doc:key ("@type" "source" "sourceId");
       :source "youtube";
@@ -1949,9 +1930,8 @@ and the video as :about.
 """;
   rdf:value [
     a :AnnotateAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "result.sourceId");
     :source "youtube";
-    :sourceId "Ugexamplecomment01";
     :timestamp "2026-05-09T20:20:00.000Z"^^xsd:dateTime;
     :agent [
       a :Agent;
@@ -2006,9 +1986,8 @@ same :Realm the device runs in.
 """;
   rdf:value [
     a :ExecuteAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "result.sourceId");
     :source "timing-app";
-    :sourceId "101";
     :startTime "2026-03-14T09:20:00.000Z"^^xsd:dateTime;
     :endTime "2026-03-14T09:25:00.000Z"^^xsd:dateTime;
     :agent [
@@ -2109,9 +2088,8 @@ as :name, its notes as :description, and the :Project it belongs to (:isPartOf).
 """;
   rdf:value [
     a :ExperienceAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "result.sourceId");
     :source "timing-app";
-    :sourceId "201";
     :startTime "2026-03-14T19:00:00.000Z"^^xsd:dateTime;
     :endTime "2026-03-14T20:00:00.000Z"^^xsd:dateTime;
     :agent [
@@ -2141,16 +2119,15 @@ example:relayed-call
   rdfs:label "A call relayed through Timing";
   rdfs:comment """
 A :CallAction from the Apple call history that Timing keeps. It is keyed by
-Apple's call ID in the `apple-call-history` source, so it folds with the same call
-read from the phone. Timing records no direction, so there is no :agent. The
+its :CallSession, which has Apple's call ID in the `apple-call-history` source,
+so it folds with the same call read from the phone. Timing records no direction, so there is no :agent. The
 :CallSession carries the other party as its :recipient, keyed by the phone
 number.
 """;
   rdf:value [
     a :CallAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "result.sourceId");
     :source "apple-call-history";
-    :sourceId "5B1E2C3D-4F50-4A61-8B72-9C83D4E5F607";
     :startTime "2026-03-14T12:02:30.000Z"^^xsd:dateTime;
     :endTime "2026-03-14T12:03:03.000Z"^^xsd:dateTime;
     :result [
@@ -2262,9 +2239,8 @@ so liking a post also records who published it and when.
 """;
   rdf:value [
     a :PublishAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "result.sourceId");
     :source "bluesky";
-    :sourceId "did:plc:p8n2c5h7j1g4f6d3s9a0wxyz/app.bsky.feed.post/3lcq9w2kd7s2c";
     :timestamp "2026-03-15T07:48:30.000Z"^^xsd:dateTime;
     :agent [
       a :Agent;
@@ -2273,7 +2249,7 @@ so liking a post also records who published it and when.
       :sourceId "did:plc:p8n2c5h7j1g4f6d3s9a0wxyz";
       :name "Alex Chen"
     ];
-    :object [
+    :result [
       a :Post;
       doc:key ("@type" "source" "sourceId");
       :source "bluesky";
@@ -2436,9 +2412,8 @@ A :QuoteAction for a highlight made in an e-reader. Its :result is the
 """;
   rdf:value [
     a :QuoteAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "result.sourceId");
     :source "marvin";
-    :sourceId "4821";
     :timestamp "2026-03-02T08:00:00.000Z"^^xsd:dateTime;
     :agent [
       a :Person;
@@ -2473,14 +2448,15 @@ example:marvin-note
   rdfs:label "A note on a highlight";
   rdfs:comment """
 An :AnnotateAction for a note written on a highlight. Its :result is the
-:Comment, and :about names the :Quotation it annotates. A note with no
-highlight is about the :Book instead.
+:Comment, and :about names the :Quotation it annotates. Marvin gives the note
+and its highlight one ID, the quotation's, so the comment is keyed by the
+quotation it is about. A note with no highlight is about the :Book instead,
+and has the ID itself.
 """;
   rdf:value [
     a :AnnotateAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "result.about[*].sourceId");
     :source "marvin";
-    :sourceId "4821";
     :timestamp "2026-03-02T08:00:00.000Z"^^xsd:dateTime;
     :agent [
       a :Person;
@@ -2490,9 +2466,8 @@ highlight is about the :Book instead.
     ];
     :result [
       a :Comment;
-      doc:key ("@type" "source" "sourceId");
+      doc:key ("@type" "source" "about[*].sourceId");
       :source "marvin";
-      :sourceId "4821";
       :description "Echoes the opening chapter.";
       :about [
         a :Quotation;
@@ -2516,9 +2491,8 @@ book.
 """;
   rdf:value [
     a :BookmarkAction;
-    doc:key ("@type" "source" "sourceId" "object.inRealm.handle");
+    doc:key ("@type" "source" "object.sourceId" "object.inRealm.handle");
     :source "zotero";
-    :sourceId "BOOKAAAA";
     :timestamp "2024-11-05T10:00:00.000Z"^^xsd:dateTime;
     :agent [
       a :Person;
@@ -2581,9 +2555,8 @@ PDF it was made in, which is the same entity as the :Article it belongs to
 """;
   rdf:value [
     a :QuoteAction;
-    doc:key ("@type" "source" "sourceId" "result.inRealm.handle");
+    doc:key ("@type" "source" "result.sourceId" "result.inRealm.handle");
     :source "zotero";
-    :sourceId "ANNOPDF1";
     :timestamp "2025-01-11T09:00:00.000Z"^^xsd:dateTime;
     :agent [
       a :Person;
@@ -2645,13 +2618,13 @@ example:zotero-highlight-comment
   rdfs:comment """
 An :AnnotateAction for the comment written on a highlight. Its :result is the
 :Comment, whose text is its :description and which is :about the
-:Quotation it was written on.
+:Quotation it was written on. Zotero gives the highlight and its comment one
+key, the quotation's, so the comment is keyed by the quotation it is about.
 """;
   rdf:value [
     a :AnnotateAction;
-    doc:key ("@type" "source" "sourceId" "result.inRealm.handle");
+    doc:key ("@type" "source" "result.about[*].sourceId" "result.inRealm.handle");
     :source "zotero";
-    :sourceId "ANNOPDF1";
     :timestamp "2025-01-11T09:00:00.000Z"^^xsd:dateTime;
     :agent [
       a :Person;
@@ -2662,9 +2635,8 @@ An :AnnotateAction for the comment written on a highlight. Its :result is the
     ];
     :result [
       a :Comment;
-      doc:key ("@type" "source" "sourceId" "inRealm.handle");
+      doc:key ("@type" "source" "about[*].sourceId" "inRealm.handle");
       :source "zotero";
-      :sourceId "ANNOPDF1";
       :inRealm [
         a :Realm;
         doc:key ("@type" "source" "handle");
@@ -2730,9 +2702,8 @@ Identifier.
 """;
   rdf:value [
     a :QuoteAction;
-    doc:key ("@type" "source" "sourceId" "result.inRealm.handle");
+    doc:key ("@type" "source" "result.sourceId" "result.inRealm.handle");
     :source "zotero";
-    :sourceId "ANNOEPUB";
     :timestamp "2025-01-22T07:30:00.000Z"^^xsd:dateTime;
     :agent [
       a :Person;
@@ -2785,9 +2756,8 @@ other source knows.
 """;
   rdf:value [
     a :BookmarkAction;
-    doc:key ("@type" "source" "sourceId" "object.inRealm.handle");
+    doc:key ("@type" "source" "object.sourceId" "object.inRealm.handle");
     :source "zotero";
-    :sourceId "SNAPSHOT";
     :timestamp "2025-02-03T15:20:00.000Z"^^xsd:dateTime;
     :agent [
       a :Person;
@@ -2826,9 +2796,8 @@ posts are a :Post, with its :author and :datePublished.
 """;
   rdf:value [
     a :BookmarkAction;
-    doc:key ("@type" "source" "sourceId" "object.inRealm.handle");
+    doc:key ("@type" "source" "object.sourceId" "object.inRealm.handle");
     :source "zotero";
-    :sourceId "POSTAAAA";
     :timestamp "2025-02-10T11:00:00.000Z"^^xsd:dateTime;
     :agent [
       a :Person;
@@ -2868,9 +2837,8 @@ single :PodcastEpisode.
 """;
   rdf:value [
     a :BookmarkAction;
-    doc:key ("@type" "source" "sourceId" "object.inRealm.handle");
+    doc:key ("@type" "source" "object.sourceId" "object.inRealm.handle");
     :source "zotero";
-    :sourceId "PODCASTA";
     :timestamp "2025-02-12T19:00:00.000Z"^^xsd:dateTime;
     :agent [
       a :Person;
@@ -2955,10 +2923,10 @@ and a web page keyed by its :url.
 example:reader-item-read
   rdfs:label "Reading a feed item in Google Reader";
   rdfs:comment """
-You read a feed item, as recorded in a Google Reader archive. The :ReadAction
-is keyed by Reader's item ID and your Reader user ID. The item is an :Article
-keyed by the same item ID, so it keeps its identity even when it has no :url;
-its :body is the item's HTML content.
+You read a feed item, as recorded in a Google Reader archive. The item is an
+:Article keyed by Reader's item ID, so it keeps its identity even when it has
+no :url; its :body is the item's HTML content. The :ReadAction is keyed by the
+article and your Reader user ID.
 
 You are keyed by your Reader user ID. Through :sameAs you are also your email
 address in the `email` namespace and your Google account ID, so other Google
@@ -2967,9 +2935,8 @@ not a separate time for the read.
 """;
   rdf:value [
     a :ReadAction;
-    doc:key ("@type" "source" "sourceId" "agent.sourceId");
+    doc:key ("@type" "source" "object.sourceId" "agent.sourceId");
     :source "google-reader";
-    :sourceId "tag:google.com,2005:reader/item/5d0cb0a4e1f2a3b4";
     :timestamp "2010-01-01T17:42:08.000Z"^^xsd:dateTime;
     :agent [
       a :Agent;
@@ -3007,14 +2974,14 @@ example:reader-item-shared
   rdfs:label "Sharing a feed item in Google Reader";
   rdfs:comment """
 You shared a feed item with your Reader followers. Reader records this as the
-item's "broadcast" state, which becomes a :PublishAction on the :Article. It
+item's "broadcast" state, which becomes a :ShareAction of the :Article: you
+passed along something someone else wrote. It
 has the same key shape and :timestamp as reading the item.
 """;
   rdf:value [
-    a :PublishAction;
-    doc:key ("@type" "source" "sourceId" "agent.sourceId");
+    a :ShareAction;
+    doc:key ("@type" "source" "object.sourceId" "agent.sourceId");
     :source "google-reader";
-    :sourceId "tag:google.com,2005:reader/item/5d0cb0a4e1f2a3b4";
     :timestamp "2010-01-01T17:42:08.000Z"^^xsd:dateTime;
     :agent [
       a :Agent;
@@ -3042,9 +3009,8 @@ You starred a feed item. Reader's "starred" state becomes a :LikeAction on the
 """;
   rdf:value [
     a :LikeAction;
-    doc:key ("@type" "source" "sourceId" "agent.sourceId");
+    doc:key ("@type" "source" "object.sourceId" "agent.sourceId");
     :source "google-reader";
-    :sourceId "tag:google.com,2005:reader/item/5d0cb0a4e1f2a3b4";
     :timestamp "2010-01-01T17:42:08.000Z"^^xsd:dateTime;
     :agent [
       a :Agent;
@@ -3186,15 +3152,14 @@ the image came from is one of its :references. Your avatar is your :emblem.
 example:arena-channel-created
   rdfs:label "Creating an Are.na channel";
   rdfs:comment """
-You created a channel on Are.na. The :CreateAction is keyed by the channel's
-ID, and its :object is the channel, a :Collection. Are.na's `closed` channels
+You created a channel on Are.na. Its :result is the channel, a :Collection
+keyed by its ID, and the :CreateAction is keyed by the channel. Are.na's `closed` channels
 can be seen by anyone, so their :visibility is `public`.
 """;
   rdf:value [
     a :CreateAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "result.sourceId");
     :source "arena";
-    :sourceId "channel-11";
     :timestamp "2024-12-01T00:00:00.000Z"^^xsd:dateTime;
     :agent [
       a :Agent;
@@ -3205,7 +3170,7 @@ can be seen by anyone, so their :visibility is `public`.
       :name "Pat Example";
       :sameAs "@me"
     ];
-    :object [
+    :result [
       a :Collection;
       doc:key ("@type" "source" "sourceId");
       :source "arena";
@@ -3219,15 +3184,14 @@ can be seen by anyone, so their :visibility is `public`.
 example:arena-comment
   rdfs:label "Commenting on an Are.na block";
   rdfs:comment """
-You left a comment on Alex's block. The :CreateAction's :object is the
+You left a comment on Alex's block. The :CreateAction's :result is the
 :Comment, keyed by its ID, with its text as its :body. The :Comment is
 :about the block, a :Post by Alex.
 """;
   rdf:value [
     a :CreateAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "result.sourceId");
     :source "arena";
-    :sourceId "comment-30";
     :timestamp "2025-01-04T00:00:00.000Z"^^xsd:dateTime;
     :agent [
       a :Agent;
@@ -3236,7 +3200,7 @@ You left a comment on Alex's block. The :CreateAction's :object is the
       :sourceId "1";
       :sameAs "@me"
     ];
-    :object [
+    :result [
       a :Comment;
       doc:key ("@type" "source" "sourceId");
       :source "arena";
@@ -3303,13 +3267,12 @@ You replied to Riley's comment on Alex's story. The :RespondAction's :object is
 what the reply answers, Riley's :Comment; its :result is your :Comment. Both
 comments are :about the story at the top of the thread, so a reply deep in a
 discussion still links to the submission. Every item is keyed by its Hacker
-News id.
+News id, and the action by the reply it made.
 """;
   rdf:value [
     a :RespondAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "result.sourceId");
     :source "hackernews";
-    :sourceId "40000110";
     :timestamp "2024-05-06T12:53:20.000Z"^^xsd:dateTime;
     :agent [
       a :Agent;
@@ -3990,7 +3953,7 @@ a sentence of prose, so the action has no :object.
 
 :ReadAction skos:example example:reader-item-read .
 :Article skos:example example:reader-item-read, example:reader-item-annotated .
-:PublishAction skos:example example:reader-item-shared .
+:ShareAction skos:example example:reader-item-shared .
 :LikeAction skos:example example:reader-item-starred .
 :AnnotateAction skos:example example:reader-item-annotated .
 :Comment skos:example example:reader-item-annotated .
@@ -4020,8 +3983,8 @@ example:voice-memo
 A :RecordAction whose :result is the recording, an :AudioObject. Voice Memos
 keeps when recording started, the :timestamp, and the recording's :duration,
 but not when recording stopped, since it can be paused. The words spoken in
-the recording are its :transcript. The action and the recording are both keyed
-by the memo's ID.
+the recording are its :transcript. The recording is keyed by the memo's
+ID, and the action by the recording.
 
 The audio file names the kind of device and the OS release that recorded it,
 but not which device. The action's :instrument is that release, an
@@ -4031,9 +3994,8 @@ one.
 """;
   rdf:value [
     a :RecordAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "result.sourceId");
     :source "apple-voice-memos";
-    :sourceId "7C2E9A41-3B8D-4F6A-9E15-2D4C8B7A1F30";
     :timestamp "2026-05-09T13:02:10.000Z"^^xsd:dateTime;
     :agent [
       a :Person;
@@ -4235,8 +4197,8 @@ example:card-purchase
   rdfs:label "A card purchase";
   rdfs:comment """
 You bought a coffee with a credit card, and within minutes the card's issuer
-told Wallet about it. The :PayAction is keyed by Wallet's ID for the
-transaction and dated to the second. You are the :agent, the card is the
+told Wallet about it. The :PayAction is keyed by the transaction it
+made, which has Wallet's ID, and dated to the second. You are the :agent, the card is the
 :instrument, and the :result is the :FinancialTransaction, which carries the
 :amount, a :MonetaryAmount, and the café as its :recipient. The café is an
 :Agent keyed by its name, which is all the issuer sends, since a billing
@@ -4247,8 +4209,8 @@ which is the same on every device the card is added to, and is named after
 the card's product. The :FinancialAccount it is :inAccount is keyed by the
 bank's own identifier for the account, which outlives the card number, and
 is named after the bank, as a chart of accounts names it. The transaction's one :FinancialPosting, given
-under `hasPart`, the inverse of :isPartOf, is that account's side of the
-purchase, negative because a purchase adds to what a credit card owes. The
+under `hasPart`, the inverse of :isPartOf, and keyed by the transaction and
+the account, is that account's side of the purchase, negative because a purchase adds to what a credit card owes. The
 café's side is not known.
 
 A node that appears again in one record needs only its identity. The
@@ -4257,9 +4219,8 @@ posting.
 """;
   rdf:value [
     a :PayAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "result.sourceId");
     :source "apple-wallet";
-    :sourceId "7C1E9F2B-6A3D-4B58-9E0F-2D4C6B8A1E35";
     :timestamp "2026-05-09T13:41:07.000Z"^^xsd:dateTime;
     :agent [
       a :Person;
@@ -4304,9 +4265,8 @@ posting.
       ];
       :hasPart [
         a :FinancialPosting;
-        doc:key ("@type" "source" "sourceId" "inAccount[*].sourceId");
+        doc:key ("@type" "source" "action.result.sourceId" "inAccount[*].sourceId");
         :source "apple-wallet";
-        :sourceId "7C1E9F2B-6A3D-4B58-9E0F-2D4C6B8A1E35";
         :amount [
           a :MonetaryAmount;
           :value -4.75;

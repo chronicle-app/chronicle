@@ -333,10 +333,10 @@ const UNREMARKABLE = new Set(['source']);
  * The summary as a tree per record type, for a plugin's SHAPES.md: each node's
  * type, key, and properties, with the nodes it links to nested inside.
  *
- *   PublishAction key(sourceId) {
- *     sourceId, timestamp
+ *   PublishAction key(result.sourceId) {
+ *     timestamp
  *     agent: Agent key(handle) { handle, url, sameAs[]? }
- *     object: Post key(sourceId) { sourceId, url, name, body? }
+ *     result: Post key(sourceId) { sourceId, url, name, body? }
  *   }
  */
 export function renderShapes(shapes: Shapes, { title }: { title: string }): string {
