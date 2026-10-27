@@ -86,9 +86,9 @@ test('events on the shown calendars become plans for named events, with their gu
   const [planning, copy, trip, standup] = actions;
   assert.deepEqual(planning, {
     '@type': 'PlanAction',
-    '@key': ['@type', 'source', 'sourceId'],
+    // Keyed by the event it put on the calendar.
+    '@key': ['@type', 'source', 'object.sourceId'],
     source: 'icalendar',
-    sourceId: 'planning@example.com',
     timestamp: new Date('2025-03-01T09:00:00Z'),
     agent: owner,
     // The event by its UID, as every calendar and guest has it, `sameAs`
@@ -121,7 +121,7 @@ test('events on the shown calendars become plans for named events, with their gu
   });
   // The same meeting on another calendar is one planning of one event, by its
   // UID, `sameAs` that calendar's own copy.
-  assert.equal(copy.sourceId, planning.sourceId);
+  assert.deepEqual(copy['@key'], planning['@key']);
   assert.equal(copy.object.sourceId, planning.object.sourceId);
   assert.equal(copy.object.sameAs[0].sourceId, 'planning2');
   assert.deepEqual(copy.object.isPartOf, [calendar(TEAM, 'Work')]);
@@ -134,7 +134,7 @@ test('events on the shown calendars become plans for named events, with their gu
 
   // Each instance of a recurring event is its own event, planned by its organizer.
   assert.equal(standup.object.sourceId, 'standup@example.com@2025-03-11T13:00:00.000Z');
-  assert.equal(standup.sourceId, standup.object.sourceId);
+  assert.deepEqual(standup['@key'], ['@type', 'source', 'object.sourceId']);
   assert.deepEqual(standup.agent, guest);
 });
 

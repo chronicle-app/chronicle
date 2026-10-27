@@ -46,8 +46,8 @@ export default class LastfmTransformer extends ChronicleTransformer {
 
   // A Last.fm friend is a user the listener follows. Last.fm gives no
   // befriended date, so the FollowAction carries no timestamp — it's sighted at
-  // read time by the snapshot extractor — and keys on the followed user's handle
-  // so re-reads supersede rather than duplicate.
+  // read time by the snapshot extractor — and keys on the followed user, by
+  // handle, so re-reads supersede rather than duplicate.
   private buildFriendAction(record: Record): ActionAndChildren[] {
     const friend = record.data as LastfmFriend;
     const friendAgent = this.buildLastfmAgent(friend.name, {
@@ -59,9 +59,8 @@ export default class LastfmTransformer extends ChronicleTransformer {
     const actions: ActionAndChildren[] = [
       {
         '@type': 'FollowAction',
-        '@key': ['@type', 'source', 'sourceId'],
+        '@key': ['@type', 'source', 'object.handle'],
         source: 'lastfm',
-        sourceId: friend.name,
         agent: this.resolveUser(record),
         object: friendAgent,
       } as FollowAction,
@@ -77,7 +76,8 @@ export default class LastfmTransformer extends ChronicleTransformer {
 
   // When a Last.fm account was created (its `registered` date). This is a real
   // source event with a real timestamp, so it's a keyed action — not synthetic —
-  // keyed on the account handle so it's referenceable and re-reads supersede. The
+  // keyed on the account it made, by handle, so it's referenceable and re-reads
+  // supersede. The
   // account's coming-into-being is origin-grade evidence carried on `result`; a
   // bare handle reference is used so the friend's *current* avatar/name aren't
   // back-dated to the registration instant — those stay on the FollowAction.
@@ -95,9 +95,8 @@ export default class LastfmTransformer extends ChronicleTransformer {
 
     return {
       '@type': 'CreateAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      '@key': ['@type', 'source', 'result.handle'],
       source: 'lastfm',
-      sourceId: handle,
       timestamp: at,
       agent: ref,
       result: ref,

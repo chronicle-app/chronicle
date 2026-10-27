@@ -57,9 +57,9 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
 
     const plan: PlanAction = {
       '@type': 'PlanAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      // Keyed by the event it put on the calendar.
+      '@key': ['@type', 'source', 'object.sourceId'],
       source: ICALENDAR,
-      sourceId: identityOf(event),
       // When it was put on the calendar; the event carries when it happens.
       timestamp: plannedAt(event),
       agent: organizer,

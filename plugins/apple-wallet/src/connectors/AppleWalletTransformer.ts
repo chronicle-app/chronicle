@@ -76,8 +76,9 @@ function buildTransaction(
 }
 
 /**
- * The card account's side of the purchase, keyed by the transaction and the
- * account, and given under `hasPart`, the inverse of `isPartOf`. A purchase is
+ * The card account's side of the purchase, keyed by the transaction it's part
+ * of (the action's result, which has Wallet's ID) and the account, and given
+ * under `hasPart`, the inverse of `isPartOf`. A purchase is
  * negative on the account that paid, whichever kind it is: it adds to what a
  * credit card owes, and takes from what a debit card holds.
  */
@@ -85,9 +86,8 @@ function buildPosting(transaction: WalletTransaction, account: FinancialAccount)
   const amount = transaction.amount!;
   return {
     '@type': 'FinancialPosting',
-    '@key': ['@type', 'source', 'sourceId', 'inAccount[*].sourceId'],
+    '@key': ['@type', 'source', 'action.result.sourceId', 'inAccount[*].sourceId'],
     source: SOURCE,
-    sourceId: transaction.identifier,
     amount: money(amount === 0 ? 0 : -amount, transaction.currencyCode),
     inAccount: [reference(account)],
   };
@@ -144,8 +144,9 @@ const ACCOUNT_TYPES: { [paymentType: string]: string } = {
 /**
  * The account the card draws on, keyed by the issuer's identifier for it when
  * the issuer gives one, which outlives the card number. Otherwise the account
- * is the card as far as Wallet can tell: keyed like the card, and split by a
- * reissue with a new number until a ledger names the account. It is named
+ * is the card as far as Wallet can tell: keyed by the card the payment used
+ * (the action's instrument), so it doesn't take the card's ID as its own, and
+ * split by a reissue with a new number until a ledger names the account. It is named
  * after the issuer, as a chart of accounts names it, while the card is named
  * after the product. The card number's last digits stay on the card: a reissue
  * changes them while the account continues.
@@ -155,9 +156,10 @@ function buildAccount(card: Card): FinancialAccount {
   const financialAccountType = card.paymentType && ACCOUNT_TYPES[card.paymentType.toLowerCase()];
   return {
     '@type': 'FinancialAccount',
-    '@key': ['@type', 'source', 'sourceId'],
+    ...(card.issuerAccountIdentifier
+      ? { '@key': ['@type', 'source', 'sourceId'], sourceId: card.issuerAccountIdentifier }
+      : { '@key': ['@type', 'source', 'action.instrument[*].sourceId'] }),
     source: SOURCE,
-    sourceId: card.issuerAccountIdentifier ?? cardIdOf(card),
     ...(issuer && { name: issuer }),
     ...(financialAccountType && { financialAccountType }),
   };

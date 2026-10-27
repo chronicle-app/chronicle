@@ -160,6 +160,12 @@ test('reads related projects, areas, tags and maps lifecycle events through sche
     actions.map(r => r.data['@type']),
     ['PlanAction', 'CompleteAction']
   );
+  // Each is keyed by the task, which alone has the task's ID.
+  for (const { data } of actions) {
+    assert.deepEqual(data['@key'], ['@type', 'source', 'object.sourceId']);
+    assert.equal(data.sourceId, undefined);
+    assert.equal(data.object.sourceId, 'task-1');
+  }
   assert.deepEqual(
     actions[0].data.object.isPartOf.map(e => e.sourceId),
     ['project-1', 'area-1']

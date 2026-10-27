@@ -18,16 +18,15 @@ PayAction key(result.sourceId) {
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
   instrument[]?: PaymentCard key(sourceId) {
     sourceId, name?, alternateName[], category[]?
-    inAccount[]: FinancialAccount key(sourceId) { sourceId, name, financialAccountType?* }
+    inAccount[]: FinancialAccount key(sourceId) / key(action.instrument[*].sourceId) { sourceId?, name, financialAccountType?* }
   }
   result: FinancialTransaction key(sourceId) {
     sourceId
     amount: MonetaryAmount { value, currency? }
     recipient[]?: Agent key(name) { name }
-    hasPart[]?: FinancialPosting key(sourceId, inAccount[*].sourceId) {
-      sourceId
+    hasPart[]?: FinancialPosting key(action.result.sourceId, inAccount[*].sourceId) {
       amount: MonetaryAmount { value*, currency }
-      inAccount[]: FinancialAccount key(sourceId) { sourceId }
+      inAccount[]: FinancialAccount key(sourceId) / key(action.instrument[*].sourceId) { sourceId? }
     }
   }
   location?: Location { latitude, longitude, address }

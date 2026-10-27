@@ -162,13 +162,13 @@ test('a like becomes a LikeAction on the post and a PublishAction by its author'
     {
       '@type': 'PublishAction',
       source: 'bluesky',
-      sourceId: 'did:plc:riley/app.bsky.feed.post/3kpost',
       // When the post was written, not when you liked it.
       timestamp: new Date('2025-01-04T07:00:00.000Z'),
       '@assertedAt': new Date('2025-01-04T07:00:00.000Z'),
-      '@key': key,
+      // Keyed by the post it published.
+      '@key': ['@type', 'source', 'result.sourceId'],
       agent: agent(RILEY),
-      object: post,
+      result: post,
     },
   ]);
 });

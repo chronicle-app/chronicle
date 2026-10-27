@@ -80,9 +80,11 @@ directory are skipped.
 
 ## Schema
 
-- `posts`, `stories`: a `PublishAction` of a `Post` that `contains` its
-  `ImageObject`/`VideoObject` files, with a `sourceFormat` of `feed`, `reel`
-  or `story`.
+- `posts`, `stories`: a `PublishAction` whose `result` is a `Post` that
+  `contains` its `ImageObject`/`VideoObject` files, with a `sourceFormat` of
+  `feed`, `reel` or `story`. Each file is keyed by its media pk. The export
+  gives a post no ID of its own, so the post is keyed by the files it
+  contains, and the action by the post.
 - `messages`: a `MessageAction` whose `result` is a `Message`, keyed by it; a shared post, profile or link
   is in its `references`. Emoji reactions are `RespondAction`s with a
   `Response` result.

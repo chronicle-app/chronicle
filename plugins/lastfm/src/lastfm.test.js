@@ -279,9 +279,9 @@ test('friends become FollowActions and account CreateActions, read as a snapshot
   assert.deepEqual(await transform(records[0]), [
     {
       '@type': 'FollowAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      // Keyed by the account it follows, which alone has the handle.
+      '@key': ['@type', 'source', 'object.handle'],
       source: 'lastfm',
-      sourceId: 'friend1',
       '@assertedAt': readAt,
       '@asserts': ['*'],
       agent: { ...listener, '@asserts': ['*'], emblem: { ...listener.emblem, '@asserts': ['*'] } },
@@ -303,9 +303,9 @@ test('friends become FollowActions and account CreateActions, read as a snapshot
     },
     {
       '@type': 'CreateAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      // Keyed by the account it made.
+      '@key': ['@type', 'source', 'result.handle'],
       source: 'lastfm',
-      sourceId: 'friend1',
       timestamp: new Date('2010-01-01T00:00:00Z'),
       '@assertedAt': readAt,
       '@asserts': ['*'],

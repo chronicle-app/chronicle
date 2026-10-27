@@ -76,15 +76,15 @@ const merchant = name => ({
 });
 const accountRef = account => ({
   '@type': 'FinancialAccount',
-  '@key': key,
+  '@key': account['@key'],
   source: 'apple-wallet',
-  sourceId: account.sourceId,
+  ...(account.sourceId && { sourceId: account.sourceId }),
 });
-const posting = (sourceId, amount, currency, account) => ({
+// A posting is keyed by the transaction it's part of, and its account.
+const posting = (amount, currency, account) => ({
   '@type': 'FinancialPosting',
-  '@key': ['@type', 'source', 'sourceId', 'inAccount[*].sourceId'],
+  '@key': ['@type', 'source', 'action.result.sourceId', 'inAccount[*].sourceId'],
   source: 'apple-wallet',
-  sourceId,
   amount: money(amount, currency),
   inAccount: [accountRef(account)],
 });
@@ -98,12 +98,12 @@ const visaAccount = {
   name: 'Example Bank',
   financialAccountType: 'liability',
 };
-// No identifier from the issuer, so the account is keyed like the card.
+// No identifier from the issuer, so the account is keyed by the card the
+// payment used, without taking the card's ID as its own.
 const amexAccount = {
   '@type': 'FinancialAccount',
-  '@key': key,
+  '@key': ['@type', 'source', 'action.instrument[*].sourceId'],
   source: 'apple-wallet',
-  sourceId: 'FAPLAB0000000000000000000000000000000000002',
   name: 'Example Express',
 };
 // A payment is keyed by the transaction it made, which has Wallet's ID for it.
@@ -151,7 +151,7 @@ test('transactions become PayActions with their card, account, and merchant, new
       result: transaction('TXN-ISSUER', {
         amount: money(69.93, 'CAD'),
         recipient: [merchant('Example Café')],
-        hasPart: [posting('TXN-ISSUER', -69.93, 'CAD', visaAccount)],
+        hasPart: [posting(-69.93, 'CAD', visaAccount)],
       }),
     })
   );
@@ -176,7 +176,7 @@ test('transactions become PayActions with their card, account, and merchant, new
       result: transaction('TXN-TAP', {
         amount: money(15.82, 'CAD'),
         recipient: [merchant('EXAMPLE GROCER 1281')],
-        hasPart: [posting('TXN-TAP', -15.82, 'CAD', amexAccount)],
+        hasPart: [posting(-15.82, 'CAD', amexAccount)],
       }),
       location: { '@type': 'Location', latitude: 43.65, longitude: -79.38, address: 'Toronto, ON' },
     })

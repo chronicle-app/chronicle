@@ -105,10 +105,11 @@ The plugin generates the following Chronicle schema types:
 
 - `ListenAction`: a scrobble (recent track), timestamped at the play time
 - `LikeAction`: a loved/favorited track, timestamped when loved
-- `FollowAction`: the listener following a friend; no timestamp (Last.fm gives no
-  befriended date), sighted at read time by the snapshot `friends` extractor
-- `CreateAction`: a friend's Last.fm account registration, keyed on the account
-  handle and timestamped at their `registered` date (the account's
+- `FollowAction`: the listener following a friend, keyed by the friend's account;
+  no timestamp (Last.fm gives no befriended date), sighted at read time by the
+  snapshot `friends` extractor
+- `CreateAction`: a friend's Last.fm account registration, keyed by the account
+  it made and timestamped at their `registered` date (the account's
   coming-into-being on `result`)
 - `Agent`: the listener and their friends, keyed on the Last.fm `handle` (the
   canonical username), with real name, profile URL, and avatar `image` when

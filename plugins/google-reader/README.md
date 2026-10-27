@@ -29,7 +29,7 @@ The archive owner's ID comes from `user_id` in `data/user-info.json`; `user_name
 ## Output
 
 - `read` → `ReadAction`
-- `broadcast` → `PublishAction`
+- `broadcast` → `ShareAction`: Reader's Share passes along an article someone else wrote
 - `starred` → `LikeAction`
 - Owner annotations → `AnnotateAction` with a `Comment` result
 

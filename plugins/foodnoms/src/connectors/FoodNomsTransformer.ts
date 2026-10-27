@@ -119,16 +119,17 @@ export default class FoodNomsTransformer extends ChronicleTransformer {
   }
 
   private buildMeal(data: any, context: any): Meal {
-    // Key on `entryID`, the per-log CloudKit UUID FoodNoms assigns each entry.
-    // `foodID` looks like a shared food reference but for the dominant namespaces
-    // (`openai:` AI lookups, `local:` manual foods) it is a fresh UUID minted per
-    // entry, so it neither dedupes repeats nor is a real cross-log identity —
-    // using it would elevate a synthetic id to entity identity.
+    // Keyed by the consumption it was eaten in (`action.sourceId`, the entry's
+    // `entryID`, the per-log CloudKit UUID FoodNoms assigns each entry), which
+    // has that ID as its own. `foodID` looks like a shared food reference but
+    // for the dominant namespaces (`openai:` AI lookups, `local:` manual foods)
+    // it is a fresh UUID minted per entry, so it neither dedupes repeats nor is
+    // a real cross-log identity — using it would elevate a synthetic id to
+    // entity identity.
     const meal: Meal = {
       '@type': 'Meal',
-      '@key': ['@type', 'source', 'sourceId'],
+      '@key': ['@type', 'source', 'action.sourceId'],
       source: 'foodnoms',
-      sourceId: data.entryID,
       name: data.name,
     };
 

@@ -52,13 +52,13 @@ Emits a `FollowAction` for every user, channel, and group you follow.
 
 This plugin maps Are.na (v3) data onto the following Chronicle types:
 
-| Are.na activity                              | Chronicle action | Object                                       |
-| -------------------------------------------- | ---------------- | -------------------------------------------- |
-| You created a channel                        | `CreateAction`   | `Collection`                                 |
-| You connected a block/channel into a channel | `BookmarkAction` | `Post` / `Collection`                        |
-| You authored a block                         | `CreateAction`   | `Post` (with `ImageObject` for image blocks) |
-| You commented on a block                     | `CreateAction`   | `Comment` (linked to the block via `about`)  |
-| You followed a user / channel / group        | `FollowAction`   | `Agent` / `Collection` / `Agent`             |
+| Are.na activity                              | Chronicle action | Object (or `result`, for what it made)                 |
+| -------------------------------------------- | ---------------- | ------------------------------------------------------ |
+| You created a channel                        | `CreateAction`   | `result`: `Collection`                                 |
+| You connected a block/channel into a channel | `BookmarkAction` | `Post` / `Collection`                                  |
+| You authored a block                         | `CreateAction`   | `result`: `Post` (with `ImageObject` for image blocks) |
+| You commented on a block                     | `CreateAction`   | `result`: `Comment` (linked to the block via `about`)  |
+| You followed a user / channel / group        | `FollowAction`   | `Agent` / `Collection` / `Agent`                       |
 
 Users are represented as `Agent`, channels as `Collection`, and blocks as `Post`.
 

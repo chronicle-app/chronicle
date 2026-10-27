@@ -13,8 +13,8 @@ converted from the record. Every node also has `source`.
 ## events
 
 ```ts
-PlanAction key(sourceId) {
-  sourceId, timestamp
+PlanAction key(object.sourceId) {
+  timestamp
   agent: Agent key(handle) {
     handle, alternateName[]?
     sameAs[]?: Agent key(handle) { handle }

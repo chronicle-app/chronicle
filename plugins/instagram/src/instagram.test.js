@@ -76,20 +76,20 @@ test('posts and stories become PublishActions of Posts containing their media', 
   // posts.json's reel, then posts_1.json's carousel. The flat duplicate of the
   // reel and the uri that escapes the export are dropped.
   assert.deepEqual(
-    posts.map(a => a.object.sourceId),
-    ['333333333', '111111111']
+    // A post is keyed by the files it contains: a carousel by all of them.
+    posts.map(a => a.result.contains.map(file => file.sourceId).join(',')),
+    ['333333333', '111111111,222222222']
   );
   assert.deepEqual(posts[0], {
     '@type': 'PublishAction',
-    '@key': ['@type', 'source', 'object.sourceId'],
+    '@key': ['@type', 'source', 'result.contains[*].sourceId'],
     source: 'instagram',
     ...at('2024-08-30T06:40:00.000Z'),
     agent: me,
-    object: {
+    result: {
       '@type': 'Post',
-      '@key': postKey,
+      '@key': ['@type', 'source', 'contains[*].sourceId'],
       source: 'instagram',
-      sourceId: '333333333',
       sourceFormat: 'reel',
       body: 'Sunset reel',
       contains: [
@@ -105,7 +105,7 @@ test('posts and stories become PublishActions of Posts containing their media', 
     },
   });
   // The older shape has no caption on its media, so the entry's title is used.
-  const carousel = posts[1].object;
+  const carousel = posts[1].result;
   assert.equal(carousel.sourceFormat, 'feed');
   assert.equal(carousel.body, 'Trail day');
   assert.deepEqual(
@@ -121,7 +121,7 @@ test('posts and stories become PublishActions of Posts containing their media', 
     since: new Date('2020-01-01'),
   });
   assert.deepEqual(
-    since.map(a => a.object.sourceId),
+    since.map(a => a.result.contains.map(file => file.sourceId).join(',')),
     ['333333333']
   );
   const counter = new InstagramArchivePostsExtractor({ input: dir });
@@ -132,15 +132,14 @@ test('posts and stories become PublishActions of Posts containing their media', 
   assert.equal(stories.length, 2);
   assert.deepEqual(stories[0], {
     '@type': 'PublishAction',
-    '@key': ['@type', 'source', 'object.sourceId'],
+    '@key': ['@type', 'source', 'result.contains[*].sourceId'],
     source: 'instagram',
     ...at('2024-09-02T18:00:00.000Z'),
     agent: me,
-    object: {
+    result: {
       '@type': 'Post',
-      '@key': postKey,
+      '@key': ['@type', 'source', 'contains[*].sourceId'],
       source: 'instagram',
-      sourceId: '4444444444',
       sourceFormat: 'story',
       visibility: 'private',
       url: 'https://www.instagram.com/stories/archive/4444444444/',
@@ -157,7 +156,7 @@ test('posts and stories become PublishActions of Posts containing their media', 
       ],
     },
   });
-  assert.equal(stories[1].object.contains[0]['@type'], 'VideoObject');
+  assert.equal(stories[1].result.contains[0]['@type'], 'VideoObject');
 });
 
 test('direct messages become MessageActions, with reactions as RespondActions', async t => {

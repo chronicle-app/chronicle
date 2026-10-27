@@ -118,11 +118,11 @@ export default class BlueskyTransformer extends ChronicleTransformer {
     return {
       '@type': 'PublishAction',
       source: 'bluesky',
-      sourceId: this.uriToId(post.uri),
       timestamp: new Date(post.record.createdAt),
-      '@key': ['@type', 'source', 'sourceId'],
+      // Keyed by the post it published.
+      '@key': ['@type', 'source', 'result.sourceId'],
       agent: this.buildUser(post.author),
-      object: this.buildPost(post),
+      result: this.buildPost(post),
     };
   }
 
