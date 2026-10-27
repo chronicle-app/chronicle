@@ -4419,7 +4419,7 @@ short :VideoObject captured with it.
       a :StillImage;
       doc:key ("@type" "source" "sourceId");
       :source "apple-photos";
-      :sourceId "AeX3kQ9pL2mN7sT1vW4yZ8bC6dF0";
+      :sourceId "3F9A2C1E-7B4D-4E8F-A6C2-91D5E0B7F348";
       :caption "Sam at the top";
       :sourceFormat "portrait";
       :depicts [
@@ -4433,7 +4433,7 @@ short :VideoObject captured with it.
         a :Collection;
         doc:key ("@type" "source" "sourceId");
         :source "apple-photos";
-        :sourceId "Ab7Cd9Ef1Gh3Ij5Kl7Mn9Op1Qr3";
+        :sourceId "9E1C3A5B-2D4F-4A6C-8E0B-7F9D1B3C5A62";
         :name "Summer"
       ];
       :rendition [
@@ -4479,7 +4479,7 @@ showed, a :StillImage, and its file, a PNG, is its :rendition.
       a :StillImage;
       doc:key ("@type" "source" "sourceId");
       :source "apple-photos";
-      :sourceId "Bf4Gh6Jk8Lm0Np2Qr4St6Uv8Wx0";
+      :sourceId "8C2E4F6A-1B3D-4C5E-9F7A-2D4B6E8A0C13";
       :rendition [
         a :ImageObject;
         doc:key ("@type" "source" "sourceId");
@@ -4558,7 +4558,7 @@ photo and when it happened. The photo is no longer one of your :likes.
       a :StillImage;
       doc:key ("@type" "source" "sourceId");
       :source "apple-photos";
-      :sourceId "AeX3kQ9pL2mN7sT1vW4yZ8bC6dF0"
+      :sourceId "3F9A2C1E-7B4D-4E8F-A6C2-91D5E0B7F348"
     ]
   ] .
 
@@ -4584,7 +4584,7 @@ You made a photo a favorite, but nothing records when. The :LikeAction has no
       a :StillImage;
       doc:key ("@type" "source" "sourceId");
       :source "apple-photos";
-      :sourceId "Cg5Hi7Jk9Lm1No3Pq5Rs7Tu9Vw1"
+      :sourceId "5D7F9B1C-3E5A-4B7D-8C9E-1A3C5E7B9D24"
     ]
   ] .
 
