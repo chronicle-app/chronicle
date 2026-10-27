@@ -38,9 +38,9 @@ export default class AppleWalletTransformer extends ChronicleTransformer {
 
     const action: PayAction = {
       '@type': 'PayAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      // Keyed by the transaction it made, which has Wallet's ID for it.
+      '@key': ['@type', 'source', 'result.sourceId'],
       source: SOURCE,
-      sourceId: transaction.identifier,
       timestamp: new Date(transaction.date),
       ...(payer && { agent: payer }),
       ...(card && { instrument: [card] }),

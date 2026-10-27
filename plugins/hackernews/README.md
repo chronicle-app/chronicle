@@ -23,7 +23,7 @@ Upvotes, favorites, and hidden items aren't read: Hacker News records no time fo
 
 | Hacker News activity                    | Chronicle action | `object`                       | `result`  |
 | --------------------------------------- | ---------------- | ------------------------------ | --------- |
-| You submitted a story, poll, or job     | `PublishAction`  | `Post`                         |           |
+| You submitted a story, poll, or job     | `PublishAction`  |                                | `Post`    |
 | You commented                           | `RespondAction`  | the parent `Post` or `Comment` | `Comment` |
 | Someone replied to your post or comment | `RespondAction`  | your `Post` or `Comment`       | `Comment` |
 

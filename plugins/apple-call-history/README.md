@@ -9,7 +9,8 @@ and folds them into the existing comms identity graph (iMessage/WhatsApp via
 `~/Library/Application Support/CallHistoryDB/CallHistory.storedata` (read-only) —
 the rich, per-record source (direction, number, duration, participants).
 
-Calls emit `source: apple-call-history`, `sourceId = <call UUID>` (`ZUNIQUE_ID`). Apple's
+A call's `CallSession` is keyed by `source: apple-call-history` and `sourceId = <call UUID>`
+(`ZUNIQUE_ID`), and its `CallAction` by that session (`result.sourceId`). Apple's
 store has a rolling retention (~recent calls); the **longer history that Apple
 prunes is relayed through Timing.app and lives in the `timing-app` plugin**
 (`-t calls`), which emits the same `apple-call-history` + UUID identity so the two

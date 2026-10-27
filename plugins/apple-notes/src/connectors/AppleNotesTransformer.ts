@@ -92,9 +92,9 @@ export default class AppleNotesTransformer extends ChronicleTransformer {
   private created(note: AppleNote, me: Person | null): CreateAction {
     return {
       '@type': 'CreateAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      // Keyed by the note it made.
+      '@key': ['@type', 'source', 'result.sourceId'],
       source: SOURCE,
-      sourceId: note.id,
       timestamp: new Date(note.created),
       ...(note.creator && { agent: this.person(note.creator, me) }),
       result: noteWork(note.id, note.title),

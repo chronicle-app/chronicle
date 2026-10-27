@@ -13,10 +13,10 @@ converted from the record. Every node also has `source`.
 ## submissions
 
 ```ts
-PublishAction key(sourceId) {
-  sourceId, timestamp
+PublishAction key(result.sourceId) {
+  timestamp
   agent: Agent key(handle) { handle, sameAs[], url, description }
-  object: Post key(sourceId) {
+  result: Post key(sourceId) {
     sourceId, url, name, body?*
     author[]: Agent key(handle) { handle, sameAs[], url, description }
     references[]?: Entity key(url, any source) { url }
@@ -27,8 +27,8 @@ PublishAction key(sourceId) {
 ## comments
 
 ```ts
-RespondAction key(sourceId) {
-  sourceId, timestamp
+RespondAction key(result.sourceId) {
+  timestamp
   agent: Agent key(handle) { handle, sameAs[], url, description }
   object: Comment | Post key(sourceId) {
     sourceId, url, body?, name?
@@ -55,8 +55,8 @@ RespondAction key(sourceId) {
 ## replies
 
 ```ts
-RespondAction key(sourceId) {
-  sourceId, timestamp
+RespondAction key(result.sourceId) {
+  timestamp
   agent: Agent key(handle) { handle, url }
   object: Comment | Post key(sourceId) {
     sourceId, url, body?, name?

@@ -304,9 +304,9 @@ export default class ZoteroTransformer extends ChronicleTransformer {
     const actions: ActionAndChildren[] = [
       {
         '@type': 'BookmarkAction',
-        '@key': ['@type', 'source', 'sourceId', 'object.inRealm.handle'],
+        // Keyed by the work it saved.
+        '@key': ['@type', 'source', 'object.sourceId', 'object.inRealm.handle'],
         source: SOURCE,
-        sourceId: work.key,
         timestamp: parseZoteroDate(work.dateAdded),
         agent: me,
         object: workEntity,
@@ -321,7 +321,7 @@ export default class ZoteroTransformer extends ChronicleTransformer {
         // so each viewing independently witnesses the merge regardless of
         // fold order.
         const facet = this.buildFileFacet(attachment, context, workRef);
-        actions.push(this.buildViewAction(attachment.key, attachment.lastRead, facet, me));
+        actions.push(this.buildViewAction(attachment.lastRead, facet, me));
       }
     }
 
@@ -338,17 +338,12 @@ export default class ZoteroTransformer extends ChronicleTransformer {
    * "currently reading" state. A single sighted open is one-shot
    * consumption; `ViewAction` is its honest weight.
    */
-  private buildViewAction(
-    sourceId: string,
-    lastRead: number,
-    object: EntityAndChildren,
-    agent: Person
-  ): ViewAction {
+  private buildViewAction(lastRead: number, object: EntityAndChildren, agent: Person): ViewAction {
     return {
       '@type': 'ViewAction',
-      '@key': ['@type', 'source', 'sourceId', 'object.inRealm.handle', 'timestamp'],
+      // Keyed by the file it opened, and when.
+      '@key': ['@type', 'source', 'object.sourceId', 'object.inRealm.handle', 'timestamp'],
       source: SOURCE,
-      sourceId,
       timestamp: new Date(lastRead * 1000),
       agent,
       object,
@@ -897,9 +892,9 @@ export default class ZoteroTransformer extends ChronicleTransformer {
 
       actions.push({
         '@type': 'QuoteAction',
-        '@key': ['@type', 'source', 'sourceId', 'result.inRealm.handle'],
+        // Keyed by the quotation it made, which has the annotation's key.
+        '@key': ['@type', 'source', 'result.sourceId', 'result.inRealm.handle'],
         source: SOURCE,
-        sourceId: annotation.key,
         timestamp: parseZoteroDate(annotation.dateAdded),
         agent: me,
         result: quotation,
@@ -907,11 +902,17 @@ export default class ZoteroTransformer extends ChronicleTransformer {
     }
 
     if (hasComment) {
+      // A comment on a highlight is keyed by the quotation it's about, which
+      // has the annotation's key. A comment on its own has the key itself.
       const comment: Comment = {
         '@type': 'Comment',
-        '@key': ['@type', 'source', 'sourceId', 'inRealm.handle'],
+        ...(quotation
+          ? { '@key': ['@type', 'source', 'about[*].sourceId', 'inRealm.handle'] }
+          : {
+              '@key': ['@type', 'source', 'sourceId', 'inRealm.handle'],
+              sourceId: annotation.key,
+            }),
         source: SOURCE,
-        sourceId: annotation.key,
         inRealm: realm,
         description: annotation.comment as string,
         about: [quotation ?? subjectRef],
@@ -919,9 +920,11 @@ export default class ZoteroTransformer extends ChronicleTransformer {
 
       actions.push({
         '@type': 'AnnotateAction',
-        '@key': ['@type', 'source', 'sourceId', 'result.inRealm.handle'],
+        // Keyed by the comment it made.
+        '@key': quotation
+          ? ['@type', 'source', 'result.about[*].sourceId', 'result.inRealm.handle']
+          : ['@type', 'source', 'result.sourceId', 'result.inRealm.handle'],
         source: SOURCE,
-        sourceId: annotation.key,
         timestamp: parseZoteroDate(annotation.dateAdded),
         agent: me,
         result: comment,
@@ -988,9 +991,9 @@ export default class ZoteroTransformer extends ChronicleTransformer {
     const actions: ActionAndChildren[] = [
       {
         '@type': 'BookmarkAction',
-        '@key': ['@type', 'source', 'sourceId', 'object.inRealm.handle'],
+        // Keyed by the file it saved.
+        '@key': ['@type', 'source', 'object.sourceId', 'object.inRealm.handle'],
         source: SOURCE,
-        sourceId: attachment.key,
         timestamp: parseZoteroDate(attachment.dateAdded),
         agent: me,
         object: entity,
@@ -999,12 +1002,7 @@ export default class ZoteroTransformer extends ChronicleTransformer {
 
     if (attachment.lastRead) {
       actions.push(
-        this.buildViewAction(
-          attachment.key,
-          attachment.lastRead,
-          this.buildAttachmentRef(attachment, context),
-          me
-        )
+        this.buildViewAction(attachment.lastRead, this.buildAttachmentRef(attachment, context), me)
       );
     }
 
@@ -1105,9 +1103,9 @@ export default class ZoteroTransformer extends ChronicleTransformer {
     return [
       {
         '@type': 'AnnotateAction',
-        '@key': ['@type', 'source', 'sourceId', 'result.inRealm.handle'],
+        // Keyed by the note it made.
+        '@key': ['@type', 'source', 'result.sourceId', 'result.inRealm.handle'],
         source: SOURCE,
-        sourceId: note.key,
         timestamp: parseZoteroDate(note.dateAdded),
         agent: me,
         result: comment,

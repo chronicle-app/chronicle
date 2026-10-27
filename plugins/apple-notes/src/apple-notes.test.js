@@ -157,7 +157,7 @@ test('each note is its last edit, with the note as it is now, and when it was ma
   const actions = await nodes(AppleNotesExtractor, { input });
 
   assert.deepEqual(
-    actions.map(action => [action['@type'], action.object?.sourceId ?? action.sourceId]),
+    actions.map(action => [action['@type'], action.object?.sourceId ?? action.result.sourceId]),
     [
       ['UpdateAction', 'NOTE-SOUP'],
       ['CreateAction', 'NOTE-SOUP'],
@@ -214,11 +214,11 @@ test('each note is its last edit, with the note as it is now, and when it was ma
       ],
     },
   });
+  // Keyed by the note it made.
   assert.deepEqual(gardenMade, {
     '@type': 'CreateAction',
-    '@key': key,
+    '@key': ['@type', 'source', 'result.sourceId'],
     source: 'apple-notes',
-    sourceId: 'NOTE-GARDEN',
     timestamp: at(-60),
     agent: pat,
     result: note('NOTE-GARDEN', 'Garden plan'),
@@ -273,7 +273,7 @@ test('each note is its last edit, with the note as it is now, and when it was ma
 
   // With no Apple Account signed in, you're who Notes knows you as.
   const gardenHere = (await nodes(AppleNotesExtractor, { input }, { account: null })).find(
-    action => action['@type'] === 'CreateAction' && action.sourceId === 'NOTE-GARDEN'
+    action => action['@type'] === 'CreateAction' && action.result.sourceId === 'NOTE-GARDEN'
   );
   assert.deepEqual(gardenHere.agent, patInNotes);
 });
@@ -305,7 +305,7 @@ test("what the database doesn't say, or says in a form that can't be read, doesn
   const lastEdit = id =>
     actions.find(action => action['@type'] === 'UpdateAction' && action.object.sourceId === id);
   const made = id =>
-    actions.find(action => action['@type'] === 'CreateAction' && action.sourceId === id);
+    actions.find(action => action['@type'] === 'CreateAction' && action.result.sourceId === id);
   // The garden's text reads, but not who wrote it.
   assert.match(lastEdit('NOTE-GARDEN').object.body, /^# Garden plan\n/);
   assert.equal(lastEdit('NOTE-GARDEN').agent, undefined);

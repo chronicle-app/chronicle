@@ -13,8 +13,8 @@ converted from the record. Every node also has `source`.
 ## transactions
 
 ```ts
-PayAction key(sourceId) {
-  sourceId, timestamp
+PayAction key(result.sourceId) {
+  timestamp
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
   instrument[]?: PaymentCard key(sourceId) {
     sourceId, name?, alternateName[], category[]?

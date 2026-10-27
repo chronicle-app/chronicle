@@ -136,9 +136,9 @@ export default class TimingAppTransformer extends ChronicleTransformer {
 
     const action: ExecuteAction & ActionAndChildren = {
       '@type': 'ExecuteAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      // Keyed by the session it made, which has the activity's ID.
+      '@key': ['@type', 'source', 'result.sourceId'],
       source: SOURCE,
-      sourceId: ctx.id,
       startTime: secondsToISO(ctx.startDate),
       endTime: secondsToISO(ctx.endDate),
       agent: this.me(),
@@ -304,9 +304,9 @@ export default class TimingAppTransformer extends ChronicleTransformer {
 
     const action: ExperienceAction & ActionAndChildren = {
       '@type': 'ExperienceAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      // Keyed by the session it made, which has the time entry's ID.
+      '@key': ['@type', 'source', 'result.sourceId'],
       source: SOURCE,
-      sourceId: ctx.id,
       startTime: secondsToISO(ctx.startDate),
       endTime: secondsToISO(ctx.endDate),
       agent: this.me(),

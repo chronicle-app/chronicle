@@ -41,7 +41,7 @@ async function actions(dir) {
       out.push(withoutDirectives(node.data));
     }
   }
-  return new Map(out.map(action => [action.sourceId, action]));
+  return new Map(out.map(action => [action.result.sourceId, action]));
 }
 
 // A snapshot source asserts every node complete at read time; the tests look
@@ -106,11 +106,11 @@ const amexAccount = {
   sourceId: 'FAPLAB0000000000000000000000000000000000002',
   name: 'Example Express',
 };
-const payAction = (sourceId, timestamp, fields) => ({
+// A payment is keyed by the transaction it made, which has Wallet's ID for it.
+const payAction = (timestamp, fields) => ({
   '@type': 'PayAction',
-  '@key': key,
+  '@key': ['@type', 'source', 'result.sourceId'],
   source: 'apple-wallet',
-  sourceId,
   timestamp: new Date(timestamp),
   agent: me,
   ...fields,
@@ -135,7 +135,7 @@ test('transactions become PayActions with their card, account, and merchant, new
   // account's posting is its negative. You and the account appear again by key.
   assert.deepEqual(
     byId.get('TXN-ISSUER'),
-    payAction('TXN-ISSUER', '2025-01-01T00:05:00.000Z', {
+    payAction('2025-01-01T00:05:00.000Z', {
       instrument: [
         {
           '@type': 'PaymentCard',
@@ -162,7 +162,7 @@ test('transactions become PayActions with their card, account, and merchant, new
   // the locality.
   assert.deepEqual(
     byId.get('TXN-TAP'),
-    payAction('TXN-TAP', '2025-01-01T00:03:20.000Z', {
+    payAction('2025-01-01T00:03:20.000Z', {
       instrument: [
         {
           '@type': 'PaymentCard',
@@ -186,7 +186,7 @@ test('transactions become PayActions with their card, account, and merchant, new
   // has no posting, since no account is known.
   assert.deepEqual(
     byId.get('TXN-BARE'),
-    payAction('TXN-BARE', '2025-01-01T00:01:40.000Z', {
+    payAction('2025-01-01T00:01:40.000Z', {
       result: transaction('TXN-BARE', { amount: money(1, null) }),
     })
   );

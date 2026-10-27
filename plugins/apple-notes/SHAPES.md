@@ -29,8 +29,8 @@ UpdateAction key(object.sourceId, timestamp) {
   agent?: Person key(sourceId) { sourceId, handle, sameAs[] }
 }
 // Every record also becomes:
-CreateAction key(sourceId) {
-  sourceId, timestamp
+CreateAction key(result.sourceId) {
+  timestamp
   agent: Person key(sourceId) {
     sourceId*, name?, handle?
     sameAs[]: Agent | Person key(handle) / key(sourceId) { handle?*, sourceId?*, name? }

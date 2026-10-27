@@ -58,7 +58,7 @@ chronicle extract youtube --type uploads
 ## Data Mapping
 
 - Liked video → `LikeAction` by the account owner (`@me`) on a `VideoObject` (title, description, duration, thumbnail, uploading channel as author)
-- Subscription → `FollowAction` on the channel as an `Agent`, keyed on the channel id so re-runs supersede
+- Subscription → `FollowAction` on the channel as an `Agent`, keyed by the channel it follows so re-runs supersede
 - Playlist → `Collection` (with `visibility` from the privacy status), created via a `CreateAction` at the playlist's real creation time; each video in it → `AddAction` keyed on the playlist item id with the `Collection` as `targetCollection`
 - Upload → `PublishAction` with the account owner as agent and the `VideoObject` as result
 - Channels are `Agent`s keyed on their YouTube channel id

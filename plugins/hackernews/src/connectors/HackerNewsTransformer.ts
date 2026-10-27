@@ -12,6 +12,8 @@ import { HackerNewsItem, HackerNewsUser } from '../utils/HackerNewsProxy.js';
 
 const SOURCE = 'hackernews';
 const KEY: ['@type', 'source', 'sourceId'] = ['@type', 'source', 'sourceId'];
+/** An action is keyed by the post or comment it made, which has the item's ID. */
+const MADE_KEY = ['@type', 'source', 'result.sourceId'];
 
 function itemUrl(id: number): string {
   return `https://news.ycombinator.com/item?id=${id}`;
@@ -52,12 +54,11 @@ export default class HackerNewsTransformer extends ChronicleTransformer {
   private buildPublish(item: HackerNewsItem): PublishAction {
     return {
       '@type': 'PublishAction',
-      '@key': KEY,
+      '@key': MADE_KEY,
       source: SOURCE,
-      sourceId: String(item.id),
       timestamp: time(item),
       ...(item.by && { agent: this.buildUser(item.by) }),
-      object: this.buildPost(item),
+      result: this.buildPost(item),
     };
   }
 
@@ -73,9 +74,8 @@ export default class HackerNewsTransformer extends ChronicleTransformer {
   ): RespondAction {
     return {
       '@type': 'RespondAction',
-      '@key': KEY,
+      '@key': MADE_KEY,
       source: SOURCE,
-      sourceId: String(item.id),
       timestamp: time(item),
       ...(item.by && { agent: this.buildUser(item.by) }),
       ...(parent && { object: this.buildItem(parent, root) }),

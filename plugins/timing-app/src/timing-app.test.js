@@ -53,6 +53,12 @@ const byId = (Model, id) => ({
   source: 'timing-app',
   sourceId: id,
 });
+// An action is keyed by the session it made, which has the action's ID.
+const madeBy = (Action, source = 'timing-app') => ({
+  '@type': Action,
+  '@key': ['@type', 'source', 'result.sourceId'],
+  source,
+});
 const me = { '@type': 'Agent', '@key': ['@type', 'source'], source: 'timing-app', sameAs: ['@me'] };
 const project = (id, name, parent) => ({
   ...byId('Project', id),
@@ -97,7 +103,7 @@ const file = (type, handle, name) => ({
   inRealm: realm,
 });
 const execute = (id, start, end, result, object, instrument = mac) => ({
-  ...byId('ExecuteAction', id),
+  ...madeBy('ExecuteAction'),
   startTime: iso(start),
   endTime: iso(end),
   agent: me,
@@ -107,10 +113,7 @@ const execute = (id, start, end, result, object, instrument = mac) => ({
   '@assertedAt': iso(start),
 });
 const call = (id, start, end, result) => ({
-  '@type': 'CallAction',
-  '@key': ['@type', 'source', 'sourceId'],
-  source: 'apple-call-history',
-  sourceId: id,
+  ...madeBy('CallAction', 'apple-call-history'),
   startTime: iso(start),
   endTime: iso(end),
   result: {
@@ -139,10 +142,10 @@ const contact = (id, name) => ({
 test('the default run merges app usage, time entries, and calls, newest first', async () => {
   const out = await actions(TimingDefaultExtractor, { all: true });
   assert.deepEqual(
-    out.map(a => a.sourceId),
+    out.map(a => a.result.sourceId),
     ['105', '104', '103', 'CALL-0003', '102', 'CALL-0002', '201', 'CALL-0001', '101']
   );
-  const get = id => out.find(a => a.sourceId === id);
+  const get = id => out.find(a => a.result.sourceId === id);
 
   // A terminal's working directory is where the session happened; the window
   // title names the session, and the project nests its ancestry.
@@ -218,7 +221,7 @@ test('the default run merges app usage, time entries, and calls, newest first', 
 
   // A time entry is an ExperienceAction whose result is a lean Session.
   assert.deepEqual(get('201'), {
-    ...byId('ExperienceAction', '201'),
+    ...madeBy('ExperienceAction'),
     startTime: iso(200),
     endTime: iso(3800),
     agent: me,
@@ -276,7 +279,7 @@ test('the default run merges app usage, time entries, and calls, newest first', 
 
   // --limit applies to the merged stream.
   assert.deepEqual(
-    (await actions(TimingDefaultExtractor, { all: true, limit: 2 })).map(a => a.sourceId),
+    (await actions(TimingDefaultExtractor, { all: true, limit: 2 })).map(a => a.result.sourceId),
     ['105', '104']
   );
 });
