@@ -259,7 +259,7 @@
   rdfs:range :Agent;
   skos:exactMatch schemaorg:recipient .
 :contains a owl:ObjectProperty;
-  rdfs:comment "A media file that is part of the entity, such as an attachment to a :Message, the photo in a :Post, or the images and videos in a carousel. Each one has its most specific type, such as :ImageObject. A file that holds the entity itself, rather than a part of it, is its :rendition.";
+  rdfs:comment "A media file that is part of the entity, such as an attachment to a :Message, the photo in a :Post, or the images and videos in a carousel. Each one has its most specific type, such as :ImageObject.";
   rdfs:domain :Entity;
   rdfs:range :MediaObject;
   skos:broadMatch schemaorg:hasPart .
