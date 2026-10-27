@@ -226,7 +226,7 @@
   skos:broadMatch schemaorg:MediaObject .
 :ImageObject a owl:Class;
   rdfs:subClassOf :MediaObject;
-  rdfs:comment "An image file, such as a photo's file, a screenshot, or an image attachment. The picture it holds, as a work, is a :StillImage.";
+  rdfs:comment "An image file, such as a photo's file, a screenshot, or an image attachment.";
   skos:broadMatch schemaorg:ImageObject .
 :AudioObject a owl:Class;
   rdfs:subClassOf :MediaObject;
@@ -234,7 +234,7 @@
   skos:broadMatch schemaorg:AudioObject .
 :VideoObject a owl:Class;
   rdfs:subClassOf :MediaObject;
-  rdfs:comment "A video file, such as a recorded clip or a video attachment. It can include sound. The video it holds, as a work, is a :MovingImage.";
+  rdfs:comment "A video file, such as a recorded clip or a video attachment. It can include sound.";
   skos:broadMatch schemaorg:VideoObject .
 :StillImage a owl:Class;
   rdfs:subClassOf :CreativeWork;
