@@ -1036,10 +1036,10 @@
   skos:closeMatch schemaorg:exifData .
 [] a sh:PropertyShape; sh:path :exifData; sh:targetSubjectsOf :exifData; sh:maxCount 1 .
 :depicts a owl:ObjectProperty;
-  rdfs:comment "A person who appears in the image or video.";
+  rdfs:comment "Something that appears in the image or video, such as a person, an animal, or a building.";
   rdfs:subPropertyOf :relation;
   rdfs:domain [ a owl:Class; owl:unionOf ( :ImageObject :VideoObject ) ];
-  rdfs:range :Person .
+  rdfs:range :Entity .
 :SoftwareSourceCode a owl:Class;
   rdfs:comment "Source code as a work, such as a snippet, a script, or a program's code.";
   rdfs:subClassOf :CreativeWork;

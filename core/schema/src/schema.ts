@@ -1350,7 +1350,7 @@ export const FollowActionSchema: z.ZodType<FollowAction> = z
 export interface ImageObject extends Omit<MediaObject, '@type'> {
   '@type': 'ImageObject';
   caption?: string;
-  depicts?: PersonAndChildren[];
+  depicts?: EntityAndChildren[];
   exifData?: { [key: string]: string | number };
   height?: number;
   width?: number;
@@ -1361,7 +1361,7 @@ export type ImageObjectAndChildren = ImageObject;
 const ImageObjectProperties = {
   ...MediaObjectProperties,
   caption: z.lazy(() => z.string()).optional(),
-  depicts: z.lazy(() => z.array(PersonAndChildrenSchema)).optional(),
+  depicts: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
   exifData: z.lazy(() => z.record(z.string(), z.union([z.string(), z.number()]))).optional(),
   height: z.lazy(() => z.number()).optional(),
   width: z.lazy(() => z.number()).optional(),
@@ -2585,7 +2585,7 @@ export const VenueSchema: z.ZodType<Venue> = z
 export interface VideoObject extends Omit<MediaObject, '@type'> {
   '@type': 'VideoObject';
   caption?: string;
-  depicts?: PersonAndChildren[];
+  depicts?: EntityAndChildren[];
   duration?: string;
   height?: number;
   transcript?: string;
@@ -2597,7 +2597,7 @@ export type VideoObjectAndChildren = VideoObject;
 const VideoObjectProperties = {
   ...MediaObjectProperties,
   caption: z.lazy(() => z.string()).optional(),
-  depicts: z.lazy(() => z.array(PersonAndChildrenSchema)).optional(),
+  depicts: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
   duration: z.lazy(() => z.string()).optional(),
   height: z.lazy(() => z.number()).optional(),
   transcript: z.lazy(() => z.string()).optional(),
