@@ -4341,7 +4341,8 @@ posting.
 example:podcast
   rdfs:label "Listening to a podcast episode";
   rdfs:comment """
-An episode belongs to a podcast through :series. The series carries its feed URL.
+An episode belongs to a podcast through :series. The series carries its feed
+URL. The episode's audio file is its :rendition, keyed by its URL.
 """;
   rdf:value [
     a :ListenAction;
@@ -4354,6 +4355,11 @@ An episode belongs to a podcast through :series. The series carries its feed URL
       :source "apple-podcasts";
       :sourceId "1000762841935";
       :name "The neighbourhood garden";
+      :rendition [
+        a :AudioObject;
+        doc:key ("url");
+        :url "https://example.org/podcast/the-neighbourhood-garden.mp3"
+      ];
       :series [
         a :PodcastSeries;
         doc:key ("@type" "source" "sourceId");
@@ -4373,22 +4379,23 @@ An episode belongs to a podcast through :series. The series carries its feed URL
 example:photo-taken
   rdfs:label "A photo taken";
   rdfs:comment """
-You took a photo with your phone. The :PhotographAction and its :result, the
-:ImageObject, are keyed by iCloud's ID for the photo. The :instrument is the
-kind of camera, a :ProductModel, since nothing says which phone it was. It
-has no ID, so it's keyed by its name: the make and model the photo's file
-gives.
+You took a photo with your phone. The :PhotographAction's :result is the
+photo as a work, a :StillImage, keyed by iCloud's ID for it, and the action is
+keyed through its :result. The :instrument is the kind of camera, a
+:ProductModel, since nothing says which phone it was. It has no ID, so it's
+keyed by its name: the make and model the photo's file gives.
 
 The photo :depicts the people you named in it, and its :caption is the one
 you wrote. It was taken in Portrait mode, its :sourceFormat, and it
-:isPartOf an album, a :Collection. Its :exifData is what its file records
-about the lens and the exposure.
+:isPartOf an album, a :Collection. Each file that holds it is a :rendition,
+keyed by iCloud's fingerprint of the file: the image, an :ImageObject with its
+size and the :exifData it records about the lens and the exposure, and the
+short :VideoObject captured with it.
 """;
   rdf:value [
     a :PhotographAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "result.sourceId");
     :source "apple-photos";
-    :sourceId "AeX3kQ9pL2mN7sT1vW4yZ8bC6dF0";
     :timestamp "2026-07-04T15:42:10.000Z"^^xsd:dateTime;
     :agent [
       a :Person;
@@ -4409,17 +4416,12 @@ about the lens and the exposure.
       :longitude -79.3871
     ];
     :result [
-      a :ImageObject;
+      a :StillImage;
       doc:key ("@type" "source" "sourceId");
       :source "apple-photos";
       :sourceId "AeX3kQ9pL2mN7sT1vW4yZ8bC6dF0";
-      :handle "IMG_4821.HEIC";
       :caption "Sam at the top";
       :sourceFormat "portrait";
-      :exifData """{"LensModel": "iPhone 14 Pro back triple camera 6.86mm f/1.78", "FocalLength": 6.86, "FocalLengthIn35mmFilm": 24, "FNumber": 1.78, "ExposureTime": 0.008, "PhotographicSensitivity": 64, "ExposureBiasValue": 0, "MeteringMode": 5, "WhiteBalance": 0, "Flash": 0}"""^^rdf:JSON;
-      :mimeType "image/heic";
-      :width 4032;
-      :height 3024;
       :depicts [
         a :Person;
         doc:key ("@type" "source" "sourceId");
@@ -4433,6 +4435,24 @@ about the lens and the exposure.
         :source "apple-photos";
         :sourceId "Ab7Cd9Ef1Gh3Ij5Kl7Mn9Op1Qr3";
         :name "Summer"
+      ];
+      :rendition [
+        a :ImageObject;
+        doc:key ("@type" "source" "sourceId");
+        :source "apple-photos";
+        :sourceId "AQ3vK8mT2xP9cL5nR7wB4yD6fH1j";
+        :handle "IMG_4821.HEIC";
+        :mimeType "image/heic";
+        :width 4032;
+        :height 3024;
+        :exifData """{"LensModel": "iPhone 14 Pro back triple camera 6.86mm f/1.78", "FocalLength": 6.86, "FocalLengthIn35mmFilm": 24, "FNumber": 1.78, "ExposureTime": 0.008, "PhotographicSensitivity": 64, "ExposureBiasValue": 0, "MeteringMode": 5, "WhiteBalance": 0, "Flash": 0}"""^^rdf:JSON
+      ], [
+        a :VideoObject;
+        doc:key ("@type" "source" "sourceId");
+        :source "apple-photos";
+        :sourceId "AT6pW1qZ8rN3kV5xM9bC2gF4hJ7d";
+        :mimeType "video/quicktime";
+        :duration "PT2.5S"
       ]
     ]
   ] .
@@ -4440,14 +4460,13 @@ about the lens and the exposure.
 example:screenshot
   rdfs:label "A screenshot";
   rdfs:comment """
-You took a screenshot. The :ScreenshotAction's :result is the :ImageObject of
-what the screen showed.
+You took a screenshot. The :ScreenshotAction's :result is what the screen
+showed, a :StillImage, and its file, a PNG, is its :rendition.
 """;
   rdf:value [
     a :ScreenshotAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "result.sourceId");
     :source "apple-photos";
-    :sourceId "Bf4Gh6Jk8Lm0Np2Qr4St6Uv8Wx0";
     :timestamp "2026-07-05T09:12:44.000Z"^^xsd:dateTime;
     :agent [
       a :Person;
@@ -4457,30 +4476,38 @@ what the screen showed.
       :sameAs "@me"
     ];
     :result [
-      a :ImageObject;
+      a :StillImage;
       doc:key ("@type" "source" "sourceId");
       :source "apple-photos";
       :sourceId "Bf4Gh6Jk8Lm0Np2Qr4St6Uv8Wx0";
-      :mimeType "image/png"
+      :rendition [
+        a :ImageObject;
+        doc:key ("@type" "source" "sourceId");
+        :source "apple-photos";
+        :sourceId "AZ2kD7nQ4vB9xT1mH6cP3wL8fR5s";
+        :mimeType "image/png";
+        :width 1179;
+        :height 2556
+      ]
     ]
   ] .
 
 example:photo-shared-in-messages
   rdfs:label "A photo shared in Messages";
   rdfs:comment """
-Sam sent you a photo in Messages. The :ShareAction is keyed by Messages' ID
-for the attachment. Sam is known by the handle Messages has for them, the same
-as Messages' participant through :sameAs.
+Sam sent you a photo in Messages. Sam is known by the handle Messages has for
+them, the same as Messages' participant through :sameAs.
 
-The photo is keyed by the same ID, and is :sameAs the attachment as Messages
-keys it, so what's known about the photo lands on the message's attachment.
+The photo is a :StillImage keyed by Messages' ID for the attachment, which is
+how Photos knows it, and the :ShareAction is keyed through it. Its :rendition
+is the attachment itself, keyed as Messages keys it, so what Photos knows
+about the photo and what Messages knows about the attachment meet on one file.
 Who it was sent to is the message's :recipient, as Messages has it.
 """;
   rdf:value [
     a :ShareAction;
-    doc:key ("@type" "source" "sourceId");
+    doc:key ("@type" "source" "object.sourceId");
     :source "apple-photos";
-    :sourceId "at_0_5E8A1C2B-3D4F-4A6B-9C8D-7E6F5A4B3C2D";
     :timestamp "2026-08-12T19:03:51.000Z"^^xsd:dateTime;
     :agent [
       a :Person;
@@ -4495,16 +4522,16 @@ Who it was sent to is the message's :recipient, as Messages has it.
       ]
     ];
     :object [
-      a :ImageObject;
+      a :StillImage;
       doc:key ("@type" "source" "sourceId");
       :source "apple-photos";
       :sourceId "at_0_5E8A1C2B-3D4F-4A6B-9C8D-7E6F5A4B3C2D";
-      :handle "IMG_0193.JPG";
-      :sameAs [
+      :rendition [
         a :ImageObject;
         doc:key ("source" "sourceId");
         :source "imessage";
-        :sourceId "at_0_5E8A1C2B-3D4F-4A6B-9C8D-7E6F5A4B3C2D"
+        :sourceId "at_0_5E8A1C2B-3D4F-4A6B-9C8D-7E6F5A4B3C2D";
+        :handle "IMG_0193.JPG"
       ]
     ]
   ] .
@@ -4528,7 +4555,7 @@ photo and when it happened. The photo is no longer one of your :likes.
       :sameAs "@me"
     ];
     :object [
-      a :ImageObject;
+      a :StillImage;
       doc:key ("@type" "source" "sourceId");
       :source "apple-photos";
       :sourceId "AeX3kQ9pL2mN7sT1vW4yZ8bC6dF0"
@@ -4554,7 +4581,7 @@ You made a photo a favorite, but nothing records when. The :LikeAction has no
       :sameAs "@me"
     ];
     :object [
-      a :ImageObject;
+      a :StillImage;
       doc:key ("@type" "source" "sourceId");
       :source "apple-photos";
       :sourceId "Cg5Hi7Jk9Lm1No3Pq5Rs7Tu9Vw1"
@@ -4568,6 +4595,8 @@ You made a photo a favorite, but nothing records when. The :LikeAction has no
 :sourceFormat skos:example example:photo-taken .
 :exifData skos:example example:photo-taken .
 :ScreenshotAction skos:example example:screenshot .
+:StillImage skos:example example:photo-taken, example:screenshot .
+:rendition skos:example example:photo-taken, example:podcast .
 :ShareAction skos:example example:photo-shared-in-messages .
 :UnlikeAction skos:example example:favorite-removed .
 :likes skos:example example:favorite-undated .

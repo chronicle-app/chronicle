@@ -20,6 +20,7 @@ const DateTimeSchema = z.union([
 export const INVERSE_PROPERTIES: Record<string, string> = {
   hasPart: 'isPartOf',
   hasStage: 'isStageOf',
+  renditionOf: 'rendition',
   resultOf: 'result',
 };
 
@@ -172,6 +173,7 @@ export interface CreativeWork extends Omit<Entity, '@type'> {
   isBasedOn?: CreativeWorkAndChildren[];
   publisher?: OrganizationAndChildren[];
   references?: EntityAndChildren[];
+  rendition?: MediaObjectAndChildren[];
   series?: CreativeWorkAndChildren[];
   sourceFormat?: string;
   visibility?: string;
@@ -187,6 +189,7 @@ export type CreativeWorkAndChildren =
   | CollectionAndChildren
   | MediaObjectAndChildren
   | MessageAndChildren
+  | MovingImageAndChildren
   | MusicAlbumAndChildren
   | MusicRecordingAndChildren
   | NoteAndChildren
@@ -199,7 +202,8 @@ export type CreativeWorkAndChildren =
   | ResponseAndChildren
   | RevisionAndChildren
   | SoftwareAndChildren
-  | SoftwareSourceCodeAndChildren;
+  | SoftwareSourceCodeAndChildren
+  | StillImageAndChildren;
 
 const CreativeWorkProperties = {
   ...EntityProperties,
@@ -210,6 +214,7 @@ const CreativeWorkProperties = {
   isBasedOn: z.lazy(() => z.array(CreativeWorkAndChildrenSchema)).optional(),
   publisher: z.lazy(() => z.array(OrganizationAndChildrenSchema)).optional(),
   references: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
+  rendition: z.lazy(() => z.array(MediaObjectAndChildrenSchema)).optional(),
   series: z.lazy(() => z.array(CreativeWorkAndChildrenSchema)).optional(),
   sourceFormat: z.lazy(() => z.string()).optional(),
   visibility: z.lazy(() => z.string()).optional(),
@@ -481,6 +486,7 @@ export interface MediaObject extends Omit<CreativeWork, '@type'> {
   contentPath?: string;
   mimeType?: string;
   snapshotOf?: EntityAndChildren[];
+  renditionOf?: CreativeWorkAndChildren[];
 }
 
 export type MediaObjectAndChildren =
@@ -495,6 +501,7 @@ const MediaObjectProperties = {
   contentPath: z.lazy(() => z.string()).optional(),
   mimeType: z.lazy(() => z.string()).optional(),
   snapshotOf: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
+  renditionOf: z.lazy(() => z.array(CreativeWorkAndChildrenSchema)).optional(),
 };
 
 export const MediaObjectSchema: z.ZodType<MediaObject> = z
@@ -1661,6 +1668,28 @@ export const MoveActionSchema: z.ZodType<MoveAction> = z
   })
   .superRefine(requireNodeIdentity);
 
+// MovingImage, child of https://schema.chronicle.app/CreativeWork
+export interface MovingImage extends Omit<CreativeWork, '@type'> {
+  '@type': 'MovingImage';
+  caption?: string;
+  depicts?: EntityAndChildren[];
+}
+
+export type MovingImageAndChildren = MovingImage;
+
+const MovingImageProperties = {
+  ...CreativeWorkProperties,
+  caption: z.lazy(() => z.string()).optional(),
+  depicts: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
+};
+
+export const MovingImageSchema: z.ZodType<MovingImage> = z
+  .object({
+    '@type': z.literal('MovingImage'),
+    ...MovingImageProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // MusicAlbum, child of https://schema.chronicle.app/CreativeWork
 export interface MusicAlbum extends Omit<CreativeWork, '@type'> {
   '@type': 'MusicAlbum';
@@ -2451,6 +2480,28 @@ export const SoftwareSourceCodeSchema: z.ZodType<SoftwareSourceCode> = z
   })
   .superRefine(requireNodeIdentity);
 
+// StillImage, child of https://schema.chronicle.app/CreativeWork
+export interface StillImage extends Omit<CreativeWork, '@type'> {
+  '@type': 'StillImage';
+  caption?: string;
+  depicts?: EntityAndChildren[];
+}
+
+export type StillImageAndChildren = StillImage;
+
+const StillImageProperties = {
+  ...CreativeWorkProperties,
+  caption: z.lazy(() => z.string()).optional(),
+  depicts: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
+};
+
+export const StillImageSchema: z.ZodType<StillImage> = z
+  .object({
+    '@type': z.literal('StillImage'),
+    ...StillImageProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // Tag, child of https://schema.chronicle.app/Entity
 export interface Tag extends Omit<Entity, '@type'> {
   '@type': 'Tag';
@@ -2687,6 +2738,8 @@ export const TaskAndChildrenSchema = TaskSchema;
 
 export const TagAndChildrenSchema = TagSchema;
 
+export const StillImageAndChildrenSchema = StillImageSchema;
+
 export const SoftwareSourceCodeAndChildrenSchema = SoftwareSourceCodeSchema;
 
 export const SoftwareApplicationAndChildrenSchema = SoftwareApplicationSchema;
@@ -2817,6 +2870,8 @@ export const OrganizationAndChildrenSchema: z.ZodType<OrganizationAndChildren> =
   ])
   .superRefine(requireNodeIdentity);
 export const MusicAlbumAndChildrenSchema = MusicAlbumSchema;
+
+export const MovingImageAndChildrenSchema = MovingImageSchema;
 
 export const MoveActionAndChildrenSchema: z.ZodType<MoveActionAndChildren> = z
   .discriminatedUnion('@type', [
@@ -3707,6 +3762,11 @@ export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> =
     }),
 
     z.object({
+      '@type': z.literal('StillImage'),
+      ...StillImageProperties,
+    }),
+
+    z.object({
       '@type': z.literal('SoftwareSourceCode'),
       ...SoftwareSourceCodeProperties,
     }),
@@ -3759,6 +3819,11 @@ export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> =
     z.object({
       '@type': z.literal('MusicAlbum'),
       ...MusicAlbumProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('MovingImage'),
+      ...MovingImageProperties,
     }),
 
     z.object({
@@ -4065,6 +4130,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('StillImage'),
+      ...StillImageProperties,
+    }),
+
+    z.object({
       '@type': z.literal('SoftwareSourceCode'),
       ...SoftwareSourceCodeProperties,
     }),
@@ -4117,6 +4187,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     z.object({
       '@type': z.literal('MusicAlbum'),
       ...MusicAlbumProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('MovingImage'),
+      ...MovingImageProperties,
     }),
 
     z.object({
@@ -4678,6 +4753,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('StillImage'),
+      ...StillImageProperties,
+    }),
+
+    z.object({
       '@type': z.literal('SoftwareSourceCode'),
       ...SoftwareSourceCodeProperties,
     }),
@@ -4730,6 +4810,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('MusicAlbum'),
       ...MusicAlbumProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('MovingImage'),
+      ...MovingImageProperties,
     }),
 
     z.object({
