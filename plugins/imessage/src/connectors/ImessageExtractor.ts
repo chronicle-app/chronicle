@@ -7,7 +7,7 @@ import {
   timeRangeConditions,
   APPLE_EPOCH_OFFSET_SECONDS,
 } from '@chronicle.app/etl-sqlite';
-import { getICloudAccount } from '@chronicle.app/apple';
+import { GROUP_CHAT_STYLE, getICloudAccount, type GroupChatIds } from '@chronicle.app/apple';
 import ImessageTransformer from './ImessageTransformer.js';
 import { z } from 'zod';
 
@@ -31,9 +31,10 @@ export class ImessageExtractor extends SqliteExtractor<typeof ImessageExtractor>
           'is_from_me',
           'handle_id',
           'attributedBody',
+          'item_type?',
         ],
         handle: ['ROWID', 'id', 'service'],
-        chat: ['ROWID'],
+        chat: ['ROWID', 'style', 'display_name?', 'group_id?', 'original_group_id?'],
         chat_message_join: ['chat_id', 'message_id'],
         chat_handle_join: ['chat_id', 'handle_id'],
         message_attachment_join: ['message_id', 'attachment_id'],
@@ -46,6 +47,7 @@ export class ImessageExtractor extends SqliteExtractor<typeof ImessageExtractor>
           'total_bytes',
           'transfer_name',
           'is_outgoing',
+          'hide_attachment?',
         ],
       },
     },
@@ -76,6 +78,7 @@ export class ImessageExtractor extends SqliteExtractor<typeof ImessageExtractor>
 
   override async *extract(): AsyncGenerator<Record> {
     const chats = this.loadChats();
+    const groups = this.loadGroups();
     const rows = this.queryMessages();
     const attachments = this.loadAttachments();
 
@@ -83,7 +86,15 @@ export class ImessageExtractor extends SqliteExtractor<typeof ImessageExtractor>
     const realIcloudAccount =
       this.config.account === undefined ? await getICloudAccount() : this.config.account;
 
+    // The group chats whose roster a message has carried, so each goes on its
+    // Channel once, on the first message seen in it, not on every message.
+    const rostered = new Set<number>();
+
     for (const row of rows) {
+      const chatId = (row as any).chat_id;
+      const group = groups[chatId];
+      const groupRoster = group !== undefined && !rostered.has(chatId);
+      if (groupRoster) rostered.add(chatId);
       const attributedBody = this.processAttributedBody((row as any).attributedBody);
       const timestamp = iosToUnixTimestamp(Number.parseInt((row as any).date, 10));
       const participants = chats[(row as any).chat_id] || [];
@@ -100,6 +111,8 @@ export class ImessageExtractor extends SqliteExtractor<typeof ImessageExtractor>
         handleIdText: (row as any).handle_id_text,
         participants,
         attachments: messageAttachments,
+        group,
+        groupRoster,
         myIcloudAccount: realIcloudAccount,
         includeContactNames: this.config.includeContactNames,
       });
@@ -125,7 +138,7 @@ export class ImessageExtractor extends SqliteExtractor<typeof ImessageExtractor>
     const { bytes } = this.db!.prepare(
       `SELECT COALESCE(SUM(a.total_bytes), 0) AS bytes
       FROM message_attachment_join AS maj INNER JOIN attachment AS a ON maj.attachment_id = a.ROWID
-      WHERE a.filename IS NOT NULL AND EXISTS (${read} WHERE m.ROWID = maj.message_id${inRange})`
+      WHERE ${this.attachmentFilter()} AND EXISTS (${read} WHERE m.ROWID = maj.message_id${inRange})`
     ).get(...values) as { bytes: number };
     const at = (date: bigint | null) =>
       date === null ? undefined : new Date(iosToUnixTimestamp(Number(date)));
@@ -153,15 +166,22 @@ export class ImessageExtractor extends SqliteExtractor<typeof ImessageExtractor>
     };
   }
 
-  /** Messages within since and until. chat.db stores message.date as nanoseconds since the Apple epoch. */
+  /**
+   * Messages within since and until. chat.db stores message.date as nanoseconds
+   * since the Apple epoch. A system event, such as a group being renamed or
+   * someone joining it, is a row too, with no text and often no sender, so
+   * only rows that are messages (`item_type` 0) are read.
+   */
   private messageFilter(): { conditions: string[]; values: Array<number | string> } {
-    return timeRangeConditions('m.date', this.config, {
+    const filter = timeRangeConditions('m.date', this.config, {
       convert: date =>
         (
           BigInt(date.getTime()) * 1_000_000n -
           BigInt(APPLE_EPOCH_OFFSET_SECONDS) * 1_000_000_000n
         ).toString(),
     });
+    if (this.has('message.item_type')) filter.conditions.push('m.item_type = 0');
+    return filter;
   }
 
   private queryMessages() {
@@ -234,6 +254,45 @@ export class ImessageExtractor extends SqliteExtractor<typeof ImessageExtractor>
     return chats;
   }
 
+  /**
+   * The group chats, by chat, with their names and Apple's IDs for them. An
+   * older Messages without a column has none of what it holds.
+   */
+  private loadGroups(): { [key: string]: GroupChatIds & { name: string | null } } {
+    const rows = this.db!.prepare(
+      `SELECT ROWID AS chat_id, ${this.chatColumn('display_name')} AS name,
+        ${this.chatColumn('group_id')} AS group_id,
+        ${this.chatColumn('original_group_id')} AS original_group_id
+      FROM chat WHERE style = ?`
+    ).all(GROUP_CHAT_STYLE) as any[];
+
+    const groups: { [key: string]: GroupChatIds & { name: string | null } } = {};
+    for (const row of rows) {
+      groups[row.chat_id] = {
+        name: row.name?.trim() || null,
+        groupId: row.group_id,
+        originalGroupId: row.original_group_id,
+      };
+    }
+    return groups;
+  }
+
+  /** A column of `chat` the schema marks optional, or NULL when this Messages has none. */
+  private chatColumn(name: string): string {
+    return this.has(`chat.${name}`) ? name : 'NULL';
+  }
+
+  /**
+   * The attachments a run reads: files Messages shows. It keeps others hidden,
+   * such as the images and icon of a link preview, which no one sent.
+   */
+  private attachmentFilter(): string {
+    const shown = this.has('attachment.hide_attachment')
+      ? ' AND COALESCE(a.hide_attachment, 0) = 0'
+      : '';
+    return `a.filename IS NOT NULL${shown}`;
+  }
+
   private loadAttachments(): { [key: string]: any[] } {
     const sql = `
       SELECT 
@@ -248,7 +307,7 @@ export class ImessageExtractor extends SqliteExtractor<typeof ImessageExtractor>
         a.is_outgoing
       FROM message_attachment_join AS maj
       INNER JOIN attachment AS a ON maj.attachment_id = a.ROWID
-      WHERE a.filename IS NOT NULL
+      WHERE ${this.attachmentFilter()}
     `;
 
     const stmt = this.db!.prepare(sql);

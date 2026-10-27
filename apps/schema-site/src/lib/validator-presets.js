@@ -17,7 +17,7 @@ export const FAILING_PRESETS = [
       source: 'imessage',
       sourceId: 'msg-2041',
       timestamp: '2026-05-04T18:12:00Z',
-      object: { '@type': 'Message', body: 'On my way' },
+      result: { '@type': 'Message', body: 'On my way' },
     },
   },
   {

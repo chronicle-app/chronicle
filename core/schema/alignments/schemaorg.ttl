@@ -52,8 +52,10 @@ schemaorg: rdfs:label "schema.org";
   doc:note "schemaorg:artist is the primary artist of a comic or a visual artwork. The artist of a recording or an album is its schemaorg:byArtist." .
 :attendee doc:note "Includes agents who declined or did not reply. A schemaorg:attendee is someone attending the event." .
 :contentPath doc:note "A filesystem path. schemaorg:contentUrl is a URL." .
+:contentSize doc:note "A number of bytes. schemaorg:contentSize is text with a unit, such as `2.8 MB`." .
 :currency doc:note "An ISO 4217 code. schemaorg:currency also takes a cryptocurrency ticker, and the currency of a schemaorg:PayAction is its schemaorg:priceCurrency." .
 :distance doc:note "A number of meters, on the :Journey. schemaorg:distance is on the schemaorg:TravelAction and includes a unit, such as `5 km`." .
+:exifData doc:note "An object of EXIF tag names and values. schemaorg:exifData is a list of schemaorg:PropertyValue name and value pairs, or text." .
 :height doc:note "A number of pixels. schemaorg:height can also be a distance with a unit, such as `5 cm`." .
 :isPartOf doc:note "A record can also give the parts of a whole under the inverse name `hasPart`, which schema.org has as schemaorg:hasPart." .
 :mimeType doc:note "A MIME type. schemaorg:encodingFormat can also be the URL of a page that defines the format." .

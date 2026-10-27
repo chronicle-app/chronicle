@@ -7,12 +7,18 @@ import {
 import {
   ActionAndChildren,
   Agent,
+  Channel,
   Message,
   MessageAction,
   AgentAndChildren,
   Person,
 } from '@chronicle.app/schema';
-import { lookupContact, buildICloudPersonSchema, type Contact } from '@chronicle.app/apple';
+import {
+  lookupContact,
+  buildICloudPersonSchema,
+  groupChatChannel,
+  type Contact,
+} from '@chronicle.app/apple';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -45,14 +51,23 @@ export default class ImessageTransformer extends ChronicleTransformer {
       source: service,
       sourceId: record.context.guid, // Use GUID instead of ROWID
       '@key': ['source', 'sourceId', '@type'],
-      object: this.buildMessage(record, recipients),
+      // Sending brings the message into being, so it's the action's result.
+      result: this.buildMessage(
+        record,
+        recipients,
+        this.buildChannel(record, participants, myIdentity)
+      ),
       ...(agent && { agent }),
     };
 
     return [obj];
   }
 
-  private buildMessage(record: Record, recipients: AgentAndChildren[]): Message {
+  private buildMessage(
+    record: Record,
+    recipients: AgentAndChildren[],
+    channel: Channel | null
+  ): Message {
     const messageSource = this.getServiceSource(record.context.service);
     const message: Message = {
       '@type': 'Message',
@@ -67,6 +82,11 @@ export default class ImessageTransformer extends ChronicleTransformer {
       message.recipient = recipients;
     }
 
+    // A group chat's message is part of its Channel. A one-to-one chat has none.
+    if (channel) {
+      message.isPartOf = [channel];
+    }
+
     // Add attachments using contains property (following Bluesky pattern)
     const attachments = record.context.attachments || [];
     if (attachments.length > 0) {
@@ -74,6 +94,27 @@ export default class ImessageTransformer extends ChronicleTransformer {
     }
 
     return message;
+  }
+
+  /**
+   * The group chat a message is in, keyed by Apple's ID for the group, as
+   * `groupChatChannel` keys it for every plugin. Its members are the chat's
+   * roster and you: chat.db's roster lists only the others, but every group
+   * chat in it is one you're in. They go on it from the first message the
+   * extractor saw in the chat, as WhatsApp does, rather than from every message.
+   */
+  private buildChannel(
+    record: Record,
+    participants: AgentAndChildren[],
+    myIdentity: Person | null
+  ): Channel | null {
+    const { group, groupRoster } = record.context;
+    const channel = group ? groupChatChannel(group) : null;
+    if (!channel) return null;
+    if (group.name) channel.name = group.name;
+    const members = [...participants, ...(myIdentity ? [myIdentity] : [])];
+    if (groupRoster && members.length > 0) channel.member = members;
+    return channel;
   }
 
   private buildParticipants(record: Record): AgentAndChildren[] {
@@ -210,6 +251,8 @@ export default class ImessageTransformer extends ChronicleTransformer {
     const agent = participants.find(p => p.handle === handleIdText);
 
     if (!agent) {
+      // A sender whose handle is gone from chat.db is unknown.
+      if (!handleIdText) return { agent: undefined, recipients: myIdentity ? [myIdentity] : [] };
       // The sender is not among the chat's participants: build them from the
       // message's own handle, the same way as any other participant.
       const agentSource = this.getAgentSource(record.context.service);

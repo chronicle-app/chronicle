@@ -18,7 +18,7 @@ ListenAction | BookmarkAction key(sourceId) {
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
   object: PodcastEpisode key(sourceId) {
     sourceId, name?, url, duration*, datePublished, description?*, transcript?
-    contains[]: AudioObject key(url, any source) { url }
+    rendition[]: AudioObject key(url, any source) { url }
     series[]: PodcastSeries key(sourceId) {
       sourceId, url, name?, description?, webFeed[], genre[]?
       references[]?: Entity key(url, any source) { url }
@@ -37,7 +37,7 @@ CompleteAction key(sourceId) {
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
   object: PodcastEpisode key(sourceId) {
     sourceId, name?, url, duration*, datePublished, description?*, transcript?
-    contains[]: AudioObject key(url, any source) { url }
+    rendition[]: AudioObject key(url, any source) { url }
     series[]: PodcastSeries key(sourceId) {
       sourceId, url, webFeed[], name?, description?, genre[]?
       references[]?: Entity key(url, any source) { url }
@@ -58,7 +58,7 @@ BookmarkAction key(sourceId) {
     sourceId, name, description*, url, duration, datePublished, transcript
     references[]: Entity key(url, any source) { url }
     emblem: ImageObject key(url, any source) { url* }
-    contains[]: AudioObject key(url, any source) { url }
+    rendition[]: AudioObject key(url, any source) { url }
     series[]: PodcastSeries key(sourceId) {
       sourceId, url, name, description, webFeed[], genre[]
       references[]: Entity key(url, any source) { url }

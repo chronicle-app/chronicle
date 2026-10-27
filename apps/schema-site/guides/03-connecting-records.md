@@ -12,7 +12,7 @@ An action can have several instruments, each saying as much as its source knows.
 
 ## Messages and attachments
 
-A :MessageAction records a message being sent. Its :object is the :Message, which has:
+A :MessageAction records a message being sent. Its :result is the :Message, which has:
 
 - :body, the text
 - :recipient, each agent it was sent to

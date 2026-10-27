@@ -80,7 +80,8 @@
                     "date",
                     "is_from_me",
                     "handle_id",
-                    "attributedBody"
+                    "attributedBody",
+                    "item_type?"
                   ],
                   "handle": [
                     "ROWID",
@@ -88,7 +89,11 @@
                     "service"
                   ],
                   "chat": [
-                    "ROWID"
+                    "ROWID",
+                    "style",
+                    "display_name?",
+                    "group_id?",
+                    "original_group_id?"
                   ],
                   "chat_message_join": [
                     "chat_id",
@@ -110,7 +115,8 @@
                     "uti",
                     "total_bytes",
                     "transfer_name",
-                    "is_outgoing"
+                    "is_outgoing",
+                    "hide_attachment?"
                   ]
                 }
               }

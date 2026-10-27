@@ -87,7 +87,7 @@ Entities:
 - `PodcastEpisode` — keyed by its catalog ID; title, description, `url` (its
   page on Apple Podcasts), `duration` (ISO 8601), when it was released as its `datePublished`
   (`ZPUBDATE`), episode artwork as its `emblem`, and the audio
-  file in `contains` (`AudioObject`). Its `transcript` is the text of the
+  file as its `rendition` (`AudioObject`). Its `transcript` is the text of the
   downloaded TTML, a paragraph for each speaker's turn, without timings. Each
   paragraph starts with Apple's label for its speaker, such as `SPEAKER_1: `.
   The labels aren't names, and they're numbered within each episode. The app keeps only some transcripts, mostly for episodes it

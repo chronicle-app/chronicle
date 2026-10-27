@@ -1,0 +1,720 @@
+import { basename, dirname, join, resolve } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
+import { assertReadable, type DatabaseColumns, type DatabaseSchema } from '@chronicle.app/etl';
+import { allRows, assertDatabaseSchema } from '@chronicle.app/etl-sqlite';
+import { CoreDataStore, appleDate, lastChanged } from './coredata.js';
+
+/** The library Photos opens by default. */
+export const SYSTEM_LIBRARY = `${process.env.HOME}/Pictures/Photos Library.photoslibrary`;
+/** The library Photos keeps of what was shared with you in Messages. */
+export const SHARED_WITH_YOU_LIBRARY = `${process.env.HOME}/Library/Photos/Libraries/Syndication.photoslibrary`;
+
+/**
+ * What a library's `Photos.sqlite` must have for a run and a survey to read
+ * it. A column ending in `?` is one a query reads only when it's there. The
+ * change log's tables, the model cache, the join tables and a Shared
+ * Library's contributors, whose columns Core Data names by entity number,
+ * the keywords, read through one of them, and the files of each asset
+ * (`ZINTERNALRESOURCE`) are read only when they're there, so they aren't
+ * declared.
+ */
+export const DATABASES: DatabaseSchema[] = [
+  {
+    tables: {
+      Z_PRIMARYKEY: ['Z_NAME', 'Z_ENT'],
+      ZASSET: [
+        'Z_PK',
+        'ZUUID',
+        'ZKIND',
+        'ZDATECREATED',
+        'ZWIDTH',
+        'ZHEIGHT',
+        'ZDURATION',
+        'ZLATITUDE',
+        'ZLONGITUDE',
+        'ZFAVORITE',
+        'ZCLOUDASSETGUID?',
+        'ZKINDSUBTYPE?',
+        'ZDEPTHTYPE?',
+        'ZAVALANCHEUUID?',
+        'ZADDEDDATE?',
+        'ZUNIFORMTYPEIDENTIFIER?',
+        'ZVIDEOCPDURATIONVALUE?',
+        'ZLASTSHAREDDATE?',
+        'ZADJUSTMENTTIMESTAMP?',
+        'ZADJUSTMENTSSTATE?',
+        'ZBUNDLESCOPE?',
+        'ZTRASHEDSTATE?',
+        'ZVISIBILITYSTATE?',
+        'ZHIDDEN?',
+        'ZACTIVELIBRARYSCOPEPARTICIPATIONSTATE?',
+      ],
+      ZADDITIONALASSETATTRIBUTES: [
+        'Z_PK',
+        'ZASSET',
+        'ZVIDEOCPDURATIONTIMESCALE?',
+        'ZTITLE?',
+        'ZORIGINALFILENAME?',
+        'ZIMPORTEDBYBUNDLEIDENTIFIER?',
+        'ZIMPORTEDBYDISPLAYNAME?',
+        'ZLASTVIEWEDDATE?',
+        'ZSYNDICATIONIDENTIFIER?',
+      ],
+      ZASSETDESCRIPTION: ['Z_PK', 'ZASSETATTRIBUTES', 'ZLONGDESCRIPTION?'],
+      ZEXTENDEDATTRIBUTES: [
+        'ZASSET',
+        'ZCAMERAMAKE?',
+        'ZCAMERAMODEL?',
+        'ZLENSMODEL?',
+        'ZFOCALLENGTH?',
+        'ZFOCALLENGTHIN35MM?',
+        'ZAPERTURE?',
+        'ZSHUTTERSPEED?',
+        'ZISO?',
+        'ZEXPOSUREBIAS?',
+        'ZMETERINGMODE?',
+        'ZWHITEBALANCE?',
+        'ZFLASHFIRED?',
+        'ZDIGITALZOOMRATIO?',
+        'ZORIENTATION?',
+      ],
+      ZGENERICALBUM: [
+        'Z_PK',
+        'ZKIND',
+        'ZTITLE',
+        'ZUUID',
+        'ZPARENTFOLDER',
+        'ZTRASHEDSTATE',
+        'ZCLOUDGUID?',
+      ],
+      ZPERSON: ['Z_PK', 'ZPERSONUUID', 'ZFULLNAME', 'ZDETECTIONTYPE', 'ZMERGETARGETPERSON'],
+      ZDETECTEDFACE: ['ZASSETFORFACE', 'ZPERSONFORFACE', 'ZNAMESOURCE?', 'ZMANUAL?'],
+    },
+  },
+];
+
+/** Which part of a library an asset is in (`ZBUNDLESCOPE`). */
+export const Scope = {
+  /** Your own library. */
+  own: 0,
+  /** Shared with You, in its own library. */
+  sharedWithYou: 3,
+} as const;
+
+/** One person you said is in a photo, by the name you gave them. */
+export interface PhotoPerson {
+  /** Photos' ID for the person (`ZPERSONUUID`), the same on every Mac on the iCloud library. */
+  id: string;
+  name: string;
+}
+
+/** An album, with the folders it's in, innermost first. */
+export interface PhotoAlbum {
+  /** iCloud's ID for the album, or the library's own when it isn't in iCloud. */
+  id: string;
+  title: string | null;
+  folders: Array<{ id: string; title: string | null }>;
+}
+
+/**
+ * The camera's mode a photo or video was taken in, as Photos' Media Types
+ * name them: a Live Photo, a Portrait, a panorama, a burst, a slo-mo video,
+ * a time-lapse, or a Cinematic video.
+ */
+export type Format =
+  'livePhoto' | 'portrait' | 'panorama' | 'burst' | 'sloMo' | 'timeLapse' | 'cinematic';
+
+/**
+ * What a photo's file records about how it was taken, by EXIF 3.0's tag names,
+ * such as `{ FNumber: 1.78, ExposureTime: 0.008 }`.
+ */
+export type Exif = { [tag: string]: string | number };
+
+/**
+ * One of an asset's original files: the still, a video's file, or a Live
+ * Photo's clip, by iCloud's fingerprint of it, which is the same for every
+ * copy of the file.
+ */
+export interface AssetFile {
+  role: 'still' | 'video' | 'clip';
+  fingerprint: string;
+  /** Its size in bytes (`ZDATALENGTH`). */
+  bytes: number | null;
+}
+
+/** A photo or video, with what its file and you recorded about it. */
+export interface Asset {
+  /** iCloud's ID for it (`ZCLOUDASSETGUID`), or the library's own (`ZUUID`) when it isn't in iCloud. */
+  id: string;
+  /** The library's own ID, which other databases in the library join on. */
+  uuid: string;
+  kind: 'photo' | 'video';
+  /** Photos' kind of photo or video (`ZKINDSUBTYPE`): 2 is a Live Photo, 10 a screenshot, 103 a screen recording. */
+  subtype: number;
+  /** The camera's mode it was taken in, when it was one. */
+  format: Format | null;
+  /** When it was taken, as Photos has it, in UTC. */
+  created: string | null;
+  /** When it was added to the library. */
+  added: string | null;
+  /** The app that added it, by its bundle identifier. */
+  importer: string | null;
+  importerName: string | null;
+  /** The camera's make and model, from the file. */
+  camera: { make: string | null; model: string | null } | null;
+  /** The lens and the exposure, from a photo's file. */
+  exif: Exif | null;
+  width: number | null;
+  height: number | null;
+  /** How long a video lasts, in seconds. */
+  duration: number | null;
+  /** Its file type, as a uniform type identifier. */
+  uti: string | null;
+  /** The title you gave it. */
+  title: string | null;
+  /** The name of the file it was added from. */
+  filename: string | null;
+  /** The caption you wrote. */
+  caption: string | null;
+  keywords: string[];
+  location: { latitude: number; longitude: number } | null;
+  people: PhotoPerson[];
+  albums: PhotoAlbum[];
+  /** A Live Photo's video, with how long it lasts in seconds. */
+  clip: { duration: number | null } | null;
+  /** Its original files, each with a fingerprint. */
+  files: AssetFile[];
+}
+
+/** An asset's row, as the query selects it. */
+export interface AssetRow {
+  pk: number;
+  attributes: number | null;
+  uuid: string;
+  cloudGuid: string | null;
+  kind: number;
+  subtype: number | null;
+  depth: number | null;
+  burst: string | null;
+  dateCreated: number | null;
+  addedDate: number | null;
+  width: number | null;
+  height: number | null;
+  duration: number | null;
+  uti: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  favorite: number | null;
+  clipValue: number | null;
+  clipScale: number | null;
+  title: string | null;
+  filename: string | null;
+  importer: string | null;
+  importerName: string | null;
+  caption: string | null;
+  cameraMake: string | null;
+  cameraModel: string | null;
+  lens: string | null;
+  focalLength: number | null;
+  focalLength35mm: number | null;
+  aperture: number | null;
+  shutterSpeed: number | null;
+  iso: number | null;
+  exposureBias: number | null;
+  meteringMode: number | null;
+  whiteBalance: number | null;
+  flashFired: number | null;
+  digitalZoom: number | null;
+  orientation: number | null;
+  lastViewed: number | null;
+  lastShared: number | null;
+  adjusted: number | null;
+  adjustments: number | null;
+  syndicationId: string | null;
+}
+
+// The kinds of file an asset's originals are (`ZINTERNALRESOURCE.ZRESOURCETYPE`).
+// The rest are edits, previews, and their data.
+const FILE_ROLES: { [type: number]: AssetFile['role'] } = { 0: 'still', 1: 'video', 3: 'clip' };
+
+// A user album and a folder of albums (`ZGENERICALBUM.ZKIND`).
+const ALBUM = 2;
+const FOLDER = 4000;
+// Photos' detection type for a person rather than a pet.
+const HUMAN = 1;
+// How a face came to be a person's (`ZDETECTEDFACE.ZNAMESOURCE`), as Photos
+// names them: you named a group of faces (`user-cluster`), one face
+// (`user-single`), or one in iPhoto or Aperture (`user-migration`). The rest
+// are Photos' own matches.
+const NAMED_BY_YOU = [1, 3, 4];
+
+/**
+ * Where a library's databases are, given the library or its `Photos.sqlite`.
+ * A `Photos.sqlite` is read where it is, such as a copy a scan found.
+ */
+export function libraryFiles(input: string) {
+  const path = resolve(input);
+  if (basename(path) === 'Photos.sqlite') return { root: dirname(dirname(path)), photos: path };
+  return { root: path, photos: join(path, 'database', 'Photos.sqlite') };
+}
+
+/**
+ * A Photos library on this Mac, read in place. Photos keeps the library's
+ * changes in `Photos.sqlite`'s write-ahead log while it runs, so the database
+ * is opened read-only where it is, never copied without its log.
+ */
+export class PhotosLibrary {
+  readonly files: ReturnType<typeof libraryFiles>;
+  readonly store: CoreDataStore;
+  private readonly db: DatabaseSync;
+
+  private constructor(
+    files: ReturnType<typeof libraryFiles>,
+    db: DatabaseSync,
+    columns: DatabaseColumns
+  ) {
+    this.files = files;
+    this.db = db;
+    this.store = new CoreDataStore(db, columns);
+  }
+
+  /** Open a library, refusing one whose `Photos.sqlite` isn't in {@link DATABASES}. */
+  static open(input: string): PhotosLibrary {
+    const files = libraryFiles(input);
+    assertReadable(files.photos, 'Photos library');
+    const db = new DatabaseSync(files.photos, { readOnly: true });
+    let columns: DatabaseColumns;
+    try {
+      columns = assertDatabaseSchema(db, DATABASES, files.photos);
+    } catch (error) {
+      db.close();
+      throw error;
+    }
+    return new PhotosLibrary(files, db, columns);
+  }
+
+  close(): void {
+    this.db.close();
+  }
+
+  /** When the library last changed. */
+  lastChanged(): Date | null {
+    return lastChanged(this.files.photos);
+  }
+
+  /**
+   * The photos and videos in one part of the library, as Photos shows them:
+   * not in Recently Deleted or hidden, and of a burst, only the photos Photos
+   * shows. Of an iCloud Shared Library, only the ones you added are yours.
+   */
+  rows(scope: number): AssetRow[] {
+    const { store } = this;
+    const c = (alias: string, table: string, column: string) => store.column(alias, table, column);
+    const sql = `
+      SELECT a.Z_PK AS pk, x.Z_PK AS attributes, a.ZUUID AS uuid,
+        ${c('a', 'ZASSET', 'ZCLOUDASSETGUID')} AS cloudGuid,
+        a.ZKIND AS kind, ${c('a', 'ZASSET', 'ZKINDSUBTYPE')} AS subtype,
+        ${c('a', 'ZASSET', 'ZDEPTHTYPE')} AS depth, ${c('a', 'ZASSET', 'ZAVALANCHEUUID')} AS burst,
+        a.ZDATECREATED AS dateCreated, ${c('a', 'ZASSET', 'ZADDEDDATE')} AS addedDate,
+        a.ZWIDTH AS width, a.ZHEIGHT AS height, a.ZDURATION AS duration,
+        ${c('a', 'ZASSET', 'ZUNIFORMTYPEIDENTIFIER')} AS uti,
+        a.ZLATITUDE AS latitude, a.ZLONGITUDE AS longitude, a.ZFAVORITE AS favorite,
+        ${c('a', 'ZASSET', 'ZVIDEOCPDURATIONVALUE')} AS clipValue,
+        ${c('x', 'ZADDITIONALASSETATTRIBUTES', 'ZVIDEOCPDURATIONTIMESCALE')} AS clipScale,
+        ${c('x', 'ZADDITIONALASSETATTRIBUTES', 'ZTITLE')} AS title,
+        ${c('x', 'ZADDITIONALASSETATTRIBUTES', 'ZORIGINALFILENAME')} AS filename,
+        ${c('x', 'ZADDITIONALASSETATTRIBUTES', 'ZIMPORTEDBYBUNDLEIDENTIFIER')} AS importer,
+        ${c('x', 'ZADDITIONALASSETATTRIBUTES', 'ZIMPORTEDBYDISPLAYNAME')} AS importerName,
+        ${c('d', 'ZASSETDESCRIPTION', 'ZLONGDESCRIPTION')} AS caption,
+        ${c('e', 'ZEXTENDEDATTRIBUTES', 'ZCAMERAMAKE')} AS cameraMake,
+        ${c('e', 'ZEXTENDEDATTRIBUTES', 'ZCAMERAMODEL')} AS cameraModel,
+        ${c('e', 'ZEXTENDEDATTRIBUTES', 'ZLENSMODEL')} AS lens,
+        ${c('e', 'ZEXTENDEDATTRIBUTES', 'ZFOCALLENGTH')} AS focalLength,
+        ${c('e', 'ZEXTENDEDATTRIBUTES', 'ZFOCALLENGTHIN35MM')} AS focalLength35mm,
+        ${c('e', 'ZEXTENDEDATTRIBUTES', 'ZAPERTURE')} AS aperture,
+        ${c('e', 'ZEXTENDEDATTRIBUTES', 'ZSHUTTERSPEED')} AS shutterSpeed,
+        ${c('e', 'ZEXTENDEDATTRIBUTES', 'ZISO')} AS iso,
+        ${c('e', 'ZEXTENDEDATTRIBUTES', 'ZEXPOSUREBIAS')} AS exposureBias,
+        ${c('e', 'ZEXTENDEDATTRIBUTES', 'ZMETERINGMODE')} AS meteringMode,
+        ${c('e', 'ZEXTENDEDATTRIBUTES', 'ZWHITEBALANCE')} AS whiteBalance,
+        ${c('e', 'ZEXTENDEDATTRIBUTES', 'ZFLASHFIRED')} AS flashFired,
+        ${c('e', 'ZEXTENDEDATTRIBUTES', 'ZDIGITALZOOMRATIO')} AS digitalZoom,
+        ${c('e', 'ZEXTENDEDATTRIBUTES', 'ZORIENTATION')} AS orientation,
+        ${c('x', 'ZADDITIONALASSETATTRIBUTES', 'ZLASTVIEWEDDATE')} AS lastViewed,
+        ${c('a', 'ZASSET', 'ZLASTSHAREDDATE')} AS lastShared,
+        ${c('a', 'ZASSET', 'ZADJUSTMENTTIMESTAMP')} AS adjusted,
+        ${c('a', 'ZASSET', 'ZADJUSTMENTSSTATE')} AS adjustments,
+        ${c('x', 'ZADDITIONALASSETATTRIBUTES', 'ZSYNDICATIONIDENTIFIER')} AS syndicationId
+      FROM ZASSET a
+      LEFT JOIN ZADDITIONALASSETATTRIBUTES x ON x.ZASSET = a.Z_PK
+      LEFT JOIN ZASSETDESCRIPTION d ON d.ZASSETATTRIBUTES = x.Z_PK
+      LEFT JOIN ZEXTENDEDATTRIBUTES e ON e.ZASSET = a.Z_PK
+      WHERE COALESCE(${c('a', 'ZASSET', 'ZBUNDLESCOPE')}, 0) = ?
+        AND COALESCE(${c('a', 'ZASSET', 'ZTRASHEDSTATE')}, 0) = 0
+        AND COALESCE(${c('a', 'ZASSET', 'ZVISIBILITYSTATE')}, 0) = 0
+        AND COALESCE(${c('a', 'ZASSET', 'ZHIDDEN')}, 0) = 0
+        AND (COALESCE(${c('a', 'ZASSET', 'ZACTIVELIBRARYSCOPEPARTICIPATIONSTATE')}, 0) = 0
+          OR ${this.addedByYou('a')})
+        AND a.ZUUID IS NOT NULL`;
+    return allRows<AssetRow>(this.db.prepare(sql), scope);
+  }
+
+  /**
+   * Whether you added an asset in a Shared Library to it, as SQL: one of the
+   * people Photos says contributed it is you. Core Data names the column for
+   * the asset by the asset entity's number, such as
+   * `Z3LIBRARYSCOPEASSETCONTRIBUTORS`. Without them, none is yours.
+   */
+  private addedByYou(alias: string): string {
+    const { store } = this;
+    const asset = `Z${store.entity('Asset')}LIBRARYSCOPEASSETCONTRIBUTORS`;
+    const contributors = store.columns('ZASSETCONTRIBUTOR');
+    if (
+      !contributors.has(asset) ||
+      !contributors.has('ZPARTICIPANT') ||
+      !store.columns('ZSHAREPARTICIPANT').has('ZISCURRENTUSER')
+    ) {
+      return '0';
+    }
+    return `EXISTS (
+      SELECT 1 FROM ZASSETCONTRIBUTOR k JOIN ZSHAREPARTICIPANT p ON p.Z_PK = k.ZPARTICIPANT
+      WHERE k.${asset} = ${alias}.Z_PK AND p.ZISCURRENTUSER = 1)`;
+  }
+
+  /** Each row as an asset, with what's joined to it. */
+  describe(rows: AssetRow[]): Asset[] {
+    const people = this.people();
+    const albums = this.albumsOfAssets();
+    const keywords = this.keywords();
+    const originals = this.originals();
+    return rows.map(row => {
+      const { subtype, created, added, importer, camera } = provenanceOf(row);
+      return {
+        id: assetId(row),
+        uuid: row.uuid,
+        kind: row.kind === 1 ? 'video' : 'photo',
+        subtype,
+        format: formatOf(row),
+        created,
+        added,
+        importer,
+        importerName: clean(row.importerName),
+        camera,
+        exif: row.kind === 0 ? exifOf(row) : null,
+        width: positive(row.width),
+        height: positive(row.height),
+        duration: row.kind === 1 ? positive(row.duration) : null,
+        uti: clean(row.uti),
+        title: clean(row.title),
+        filename: clean(row.filename),
+        caption: clean(row.caption),
+        keywords: (row.attributes !== null && keywords.get(row.attributes)) || [],
+        location: locationOf(row),
+        people: people.get(row.pk) ?? [],
+        albums: albums.get(row.pk) ?? [],
+        clip:
+          row.subtype === 2
+            ? { duration: row.clipScale ? positive((row.clipValue ?? 0) / row.clipScale) : null }
+            : null,
+        files: originals.get(row.pk) ?? [],
+      };
+    });
+  }
+
+  /**
+   * Each asset's original files, by the asset's row: an original is a file's
+   * first version (`ZVERSION` 0) and no recipe (`ZRECIPEID` 0). A file
+   * without a fingerprint, such as one Shared with You keeps, is left out.
+   */
+  private originals(): Map<number, AssetFile[]> {
+    const columns = this.store.columns('ZINTERNALRESOURCE');
+    const needed = ['ZASSET', 'ZRESOURCETYPE', 'ZVERSION', 'ZRECIPEID', 'ZFINGERPRINT'];
+    if (!needed.every(column => columns.has(column))) return new Map();
+    const types = Object.keys(FILE_ROLES).join(', ');
+    const rows = allRows<{
+      asset: number;
+      type: number;
+      fingerprint: string;
+      bytes: number | null;
+    }>(
+      this.db.prepare(`
+        SELECT ZASSET AS asset, ZRESOURCETYPE AS type, ZFINGERPRINT AS fingerprint,
+          ${this.store.column('r', 'ZINTERNALRESOURCE', 'ZDATALENGTH')} AS bytes
+        FROM ZINTERNALRESOURCE r
+        WHERE ZVERSION = 0 AND ZRECIPEID = 0 AND ZRESOURCETYPE IN (${types})
+          AND ZFINGERPRINT IS NOT NULL AND ZASSET IS NOT NULL
+        ORDER BY ZASSET, ZRESOURCETYPE`)
+    );
+    return groupBy(
+      rows,
+      row => row.asset,
+      row =>
+        clean(row.fingerprint)
+          ? { role: FILE_ROLES[row.type], fingerprint: row.fingerprint, bytes: positive(row.bytes) }
+          : null
+    );
+  }
+
+  /** The albums you made, with their folders, by row. */
+  albums(): Map<number, PhotoAlbum> {
+    const rows = allRows<{
+      pk: number;
+      kind: number;
+      title: string | null;
+      cloudGuid: string | null;
+      uuid: string | null;
+      parent: number | null;
+    }>(
+      this.db.prepare(`
+        SELECT Z_PK AS pk, ZKIND AS kind, ZTITLE AS title,
+          ${this.store.column('g', 'ZGENERICALBUM', 'ZCLOUDGUID')} AS cloudGuid,
+          ZUUID AS uuid, ZPARENTFOLDER AS parent
+        FROM ZGENERICALBUM g
+        WHERE ZKIND IN (${ALBUM}, ${FOLDER}) AND COALESCE(ZTRASHEDSTATE, 0) = 0`)
+    );
+    const byPk = new Map(rows.map(row => [row.pk, row]));
+    const albums = new Map<number, PhotoAlbum>();
+    for (const row of rows) {
+      const id = row.cloudGuid || row.uuid;
+      if (row.kind !== ALBUM || !id) continue;
+      const folders: PhotoAlbum['folders'] = [];
+      const seen = new Set<number>();
+      for (
+        let parent = byPk.get(row.parent ?? -1);
+        parent;
+        parent = byPk.get(parent.parent ?? -1)
+      ) {
+        const folderId = parent.cloudGuid || parent.uuid;
+        if (parent.kind !== FOLDER || !folderId || seen.has(parent.pk)) break;
+        seen.add(parent.pk);
+        folders.push({ id: folderId, title: clean(parent.title) });
+      }
+      albums.set(row.pk, { id, title: clean(row.title), folders });
+    }
+    return albums;
+  }
+
+  /** Which albums each asset is in now, as `album/asset` rows. */
+  membership(): Array<{ album: number; asset: number }> {
+    const join = this.store.joinTable(['Album', 'assets'], ['Asset', 'albums']);
+    if (!join) return [];
+    return allRows<{ album: number; asset: number }>(
+      this.db.prepare(`SELECT ${join.a} AS album, ${join.b} AS asset FROM ${join.table}`)
+    );
+  }
+
+  /** Each asset's albums, by the asset's row. */
+  private albumsOfAssets(): Map<number, PhotoAlbum[]> {
+    const albums = this.albums();
+    const byAsset = new Map<number, PhotoAlbum[]>();
+    for (const { album, asset } of this.membership()) {
+      const found = albums.get(album);
+      if (!found) continue;
+      const list = byAsset.get(asset) ?? [];
+      list.push(found);
+      byAsset.set(asset, list);
+    }
+    for (const list of byAsset.values()) list.sort((a, b) => a.id.localeCompare(b.id));
+    return byAsset;
+  }
+
+  /** Each asset's keywords, by its attributes row. */
+  private keywords(): Map<number, string[]> {
+    const join = this.store.joinTable(
+      ['AdditionalAssetAttributes', 'keywords'],
+      ['Keyword', 'assetAttributes']
+    );
+    if (!join) return new Map();
+    const rows = allRows<{ attributes: number; title: string | null }>(
+      this.db.prepare(`
+        SELECT j.${join.a} AS attributes, k.ZTITLE AS title
+        FROM ${join.table} j JOIN ZKEYWORD k ON k.Z_PK = j.${join.b}
+        ORDER BY k.ZTITLE`)
+    );
+    return groupBy(
+      rows,
+      row => row.attributes,
+      row => clean(row.title)
+    );
+  }
+
+  /**
+   * The people you said are in each asset, by the asset's row: a face you
+   * named, on its own or in a group of faces, or one you added. A face Photos
+   * matched to a person itself is left out, as are pets and people you
+   * haven't named. A person merged into another is the one they were merged
+   * into.
+   */
+  private people(): Map<number, PhotoPerson[]> {
+    const people = new Map(
+      allRows<{
+        pk: number;
+        uuid: string | null;
+        name: string | null;
+        detection: number | null;
+        mergedInto: number | null;
+      }>(
+        this.db.prepare(`
+          SELECT Z_PK AS pk, ZPERSONUUID AS uuid, ZFULLNAME AS name, ZDETECTIONTYPE AS detection,
+            ZMERGETARGETPERSON AS mergedInto
+          FROM ZPERSON`)
+      ).map(row => [row.pk, row])
+    );
+    const resolved = new Map<number, PhotoPerson | null>();
+    const personOf = (pk: number): PhotoPerson | null => {
+      if (resolved.has(pk)) return resolved.get(pk)!;
+      let person = people.get(pk);
+      const seen = new Set<number>();
+      while (person?.mergedInto && people.has(person.mergedInto) && !seen.has(person.pk)) {
+        seen.add(person.pk);
+        person = people.get(person.mergedInto);
+      }
+      const name = clean(person?.name);
+      const found =
+        person?.uuid && name && person.detection === HUMAN ? { id: person.uuid, name } : null;
+      resolved.set(pk, found);
+      return found;
+    };
+
+    const byAsset = new Map<number, PhotoPerson[]>();
+    const nameSource = this.store.column('f', 'ZDETECTEDFACE', 'ZNAMESOURCE');
+    const manual = this.store.column('f', 'ZDETECTEDFACE', 'ZMANUAL');
+    const faces = allRows<{ asset: number; person: number }>(
+      this.db.prepare(`
+        SELECT ZASSETFORFACE AS asset, ZPERSONFORFACE AS person FROM ZDETECTEDFACE f
+        WHERE ZASSETFORFACE IS NOT NULL AND ZPERSONFORFACE IS NOT NULL
+          AND (${nameSource} IN (${NAMED_BY_YOU.join(', ')}) OR ${manual} = 1)`)
+    );
+    for (const face of faces) {
+      const person = personOf(face.person);
+      if (!person) continue;
+      const list = byAsset.get(face.asset) ?? [];
+      if (!list.some(other => other.id === person.id)) list.push(person);
+      byAsset.set(face.asset, list);
+    }
+    for (const list of byAsset.values()) list.sort((a, b) => a.id.localeCompare(b.id));
+    return byAsset;
+  }
+}
+
+/** How an asset came to be in the library, and when: what its row says without the joins. */
+export type Provenance = Pick<Asset, 'subtype' | 'created' | 'added' | 'importer' | 'camera'>;
+
+/** An asset's provenance, from its row alone, as {@link PhotosLibrary.describe} gives it. */
+export function provenanceOf(row: AssetRow): Provenance {
+  const make = clean(row.cameraMake);
+  const model = clean(row.cameraModel);
+  return {
+    subtype: row.subtype ?? 0,
+    created: appleDate(row.dateCreated),
+    added: appleDate(row.addedDate),
+    importer: clean(row.importer),
+    camera: make || model ? { make, model } : null,
+  };
+}
+
+// Photos' kinds of photo and video (`ZKINDSUBTYPE`) that are a camera's mode.
+const SUBTYPE_FORMATS: { [subtype: number]: Format } = {
+  1: 'panorama',
+  2: 'livePhoto',
+  101: 'sloMo',
+  102: 'timeLapse',
+};
+// What depth a photo or video was taken with (`ZDEPTHTYPE`): a Portrait's,
+// or a Cinematic video's.
+const PORTRAIT = 1;
+const CINEMATIC = 2;
+
+/**
+ * The camera's mode an asset was taken in. A Portrait or a burst can be a
+ * Live Photo too, so it's named as the Portrait or the burst.
+ */
+function formatOf(row: AssetRow): Format | null {
+  const photo = row.kind === 0;
+  if (!photo && row.depth === CINEMATIC) return 'cinematic';
+  if (photo && row.depth === PORTRAIT) return 'portrait';
+  if (photo && clean(row.burst)) return 'burst';
+  return SUBTYPE_FORMATS[row.subtype ?? 0] ?? null;
+}
+
+/**
+ * What a photo's file records about its lens and exposure, as Photos keeps it,
+ * by EXIF 3.0's tag names. Photos fills these only from a file that records
+ * its exposure, except two it records for any image, such as a screenshot:
+ * 0 for whether the flash fired, and 1, upright, for its orientation. So
+ * `Flash`, and an upright `Orientation`, are kept only with an exposure. A
+ * video's come from its own metadata, which isn't EXIF.
+ */
+function exifOf(row: AssetRow): Exif | null {
+  const exposed = [row.aperture, row.shutterSpeed, row.iso].some(value => positive(value));
+  const tags: { [tag: string]: string | number | null } = {
+    LensModel: clean(row.lens),
+    FocalLength: measure(row.focalLength),
+    FocalLengthIn35mmFilm: measure(row.focalLength35mm),
+    FNumber: measure(row.aperture),
+    ExposureTime: measure(row.shutterSpeed),
+    PhotographicSensitivity: measure(row.iso),
+    ExposureBiasValue: decimal(row.exposureBias),
+    // 0 is EXIF's code for an unknown metering mode.
+    MeteringMode: positive(row.meteringMode),
+    WhiteBalance: decimal(row.whiteBalance),
+    Flash: exposed ? decimal(row.flashFired) : null,
+    DigitalZoomRatio: measure(row.digitalZoom),
+    Orientation: exposed || row.orientation !== 1 ? positive(row.orientation) : null,
+  };
+  const exif = Object.fromEntries(Object.entries(tags).filter(([, value]) => value !== null));
+  return Object.keys(exif).length > 0 ? (exif as Exif) : null;
+}
+
+/**
+ * A number as EXIF's fraction gives it. Photos computes some, such as
+ * 0.06999999999999999 for 0.07, so six significant digits are kept.
+ */
+function decimal(value: number | null | undefined): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? Number(value.toPrecision(6)) : null;
+}
+
+/** A measure that's positive, as a decimal: 0 is what Photos records for none. */
+function measure(value: number | null | undefined): number | null {
+  return positive(value) === null ? null : decimal(value);
+}
+
+/** An asset's key: iCloud's ID for it, or the library's own when it isn't in iCloud. */
+export function assetId(row: Pick<AssetRow, 'cloudGuid' | 'uuid'>): string {
+  return clean(row.cloudGuid) ?? row.uuid;
+}
+
+/**
+ * Where a photo was taken. Photos records no position as -180, -180, which
+ * is out of range, and a device without a fix can record 0, 0, so both are
+ * left out.
+ */
+function locationOf(row: AssetRow): Asset['location'] {
+  const { latitude, longitude } = row;
+  if (typeof latitude !== 'number' || typeof longitude !== 'number') return null;
+  if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return null;
+  if (latitude === 0 && longitude === 0) return null;
+  return { latitude, longitude };
+}
+
+function groupBy<T, K, V>(rows: T[], key: (row: T) => K, value: (row: T) => V | null): Map<K, V[]> {
+  const groups = new Map<K, V[]>();
+  for (const row of rows) {
+    const found = value(row);
+    if (found === null) continue;
+    const list = groups.get(key(row)) ?? [];
+    list.push(found);
+    groups.set(key(row), list);
+  }
+  return groups;
+}
+
+/** Text with its whitespace trimmed, or null when there's none. Some rows hold a lone NUL. */
+export function clean(value: string | null | undefined): string | null {
+  const text = value?.replace(/\0/g, '').trim();
+  return text || null;
+}
+
+function positive(value: number | null | undefined): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+}

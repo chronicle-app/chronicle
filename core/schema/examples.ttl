@@ -47,7 +47,7 @@ address can use the same key.
         :handle "alex@example.com"
       ]
     ];
-    :object [
+    :result [
       a :Message;
       doc:key ("@type" "source" "sourceId");
       :source "imessage";
@@ -282,7 +282,7 @@ source. The photo is an :ImageObject with a :contentPath and :mimeType.
         :handle "alex@example.com"
       ]
     ];
-    :object [
+    :result [
       a :Message;
       doc:key ("@type" "source" "sourceId");
       :source "imessage";
@@ -326,7 +326,7 @@ A message you sent, so you are the :agent and the other person is the
       :handle "+15555550123";
       :sameAs "@me"
     ];
-    :object [
+    :result [
       a :Message;
       doc:key ("@type" "source" "sourceId");
       :source "imessage";
@@ -354,8 +354,10 @@ A message you sent, so you are the :agent and the other person is the
 example:group-message-attachments
   rdfs:label "Sharing a video and a PDF with a group";
   rdfs:comment """
-A message to a group has one :recipient per person. This one has two
-attachments, a :VideoObject and a :DocumentObject.
+A message to a group has one :recipient per person. The group chat is a
+:Channel the :Message is :isPartOf, keyed by Apple's ID for the group, and its
+:member edges list the people in it. This message has two attachments, a
+:VideoObject and a :DocumentObject.
 """;
   rdf:value [
     a :MessageAction;
@@ -370,7 +372,7 @@ attachments, a :VideoObject and a :DocumentObject.
       :handle "+15555550123";
       :sameAs "@me"
     ];
-    :object [
+    :result [
       a :Message;
       doc:key ("@type" "source" "sourceId");
       :source "imessage";
@@ -388,6 +390,24 @@ attachments, a :VideoObject and a :DocumentObject.
         :source "phone";
         :handle "+15555550188";
         :name "Jordan Lee"
+      ];
+      :isPartOf [
+        a :Channel;
+        doc:key ("@type" "source" "sourceId");
+        :source "imessage";
+        :sourceId "5E2B9C14-8A3F-4D71-B6E0-9F4C2A7D1E58";
+        :name "Summit crew";
+        :member [
+          a :Agent;
+          doc:key ("@type" "source" "handle");
+          :source "icloud";
+          :handle "alex@example.com"
+        ], [
+          a :Agent;
+          doc:key ("@type" "source" "handle");
+          :source "phone";
+          :handle "+15555550188"
+        ]
       ];
       :contains [
         a :VideoObject;
@@ -3638,7 +3658,7 @@ course is saved but not when, so the action has no :timestamp.
 :StructuredValue skos:example example:place-visit .
 :Location skos:example example:place-visit .
 :Message skos:example example:message-with-photo, example:assistant-reply .
-:MessageAction skos:example example:message-with-photo, example:assistant-prompt .
+:MessageAction skos:example example:message-with-photo, example:voice-message .
 :Thread skos:example example:assistant-reply .
 :CreativeWork skos:example example:group-reply .
 :Channel skos:example example:group-reply .
@@ -4321,7 +4341,8 @@ posting.
 example:podcast
   rdfs:label "Listening to a podcast episode";
   rdfs:comment """
-An episode belongs to a podcast through :series. The series carries its feed URL.
+An episode belongs to a podcast through :series. The series carries its feed
+URL. The episode's audio file is its :rendition, keyed by its URL.
 """;
   rdf:value [
     a :ListenAction;
@@ -4334,6 +4355,11 @@ An episode belongs to a podcast through :series. The series carries its feed URL
       :source "apple-podcasts";
       :sourceId "1000762841935";
       :name "The neighbourhood garden";
+      :rendition [
+        a :AudioObject;
+        doc:key ("url");
+        :url "https://example.org/podcast/the-neighbourhood-garden.mp3"
+      ];
       :series [
         a :PodcastSeries;
         doc:key ("@type" "source" "sourceId");
@@ -4349,3 +4375,230 @@ An episode belongs to a podcast through :series. The series carries its feed URL
 :PodcastSeries skos:example example:podcast .
 :series skos:example example:podcast .
 :webFeed skos:example example:podcast .
+
+example:photo-taken
+  rdfs:label "A photo taken";
+  rdfs:comment """
+You took a photo with your phone. The :PhotographAction's :result is the
+photo as a work, a :StillImage, keyed by iCloud's ID for it, and the action is
+keyed through its :result. The :instrument is the kind of camera, a
+:ProductModel, since nothing says which phone it was. It has no ID, so it's
+keyed by its name: the make and model the photo's file gives.
+
+The photo :depicts the people you named in it, and its :caption is the one
+you wrote. It was taken in Portrait mode, its :sourceFormat, and it
+:isPartOf an album, a :Collection. Each file that holds it is a :rendition,
+keyed by iCloud's fingerprint of the file: the image, an :ImageObject with its
+size and the :exifData it records about the lens and the exposure, and the
+short :VideoObject captured with it.
+""";
+  rdf:value [
+    a :PhotographAction;
+    doc:key ("@type" "source" "result.sourceId");
+    :source "apple-photos";
+    :timestamp "2026-07-04T15:42:10.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "icloud";
+      :sourceId "1234567890";
+      :sameAs "@me"
+    ];
+    :instrument [
+      a :ProductModel;
+      doc:key ("@type" "source" "name");
+      :source "exif";
+      :name "Apple iPhone 14 Pro"
+    ];
+    :location [
+      a :Location;
+      :latitude 43.6426;
+      :longitude -79.3871
+    ];
+    :result [
+      a :StillImage;
+      doc:key ("@type" "source" "sourceId");
+      :source "apple-photos";
+      :sourceId "3F9A2C1E-7B4D-4E8F-A6C2-91D5E0B7F348";
+      :caption "Sam at the top";
+      :sourceFormat "portrait";
+      :depicts [
+        a :Person;
+        doc:key ("@type" "source" "sourceId");
+        :source "apple-photos";
+        :sourceId "6F1B2C3D-4E5F-4A7B-8C9D-0E1F2A3B4C5D";
+        :name "Sam Rivera"
+      ];
+      :isPartOf [
+        a :Collection;
+        doc:key ("@type" "source" "sourceId");
+        :source "apple-photos";
+        :sourceId "9E1C3A5B-2D4F-4A6C-8E0B-7F9D1B3C5A62";
+        :name "Summer"
+      ];
+      :rendition [
+        a :ImageObject;
+        doc:key ("@type" "source" "sourceId");
+        :source "apple-photos";
+        :sourceId "AQ3vK8mT2xP9cL5nR7wB4yD6fH1j";
+        :handle "IMG_4821.HEIC";
+        :mimeType "image/heic";
+        :contentSize 2841766;
+        :width 4032;
+        :height 3024;
+        :exifData """{"LensModel": "iPhone 14 Pro back triple camera 6.86mm f/1.78", "FocalLength": 6.86, "FocalLengthIn35mmFilm": 24, "FNumber": 1.78, "ExposureTime": 0.008, "PhotographicSensitivity": 64, "ExposureBiasValue": 0, "MeteringMode": 5, "WhiteBalance": 0, "Flash": 0}"""^^rdf:JSON
+      ], [
+        a :VideoObject;
+        doc:key ("@type" "source" "sourceId");
+        :source "apple-photos";
+        :sourceId "AT6pW1qZ8rN3kV5xM9bC2gF4hJ7d";
+        :mimeType "video/quicktime";
+        :duration "PT2.5S"
+      ]
+    ]
+  ] .
+
+example:screenshot
+  rdfs:label "A screenshot";
+  rdfs:comment """
+You took a screenshot. The :ScreenshotAction's :result is what the screen
+showed, a :StillImage, and its file, a PNG, is its :rendition.
+""";
+  rdf:value [
+    a :ScreenshotAction;
+    doc:key ("@type" "source" "result.sourceId");
+    :source "apple-photos";
+    :timestamp "2026-07-05T09:12:44.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "icloud";
+      :sourceId "1234567890";
+      :sameAs "@me"
+    ];
+    :result [
+      a :StillImage;
+      doc:key ("@type" "source" "sourceId");
+      :source "apple-photos";
+      :sourceId "8C2E4F6A-1B3D-4C5E-9F7A-2D4B6E8A0C13";
+      :rendition [
+        a :ImageObject;
+        doc:key ("@type" "source" "sourceId");
+        :source "apple-photos";
+        :sourceId "AZ2kD7nQ4vB9xT1mH6cP3wL8fR5s";
+        :mimeType "image/png";
+        :width 1179;
+        :height 2556
+      ]
+    ]
+  ] .
+
+example:photo-shared-in-messages
+  rdfs:label "A photo shared in Messages";
+  rdfs:comment """
+Sam sent you a photo in Messages. Sam is known by the handle Messages has for
+them, the same as Messages' participant through :sameAs.
+
+The photo is a :StillImage keyed by Messages' ID for the attachment, which is
+how Photos knows it, and the :ShareAction is keyed through it. Its :rendition
+is the attachment itself, keyed as Messages keys it, so what Photos knows
+about the photo and what Messages knows about the attachment meet on one file.
+Who it was sent to is the message's :recipient, as Messages has it.
+""";
+  rdf:value [
+    a :ShareAction;
+    doc:key ("@type" "source" "object.sourceId");
+    :source "apple-photos";
+    :timestamp "2026-08-12T19:03:51.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "handle");
+      :source "apple-photos";
+      :handle "sam@example.com";
+      :sameAs [
+        a :Agent;
+        doc:key ("@type" "source" "handle");
+        :source "icloud";
+        :handle "sam@example.com"
+      ]
+    ];
+    :object [
+      a :StillImage;
+      doc:key ("@type" "source" "sourceId");
+      :source "apple-photos";
+      :sourceId "at_0_5E8A1C2B-3D4F-4A6B-9C8D-7E6F5A4B3C2D";
+      :rendition [
+        a :ImageObject;
+        doc:key ("source" "sourceId");
+        :source "imessage";
+        :sourceId "at_0_5E8A1C2B-3D4F-4A6B-9C8D-7E6F5A4B3C2D";
+        :handle "IMG_0193.JPG"
+      ]
+    ]
+  ] .
+
+example:favorite-removed
+  rdfs:label "A favorite removed";
+  rdfs:comment """
+You removed a photo from your favorites. The :UnlikeAction is keyed by the
+photo and when it happened. The photo is no longer one of your :likes.
+""";
+  rdf:value [
+    a :UnlikeAction;
+    doc:key ("@type" "source" "object.sourceId" "timestamp");
+    :source "apple-photos";
+    :timestamp "2026-09-01T08:30:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "icloud";
+      :sourceId "1234567890";
+      :sameAs "@me"
+    ];
+    :object [
+      a :StillImage;
+      doc:key ("@type" "source" "sourceId");
+      :source "apple-photos";
+      :sourceId "3F9A2C1E-7B4D-4E8F-A6C2-91D5E0B7F348"
+    ]
+  ] .
+
+example:favorite-undated
+  rdfs:label "A favorite with no date";
+  rdfs:comment """
+You made a photo a favorite, but nothing records when. The :LikeAction has no
+:timestamp, so it is keyed by the photo alone. The photo is one of your
+:likes until an :UnlikeAction removes it.
+""";
+  rdf:value [
+    a :LikeAction;
+    doc:key ("@type" "source" "object.sourceId");
+    :source "apple-photos";
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "icloud";
+      :sourceId "1234567890";
+      :sameAs "@me"
+    ];
+    :object [
+      a :StillImage;
+      doc:key ("@type" "source" "sourceId");
+      :source "apple-photos";
+      :sourceId "5D7F9B1C-3E5A-4B7D-8C9E-1A3C5E7B9D24"
+    ]
+  ] .
+
+:PhotographAction skos:example example:photo-taken .
+:ProductModel skos:example example:photo-taken .
+:depicts skos:example example:photo-taken .
+:caption skos:example example:photo-taken .
+:sourceFormat skos:example example:photo-taken .
+:exifData skos:example example:photo-taken .
+:contentSize skos:example example:photo-taken .
+:ScreenshotAction skos:example example:screenshot .
+:StillImage skos:example example:photo-taken, example:screenshot .
+:rendition skos:example example:photo-taken, example:podcast .
+:ShareAction skos:example example:photo-shared-in-messages .
+:UnlikeAction skos:example example:favorite-removed .
+:likes skos:example example:favorite-undated .

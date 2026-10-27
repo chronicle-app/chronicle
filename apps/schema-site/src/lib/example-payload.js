@@ -8,6 +8,9 @@ const XSD = 'http://www.w3.org/2001/XMLSchema#';
 function literal(term) {
   if (term.language) return { '@value': term.value, '@language': term.language };
   if (term.datatype.value === XSD + 'string') return term.value;
+  // A JSON literal is the JSON itself in JSON-LD, typed `@json`.
+  if (term.datatype.value === RDF + 'JSON')
+    return { '@value': JSON.parse(term.value), '@type': '@json' };
   return { '@value': term.value, '@type': term.datatype.value };
 }
 
@@ -152,6 +155,7 @@ export function toChronicle(value) {
   if (!value || typeof value !== 'object') return value;
   if ('@value' in value) {
     const datatype = value['@type'];
+    if (datatype === '@json') return value['@value'];
     if ([XSD + 'integer', XSD + 'decimal', XSD + 'double'].includes(datatype)) {
       const number = Number(value['@value']);
       return Number.isFinite(number) ? number : value;

@@ -228,8 +228,8 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
     sourceId: string,
     podcast: PodcastSeries | undefined
   ): PodcastEpisode {
-    // The audio file lives on `contains`, not `url`, so the episode isn't
-    // merged with its own AudioObject through their url.
+    // The audio file is the episode's rendition, not its `url`, so the
+    // episode isn't merged with its own AudioObject through their url.
     const audio = str(data.audioUrl);
     const artwork = str(data.artworkUrl);
     return {
@@ -251,7 +251,7 @@ export default class ApplePodcastsTransformer extends ChronicleTransformer {
         }),
       ...(audio &&
         isHttpUrl(audio) && {
-          contains: [createAudioObject({ url: audio })],
+          rendition: [createAudioObject({ url: audio })],
         }),
       ...(str(data.transcript) && { transcript: str(data.transcript) }),
       ...(podcast && { series: [podcast] }),

@@ -16,6 +16,32 @@ import {
 } from '@chronicle.app/etl';
 import { snapshot } from './snapshot.js';
 
+/**
+ * Refuse an open database unless it has every column one of `databases`
+ * needs, naming `path` as what was given. Its columns, when it has them. For
+ * a reader that opens its database itself rather than through a
+ * {@link SqliteExtractor}.
+ */
+export function assertDatabaseSchema(
+  db: DatabaseSync,
+  databases: DatabaseSchema[],
+  path: string
+): DatabaseColumns {
+  const columns = columnsOf(db);
+  const match = matchSchema(columns, databases);
+  if (!match || match.missing.length > 0 || match.schema.supported === false) {
+    throw new InputNotFound(
+      match ? 'That’s a version of the database this can’t read' : 'That isn’t the database',
+      {
+        path,
+        ...(match && { fields: { missing: match.missing } }),
+        hint: 'Run `chronicle scan <path>` to see what it is.',
+      }
+    );
+  }
+  return columns;
+}
+
 /** Read an existing source database without changing its journal mode. */
 export abstract class SqliteExtractor<
   SelfClass extends typeof SqliteExtractor = typeof SqliteExtractor,
@@ -65,18 +91,7 @@ export abstract class SqliteExtractor<
    * already, can check one after it.
    */
   protected assertSchema(databases: DatabaseSchema[], path: string): void {
-    this.columns = columnsOf(this.db!);
-    const match = matchSchema(this.columns, databases);
-    if (!match || match.missing.length > 0 || match.schema.supported === false) {
-      throw new InputNotFound(
-        match ? 'That’s a version of the database this can’t read' : 'That isn’t the database',
-        {
-          path,
-          ...(match && { fields: { missing: match.missing } }),
-          hint: 'Run `chronicle scan <path>` to see what it is.',
-        }
-      );
-    }
+    this.columns = assertDatabaseSchema(this.db!, databases, path);
   }
 
   /** Whether the database has a column a schema marks as optional, as `table.column`. */

@@ -20,6 +20,7 @@ const DateTimeSchema = z.union([
 export const INVERSE_PROPERTIES: Record<string, string> = {
   hasPart: 'isPartOf',
   hasStage: 'isStageOf',
+  renditionOf: 'rendition',
   resultOf: 'result',
 };
 
@@ -172,6 +173,7 @@ export interface CreativeWork extends Omit<Entity, '@type'> {
   isBasedOn?: CreativeWorkAndChildren[];
   publisher?: OrganizationAndChildren[];
   references?: EntityAndChildren[];
+  rendition?: MediaObjectAndChildren[];
   series?: CreativeWorkAndChildren[];
   sourceFormat?: string;
   visibility?: string;
@@ -187,6 +189,7 @@ export type CreativeWorkAndChildren =
   | CollectionAndChildren
   | MediaObjectAndChildren
   | MessageAndChildren
+  | MovingImageAndChildren
   | MusicAlbumAndChildren
   | MusicRecordingAndChildren
   | NoteAndChildren
@@ -199,7 +202,8 @@ export type CreativeWorkAndChildren =
   | ResponseAndChildren
   | RevisionAndChildren
   | SoftwareAndChildren
-  | SoftwareSourceCodeAndChildren;
+  | SoftwareSourceCodeAndChildren
+  | StillImageAndChildren;
 
 const CreativeWorkProperties = {
   ...EntityProperties,
@@ -210,6 +214,7 @@ const CreativeWorkProperties = {
   isBasedOn: z.lazy(() => z.array(CreativeWorkAndChildrenSchema)).optional(),
   publisher: z.lazy(() => z.array(OrganizationAndChildrenSchema)).optional(),
   references: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
+  rendition: z.lazy(() => z.array(MediaObjectAndChildrenSchema)).optional(),
   series: z.lazy(() => z.array(CreativeWorkAndChildrenSchema)).optional(),
   sourceFormat: z.lazy(() => z.string()).optional(),
   visibility: z.lazy(() => z.string()).optional(),
@@ -375,6 +380,7 @@ export const AddActionSchema: z.ZodType<AddAction> = z
 // Agent, child of https://schema.chronicle.app/Entity
 export interface Agent extends Omit<Entity, '@type'> {
   '@type': 'Agent';
+  likes?: EntityAndChildren[];
   memberOf?: EntityAndChildren[];
 }
 
@@ -383,6 +389,7 @@ export type AgentAndChildren =
 
 const AgentProperties = {
   ...EntityProperties,
+  likes: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
   memberOf: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
 };
 
@@ -404,7 +411,8 @@ export type CreateActionAndChildren =
   | PhotographActionAndChildren
   | PublishActionAndChildren
   | QuoteActionAndChildren
-  | RecordActionAndChildren;
+  | RecordActionAndChildren
+  | ScreenshotActionAndChildren;
 
 const CreateActionProperties = {
   ...ActionProperties,
@@ -476,8 +484,10 @@ export const AssessActionSchema: z.ZodType<AssessAction> = z
 export interface MediaObject extends Omit<CreativeWork, '@type'> {
   '@type': 'MediaObject';
   contentPath?: string;
+  contentSize?: number;
   mimeType?: string;
   snapshotOf?: EntityAndChildren[];
+  renditionOf?: CreativeWorkAndChildren[];
 }
 
 export type MediaObjectAndChildren =
@@ -490,8 +500,10 @@ export type MediaObjectAndChildren =
 const MediaObjectProperties = {
   ...CreativeWorkProperties,
   contentPath: z.lazy(() => z.string()).optional(),
+  contentSize: z.lazy(() => z.number()).optional(),
   mimeType: z.lazy(() => z.string()).optional(),
   snapshotOf: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
+  renditionOf: z.lazy(() => z.array(CreativeWorkAndChildrenSchema)).optional(),
 };
 
 export const MediaObjectSchema: z.ZodType<MediaObject> = z
@@ -645,7 +657,7 @@ export interface CommunicateAction extends Omit<InteractAction, '@type'> {
 }
 
 export type CommunicateActionAndChildren =
-  CommunicateAction | CallActionAndChildren | CheckInActionAndChildren;
+  CommunicateAction | CallActionAndChildren | CheckInActionAndChildren | ShareActionAndChildren;
 
 const CommunicateActionProperties = {
   ...InteractActionProperties,
@@ -1347,6 +1359,7 @@ export const FollowActionSchema: z.ZodType<FollowAction> = z
 export interface ImageObject extends Omit<MediaObject, '@type'> {
   '@type': 'ImageObject';
   caption?: string;
+  exifData?: { [key: string]: string | number };
   height?: number;
   width?: number;
 }
@@ -1356,6 +1369,7 @@ export type ImageObjectAndChildren = ImageObject;
 const ImageObjectProperties = {
   ...MediaObjectProperties,
   caption: z.lazy(() => z.string()).optional(),
+  exifData: z.lazy(() => z.record(z.string(), z.union([z.string(), z.number()]))).optional(),
   height: z.lazy(() => z.number()).optional(),
   width: z.lazy(() => z.number()).optional(),
 };
@@ -1432,7 +1446,7 @@ export interface ReactAction extends Omit<AssessAction, '@type'> {
   '@type': 'ReactAction';
 }
 
-export type ReactActionAndChildren = ReactAction | LikeActionAndChildren;
+export type ReactActionAndChildren = ReactAction | LikeActionAndChildren | UnlikeActionAndChildren;
 
 const ReactActionProperties = {
   ...AssessActionProperties,
@@ -1651,6 +1665,28 @@ export const MoveActionSchema: z.ZodType<MoveAction> = z
   .object({
     '@type': z.literal('MoveAction'),
     ...MoveActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// MovingImage, child of https://schema.chronicle.app/CreativeWork
+export interface MovingImage extends Omit<CreativeWork, '@type'> {
+  '@type': 'MovingImage';
+  caption?: string;
+  depicts?: EntityAndChildren[];
+}
+
+export type MovingImageAndChildren = MovingImage;
+
+const MovingImageProperties = {
+  ...CreativeWorkProperties,
+  caption: z.lazy(() => z.string()).optional(),
+  depicts: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
+};
+
+export const MovingImageSchema: z.ZodType<MovingImage> = z
+  .object({
+    '@type': z.literal('MovingImage'),
+    ...MovingImageProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -2300,6 +2336,42 @@ export const RevisionSchema: z.ZodType<Revision> = z
   })
   .superRefine(requireNodeIdentity);
 
+// ScreenshotAction, child of https://schema.chronicle.app/CreateAction
+export interface ScreenshotAction extends Omit<CreateAction, '@type'> {
+  '@type': 'ScreenshotAction';
+}
+
+export type ScreenshotActionAndChildren = ScreenshotAction;
+
+const ScreenshotActionProperties = {
+  ...CreateActionProperties,
+};
+
+export const ScreenshotActionSchema: z.ZodType<ScreenshotAction> = z
+  .object({
+    '@type': z.literal('ScreenshotAction'),
+    ...ScreenshotActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// ShareAction, child of https://schema.chronicle.app/CommunicateAction
+export interface ShareAction extends Omit<CommunicateAction, '@type'> {
+  '@type': 'ShareAction';
+}
+
+export type ShareActionAndChildren = ShareAction;
+
+const ShareActionProperties = {
+  ...CommunicateActionProperties,
+};
+
+export const ShareActionSchema: z.ZodType<ShareAction> = z
+  .object({
+    '@type': z.literal('ShareAction'),
+    ...ShareActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // SleepAction, child of https://schema.chronicle.app/ExperienceAction
 export interface SleepAction extends Omit<ExperienceAction, '@type'> {
   '@type': 'SleepAction';
@@ -2408,6 +2480,28 @@ export const SoftwareSourceCodeSchema: z.ZodType<SoftwareSourceCode> = z
   })
   .superRefine(requireNodeIdentity);
 
+// StillImage, child of https://schema.chronicle.app/CreativeWork
+export interface StillImage extends Omit<CreativeWork, '@type'> {
+  '@type': 'StillImage';
+  caption?: string;
+  depicts?: EntityAndChildren[];
+}
+
+export type StillImageAndChildren = StillImage;
+
+const StillImageProperties = {
+  ...CreativeWorkProperties,
+  caption: z.lazy(() => z.string()).optional(),
+  depicts: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
+};
+
+export const StillImageSchema: z.ZodType<StillImage> = z
+  .object({
+    '@type': z.literal('StillImage'),
+    ...StillImageProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
 // Tag, child of https://schema.chronicle.app/Entity
 export interface Tag extends Omit<Entity, '@type'> {
   '@type': 'Tag';
@@ -2499,6 +2593,24 @@ export const TravelActionSchema: z.ZodType<TravelAction> = z
   .object({
     '@type': z.literal('TravelAction'),
     ...TravelActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// UnlikeAction, child of https://schema.chronicle.app/ReactAction
+export interface UnlikeAction extends Omit<ReactAction, '@type'> {
+  '@type': 'UnlikeAction';
+}
+
+export type UnlikeActionAndChildren = UnlikeAction;
+
+const UnlikeActionProperties = {
+  ...ReactActionProperties,
+};
+
+export const UnlikeActionSchema: z.ZodType<UnlikeAction> = z
+  .object({
+    '@type': z.literal('UnlikeAction'),
+    ...UnlikeActionProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -2610,6 +2722,8 @@ export const VideoObjectAndChildrenSchema = VideoObjectSchema;
 
 export const VenueAndChildrenSchema = VenueSchema;
 
+export const UnlikeActionAndChildrenSchema = UnlikeActionSchema;
+
 export const TravelActionAndChildrenSchema = TravelActionSchema;
 
 export const ThreadAndChildrenSchema = ThreadSchema;
@@ -2619,6 +2733,8 @@ export const TenureAndChildrenSchema = TenureSchema;
 export const TaskAndChildrenSchema = TaskSchema;
 
 export const TagAndChildrenSchema = TagSchema;
+
+export const StillImageAndChildrenSchema = StillImageSchema;
 
 export const SoftwareSourceCodeAndChildrenSchema = SoftwareSourceCodeSchema;
 
@@ -2631,6 +2747,10 @@ export const SleepStageAndChildrenSchema = SleepStageSchema;
 export const SleepSessionAndChildrenSchema = SleepSessionSchema;
 
 export const SleepActionAndChildrenSchema = SleepActionSchema;
+
+export const ShareActionAndChildrenSchema = ShareActionSchema;
+
+export const ScreenshotActionAndChildrenSchema = ScreenshotActionSchema;
 
 export const RevisionAndChildrenSchema = RevisionSchema;
 
@@ -2747,6 +2867,8 @@ export const OrganizationAndChildrenSchema: z.ZodType<OrganizationAndChildren> =
   .superRefine(requireNodeIdentity);
 export const MusicAlbumAndChildrenSchema = MusicAlbumSchema;
 
+export const MovingImageAndChildrenSchema = MovingImageSchema;
+
 export const MoveActionAndChildrenSchema: z.ZodType<MoveActionAndChildren> = z
   .discriminatedUnion('@type', [
     z.object({
@@ -2800,6 +2922,11 @@ export const ReactActionAndChildrenSchema: z.ZodType<ReactActionAndChildren> = z
     z.object({
       '@type': z.literal('ReactAction'),
       ...ReactActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('UnlikeAction'),
+      ...UnlikeActionProperties,
     }),
 
     z.object({
@@ -3100,6 +3227,11 @@ export const CommunicateActionAndChildrenSchema: z.ZodType<CommunicateActionAndC
     }),
 
     z.object({
+      '@type': z.literal('ShareAction'),
+      ...ShareActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('CheckInAction'),
       ...CheckInActionProperties,
     }),
@@ -3125,6 +3257,11 @@ export const InteractActionAndChildrenSchema: z.ZodType<InteractActionAndChildre
     z.object({
       '@type': z.literal('CommunicateAction'),
       ...CommunicateActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ShareAction'),
+      ...ShareActionProperties,
     }),
 
     z.object({
@@ -3233,6 +3370,11 @@ export const AssessActionAndChildrenSchema: z.ZodType<AssessActionAndChildren> =
     }),
 
     z.object({
+      '@type': z.literal('UnlikeAction'),
+      ...UnlikeActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('LikeAction'),
       ...LikeActionProperties,
     }),
@@ -3247,6 +3389,11 @@ export const CreateActionAndChildrenSchema: z.ZodType<CreateActionAndChildren> =
     z.object({
       '@type': z.literal('CreateAction'),
       ...CreateActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ScreenshotAction'),
+      ...ScreenshotActionProperties,
     }),
 
     z.object({
@@ -3478,6 +3625,11 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('ShareAction'),
+      ...ShareActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('CheckInAction'),
       ...CheckInActionProperties,
     }),
@@ -3513,6 +3665,11 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('UnlikeAction'),
+      ...UnlikeActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('LikeAction'),
       ...LikeActionProperties,
     }),
@@ -3520,6 +3677,11 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     z.object({
       '@type': z.literal('CreateAction'),
       ...CreateActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ScreenshotAction'),
+      ...ScreenshotActionProperties,
     }),
 
     z.object({
@@ -3596,6 +3758,11 @@ export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> =
     }),
 
     z.object({
+      '@type': z.literal('StillImage'),
+      ...StillImageProperties,
+    }),
+
+    z.object({
       '@type': z.literal('SoftwareSourceCode'),
       ...SoftwareSourceCodeProperties,
     }),
@@ -3648,6 +3815,11 @@ export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> =
     z.object({
       '@type': z.literal('MusicAlbum'),
       ...MusicAlbumProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('MovingImage'),
+      ...MovingImageProperties,
     }),
 
     z.object({
@@ -3954,6 +4126,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('StillImage'),
+      ...StillImageProperties,
+    }),
+
+    z.object({
       '@type': z.literal('SoftwareSourceCode'),
       ...SoftwareSourceCodeProperties,
     }),
@@ -4006,6 +4183,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     z.object({
       '@type': z.literal('MusicAlbum'),
       ...MusicAlbumProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('MovingImage'),
+      ...MovingImageProperties,
     }),
 
     z.object({
@@ -4272,6 +4454,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('ShareAction'),
+      ...ShareActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('CheckInAction'),
       ...CheckInActionProperties,
     }),
@@ -4307,6 +4494,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('UnlikeAction'),
+      ...UnlikeActionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('LikeAction'),
       ...LikeActionProperties,
     }),
@@ -4314,6 +4506,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('CreateAction'),
       ...CreateActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ScreenshotAction'),
+      ...ScreenshotActionProperties,
     }),
 
     z.object({
@@ -4552,6 +4749,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('StillImage'),
+      ...StillImageProperties,
+    }),
+
+    z.object({
       '@type': z.literal('SoftwareSourceCode'),
       ...SoftwareSourceCodeProperties,
     }),
@@ -4604,6 +4806,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('MusicAlbum'),
       ...MusicAlbumProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('MovingImage'),
+      ...MovingImageProperties,
     }),
 
     z.object({

@@ -9,11 +9,15 @@ export const LABELS = ['name', 'title', 'headline', 'handle', 'text', 'body', 'u
 const isNode = (value: unknown): value is { [key: string]: unknown } =>
   typeof value === 'object' && value !== null && !Array.isArray(value) && !(value instanceof Date);
 
-/** A node's label: its first naming property, else the label of what it acts on. */
+/**
+ * A node's label: its first naming property, else the label of what it acts
+ * on, else of what it brings about, such as a message an action sends.
+ */
 export function nodeLabel(node: { [key: string]: unknown }): string | undefined {
   const key = LABELS.find(k => typeof node[k] === 'string' && node[k] !== '');
   if (key) return node[key] as string;
-  return isNode(node.object) ? nodeLabel(node.object) : undefined;
+  if (isNode(node.object)) return nodeLabel(node.object);
+  return isNode(node.result) ? nodeLabel(node.result) : undefined;
 }
 
 /**

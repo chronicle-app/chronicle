@@ -284,6 +284,7 @@ const writeSchemaFile = (classes, properties, inverses, version) =>
               Number: 'number',
               Boolean: 'boolean',
               URL: 'string',
+              JSONObject: '{ [key: string]: string | number }',
             };
 
             return typeMappings[rangeShortName] || `${rangeShortName}AndChildren`;
@@ -341,6 +342,9 @@ ${shortName === 'Base' ? '"@key"?: KeyField[];\n"@id"?: string;\n"@asserts"?: st
             }
             if (rangeShortName === 'DateTime') {
               return 'DateTimeSchema';
+            }
+            if (rangeShortName === 'JSONObject') {
+              return 'z.record(z.string(), z.union([z.string(), z.number()]))';
             }
             return `${rangeShortName}AndChildrenSchema`;
           });

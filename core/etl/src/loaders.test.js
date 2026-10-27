@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { CsvLoader, JsonLoader, formatJson } from '../dist/index.js';
+import { CsvLoader, JsonLoader, formatJson, nodeLabel } from '../dist/index.js';
 
 function record(data) {
   return {
@@ -73,6 +73,13 @@ test('JSON and CSV file output escape quotes, controls and delimiters and render
       }),
     ]),
     '@type,agent,object,participant\nExecuteAction,me,echo hi,\nExecuteAction,me,echo hi,A; B\n'
+  );
+  // A run's progress names an action by what it acts on, or else by what it
+  // brings about, such as the message it sends.
+  assert.equal(nodeLabel(node()), 'echo hi');
+  assert.equal(
+    nodeLabel({ '@type': 'MessageAction', result: { '@type': 'Message', body: 'Hello' } }),
+    'Hello'
   );
   // Schema columns: every schema property as a dotted path; only @key and
   // other JSON-LD bookkeeping stay out.

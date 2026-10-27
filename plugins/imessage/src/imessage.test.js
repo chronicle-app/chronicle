@@ -22,25 +22,26 @@ function fixture(t) {
   const attachment = join(dir, 'picture.png');
   writeFileSync(attachment, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
   const db = new DatabaseSync(input);
-  db.exec(`CREATE TABLE message (ROWID INTEGER PRIMARY KEY, guid TEXT, text TEXT, service TEXT, date INTEGER, is_from_me INTEGER, handle_id INTEGER, attributedBody BLOB);
+  db.exec(`CREATE TABLE message (ROWID INTEGER PRIMARY KEY, guid TEXT, text TEXT, service TEXT, date INTEGER, is_from_me INTEGER, handle_id INTEGER, attributedBody BLOB, item_type INTEGER);
     CREATE TABLE handle (ROWID INTEGER PRIMARY KEY, id TEXT, service TEXT);
-    CREATE TABLE chat (ROWID INTEGER PRIMARY KEY);
+    CREATE TABLE chat (ROWID INTEGER PRIMARY KEY, style INTEGER, display_name TEXT, group_id TEXT, original_group_id TEXT);
     CREATE TABLE chat_message_join (chat_id INTEGER, message_id INTEGER);
     CREATE TABLE chat_handle_join (chat_id INTEGER, handle_id INTEGER);
-    CREATE TABLE attachment (ROWID INTEGER PRIMARY KEY, guid TEXT, filename TEXT, mime_type TEXT, uti TEXT, total_bytes INTEGER, transfer_name TEXT, is_outgoing INTEGER);
+    CREATE TABLE attachment (ROWID INTEGER PRIMARY KEY, guid TEXT, filename TEXT, mime_type TEXT, uti TEXT, total_bytes INTEGER, transfer_name TEXT, is_outgoing INTEGER, hide_attachment INTEGER);
     CREATE TABLE message_attachment_join (message_id INTEGER, attachment_id INTEGER);
     INSERT INTO handle VALUES (1, 'Friend@Example.com', 'iMessage');
-    INSERT INTO chat VALUES (1);
+    INSERT INTO chat VALUES (1, 45, '', 'ONE-TO-ONE-ID', 'ONE-TO-ONE-ID');
     INSERT INTO chat_handle_join VALUES (1,1);
-    INSERT INTO message VALUES (1,'message-1','Hello','iMessage',800000000000000000,0,1,NULL);
-    INSERT INTO message VALUES (2,'message-2',NULL,'SMS',800000001000000001,1,1,X'426C6F622074657874');
+    INSERT INTO message VALUES (1,'message-1','Hello','iMessage',800000000000000000,0,1,NULL,0);
+    INSERT INTO message VALUES (2,'message-2',NULL,'SMS',800000001000000001,1,1,X'426C6F622074657874',0);
     INSERT INTO chat_message_join VALUES (1,1),(1,2);
-    INSERT INTO message_attachment_join VALUES (1,1);`);
-  db.prepare('INSERT INTO attachment VALUES (1, ?, ?, NULL, NULL, 4, ?, 0)').run(
-    'attachment-1',
-    attachment,
-    'Picture'
+    INSERT INTO message_attachment_join VALUES (1,1),(1,2);`);
+  // The picture, and a link preview's image, which Messages keeps hidden.
+  const insertAttachment = db.prepare(
+    'INSERT INTO attachment VALUES (?, ?, ?, NULL, NULL, ?, ?, 0, ?)'
   );
+  insertAttachment.run(1, 'attachment-1', attachment, 4, 'Picture', 0);
+  insertAttachment.run(2, 'attachment-2', attachment, 100, 'Preview.pluginPayloadAttachment', 1);
   db.close();
   const contacts = join(dir, 'contacts.db');
   const address = new DatabaseSync(contacts);
@@ -72,6 +73,12 @@ async function survey(input, config = {}, options = {}) {
   }
 }
 const surveyBy = input => survey(input, {}, { byMonth: true });
+/** A Channel, with its members by handle. */
+const channel = ({ name, member, ...key }) => ({
+  ...key,
+  name,
+  member: member?.map(agent => agent.handle),
+});
 test('its declared schema is all its queries read, and a chat.db without it is refused', async t => {
   const dir = mkdtempSync(join(tmpdir(), 'imessage-schema-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
@@ -116,9 +123,25 @@ test('a survey counts the messages a run reads, when, in how many conversations'
   assert.equal(later.messages.count, (await extract(input, { since })).length);
   assert.equal(later.messages.measures[1].value, 0);
 });
-test('native SQLite preserves large timestamps, BLOB text, chat participants and attachments', async t => {
+test('native SQLite preserves large timestamps, BLOB text, chat participants, group chats and attachments', async t => {
   const { input, lookupContact } = fixture(t);
+  // A group chat, older than the one-to-one chat, whose ID Messages replaced,
+  // renamed last. The rename is a system event, with no text or sender, not a
+  // message.
+  const db = new DatabaseSync(input);
+  db.exec(`INSERT INTO handle VALUES (2, '+15555550102', 'iMessage');
+    INSERT INTO chat VALUES (2, 43, ' Climbing ', 'GROUP-ID-NOW', 'GROUP-ID-FIRST');
+    INSERT INTO chat_handle_join VALUES (2,1),(2,2);
+    INSERT INTO message VALUES (3,'message-3','Saturday?','iMessage',700000000000000000,0,2,NULL,0);
+    INSERT INTO message VALUES (4,'message-4','Yes','iMessage',700000001000000000,1,0,NULL,0);
+    INSERT INTO message VALUES (5,'message-5',NULL,'iMessage',700000002000000000,0,0,NULL,2);
+    INSERT INTO chat_message_join VALUES (2,3),(2,4),(2,5);`);
+  db.close();
   const rows = await extract(input);
+  assert.deepEqual(
+    rows.map(row => row.data.guid),
+    ['message-2', 'message-1', 'message-4', 'message-3']
+  );
   assert.equal(rows[0].data.date, '800000001000000001');
   assert.equal(rows[0].context.attributedBody, 'Blob text');
   assert.equal(rows[1].context.participants[0].id, 'Friend@Example.com');
@@ -130,8 +153,42 @@ test('native SQLite preserves large timestamps, BLOB text, chat participants and
     action.data.agent.sameAs.map(e => e.handle),
     ['Friend@Example.com', 'friend@work.example']
   );
-  assert.equal(action.data.object.contains[0]['@type'], 'ImageObject');
-  assert.equal(action.data.object.contains[0].sourceId, 'attachment-1');
+  assert.equal(action.data.result.contains[0]['@type'], 'ImageObject');
+  assert.equal(action.data.result.contains[0].sourceId, 'attachment-1');
+  // A one-to-one chat has no Channel.
+  assert.equal(action.data.result.isPartOf, undefined);
+
+  // A group chat's messages are part of its Channel, keyed by the ID the group
+  // started with and the same as the one it has now. Its roster, and you, go
+  // on it from the first message seen in it, the newest.
+  const transformer = new ImessageTransformer({ lookupContact });
+  const [latest] = await transformer.performTransform(rows[2]);
+  const [earlier] = await transformer.performTransform(rows[3]);
+  const group = {
+    '@type': 'Channel',
+    '@key': ['@type', 'source', 'sourceId'],
+    source: 'imessage',
+    sourceId: 'GROUP-ID-FIRST',
+    sameAs: [
+      {
+        '@type': 'Channel',
+        '@key': ['@type', 'source', 'sourceId'],
+        source: 'imessage',
+        sourceId: 'GROUP-ID-NOW',
+      },
+    ],
+    name: 'Climbing',
+  };
+  assert.deepEqual(channel(latest.data.result.isPartOf[0]), {
+    ...group,
+    member: ['Friend@Example.com', '+15555550102', 'me@example.com'],
+  });
+  assert.deepEqual(channel(earlier.data.result.isPartOf[0]), { ...group, member: undefined });
+  // Who received it is still each other member, and you.
+  assert.deepEqual(
+    earlier.data.result.recipient.map(agent => agent.handle),
+    ['Friend@Example.com', 'me@example.com']
+  );
 });
 test('outgoing/SMS identities, no-account fallback and contact opt-out', async t => {
   const { input } = fixture(t);
@@ -145,11 +202,11 @@ test('outgoing/SMS identities, no-account fallback and contact opt-out', async t
   // as a bare Person every owner would share.
   const [outgoing] = await transformer.performTransform(rows[0]);
   assert.equal(outgoing.data.agent, undefined);
-  assert.equal(outgoing.data.object.body, 'Blob text');
-  assert.equal(outgoing.data.object.recipient[0].handle, 'Friend@Example.com');
+  assert.equal(outgoing.data.result.body, 'Blob text');
+  assert.equal(outgoing.data.result.recipient[0].handle, 'Friend@Example.com');
   const [incoming] = await transformer.performTransform(rows[1]);
   assert.equal(incoming.data.agent.name, undefined);
-  assert.equal(incoming.data.object.recipient, undefined);
+  assert.equal(incoming.data.result.recipient, undefined);
 });
 test('exclusive time windows and newest-first limits', async t => {
   const { input } = fixture(t);
@@ -167,6 +224,12 @@ test('sender absent from roster still has source handle and email identity', asy
   const [record] = await new ImessageTransformer({ lookupContact }).performTransform(rows[1]);
   assert.equal(record.data.agent.handle, 'Friend@Example.com');
   assert.equal(record.data.agent.sameAs[0].handle, 'Friend@Example.com');
+
+  // A sender whose handle is gone from chat.db is unknown, and the message is still read.
+  rows[1].context.handleIdText = null;
+  const [unknown] = await new ImessageTransformer({ lookupContact }).performTransform(rows[1]);
+  assert.equal(unknown.data.agent, undefined);
+  assert.equal(unknown.data.result.body, 'Hello');
 });
 test('complete Messages → contacts → schema → JSON pipeline runs on synthetic fixtures', async t => {
   const { input, dir, lookupContact } = fixture(t);
@@ -185,5 +248,5 @@ test('complete Messages → contacts → schema → JSON pipeline runs on synthe
   } finally {
     await runner.teardown();
   }
-  assert.equal(JSON.parse(readFileSync(output, 'utf8')).object.body, 'Blob text');
+  assert.equal(JSON.parse(readFileSync(output, 'utf8')).result.body, 'Blob text');
 });
