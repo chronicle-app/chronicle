@@ -18,6 +18,7 @@ import {
   albums,
   at,
   attachments,
+  fingerprint,
   groupChat,
   ids,
   people,
@@ -54,7 +55,8 @@ async function extract(t, Extractor, { model, files = fixture(t, { model }), ...
 const you = { '@type': 'Person', source: 'icloud', sourceId: account.dsid };
 const isYou = node =>
   node?.['@type'] === you['@type'] && node.source === you.source && node.sourceId === you.sourceId;
-const media = action => action.result ?? action.object;
+// The work an action made or acted on.
+const work = action => action.result ?? action.object;
 // Who an agent is: you, or a handle with the participants it's the same as.
 const who = node => {
   if (!node) return;
@@ -82,39 +84,48 @@ test('each photo is what you did to bring it into your library, newest first', a
     ]
   );
   assert.equal(count, 9);
-  const byId = new Map(outputs.map(action => [action.sourceId, action]));
+  const byId = new Map(outputs.map(action => [work(action).sourceId, action]));
 
   // What you made is dated when you made it, and a save when it was added.
+  // Each is a work: a still image or a moving one.
   assert.deepEqual(
     outputs.map(action => [
-      action.sourceId,
+      work(action).sourceId,
       action['@type'],
-      media(action)['@type'],
+      work(action)['@type'],
       action.timestamp.toISOString(),
     ]),
     [
-      [ids.camera, 'PhotographAction', 'ImageObject', at.day(10)],
-      [ids.video, 'RecordAction', 'VideoObject', at.day(9)],
-      [ids.screenshot, 'ScreenshotAction', 'ImageObject', at.day(8)],
-      [ids.screenRecording, 'RecordAction', 'VideoObject', at.day(7)],
-      [ids.faceTime, 'RecordAction', 'VideoObject', at.day(6)],
+      [ids.camera, 'PhotographAction', 'StillImage', at.day(10)],
+      [ids.video, 'RecordAction', 'MovingImage', at.day(9)],
+      [ids.screenshot, 'ScreenshotAction', 'StillImage', at.day(8)],
+      [ids.screenRecording, 'RecordAction', 'MovingImage', at.day(7)],
+      // A Live Photo of a FaceTime call is a photo FaceTime took.
+      [ids.faceTime, 'PhotographAction', 'StillImage', at.day(6)],
       // Saved from WhatsApp four days after it was taken.
-      [ids.whatsApp, 'AddAction', 'ImageObject', at.day(5)],
-      [ids.noCamera, 'AddAction', 'VideoObject', at.day(4)],
-      [ids.local, 'PhotographAction', 'ImageObject', at.day(3)],
-      [ids.unliked, 'PhotographAction', 'ImageObject', at.day(2)],
+      [ids.whatsApp, 'AddAction', 'StillImage', at.day(5)],
+      [ids.noCamera, 'AddAction', 'MovingImage', at.day(4)],
+      [ids.local, 'PhotographAction', 'StillImage', at.day(3)],
+      [ids.unliked, 'PhotographAction', 'StillImage', at.day(2)],
     ]
   );
+  // The work is keyed by iCloud's ID, and the action by the work, so no two
+  // share an ID.
   for (const action of outputs) {
-    assert.ok(isYou(action.agent), action.sourceId);
-    assert.deepEqual(action['@key'], ['@type', 'source', 'sourceId']);
-    assert.deepEqual(media(action)['@key'], ['@type', 'source', 'sourceId']);
+    assert.ok(isYou(action.agent), work(action).sourceId);
+    assert.equal(action.sourceId, undefined);
+    assert.deepEqual(action['@key'], [
+      '@type',
+      'source',
+      action.object ? 'object.sourceId' : 'result.sourceId',
+    ]);
+    assert.deepEqual(work(action)['@key'], ['@type', 'source', 'sourceId']);
   }
 
   // The instrument: the kind of camera, the app that saved it, or FaceTime.
   const instruments = Object.fromEntries(
     outputs.map(action => [
-      action.sourceId,
+      work(action).sourceId,
       action.instrument?.map(node => [
         node['@type'],
         node.source,
@@ -141,15 +152,11 @@ test('each photo is what you did to bring it into your library, newest first', a
     assert.equal(instruments[id], undefined, id);
   }
 
-  // The photo, with what Photos knows about it.
-  const photo = media(byId.get(ids.camera));
+  // The photo as a work, with what you said about it.
+  const photo = work(byId.get(ids.camera));
   assert.equal(photo.name, 'Morning');
-  assert.equal(photo.handle, 'IMG_0001.HEIC');
   assert.equal(photo.caption, 'Breakfast on the porch');
   assert.deepEqual(photo.tags, ['family', 'porch']);
-  assert.equal(photo.width, 4032);
-  assert.equal(photo.height, 3024);
-  assert.equal(photo.mimeType, 'image/heic');
   // The people you named in it: Alex, and someone you named in a group of
   // faces, who was merged into another person, as that person. Someone
   // unnamed and a pet are left out.
@@ -161,8 +168,8 @@ test('each photo is what you did to bring it into your library, newest first', a
     ]
   );
   // A face Photos matched to someone itself isn't one you named.
-  assert.equal(media(byId.get(ids.video)).depicts, undefined);
-  assert.equal(media(byId.get(ids.whatsApp)).depicts, undefined);
+  assert.equal(work(byId.get(ids.video)).depicts, undefined);
+  assert.equal(work(byId.get(ids.whatsApp)).depicts, undefined);
   // Its album, in its folders, keyed by iCloud's IDs. A trashed album is left out.
   const [trips] = photo.isPartOf;
   assert.equal(photo.isPartOf.length, 1);
@@ -172,44 +179,59 @@ test('each photo is what you did to bring it into your library, newest first', a
   );
   assert.equal(trips.isPartOf[0].isPartOf[0].sourceId, albums.archive);
   assert.equal(trips.isPartOf[0].isPartOf[0].isPartOf, undefined);
-  // A Live Photo contains its video, which takes the photo's ID.
-  assert.deepEqual(photo.contains, [
-    {
-      '@type': 'VideoObject',
-      '@key': ['@type', 'source', 'sourceId'],
-      '@asserts': ['*'],
-      source: 'apple-photos',
-      sourceId: ids.camera,
-      duration: 'PT2.5S',
-    },
-  ]);
   // Each run is the library as it is now: what it has is complete.
   assert.deepEqual(photo['@asserts'], ['*']);
   // The camera's mode it was taken in. A Portrait that's also a Live Photo is
   // the Portrait.
   assert.equal(photo.sourceFormat, 'portrait');
-  assert.equal(media(byId.get(ids.video)).sourceFormat, 'sloMo');
-  assert.equal(media(byId.get(ids.local)).sourceFormat, 'burst');
-  assert.equal(byId.get(ids.faceTime).result.contains[0].sourceFormat, 'livePhoto');
+  assert.equal(work(byId.get(ids.video)).sourceFormat, 'sloMo');
+  assert.equal(work(byId.get(ids.local)).sourceFormat, 'burst');
+  assert.equal(work(byId.get(ids.faceTime)).sourceFormat, 'livePhoto');
   for (const id of [ids.screenshot, ids.whatsApp, ids.unliked]) {
-    assert.equal(media(byId.get(id)).sourceFormat, undefined, id);
+    assert.equal(work(byId.get(id)).sourceFormat, undefined, id);
   }
-  // What its file records about the lens and the exposure, by EXIF's tag names.
-  assert.deepEqual(photo.exifData, {
-    LensModel: 'iPhone 14 Pro back triple camera 6.86mm f/1.78',
-    FocalLength: 6.86,
-    FocalLengthIn35mmFilm: 24,
-    FNumber: 1.78,
-    ExposureTime: 0.008,
-    PhotographicSensitivity: 64,
-    ExposureBiasValue: 0.07,
-    MeteringMode: 5,
-    WhiteBalance: 0,
-    Flash: 0,
-    Orientation: 6,
-  });
+
+  // Each original file that holds it is a rendition, keyed by iCloud's
+  // fingerprint of the file: a Live Photo's image and its clip. A preview and
+  // an edit's data aren't originals.
+  assert.deepEqual(photo.rendition, [
+    {
+      '@type': 'ImageObject',
+      '@key': ['@type', 'source', 'sourceId'],
+      '@asserts': ['*'],
+      source: 'apple-photos',
+      sourceId: fingerprint('camera'),
+      handle: 'IMG_0001.HEIC',
+      width: 4032,
+      height: 3024,
+      mimeType: 'image/heic',
+      // What the file records about the lens and the exposure, by EXIF's tag names.
+      exifData: {
+        LensModel: 'iPhone 14 Pro back triple camera 6.86mm f/1.78',
+        FocalLength: 6.86,
+        FocalLengthIn35mmFilm: 24,
+        FNumber: 1.78,
+        ExposureTime: 0.008,
+        PhotographicSensitivity: 64,
+        ExposureBiasValue: 0.07,
+        MeteringMode: 5,
+        WhiteBalance: 0,
+        Flash: 0,
+        Orientation: 6,
+      },
+    },
+    {
+      '@type': 'VideoObject',
+      '@key': ['@type', 'source', 'sourceId'],
+      '@asserts': ['*'],
+      source: 'apple-photos',
+      sourceId: fingerprint('camera', 'clip'),
+      duration: 'PT2.5S',
+      mimeType: 'video/quicktime',
+    },
+  ]);
   // No 35mm equivalent or metering mode, and a flash that fired.
-  assert.deepEqual(media(byId.get(ids.unliked)).exifData, {
+  assert.deepEqual(work(byId.get(ids.unliked)).rendition[0].exifData, {
     LensModel: 'RF50mm F1.8 STM',
     FocalLength: 50,
     FNumber: 1.8,
@@ -222,9 +244,9 @@ test('each photo is what you did to bring it into your library, newest first', a
   });
   // A video's settings aren't EXIF. A screenshot has no exposure, so its flash
   // and its upright orientation aren't known, but a saved photo's turn is.
-  assert.equal(media(byId.get(ids.video)).exifData, undefined);
-  assert.equal(media(byId.get(ids.screenshot)).exifData, undefined);
-  assert.deepEqual(media(byId.get(ids.whatsApp)).exifData, { Orientation: 8 });
+  assert.equal(work(byId.get(ids.video)).rendition[0].exifData, undefined);
+  assert.equal(work(byId.get(ids.screenshot)).rendition[0].exifData, undefined);
+  assert.deepEqual(work(byId.get(ids.whatsApp)).rendition[0].exifData, { Orientation: 8 });
 
   // Where it was taken, as the camera recorded it.
   assert.deepEqual(byId.get(ids.camera).location, {
@@ -236,7 +258,7 @@ test('each photo is what you did to bring it into your library, newest first', a
   // No position, or 0, 0, is no location.
   assert.equal(byId.get(ids.video).location, undefined);
   assert.equal(byId.get(ids.local).location, undefined);
-  // Someone else took a photo you saved, so where is the photo's, not the save's.
+  // Someone else took a photo you saved, so where is the work's, not the save's.
   const saved = byId.get(ids.whatsApp);
   assert.equal(saved.location, undefined);
   assert.deepEqual(saved.object.location, {
@@ -246,26 +268,33 @@ test('each photo is what you did to bring it into your library, newest first', a
     longitude: -4.4214,
   });
 
-  // A video.
-  const video = media(byId.get(ids.video));
-  assert.equal(video.duration, 'PT12.5S');
-  assert.equal(video.mimeType, 'video/quicktime');
+  // A video, and its file.
+  const video = work(byId.get(ids.video));
   assert.equal(video.isPartOf[0].sourceId, albums.food);
-
-  // What FaceTime recorded is the clip, which contains the still, with the
-  // face you added in it.
-  const call = byId.get(ids.faceTime).result;
-  assert.equal(call.duration, 'PT3S');
-  assert.equal(call.contains[0]['@type'], 'ImageObject');
-  assert.equal(call.contains[0].sourceId, ids.faceTime);
-  assert.equal(call.contains[0].contains, undefined);
   assert.deepEqual(
-    call.contains[0].depicts.map(person => person.sourceId),
+    video.rendition.map(file => [file['@type'], file.sourceId, file.duration, file.mimeType]),
+    [['VideoObject', fingerprint('video'), 'PT12.5S', 'video/quicktime']]
+  );
+
+  // A Live Photo of a FaceTime call: its image and its clip, with the face you added.
+  const call = work(byId.get(ids.faceTime));
+  assert.deepEqual(
+    call.rendition.map(file => [file['@type'], file.sourceId, file.duration]),
+    [
+      ['ImageObject', fingerprint('faceTime'), undefined],
+      ['VideoObject', fingerprint('faceTime', 'clip'), 'PT3S'],
+    ]
+  );
+  assert.deepEqual(
+    call.depicts.map(person => person.sourceId),
     [people.sam]
   );
 
-  // A photo not in iCloud is keyed by the library's own ID.
-  assert.equal(media(byId.get(ids.local)).sourceId, 'UUID-LOCAL');
+  // A photo not in iCloud is keyed by the library's own ID. Its file has no
+  // fingerprint, so it has no rendition.
+  const local = work(byId.get(ids.local));
+  assert.equal(local.sourceId, 'UUID-LOCAL');
+  assert.equal(local.rendition, undefined);
 
   // Given a copy of its Photos.sqlite, wherever it is, it reads that copy.
   const files = fixture(t);
@@ -324,7 +353,7 @@ test('activity dates what you did with each photo, from its dates and the change
   const liked = outputs.find(
     action => action['@type'] === 'LikeAction' && action.object.sourceId === ids.video
   );
-  assert.equal(liked.object['@type'], 'VideoObject');
+  assert.equal(liked.object['@type'], 'MovingImage');
   assert.deepEqual(
     events.filter(event => event.kind === 'hint'),
     []
@@ -348,7 +377,7 @@ test('favorites likes each photo the change log has no date for, with no date', 
   assert.equal(like['@assertedAt'], records[0].extraction.assertedAt);
   assert.ok(isYou(like.agent));
   assert.deepEqual(like.object, {
-    '@type': 'ImageObject',
+    '@type': 'StillImage',
     '@key': ['@type', 'source', 'sourceId'],
     '@asserts': ['*'],
     source: 'apple-photos',
@@ -389,7 +418,7 @@ test('shared with you credits each photo to who sent it in Messages', async t =>
   // Each is dated when its message was sent, not when Photos rebuilt its library.
   assert.deepEqual(
     outputs.map(action => [
-      action.sourceId,
+      action.object.sourceId,
       action.object['@type'],
       who(action.agent),
       action.timestamp.toISOString(),
@@ -398,7 +427,7 @@ test('shared with you credits each photo to who sent it in Messages', async t =>
     [
       [
         attachments.received,
-        'ImageObject',
+        'StillImage',
         'apple-photos:friend@example.com>Agent:icloud:friend@example.com',
         at.day(40),
         undefined,
@@ -406,14 +435,14 @@ test('shared with you credits each photo to who sent it in Messages', async t =>
       // A photo shared in a group chat targets the group.
       [
         attachments.group,
-        'VideoObject',
+        'MovingImage',
         'apple-photos:member@example.com>Agent:icloud:member@example.com',
         at.day(38),
         groupChat,
       ],
       [
         attachments.screenshot,
-        'ImageObject',
+        'StillImage',
         'apple-photos:member@example.com>Agent:icloud:member@example.com',
         at.day(37),
         groupChat,
@@ -421,7 +450,7 @@ test('shared with you credits each photo to who sent it in Messages', async t =>
       // An SMS sender is a phone number in the `phone` namespace, as iMessage has it.
       [
         attachments.sms,
-        'ImageObject',
+        'StillImage',
         'apple-photos:+15555550123>Agent:phone:+15555550123',
         at.day(36),
         undefined,
@@ -437,11 +466,14 @@ test('shared with you credits each photo to who sent it in Messages', async t =>
     sourceId: groupChat,
   });
 
+  // The share is keyed by the work, and the work by Messages' attachment ID.
+  // Its file is the attachment itself, keyed as the iMessage plugin keys it,
+  // and Photos says nothing of it.
   const [received] = outputs;
-  assert.deepEqual(received['@key'], ['@type', 'source', 'sourceId']);
-  assert.equal(received.object.sourceId, attachments.received);
-  // The same attachment as the iMessage plugin keys it.
-  assert.deepEqual(received.object.sameAs, [
+  assert.deepEqual(received['@key'], ['@type', 'source', 'object.sourceId']);
+  assert.equal(received.sourceId, undefined);
+  assert.deepEqual(received.object['@key'], ['@type', 'source', 'sourceId']);
+  assert.deepEqual(received.object.rendition, [
     {
       '@type': 'ImageObject',
       '@key': ['source', 'sourceId'],
@@ -450,7 +482,7 @@ test('shared with you credits each photo to who sent it in Messages', async t =>
       sourceId: attachments.received,
     },
   ]);
-  assert.equal(received.object.handle, 'IMG_1001.JPG');
+  assert.equal(outputs[1].object.rendition[0]['@type'], 'VideoObject');
   // Photos matched Sam's face in it itself, so it depicts no one.
   assert.equal(received.object.depicts, undefined);
   assert.deepEqual(received.object['@asserts'], ['*']);
@@ -468,7 +500,7 @@ test('shared with you credits each photo to who sent it in Messages', async t =>
   db.close();
   const older = await extract(t, ApplePhotosSharedWithYouExtractor, { files });
   assert.deepEqual(
-    older.outputs.map(action => [action.sourceId, action.target]),
+    older.outputs.map(action => [action.object.sourceId, action.target]),
     records.map(record => [record.data.attachment, undefined])
   );
 });

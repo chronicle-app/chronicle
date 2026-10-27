@@ -181,8 +181,8 @@
     },
     "deepLinks": {
       "apple-photos": {
-        "ImageObject": "photos://asset?identifier={sourceId}&cloud-identifier={sourceId}:001",
-        "VideoObject": "photos://asset?identifier={sourceId}&cloud-identifier={sourceId}:001"
+        "StillImage": "photos://asset?identifier={sourceId}&cloud-identifier={sourceId}:001",
+        "MovingImage": "photos://asset?identifier={sourceId}&cloud-identifier={sourceId}:001"
       }
     }
   }

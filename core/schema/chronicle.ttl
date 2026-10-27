@@ -1038,7 +1038,7 @@
   skos:closeMatch schemaorg:keywords .
 :caption a owl:DatatypeProperty;
   rdfs:comment "A caption or description of the picture or video, written by a person.";
-  rdfs:domain [ a owl:Class; owl:unionOf ( :StillImage :MovingImage :ImageObject :VideoObject ) ];
+  rdfs:domain [ a owl:Class; owl:unionOf ( :StillImage :MovingImage :ImageObject ) ];
   rdfs:range :Text;
   skos:exactMatch schemaorg:caption .
 [] a sh:PropertyShape; sh:path :caption; sh:targetSubjectsOf :caption; sh:maxCount 1 .
@@ -1051,7 +1051,7 @@
 :depicts a owl:ObjectProperty;
   rdfs:comment "Something that appears in the picture or video, such as a person, an animal, or a building.";
   rdfs:subPropertyOf :relation;
-  rdfs:domain [ a owl:Class; owl:unionOf ( :StillImage :MovingImage :ImageObject :VideoObject ) ];
+  rdfs:domain [ a owl:Class; owl:unionOf ( :StillImage :MovingImage ) ];
   rdfs:range :Entity .
 :SoftwareSourceCode a owl:Class;
   rdfs:comment "Source code as a work, such as a snippet, a script, or a program's code.";

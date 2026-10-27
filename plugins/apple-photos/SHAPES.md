@@ -13,14 +13,13 @@ converted from the record. Every node also has `source`.
 ## photos
 
 ```ts
-PhotographAction | RecordAction | ScreenshotAction | AddAction key(sourceId) {
-  sourceId, timestamp
+PhotographAction | RecordAction | ScreenshotAction | AddAction key(result.sourceId) / key(object.sourceId) {
+  timestamp
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
   location?: Location { latitude, longitude }
   instrument[]?: ProductModel | SoftwareApplication key(name) / key(handle) { name*, handle?* }
-  result?: ImageObject | VideoObject key(sourceId) {
-    sourceId, name?, handle?, caption?, sourceFormat?, tags[]?, width?, height?, mimeType?*, duration?*
-    exifData?: object { LensModel, FocalLength, FocalLengthIn35mmFilm?, FNumber, ExposureTime, PhotographicSensitivity, ExposureBiasValue, MeteringMode?, WhiteBalance, Flash, Orientation?, DigitalZoomRatio? }
+  result?: StillImage | MovingImage key(sourceId) {
+    sourceId, name?, caption?, sourceFormat?, tags[]?
     depicts[]?: Person key(sourceId) { sourceId, name }
     isPartOf[]?: Collection key(sourceId) {
       sourceId, name
@@ -29,21 +28,23 @@ PhotographAction | RecordAction | ScreenshotAction | AddAction key(sourceId) {
         isPartOf[]: Collection key(sourceId) { sourceId, name }
       }
     }
-    contains[]?: VideoObject | ImageObject key(sourceId) {
-      sourceId, duration?, sourceFormat?, mimeType?*
-      depicts[]?: Person key(sourceId) { sourceId, name }
-      isPartOf[]?: Collection key(sourceId) { sourceId, name }
+    rendition[]?: ImageObject | VideoObject key(sourceId) {
+      sourceId, handle?, width?, height?, mimeType*, duration?*
+      exifData?: object { LensModel, FocalLength, FocalLengthIn35mmFilm?, FNumber, ExposureTime, PhotographicSensitivity, ExposureBiasValue, MeteringMode?, WhiteBalance, Flash, Orientation?, DigitalZoomRatio? }
     }
   }
-  object?: ImageObject | VideoObject key(sourceId) {
-    sourceId, caption?, mimeType*, duration?*
-    exifData?: object { Orientation }
+  object?: StillImage | MovingImage key(sourceId) {
+    sourceId, caption?
     isPartOf[]?: Collection key(sourceId) {
       sourceId, name
       isPartOf[]: Collection key(sourceId) {
         sourceId, name
         isPartOf[]: Collection key(sourceId) { sourceId, name }
       }
+    }
+    rendition[]: ImageObject | VideoObject key(sourceId) {
+      sourceId, mimeType*, duration?*
+      exifData?: object { Orientation }
     }
     location?: Location { latitude, longitude }
   }
@@ -56,7 +57,7 @@ PhotographAction | RecordAction | ScreenshotAction | AddAction key(sourceId) {
 UpdateAction | ShareAction | ViewAction | AddAction | UnlikeAction | LikeAction key(object.sourceId, timestamp) / key(object.sourceId, target.sourceId, timestamp) {
   timestamp
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
-  object: ImageObject | VideoObject key(sourceId) { sourceId }
+  object: StillImage | MovingImage key(sourceId) { sourceId }
   target?: Collection key(sourceId) {
     sourceId, name
     isPartOf[]?: Collection key(sourceId) {
@@ -72,23 +73,23 @@ UpdateAction | ShareAction | ViewAction | AddAction | UnlikeAction | LikeAction 
 ```ts
 LikeAction key(object.sourceId) {
   agent: Person key(sourceId) { sourceId, handle, sameAs[] }
-  object: ImageObject key(sourceId) { sourceId }
+  object: StillImage key(sourceId) { sourceId }
 }
 ```
 
 ## shared-with-you
 
 ```ts
-ShareAction key(sourceId) {
-  sourceId, timestamp
+ShareAction key(object.sourceId) {
+  timestamp
   agent: Person key(handle) {
     handle
     sameAs[]: Agent key(handle) { handle }
   }
-  object: ImageObject | VideoObject key(sourceId) {
-    sourceId, handle, mimeType*, duration?*
+  object: StillImage | MovingImage key(sourceId) {
+    sourceId
+    rendition[]: ImageObject | VideoObject key(sourceId) { sourceId }
     location?: Location { latitude, longitude }
-    sameAs[]: ImageObject | VideoObject key(sourceId) { sourceId }
   }
   target?: Channel key(sourceId) { sourceId }
 }

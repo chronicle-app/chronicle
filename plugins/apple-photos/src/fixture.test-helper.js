@@ -38,6 +38,10 @@ export const ids = {
   family: 'CLOUD-FAMILY',
 };
 
+/** iCloud's fingerprint of a photo's original file, or of a Live Photo's clip. */
+export const fingerprint = (name, file = 'original') =>
+  `FP-${name.toUpperCase()}-${file.toUpperCase()}`;
+
 /** The Shared with You photos, by Messages' attachment ID. */
 export const attachments = {
   received: 'at_0_RECEIVED',
@@ -98,6 +102,7 @@ export const albums = {
  * - noCamera: a video no app added and with no camera data.
  * - local: a photo from the Messages camera, not in iCloud, with no position,
  *   the one Photos shows of a burst. Unfavorited after the change log began.
+ *   Its file has no fingerprint.
  * - unliked: a photo from a Canon camera, with its lens and exposure, liked,
  *   then unliked, which you added to your iCloud Shared Library.
  * - trashed, burst, sharedAlbum, hidden, family: in Recently Deleted, a burst
@@ -114,6 +119,10 @@ export const albums = {
  * - sms: received over SMS
  * - sticker: an image with no camera data, left out
  * - gone: a photo whose message is gone from Messages, left out
+ *
+ * Each photo's original file has a fingerprint, and a Live Photo's clip one of
+ * its own. The camera photo also has a preview and its edit's data, which
+ * aren't originals.
  *
  * `model: false` writes a model cache that doesn't read, and `model: 'renamed'`
  * one whose `Asset.favorite` has another name, as a later macOS might.
@@ -287,6 +296,8 @@ function writeLibrary(root, { model }) {
     CREATE TABLE ZSHAREPARTICIPANT (Z_PK INTEGER PRIMARY KEY, ZISCURRENTUSER INTEGER);
     CREATE TABLE ZASSETCONTRIBUTOR (Z_PK INTEGER PRIMARY KEY, ZPARTICIPANT INTEGER,
       Z${ENT.Asset}LIBRARYSCOPEASSETCONTRIBUTORS INTEGER);
+    CREATE TABLE ZINTERNALRESOURCE (Z_PK INTEGER PRIMARY KEY, ZASSET INTEGER, ZRESOURCETYPE INTEGER,
+      ZVERSION INTEGER, ZRECIPEID INTEGER, ZFINGERPRINT VARCHAR);
     CREATE TABLE ATRANSACTION (Z_PK INTEGER PRIMARY KEY, ZTIMESTAMP FLOAT);
     CREATE TABLE ACHANGE (Z_PK INTEGER PRIMARY KEY, ZTRANSACTIONID INTEGER, ZENTITY INTEGER,
       ZENTITYPK INTEGER, ZCHANGETYPE INTEGER, ZCOLUMNS BLOB);
@@ -506,6 +517,20 @@ function writeLibrary(root, { model }) {
       );
     }
   }
+  // Each asset's files (`ZRESOURCETYPE`): a photo's still (0), a video's file
+  // (1), or a Live Photo's clip (3), as originals (version 0, no recipe). A
+  // photo not in iCloud has no fingerprint.
+  const file = db.prepare(
+    'INSERT INTO ZINTERNALRESOURCE (ZASSET, ZRESOURCETYPE, ZVERSION, ZRECIPEID, ZFINGERPRINT) VALUES (?, ?, ?, ?, ?)'
+  );
+  for (const [name, row] of Object.entries(rows)) {
+    file.run(pk[name], row.kind === 1 ? 1 : 0, 0, 0, name === 'local' ? null : fingerprint(name));
+    if (row.subtype === 2) file.run(pk[name], 3, 0, 0, fingerprint(name, 'clip'));
+  }
+  // A preview and an edit's data aren't originals.
+  file.run(pk.camera, 0, 0, 65_741, fingerprint('camera', 'preview'));
+  file.run(pk.camera, 14, 3, 327_689, null);
+
   // Who added each photo in the Shared Library: you, and someone in your family.
   db.exec('INSERT INTO ZSHAREPARTICIPANT VALUES (1, 1), (2, 0)');
   const contributor = db.prepare(

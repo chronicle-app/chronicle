@@ -14,8 +14,9 @@ export const SHARED_WITH_YOU_LIBRARY = `${process.env.HOME}/Library/Photos/Libra
  * it. A column ending in `?` is one a query reads only when it's there. The
  * change log's tables, the model cache, the join tables and a Shared
  * Library's contributors, whose columns Core Data names by entity number,
- * and the keywords, read through one of them, are read only when they're
- * there, so they aren't declared.
+ * the keywords, read through one of them, and the files of each asset
+ * (`ZINTERNALRESOURCE`) are read only when they're there, so they aren't
+ * declared.
  */
 export const DATABASES: DatabaseSchema[] = [
   {
@@ -129,6 +130,16 @@ export type Format =
  */
 export type Exif = { [tag: string]: string | number };
 
+/**
+ * One of an asset's original files: the still, a video's file, or a Live
+ * Photo's clip, by iCloud's fingerprint of it, which is the same for every
+ * copy of the file.
+ */
+export interface AssetFile {
+  role: 'still' | 'video' | 'clip';
+  fingerprint: string;
+}
+
 /** A photo or video, with what its file and you recorded about it. */
 export interface Asset {
   /** iCloud's ID for it (`ZCLOUDASSETGUID`), or the library's own (`ZUUID`) when it isn't in iCloud. */
@@ -169,6 +180,8 @@ export interface Asset {
   albums: PhotoAlbum[];
   /** A Live Photo's video, with how long it lasts in seconds. */
   clip: { duration: number | null } | null;
+  /** Its original files, each with a fingerprint. */
+  files: AssetFile[];
 }
 
 /** An asset's row, as the query selects it. */
@@ -217,6 +230,10 @@ export interface AssetRow {
   adjustments: number | null;
   syndicationId: string | null;
 }
+
+// The kinds of file an asset's originals are (`ZINTERNALRESOURCE.ZRESOURCETYPE`).
+// The rest are edits, previews, and their data.
+const FILE_ROLES: { [type: number]: AssetFile['role'] } = { 0: 'still', 1: 'video', 3: 'clip' };
 
 // A user album and a folder of albums (`ZGENERICALBUM.ZKIND`).
 const ALBUM = 2;
@@ -367,6 +384,7 @@ export class PhotosLibrary {
     const people = this.people();
     const albums = this.albumsOfAssets();
     const keywords = this.keywords();
+    const originals = this.originals();
     return rows.map(row => {
       const { subtype, created, added, importer, camera } = provenanceOf(row);
       return {
@@ -396,8 +414,35 @@ export class PhotosLibrary {
           row.subtype === 2
             ? { duration: row.clipScale ? positive((row.clipValue ?? 0) / row.clipScale) : null }
             : null,
+        files: originals.get(row.pk) ?? [],
       };
     });
+  }
+
+  /**
+   * Each asset's original files, by the asset's row: an original is a file's
+   * first version (`ZVERSION` 0) and no recipe (`ZRECIPEID` 0). A file
+   * without a fingerprint, such as one Shared with You keeps, is left out.
+   */
+  private originals(): Map<number, AssetFile[]> {
+    const columns = this.store.columns('ZINTERNALRESOURCE');
+    const needed = ['ZASSET', 'ZRESOURCETYPE', 'ZVERSION', 'ZRECIPEID', 'ZFINGERPRINT'];
+    if (!needed.every(column => columns.has(column))) return new Map();
+    const types = Object.keys(FILE_ROLES).join(', ');
+    const rows = allRows<{ asset: number; type: number; fingerprint: string }>(
+      this.db.prepare(`
+        SELECT ZASSET AS asset, ZRESOURCETYPE AS type, ZFINGERPRINT AS fingerprint
+        FROM ZINTERNALRESOURCE
+        WHERE ZVERSION = 0 AND ZRECIPEID = 0 AND ZRESOURCETYPE IN (${types})
+          AND ZFINGERPRINT IS NOT NULL AND ZASSET IS NOT NULL
+        ORDER BY ZASSET, ZRESOURCETYPE`)
+    );
+    return groupBy(
+      rows,
+      row => row.asset,
+      row =>
+        clean(row.fingerprint) ? { role: FILE_ROLES[row.type], fingerprint: row.fingerprint } : null
+    );
   }
 
   /** The albums you made, with their folders, by row. */

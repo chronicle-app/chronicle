@@ -6,9 +6,11 @@ import type {
   Collection,
   ImageObject,
   Location,
+  MovingImage,
   Person,
   ProductModel,
   SoftwareApplication,
+  StillImage,
   VideoObject,
 } from '@chronicle.app/schema';
 import { buildICloudPersonSchema, groupChatChannel } from '@chronicle.app/apple';
@@ -43,23 +45,30 @@ const FACETIME: SoftwareApplication = {
 };
 
 type Media = ImageObject | VideoObject;
+type Work = StillImage | MovingImage;
 
 /**
+ * Each asset is a work, keyed by iCloud's ID for it, and each of its original
+ * files is a rendition of it, keyed by iCloud's fingerprint of the file. An
+ * action is keyed by the work it made or acted on.
+ *
  *   photos:
  *     PhotographAction | RecordAction | ScreenshotAction  agent: you   timestamp (when taken)
  *       instrument?: ProductModel (the camera) | SoftwareApplication (FaceTime)
  *       location?: Location (where it was taken)
- *       result: ImageObject | VideoObject  (the photo, by iCloud's ID)
+ *       result: StillImage | MovingImage  (the work)
+ *         rendition[]: ImageObject | VideoObject  (each original file)
  *     AddAction  agent: you   timestamp (when added)   instrument?: SoftwareApplication
- *       object: ImageObject | VideoObject  location?: Location (where it was taken)
+ *       object: StillImage | MovingImage  location?: Location (where it was taken)
  *   activity:
  *     ViewAction | ShareAction | UpdateAction | LikeAction | UnlikeAction | AddAction
- *       agent: you   timestamp   object: the photo, by key   target?: Collection (the album)
+ *       agent: you   timestamp   object: the work, by key   target?: Collection (the album)
  *   favorites:
- *     LikeAction  agent: you   object: the photo, by key   (no timestamp: when isn't known)
+ *     LikeAction  agent: you   object: the work, by key   (no timestamp: when isn't known)
  *   shared-with-you:
  *     ShareAction  agent: who sent it to you   timestamp   target?: Channel (the group chat)
- *       object: ImageObject | VideoObject  (by Messages' attachment ID)  sameAs: the attachment
+ *       object: StillImage | MovingImage  (by Messages' attachment ID)
+ *         rendition: ImageObject | VideoObject  (the attachment, as the imessage plugin keys it)
  */
 export default class ApplePhotosTransformer extends ChronicleTransformer {
   static override source = SOURCE;
@@ -83,50 +92,47 @@ export default class ApplePhotosTransformer extends ChronicleTransformer {
 }
 
 /**
- * What you did to bring a photo or video into your library. Where it was taken
- * is where you took it, so it's the action's `location`. A photo an app saved
- * was taken by someone, somewhere, before you saved it, so its position is
- * the photo's own.
+ * What you did to bring a photo or video into your library, keyed by the
+ * work it made or added. Where it was taken is where you took it, so it's the
+ * action's `location`. A photo an app saved was taken by someone, somewhere,
+ * before you saved it, so its position is the work's own.
  */
 function photoAction(photo: Photo, time: string, you: Person | null): ActionAndChildren {
-  const timestamp = new Date(time);
   const where = locationOf(photo);
+  const work = workOf(photo);
   const frame = {
-    '@key': ['@type', 'source', 'sourceId'],
     source: SOURCE,
-    sourceId: photo.id,
-    timestamp,
+    timestamp: new Date(time),
     ...(you && { agent: you }),
-    ...(where && photo.origin !== 'saved' && { location: where }),
+  };
+  const made = {
+    '@key': ['@type', 'source', 'result.sourceId'],
+    ...frame,
+    ...(where && { location: where }),
   };
   switch (photo.origin) {
     case 'camera': {
       const camera = cameraOf(photo);
       const instrument = camera ? { instrument: [camera] } : {};
-      const result = mediaOf(photo);
       return photo.kind === 'video'
-        ? { '@type': 'RecordAction', ...frame, ...instrument, result }
-        : { '@type': 'PhotographAction', ...frame, ...instrument, result };
+        ? { '@type': 'RecordAction', ...made, ...instrument, result: work }
+        : { '@type': 'PhotographAction', ...made, ...instrument, result: work };
     }
     case 'screenshot':
-      return { '@type': 'ScreenshotAction', ...frame, result: mediaOf(photo) };
+      return { '@type': 'ScreenshotAction', ...made, result: work };
     case 'screenRecording':
-      return { '@type': 'RecordAction', ...frame, result: mediaOf(photo) };
+      return { '@type': 'RecordAction', ...made, result: work };
     case 'faceTime':
-      // What FaceTime records is the clip. The still is part of it.
-      return {
-        '@type': 'RecordAction',
-        ...frame,
-        instrument: [FACETIME],
-        result: { ...clipOf(photo), contains: [mediaOf(photo, { clip: false })] },
-      };
+      // A Live Photo of a FaceTime call, taken with FaceTime.
+      return { '@type': 'PhotographAction', ...made, instrument: [FACETIME], result: work };
     case 'saved': {
       const app = appOf(photo);
       return {
         '@type': 'AddAction',
+        '@key': ['@type', 'source', 'object.sourceId'],
         ...frame,
         ...(app && { instrument: [app] }),
-        object: { ...mediaOf(photo), ...(where && { location: where }) },
+        object: { ...work, ...(where && { location: where }) },
       };
     }
   }
@@ -180,93 +186,104 @@ function likeOf(favorite: Favorite, you: Person | null): ActionAndChildren {
 }
 
 /**
- * A photo or video shared with you in Messages, keyed by its Messages
- * attachment. Who it was sent to is the message's recipient, as Messages has it.
- * One shared in a group chat targets the group's Channel, keyed as the iMessage
- * plugin keys it. A one-to-one chat has no Channel, and the share no target.
+ * A photo or video shared with you in Messages. The work is keyed by Messages'
+ * attachment ID, which is how Photos knows it, and its file is the attachment
+ * itself, keyed as the imessage plugin keys it, so what Photos and Messages
+ * know of it meet on one file. Photos says nothing of the file, which is
+ * Messages' to describe. Who it was sent to is the message's recipient, as
+ * Messages has it. One shared in a group chat targets the group's Channel,
+ * keyed as the iMessage plugin keys it. A one-to-one chat has no Channel, and
+ * the share no target.
  */
 function shareAction(shared: SharedPhoto, time: string): ActionAndChildren {
   const { message, attachment } = shared;
   const agent = message.handle ? senderOf(message.handle, message.service) : null;
   const group = message.group ? groupChatChannel(message.group) : null;
   const where = locationOf(shared);
-  const object = mediaOf(shared, { id: attachment, clip: false });
+  const file = {
+    '@type': shared.kind === 'video' ? 'VideoObject' : 'ImageObject',
+    '@key': ['source', 'sourceId'],
+    source: 'imessage',
+    sourceId: attachment,
+  } as Media;
   return {
     '@type': 'ShareAction',
-    '@key': ['@type', 'source', 'sourceId'],
+    '@key': ['@type', 'source', 'object.sourceId'],
     source: SOURCE,
-    sourceId: attachment,
     timestamp: new Date(time),
     ...(agent && { agent }),
     ...(group && { target: group }),
     object: {
-      ...object,
+      ...workOf(shared, { id: attachment, rendition: [file] }),
       ...(where && { location: where }),
-      // The same attachment as Messages has it: iMessage keys it by its ID alone.
-      sameAs: [
-        {
-          '@type': object['@type'],
-          '@key': ['source', 'sourceId'],
-          source: 'imessage',
-          sourceId: attachment,
-        },
-      ],
-    } as Media,
+    },
   };
 }
 
 /**
- * The photo or video, keyed by iCloud's ID for it. Each run is the library as
- * it is now, so an album, keyword, or person taken off it closes while it has
- * others. Taking off the last one leaves it: listing them in `@asserts` would
- * close it, at the cost of a marker on every photo that has none.
+ * The photo or video as a work, keyed by iCloud's ID for it: what it shows,
+ * with what you said about it. Each run is the library as it is now, so an
+ * album, keyword, or person taken off it closes while it has others. Taking
+ * off the last one leaves it: listing them in `@asserts` would close it, at
+ * the cost of a marker on every photo that has none.
  */
-function mediaOf(
+function workOf(
   asset: Asset,
-  { id = asset.id, clip = true }: { id?: string; clip?: boolean } = {}
-): Media {
-  const mimeType = asset.uti ? MIME_TYPES[asset.uti] : undefined;
+  { id = asset.id, rendition = renditionsOf(asset) }: { id?: string; rendition?: Media[] } = {}
+): Work {
   return {
-    '@type': asset.kind === 'video' ? 'VideoObject' : 'ImageObject',
+    '@type': asset.kind === 'video' ? 'MovingImage' : 'StillImage',
     '@key': ['@type', 'source', 'sourceId'],
     source: SOURCE,
     sourceId: id,
     ...(asset.title && { name: asset.title }),
-    ...(asset.filename && { handle: asset.filename }),
     ...(asset.caption && { caption: asset.caption }),
     ...(asset.format && { sourceFormat: asset.format }),
-    ...(asset.exif && { exifData: asset.exif }),
     ...(asset.keywords.length > 0 && { tags: asset.keywords }),
     ...(asset.people.length > 0 && { depicts: asset.people.map(person => personOf(person)) }),
     ...(asset.albums.length > 0 && {
       isPartOf: asset.albums.map(album => collectionOf(album, { asserts: true })),
     }),
-    ...(clip && asset.clip && { contains: [clipOf(asset)] }),
-    ...(asset.width && { width: asset.width }),
-    ...(asset.height && { height: asset.height }),
-    ...(asset.duration && { duration: isoDuration(asset.duration) }),
-    ...(mimeType && { mimeType }),
-  } as Media;
+    ...(rendition.length > 0 && { rendition }),
+  } as Work;
 }
 
 /**
- * A Live Photo's video. It's the same asset as the photo, so it takes the
- * photo's ID, as a `VideoObject`.
+ * The asset's original files, each keyed by iCloud's fingerprint of it, so a
+ * file that's in two assets is one node. The still or the video has what
+ * Photos knows of the asset's file: its name, size, type, length, and a
+ * photo's EXIF. A Live Photo's clip is a QuickTime movie with a length of its
+ * own. A file with no fingerprint has no rendition.
  */
-function clipOf(asset: Asset): VideoObject {
-  return {
-    '@type': 'VideoObject',
-    '@key': ['@type', 'source', 'sourceId'],
-    source: SOURCE,
-    sourceId: asset.id,
-    ...(asset.clip?.duration && { duration: isoDuration(asset.clip.duration) }),
-  };
+function renditionsOf(asset: Asset): Media[] {
+  const mimeType = asset.uti ? MIME_TYPES[asset.uti] : undefined;
+  return asset.files.map(({ role, fingerprint }) => {
+    const key = { '@key': ['@type', 'source', 'sourceId'], source: SOURCE, sourceId: fingerprint };
+    if (role === 'clip') {
+      return {
+        '@type': 'VideoObject',
+        ...key,
+        ...(asset.clip?.duration && { duration: isoDuration(asset.clip.duration) }),
+        mimeType: 'video/quicktime',
+      } as VideoObject;
+    }
+    return {
+      '@type': role === 'video' ? 'VideoObject' : 'ImageObject',
+      ...key,
+      ...(asset.filename && { handle: asset.filename }),
+      ...(asset.exif && { exifData: asset.exif }),
+      ...(asset.width && { width: asset.width }),
+      ...(asset.height && { height: asset.height }),
+      ...(asset.duration && { duration: isoDuration(asset.duration) }),
+      ...(mimeType && { mimeType }),
+    } as Media;
+  });
 }
 
-/** A photo or video by its key alone. */
-function photoRef(photo: { id: string; kind: 'photo' | 'video' }): Media {
+/** A photo or video's work by its key alone. */
+function photoRef(photo: { id: string; kind: 'photo' | 'video' }): Work {
   return {
-    '@type': photo.kind === 'video' ? 'VideoObject' : 'ImageObject',
+    '@type': photo.kind === 'video' ? 'MovingImage' : 'StillImage',
     '@key': ['@type', 'source', 'sourceId'],
     source: SOURCE,
     sourceId: photo.id,
