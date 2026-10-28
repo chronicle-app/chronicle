@@ -116,6 +116,18 @@ redacted.
   without one, say which flag to pass instead.
 - Sinks: `createSink`, `PrettySink`, `PlainSink`, and `render`, their shared
   look.
+- The logo (`logo/`), in pieces that fit together: the art as text
+  (`LOGO`, the wordmarks, and the order the paper unrolls), a grid of dots
+  (`fromBraille`, `toBraille`), effects that bring art on over time from 0 to
+  1 (`resolve`, `gather`, `spool`, `unroll`, `rise`, `shimmer`, and
+  `sequence` to play them in turn), inks that color it cell by cell
+  (`print`, `hue`, `gradient`), an `Animation` and `paint` to play and color
+  one, `beside` and `typed` to set words by it, and the `Splash` a command
+  opens with, in one of the looks in `SPLASH_STYLES`. A new look is an
+  effect, an ink, and a column of words, typed out or rolled in like paper. Run `chronicle setup splash` to see
+  them all.
+- `LiveRegion` redraws in place: only the lines that changed are written
+  again, in one synchronized write, so the rest hold still.
 
 ## The gallery
 

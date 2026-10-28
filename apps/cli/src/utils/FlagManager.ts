@@ -18,10 +18,15 @@ const loaderRegistry = {
   csv: CsvLoader,
   http: HttpLoader,
   json: JsonLoader,
+  // One record per line, for `chronicle setup`'s jobs. Help leaves it out.
+  jsonl: JsonLoader,
   preview: PreviewLoader,
   table: TableLoader,
   yaml: YamlLoader,
 };
+
+/** The loaders help lists. */
+const SHOWN_LOADERS = Object.keys(loaderRegistry).filter(name => name !== 'jsonl');
 
 export class FlagManager {
   /**
@@ -55,7 +60,12 @@ export class FlagManager {
     return Flags.string({
       default: defaultValue,
       helpGroup: 'LOADING',
-      options: Object.keys(loaderRegistry),
+      // Checked here rather than as `options`, which help would list in full.
+      helpValue: `<${SHOWN_LOADERS.join('|')}>`,
+      async parse(input: string) {
+        if (Object.hasOwn(loaderRegistry, input)) return input;
+        throw new Error(`Expected --loader=${input} to be one of: ${SHOWN_LOADERS.join(', ')}`);
+      },
       summary: 'How to write the records',
     });
   }

@@ -199,6 +199,20 @@ test('raw extraction, four output loaders, file output and stream mode', t => {
     'stdout'
   );
   assert.equal(JSON.parse(success(result)).command, 'printf fixture');
+  // JSON Lines, for another program, has a record on each line. Help leaves it out.
+  const lines = success(
+    run('extract', 'shell', '--input', input, '--raw', '--limit', '0', '--loader', 'jsonl')
+  );
+  assert.deepEqual(
+    lines
+      .trimEnd()
+      .split('\n')
+      .map(line => JSON.parse(line).command),
+    ['printf fixture', 'echo synthetic']
+  );
+  const loaders = success(run('extract', 'shell', '--help'));
+  assert.match(loaders, /--loader <csv\|http\|json\|preview\|table\|yaml>/);
+  assert.doesNotMatch(loaders, /jsonl/);
   // Unless quiet, the run ends with its summary on stderr, stamped with the
   // time when stderr isn't a terminal, and the default --limit says when it
   // cut the run short.
@@ -1417,20 +1431,93 @@ test('scan finds the exports in a folder or zip, with the command that reads eac
   assert.doesNotMatch(books.stderr, /Nothing to survey/);
 });
 
-/** A copy of Safari's history, in WAL mode as Safari keeps it, with one visit; or an older one's. */
-function safariHistory(file, { older = false } = {}) {
+/**
+ * A copy of Safari's history, in WAL mode as Safari keeps it, with one visit
+ * (on 2025-01-01, or at `visited`); or an older one's.
+ */
+function safariHistory(file, { older = false, visited = new Date('2025-01-01T00:00:00Z') } = {}) {
   mkdirSync(dirname(file), { recursive: true });
   const db = new DatabaseSync(file);
+  // Safari keeps seconds since 2001.
+  const visitTime = visited.getTime() / 1000 - 978_307_200;
   db.exec(`
     PRAGMA journal_mode = WAL;
     CREATE TABLE history_items (id INTEGER PRIMARY KEY, url TEXT);
     CREATE TABLE history_visits (id INTEGER PRIMARY KEY, history_item INTEGER, visit_time REAL,
       title TEXT, redirect_destination INTEGER${older ? '' : ', origin INTEGER'});
     INSERT INTO history_items VALUES (1, 'https://example.com/');
-    INSERT INTO history_visits VALUES (1, 1, 757382400, 'Example', NULL${older ? '' : ', 0'});
+    INSERT INTO history_visits VALUES (1, 1, ${visitTime}, 'Example', NULL${older ? '' : ', 0'});
   `);
   db.close();
 }
+
+test('setup --yes extracts the last year of what is ready here, a record a line, once', t => {
+  const { dir, run } = fixture(t);
+  const home = join(dir, 'home');
+  const day = 86_400;
+  const now = Math.floor(Date.now() / 1000);
+  mkdirSync(home);
+  writeFileSync(
+    join(home, '.zsh_history'),
+    [now - 30 * day, now - day, now - 800 * day].map(at => `: ${at}:0;echo ${at}\n`).join('')
+  );
+  const darwin = process.platform === 'darwin';
+  if (darwin) {
+    safariHistory(join(home, 'Library', 'Safari', 'History.db'), {
+      visited: new Date((now - day) * 1000),
+    });
+  }
+  // No credential from the machine running the tests.
+  const setup = run.with({ HOME: home, GH_TOKEN: undefined, GITHUB_TOKEN: undefined });
+
+  // Setup asks which sources to extract; without a terminal, --yes says to take what's ready.
+  const unasked = setup('setup', '--log-format', 'json');
+  assert.equal(unasked.status, 2);
+  assert.match(JSON.parse(unasked.stderr.trim().split('\n').at(-1)).hint.action, /--yes/);
+
+  success(setup('setup', '--yes'));
+  const extracts = join(dir, 'data', 'extracts');
+  const lines = name =>
+    readFileSync(join(extracts, `${name}.jsonl`), 'utf8')
+      .trimEnd()
+      .split('\n')
+      .map(line => JSON.parse(line));
+  // The last year only, newest first.
+  assert.deepEqual(
+    lines('shell').map(record => record.object.body),
+    [`echo ${now - day}`, `echo ${now - 30 * day}`]
+  );
+  if (darwin) assert.equal(lines('safari').length, 1);
+  assert.ok(!readdirSync(extracts).some(file => file.endsWith('.partial')));
+  // Each pick is saved as the flags that extract it, beside its records too.
+  const { targets } = JSON.parse(readFileSync(join(dir, 'config', 'config.json'), 'utf8'));
+  assert.deepEqual(
+    targets.find(target => target.source === 'shell'),
+    {
+      source: 'shell',
+      flags: { strategy: 'history', type: ['commands'] },
+    }
+  );
+  const beside = JSON.parse(readFileSync(join(extracts, 'shell.target.json'), 'utf8'));
+  assert.equal(beside.records, 2);
+
+  // A second run extracts nothing it has a file for.
+  const before = readFileSync(join(extracts, 'shell.jsonl'), 'utf8');
+  const again = setup('setup', '--yes');
+  assert.equal(again.status, 0, again.stderr);
+  assert.match(again.stderr, /Nothing new to extract/);
+  assert.equal(readFileSync(join(extracts, 'shell.jsonl'), 'utf8'), before);
+
+  // Reset forgets the picks, so setup starts over, and keeps the files unless told.
+  const reset = setup('setup', 'reset');
+  assert.equal(reset.status, 0, reset.stderr);
+  assert.match(reset.stderr, /chronicle setup reset --files/);
+  const config = JSON.parse(readFileSync(join(dir, 'config', 'config.json'), 'utf8'));
+  assert.equal(config.targets, undefined);
+  assert.ok(readdirSync(extracts).length > 0);
+  success(setup('setup', 'reset', '--files'));
+  assert.deepEqual(readdirSync(extracts), []);
+});
 
 test(
   'scan finds a database by its schema, and survey counts a copy without writing beside it',

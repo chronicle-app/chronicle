@@ -36,6 +36,18 @@ export function colorLevel(stream: Stream): chalk.Level {
   return (stream === 'stderr' ? chalk.stderr : chalk).level;
 }
 
+/** A color by its red, green, and blue, each 0 to 255. */
+export type RGB = [red: number, green: number, blue: number];
+
+/**
+ * Styles for art drawn in many colors, like the logo: one for any color.
+ * Plain where `stream` shows no color.
+ */
+export function rgbStyles(stream: Stream = 'stderr'): (color: RGB) => Style {
+  const c = new chalk.Instance({ level: colorLevel(stream) });
+  return ([red, green, blue]) => c.rgb(red, green, blue);
+}
+
 export interface TokenOptions {
   stream?: Stream;
   /** `default`, `minimal`, or `high-contrast` (`--theme`). */

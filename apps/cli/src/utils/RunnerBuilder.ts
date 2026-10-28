@@ -27,6 +27,7 @@ const loaderRegistry = {
   csv: CsvLoader,
   http: HttpLoader,
   json: JsonLoader,
+  jsonl: JsonLoader,
   preview: PreviewLoader,
   table: TableLoader,
   yaml: YamlLoader,
@@ -182,7 +183,9 @@ export class RunnerBuilder {
     // Special handling for JsonLoader to include theme and stdout mode
     if (LoaderClass === JsonLoader) {
       const isStdoutMode = this.determineStdoutMode();
-      const loader = new LoaderClass(config, jsonColors(this.flags.theme), isStdoutMode);
+      const loader = new LoaderClass(config, jsonColors(this.flags.theme), isStdoutMode, {
+        lines: loaderType === 'jsonl',
+      });
       return loader;
     }
 
@@ -340,7 +343,7 @@ export class RunnerBuilder {
 
     // For data loaders (json, csv, yaml), if no output file specified, we're outputting to stdout
     const loaderType = this.flags.loader;
-    if (['json', 'csv', 'yaml'].includes(loaderType) && !this.flags.output) {
+    if (['json', 'jsonl', 'csv', 'yaml'].includes(loaderType) && !this.flags.output) {
       return true;
     }
 

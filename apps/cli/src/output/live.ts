@@ -83,15 +83,25 @@ const CLEAR_BELOW = '\u001B[J';
  * to stderr meanwhile prints above them, and they redraw beneath. `render`
  * draws them for a width and a spinner frame, each line within the width.
  * Each redraw is one write over the lines in place, so the terminal never
- * shows them cleared between frames.
+ * shows them cleared between frames, and only the lines that changed are
+ * written again, so the rest hold still.
  */
 export class LiveRegion {
   private frame = 0;
-  private drawn = 0;
+  /** The lines on screen now. */
+  private shown: string[] = [];
   private timer?: NodeJS.Timeout;
   private readonly write = process.stderr.write.bind(process.stderr);
 
-  constructor(private readonly render: (width: number, frame: number) => string[]) {}
+  private readonly tick: number;
+
+  /** `tick` is how often it redraws, in milliseconds. */
+  constructor(
+    private readonly render: (width: number, frame: number) => string[],
+    { tick = TICK }: { tick?: number } = {}
+  ) {
+    this.tick = tick;
+  }
 
   get running(): boolean {
     return this.timer !== undefined;
@@ -112,26 +122,48 @@ export class LiveRegion {
     this.timer = setInterval(() => {
       this.frame++;
       this.redraw();
-    }, TICK);
+    }, this.tick);
     this.timer.unref();
     this.write(this.frameText());
   }
 
-  /** Draw what changed now, not on the next tick. */
+  /**
+   * Draw what changed now, not on the next tick: back to the first line,
+   * then each line that differs written over the old, and any left over
+   * cleared, in one write.
+   */
   redraw(): void {
     if (!this.timer) return;
-    const home = this.home();
-    const lines = this.frameText();
-    this.write(`${SYNC_START}${home}${lines}${CLEAR_BELOW}${SYNC_END}`);
+    const before = this.shown;
+    const after = this.lines();
+    if (before.length === 0 || after.length === 0) {
+      const home = this.home();
+      this.write(`${SYNC_START}${home}${this.frameText(after)}${CLEAR_BELOW}${SYNC_END}`);
+      return;
+    }
+    let out = this.home();
+    for (let i = 0; i < Math.max(before.length, after.length); i++) {
+      // Down a line: within what's drawn, without scrolling; past it, a new line.
+      if (i > 0) out += i < before.length ? '\u001B[1B\r' : '\n';
+      if (i >= after.length) out += '\u001B[2K';
+      else if (after[i] !== before[i]) out += `${after[i]}${CLEAR_LINE}`;
+    }
+    if (after.length < before.length) out += `\u001B[${before.length - after.length}A`;
+    this.write(`${SYNC_START}${out}${SYNC_END}`);
+    this.shown = after;
   }
 
-  /** Take the lines off the screen, leaving stderr as it was. */
-  stop(): void {
+  /**
+   * Take the lines off the screen, leaving stderr as it was. With `keep`,
+   * draw them once more and leave them, for what follows to print under.
+   */
+  stop({ keep = false }: { keep?: boolean } = {}): void {
     if (!this.timer) return;
+    if (keep) this.redraw();
     clearInterval(this.timer);
     this.timer = undefined;
-    this.write(`${this.home()}${CLEAR_BELOW}`);
-    this.drawn = 0;
+    this.write(keep ? '\n' : `${this.home()}${CLEAR_BELOW}`);
+    this.shown = [];
     process.stderr.write = this.write as typeof process.stderr.write;
     this.restoreCursor();
     process.removeListener('exit', this.restoreCursor);
@@ -143,15 +175,17 @@ export class LiveRegion {
 
   /** From the end of the lines drawn back to the start of the first. */
   private home(): string {
-    if (this.drawn === 0) return '';
-    return `\r${this.drawn > 1 ? `\u001B[${this.drawn - 1}A` : ''}`;
+    if (this.shown.length === 0) return '';
+    return `\r${this.shown.length > 1 ? `\u001B[${this.shown.length - 1}A` : ''}`;
   }
 
-  /** The lines for now, each clearing what a longer line before it left. */
-  private frameText(): string {
-    const width = (process.stderr.columns || 80) - 1;
-    const lines = this.render(width, this.frame);
-    this.drawn = lines.length;
+  private lines(): string[] {
+    return this.render((process.stderr.columns || 80) - 1, this.frame);
+  }
+
+  /** The lines given, or for now, each clearing what a longer line before it left. */
+  private frameText(lines = this.lines()): string {
+    this.shown = lines;
     return lines.map(line => `${line}${CLEAR_LINE}`).join('\n');
   }
 }

@@ -8,14 +8,15 @@ import {
   useState,
   type KeypressEvent,
 } from '@inquirer/core';
+import { emitKeypressEvents } from 'node:readline';
 import { EXIT_CODES } from '@chronicle.app/logging';
 import { glyphs } from './glyphs.js';
 import { canAsk } from './sinks.js';
 import { tokens, type Tokens } from './tokens.js';
 
 /**
- * Questions asked at a terminal: `confirm`, `select`, `multiSelect`, and
- * `input`. Each draws on stderr, so stdout stays for records, and reads keys
+ * Questions asked at a terminal: `confirm`, `proceed`, `select`,
+ * `multiSelect`, and `input`, and `awaitEnter` for one drawn elsewhere. Each draws on stderr, so stdout stays for records, and reads keys
  * only while it's asking. Esc, Ctrl+C, or Ctrl+D cancels. Callers check
  * `canAsk()` first and, without a terminal, say which flag to pass instead.
  */
@@ -24,6 +25,11 @@ export interface SelectOption {
   label: string;
   value: string;
   description?: string;
+  /**
+   * In a multiSelect, a step rather than a choice, like looking somewhere
+   * else: Enter on it answers with what's selected and it. It can't be selected.
+   */
+  action?: boolean;
 }
 
 /** Hides the terminal's cursor while a list is up; the prompt shows it again when done. */
@@ -160,6 +166,76 @@ export function confirm(
   );
 }
 
+export interface ProceedResult {
+  cancelled: boolean;
+}
+
+const proceedPrompt = createPrompt<ProceedResult, { message: string; t: Tokens }>(
+  ({ message, t }, done) => {
+    const [finished, setFinished] = useState(false);
+    const finish = (result: ProceedResult) => {
+      setFinished(true);
+      done(result);
+    };
+    useCancelOnClose(() => done({ cancelled: true }));
+
+    useKeypress((key, rl) => {
+      if (finished) return;
+      rl.clearLine(0);
+      if (isEnterKey(key)) finish({ cancelled: false });
+      else if (isEscape(key)) finish({ cancelled: true });
+    });
+
+    if (finished) return '';
+    return [
+      // Apart from what it follows, which says what Enter goes on to.
+      `\n${t.accent(glyphs.pointer)} ${t.strong(message)}${HIDE_CURSOR}`,
+      `\n${keysLine(t, ['enter continue', 'esc cancel'])}`,
+    ];
+  }
+);
+
+/** Wait for Enter, saying what it does: `Press Enter to start`. The question clears once answered. */
+export function proceed(
+  message: string,
+  { theme, terminal }: { theme?: string; terminal?: Terminal } = {}
+): Promise<ProceedResult> {
+  const t = tokens({ stream: 'stderr', theme });
+  return ask(terminal, context => proceedPrompt({ message, t }, context), { cancelled: true });
+}
+
+/**
+ * Wait for Enter, drawing nothing, for a question something else draws as
+ * it goes on, like the splash's `Press Enter to start`. True for Enter;
+ * false for Esc, Ctrl+C, or Ctrl+D, which cancel. Without a terminal it
+ * fails, as every question does.
+ */
+export function awaitEnter(input: NodeJS.ReadStream = process.stdin): Promise<boolean> {
+  if (!input.isTTY) {
+    throw Object.assign(new Error("Can't ask a question without a terminal"), {
+      code: 'no-terminal',
+      exitCode: EXIT_CODES.usage,
+    });
+  }
+  return new Promise(resolve => {
+    emitKeypressEvents(input);
+    input.setRawMode(true);
+    input.resume();
+    const done = (entered: boolean) => {
+      input.removeListener('keypress', onKey);
+      input.setRawMode(false);
+      input.pause();
+      resolve(entered);
+    };
+    const onKey = (_: string, key: KeypressEvent | undefined) => {
+      if (!key) return;
+      if (isEnterKey(key)) done(true);
+      else if (isEscape(key) || (key.ctrl && (key.name === 'c' || key.name === 'd'))) done(false);
+    };
+    input.on('keypress', onKey);
+  });
+}
+
 export interface SelectResult {
   value: string;
   cancelled: boolean;
@@ -230,7 +306,11 @@ function choices(
   cursor?: number
 ) {
   const rows = options.map((option, i) => {
-    const mark = chosen.includes(option.value) ? glyphs.chosen : glyphs.unchosen;
+    const mark = option.action
+      ? ' '
+      : chosen.includes(option.value)
+        ? glyphs.chosen
+        : glyphs.unchosen;
     return optionRow(t, option, i === cursor, `${mark} `);
   });
   return `${t.strong(message)}\n\n${rows.join('\n')}`;
@@ -238,22 +318,34 @@ function choices(
 
 /**
  * Space toggles the highlighted option, and Enter starts: with nothing
- * toggled it takes just the highlighted one, so a single pick is one key. `a`
- * toggles all, `d` selects the defaults. (Shift+Enter can't be told from
- * Enter in most terminals, so it isn't used.)
+ * toggled it takes just the highlighted one, so a single pick is one key,
+ * or with `none`, nothing. Enter on an action takes what's toggled and the
+ * action. `a` toggles all, `d` selects the defaults. (Shift+Enter can't be
+ * told from Enter in most terminals, so it isn't used.)
  */
 const multiSelectPrompt = createPrompt<
   MultiSelectResult,
-  { message: string; options: SelectOption[]; defaults: string[]; t: Tokens }
->(({ message, options, defaults, t }, done) => {
+  {
+    message: string;
+    options: SelectOption[];
+    defaults: string[];
+    initial: string[];
+    none: boolean;
+    subscribe?: (redraw: () => void) => () => void;
+    t: Tokens;
+  }
+>(({ message, options, defaults, initial, none, subscribe, t }, done) => {
   const [cursor, setCursor] = useState(0);
-  const [chosen, setChosen] = useState<string[]>([]);
+  const [chosen, setChosen] = useState<string[]>(initial);
   const [finished, setFinished] = useState(false);
   const finish = (result: MultiSelectResult) => {
     setFinished(true);
     done(result);
   };
   useCancelOnClose(() => done({ values: [], cancelled: true }));
+  // Options that change while asked are drawn again when they do.
+  const [, setDrawn] = useState(0);
+  useEffect(() => subscribe?.(() => setDrawn(n => n + 1)), []);
 
   useKeypress((key, rl) => {
     if (finished) return;
@@ -261,16 +353,24 @@ const multiSelectPrompt = createPrompt<
     if (isUp(key)) setCursor(cursor > 0 ? cursor - 1 : options.length - 1);
     else if (isDown(key)) setCursor(cursor < options.length - 1 ? cursor + 1 : 0);
     else if (isSpaceKey(key)) {
-      const { value } = options[cursor];
+      const { value, action } = options[cursor];
+      if (action) return;
       setChosen(chosen.includes(value) ? chosen.filter(v => v !== value) : [...chosen, value]);
     } else if (key.name === 'a') {
-      setChosen(chosen.length === options.length ? [] : options.map(option => option.value));
+      const choosable = options.filter(option => !option.action).map(option => option.value);
+      setChosen(chosen.length === choosable.length ? [] : choosable);
     } else if (key.name === 'd' && defaults.length > 0) {
       setChosen(defaults);
     } else if (isEnterKey(key)) {
       // In the order they're listed, not the order they were toggled.
       const picked = options.map(option => option.value).filter(v => chosen.includes(v));
-      finish({ values: picked.length > 0 ? picked : [options[cursor].value], cancelled: false });
+      const here = options[cursor];
+      const values = here.action
+        ? [...picked, here.value]
+        : picked.length > 0 || none
+          ? picked
+          : [here.value];
+      finish({ values, cancelled: false });
     } else if (isEscape(key)) {
       finish({ values: [], cancelled: true });
     }
@@ -290,20 +390,38 @@ const multiSelectPrompt = createPrompt<
   ];
 });
 
-/** Ask for one or more of `options`; `defaults` are what `d` selects. The picks stay on screen. */
+/**
+ * Ask for one or more of `options`; `defaults` are what `d` selects, and
+ * `initial` are selected to start with. With `none`, Enter with nothing
+ * selected picks nothing, rather than the highlighted option. An option's
+ * description can change while it's asked, drawn again through `subscribe`.
+ * The picks stay on screen.
+ */
 export function multiSelect(
   message: string,
   options: SelectOption[],
   {
     defaults = [],
+    initial = [],
+    none = false,
+    subscribe,
     theme,
     terminal,
-  }: { defaults?: string[]; theme?: string; terminal?: Terminal } = {}
+  }: {
+    defaults?: string[];
+    initial?: string[];
+    none?: boolean;
+    /** For options that change while asked: called with what draws them again. */
+    subscribe?: (redraw: () => void) => () => void;
+    theme?: string;
+    terminal?: Terminal;
+  } = {}
 ): Promise<MultiSelectResult> {
   const t = tokens({ stream: 'stderr', theme });
   return ask(
     terminal,
-    context => multiSelectPrompt({ message, options, defaults, t }, context),
+    context =>
+      multiSelectPrompt({ message, options, defaults, initial, none, subscribe, t }, context),
     { values: [], cancelled: true },
     ({ values }) => choices(t, message, options, values)
   );

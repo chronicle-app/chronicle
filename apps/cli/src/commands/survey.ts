@@ -144,7 +144,8 @@ export function sparkline(
   return `${first} ${bars} ${last}`;
 }
 
-function within<T>(promise: Promise<T>, ms: number): Promise<T> {
+/** `promise`, or a failure once `ms` pass without it. */
+export function within<T>(promise: Promise<T>, ms: number): Promise<T> {
   let timer: NodeJS.Timeout | undefined;
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => reject(new Error(`No answer in ${ms / 1000}s`)), ms);

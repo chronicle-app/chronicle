@@ -6,7 +6,8 @@ import { test } from 'node:test';
 delete process.env.FORCE_COLOR;
 process.env.NO_COLOR = '1';
 
-const { confirm, select, multiSelect, input } = await import('../dist/output/prompts.js');
+const { awaitEnter, confirm, proceed, select, multiSelect, input } =
+  await import('../dist/output/prompts.js');
 
 const OPTIONS = [
   { label: 'notes', value: 'notes', description: 'what you wrote' },
@@ -51,6 +52,8 @@ test('confirm takes y or n, then Enter, and leaves the answer', async () => {
   const result = await confirm('Go ahead?', { defaultValue: true, terminal });
   assert.deepEqual(result, { confirmed: false, cancelled: false });
   assert.match(drawn(), /Go ahead\? No\n$/);
+  // Enter alone goes on.
+  assert.deepEqual(await proceed('Press Enter to start', typing('\r')), { cancelled: false });
 });
 
 test('select starts at the default and moves with the arrows or j and k', async () => {
@@ -79,6 +82,42 @@ test('multiSelect takes the toggled options, or the highlighted one, or the defa
     ...defaults,
   });
   assert.deepEqual(picked.values, ['notes', 'links']);
+
+  // Some can start selected. With `none`, unselecting them all takes none.
+  const initial = typing('j', ' ', '\r');
+  const kept = await multiSelect('Which?', OPTIONS, { initial: ['tags', 'links'], ...initial });
+  assert.deepEqual(kept.values, ['links']);
+  const cleared = typing(' ', '\r');
+  const none = await multiSelect('Which?', OPTIONS, { initial: ['notes'], none: true, ...cleared });
+  assert.deepEqual(none.values, []);
+
+  // Enter on an action answers with what's selected and it. A description
+  // that changes while asked is drawn again when it does.
+  let note = 'counting';
+  const options = [
+    {
+      label: 'notes',
+      value: 'notes',
+      get description() {
+        return note;
+      },
+    },
+    { label: 'Look elsewhere', value: 'more', action: true },
+  ];
+  const acting = typing('k', '\r');
+  const acted = await multiSelect('Which?', options, {
+    initial: ['notes'],
+    subscribe(redraw) {
+      setTimeout(() => {
+        note = '3 notes';
+        redraw();
+      });
+      return () => {};
+    },
+    ...acting,
+  });
+  assert.deepEqual(acted.values, ['notes', 'more']);
+  assert.match(acting.drawn(), /notes 3 notes/);
 });
 
 test('Ctrl+C cancels a question and leaves nothing of it', async () => {
@@ -105,6 +144,16 @@ test('Ctrl+D cancels any question, as Esc does', async () => {
     cancelled: true,
   });
   assert.deepEqual(await input('Your name?', typing(CTRL_D)), { value: '', cancelled: true });
+  assert.deepEqual(await proceed('Press Enter to start', typing(CTRL_D)), { cancelled: true });
+  // A question drawn elsewhere, like the splash's, waits for Enter the same way.
+  const terminal = keys => {
+    const input = Object.assign(new PassThrough(), { isTTY: true, setRawMode: () => input });
+    // It draws nothing, so the keys come once it's listening.
+    setTimeout(() => keys.forEach(key => input.write(key)), 5);
+    return input;
+  };
+  assert.equal(await awaitEnter(terminal(['x', '\r'])), true);
+  assert.equal(await awaitEnter(terminal([CTRL_C])), false);
 });
 
 test('keys pressed at a list are not kept as typed text, so redraws stay in place', async () => {
