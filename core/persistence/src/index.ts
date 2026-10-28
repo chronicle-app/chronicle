@@ -7,7 +7,7 @@
 
 export { PERSISTENCE_NAMESPACE, SCHEMA_NAMESPACE } from './constants.js';
 
-// Database (portable: DDL, schema, and the runtime-agnostic driver types).
+// Database (portable: DDL, the query handle, and the runtime-agnostic driver types).
 export {
   applyOpsSchema,
   applySchema,
@@ -19,12 +19,11 @@ export {
 } from './db/migrate.js';
 // An assertion's `source` is read off its stored body, never a log column.
 export { assertionSourceSql } from './db/assertionSource.js';
-export * as schema from './db/schema.js';
-// The ops sidecar's tables (inbox queue, receipts, connections, sync state,
-// blob pins) — a second file beside the graph; see opsSchema.ts.
-export * as opsSchema from './db/opsSchema.js';
-export type * from './db/types.js';
-export type { Db, OpenResult, OpsDb, OpsTx } from './db/driver.js';
+// The `sql` template tag builds the statements a `Db` runs.
+export { sql } from './db/sql.js';
+export type { Sql } from './db/sql.js';
+export { createDb } from './db/database.js';
+export type { Db, OpenResult, OpsDb, OpsTx, TransactionBehavior } from './db/driver.js';
 export type { DriverRunResult, DriverStatement, SqliteDriver, Tx } from './db/driver.js';
 export type { OpenOptions } from './db/open.js';
 // The busy discipline: every write transaction is BEGIN IMMEDIATE with

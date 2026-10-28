@@ -1,8 +1,5 @@
-import { eq } from 'drizzle-orm';
-import type { Db } from '../db/open.js';
-import { sourcedEntities } from '../db/schema.js';
-
-type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
+import type { Tx } from '../db/driver.js';
+import { sql } from '../db/sql.js';
 
 export interface UpsertSourcedEntityInput {
   /** content key of the primary @key keyset */
@@ -34,11 +31,9 @@ export interface UpsertSourcedEntityInput {
  * keyset and type are immutable (they are part of identity). Returns the row id.
  */
 export function upsertSourcedEntity(tx: Tx, input: UpsertSourcedEntityInput): number {
-  const existing = tx
-    .select({ id: sourcedEntities.id })
-    .from(sourcedEntities)
-    .where(eq(sourcedEntities.key, input.key))
-    .get();
+  const existing = tx.get<{ id: number }>(
+    sql`SELECT id FROM sourced_entities WHERE key = ${input.key}`
+  );
 
   if (existing) {
     // Keep the harmonization pointer current (it may have moved under a merge).
@@ -53,28 +48,21 @@ export function upsertSourcedEntity(tx: Tx, input: UpsertSourcedEntityInput): nu
     // arrival order. The Run behind an unkeyed value is the history; the
     // election reconciles this column to it.
     const keyed = input.keyedFields;
-    const rewrite: Record<string, string> = {};
-    if (input.handle !== null && !keyed?.has('handle')) rewrite.handle = input.handle;
-    if (input.url !== null && !keyed?.has('url')) rewrite.url = input.url;
-    tx.update(sourcedEntities)
-      .set({ entityId: input.entityId, ...rewrite })
-      .where(eq(sourcedEntities.id, existing.id))
-      .run();
+    const handle =
+      input.handle !== null && !keyed?.has('handle') ? sql`, handle = ${input.handle}` : undefined;
+    const url = input.url !== null && !keyed?.has('url') ? sql`, url = ${input.url}` : undefined;
+    tx.run(sql`
+      UPDATE sourced_entities SET entity_id = ${input.entityId}${handle}${url}
+      WHERE id = ${existing.id}
+    `);
     return existing.id;
   }
 
-  return tx
-    .insert(sourcedEntities)
-    .values({
-      key: input.key,
-      entityId: input.entityId,
-      source: input.source,
-      keyset: input.keyset,
-      sourceId: input.sourceId,
-      handle: input.handle,
-      url: input.url,
-      type: input.type,
-    })
-    .returning({ id: sourcedEntities.id })
-    .get().id;
+  return tx.get<{ id: number }>(sql`
+    INSERT INTO sourced_entities (key, entity_id, source, keyset, source_id, handle, url, type)
+    VALUES (${input.key}, ${input.entityId}, ${input.source},
+      ${input.keyset === null ? null : JSON.stringify(input.keyset)}, ${input.sourceId},
+      ${input.handle}, ${input.url}, ${input.type})
+    RETURNING id
+  `)!.id;
 }

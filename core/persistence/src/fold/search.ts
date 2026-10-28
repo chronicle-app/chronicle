@@ -1,7 +1,5 @@
-import { sql } from 'drizzle-orm';
-import type { Db } from '../db/open.js';
-
-type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
+import { sql } from '../db/sql.js';
+import type { Tx } from '../db/driver.js';
 
 /**
  * Rebuild an entity's full-text row (a cache; rowid = entity id). Three tiers,

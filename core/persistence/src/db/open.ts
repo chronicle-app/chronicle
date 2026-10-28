@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
-import Database, { drizzle } from './nodeSqlite.js';
+import Database from './nodeSqlite.js';
 import type { BlobStore } from '../blob/BlobStore.js';
 import { LocalBlobStore } from '../blob/LocalBlobStore.js';
 import { MemoryBlobStore } from '../blob/MemoryBlobStore.js';
@@ -11,9 +11,8 @@ import {
   OPS_DISPOSABLE_TABLES,
   OPS_SCHEMA_VERSION,
 } from './migrate.js';
+import { createDb } from './database.js';
 import type { OpenResult, SqliteDriver } from './driver.js';
-import * as schema from './schema.js';
-import * as opsSchema from './opsSchema.js';
 
 export type { Db, OpenResult } from './driver.js';
 
@@ -286,8 +285,8 @@ export function openDatabase(options: OpenOptions = {}): OpenResult {
     throw error;
   }
 
-  const db = drizzle(sqlite, { schema });
-  const ops = drizzle(opsSqlite, { schema: opsSchema });
+  const db = createDb(sqlite);
+  const ops = createDb(opsSqlite);
   const blobs: BlobStore =
     path === ':memory:' && !attachmentsDir
       ? new MemoryBlobStore()

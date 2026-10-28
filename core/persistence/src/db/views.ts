@@ -7,9 +7,8 @@ import type { SqliteDriver } from './driver.js';
  * and the integer surrogate ids back into readable values and entity names,
  * and render the epoch-millisecond instants as ISO-ish text.
  *
- * They are deliberately NOT modeled in `schema.ts` (the drizzle query layer
- * never reads them) and NOT part of `SCHEMA_DDL` (which mirrors `schema.ts`
- * one-to-one and drives the permutation contract). Views hold no state, carry
+ * They are deliberately NOT part of `SCHEMA_DDL` (no fold or reader queries
+ * them, and that DDL drives the permutation contract). Views hold no state, carry
  * no write cost, are ignored by the derived-table wipe, and never appear in a
  * snapshot — so creating them on every store is free.
  *

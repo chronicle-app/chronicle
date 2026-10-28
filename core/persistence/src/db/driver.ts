@@ -1,7 +1,5 @@
-import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import type { BlobStore } from '../blob/BlobStore.js';
-import type * as schema from './schema.js';
-import type * as opsSchema from './opsSchema.js';
+import type { Sql } from './sql.js';
 
 /**
  * Runtime-portable SQLite surface. The persistence core reaches SQLite only
@@ -15,8 +13,8 @@ import type * as opsSchema from './opsSchema.js';
 /**
  * Result of a mutating statement. `lastInsertRowid` is deliberately omitted —
  * better-sqlite3 exposes it but expo-sqlite's sync API does not, so the fold
- * must never depend on it. New-row ids come from SQLite `RETURNING` instead
- * (drizzle `.returning(...).get()`), which both bindings support.
+ * must never depend on it. New-row ids come from SQLite `RETURNING` instead,
+ * which both bindings support.
  */
 export interface DriverRunResult {
   changes: number;
@@ -42,22 +40,33 @@ export interface SqliteDriver {
   close(): void;
 }
 
+/** How a transaction takes its locks: SQLite's `BEGIN DEFERRED | IMMEDIATE | EXCLUSIVE`. */
+export type TransactionBehavior = 'deferred' | 'immediate' | 'exclusive';
+
 /**
- * The drizzle database, generalized over the run-result type so it is not tied
- * to one driver. The database `./nodeSqlite.ts` builds (whose run result carries
- * the extra `lastInsertRowid`) is assignable to this — the run-result type only
- * appears covariantly.
+ * The store's query handle over a {@link SqliteDriver} (see `database.ts`). It
+ * runs statements built with `sql`, rows coming back as objects keyed by
+ * column name, and opens transactions; a transaction opened inside another is
+ * a savepoint.
  */
-export type Db = BaseSQLiteDatabase<'sync', DriverRunResult, typeof schema>;
+export interface Db {
+  /** Every row the statement returns. */
+  all<T = unknown>(query: Sql): T[];
+  /** The first row, or undefined when there is none. */
+  get<T = unknown>(query: Sql): T | undefined;
+  run(query: Sql): DriverRunResult;
+  /** Run `fn` in a transaction: committed when it returns, rolled back when it throws. */
+  transaction<T>(fn: (tx: Tx) => T, options?: { behavior?: TransactionBehavior }): T;
+}
 
-/** A drizzle transaction handle derived from {@link Db}. */
-export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
+/** The handle inside a transaction: the same {@link Db}. */
+export type Tx = Db;
 
-/** The ops sidecar's drizzle database (see `opsSchema.ts`). */
-export type OpsDb = BaseSQLiteDatabase<'sync', DriverRunResult, typeof opsSchema>;
+/** The ops sidecar's handle (see `migrate.ts`'s `OPS_DDL`). */
+export type OpsDb = Db;
 
-/** A drizzle transaction handle derived from {@link OpsDb}. */
-export type OpsTx = Parameters<Parameters<OpsDb['transaction']>[0]>[0];
+/** The ops sidecar's handle inside a transaction. */
+export type OpsTx = Db;
 
 /**
  * An opened store: the graph (`db` / `sqlite`), the ops sidecar (`ops` /

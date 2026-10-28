@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { sql } from './db/sql.js';
 import type { Db } from './db/open.js';
 import type { BlobStore } from './blob/BlobStore.js';
 import { ingest, ValidationError } from './ingest/ingest.js';

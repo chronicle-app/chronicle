@@ -1,10 +1,8 @@
-import { sql } from 'drizzle-orm';
-import type { Db } from '../db/open.js';
+import { sql } from '../db/sql.js';
+import type { Tx } from '../db/driver.js';
 import { makeDictCaches } from './dictionaries.js';
 import type { DictCaches } from './dictionaries.js';
 import type { FoldTrace, FoldTraceSink } from './trace.js';
-
-type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 
 /** Placement key of a observation row (the leading sort dimensions of a chain). */
 export interface PlacementKey {

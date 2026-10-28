@@ -1,10 +1,8 @@
-import { sql } from 'drizzle-orm';
-import type { Db } from '../db/open.js';
+import { sql } from '../db/sql.js';
+import type { Tx } from '../db/driver.js';
 import { getPredicateAnnotation } from '../annotations/ontology.js';
 import { GRADE_ORIGIN, isOccurrenceType } from '../annotations/actionTypes.js';
 import type { DirtyChain, FoldContext } from './context.js';
-
-type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 
 interface ChainMeta {
   cardinality: 'one' | 'many';
@@ -779,7 +777,7 @@ function applyInOrder(tx: Tx, chain: DirtyChain, meta: ChainMeta): void {
         ${periodFrom}, NULL, ${isOccurrenceType(row.actionType) ? row.actionId : null}, ${row.grade}
       )
       RETURNING id
-    `);
+    `)!;
     open.set(valueIdent(row), {
       id: inserted.id,
       valueId: row.valueId,

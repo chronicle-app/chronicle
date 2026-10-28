@@ -1,4 +1,4 @@
-import type { Db, OpsDb, OpsTx, Tx } from './driver.js';
+import type { Db, Tx } from './driver.js';
 
 /**
  * SQLite's one-writer rule, handled in one place. Every process that opens a
@@ -103,15 +103,6 @@ export function withBusyRetry<T>(fn: () => T, opts: BusyRetryOptions = {}): T {
  * mid-transaction on an upgrade) wrapped in {@link withBusyRetry}. Every
  * writer in the persistence core goes through here.
  */
-export function runImmediate<T>(db: Db, fn: (tx: Tx) => T, opts?: BusyRetryOptions): T;
-export function runImmediate<T>(db: OpsDb, fn: (tx: OpsTx) => T, opts?: BusyRetryOptions): T;
-export function runImmediate<T>(
-  db: Db | OpsDb,
-  fn: (tx: never) => T,
-  opts: BusyRetryOptions = {}
-): T {
-  return withBusyRetry(
-    () => (db as Db).transaction(fn as (tx: Tx) => T, { behavior: 'immediate' }),
-    opts
-  );
+export function runImmediate<T>(db: Db, fn: (tx: Tx) => T, opts: BusyRetryOptions = {}): T {
+  return withBusyRetry(() => db.transaction(fn, { behavior: 'immediate' }), opts);
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parse } from '@chronicle.app/cql';
 import { lowerQuery } from './cql.js';
-import { sql } from 'drizzle-orm';
+import { sql } from '../db/sql.js';
 import { openDatabase } from '../db/open.js';
 import { processEvents } from '../process.js';
 import { queryActionIds, queryActionPage } from './evaluate.js';

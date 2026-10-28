@@ -1,6 +1,5 @@
-import { eq } from 'drizzle-orm';
 import type { Tx } from '../db/driver.js';
-import { attachments as attachmentsTable, assertionPayloads, assertions } from '../db/schema.js';
+import { sql } from '../db/sql.js';
 import { generateAssertionBodyCID } from '../cid/assertionCid.js';
 import type { AssertionKind } from '../assertionKind.js';
 import { deriveAssertionColumns } from './ingest.js';
@@ -231,22 +230,15 @@ export function insertBatchRows(
   let maxInsertedId = 0;
 
   for (const ev of prepared) {
-    const inserted = tx
-      .insert(assertions)
-      .values({
-        cid: ev.cid,
-        kind: ev.kind,
-        claimCid: ev.claimCid,
-        targetKey: ev.targetKey,
-        assertedAt: ev.assertedAt,
-        ingestedAt,
-      })
-      .onConflictDoNothing()
-      .returning({ id: assertions.id })
-      .get();
+    const inserted = tx.get<{ id: number }>(sql`
+      INSERT INTO assertions (cid, kind, claim_cid, target_key, asserted_at, ingested_at)
+      VALUES (${ev.cid}, ${ev.kind}, ${ev.claimCid}, ${ev.targetKey}, ${ev.assertedAt}, ${ingestedAt})
+      ON CONFLICT DO NOTHING
+      RETURNING id
+    `);
     if (inserted) {
       // Store the received bytes VERBATIM so sha256(body) == cid stays checkable.
-      tx.insert(assertionPayloads).values({ cid: ev.cid, body: ev.body }).run();
+      tx.run(sql`INSERT INTO assertion_payloads (cid, body) VALUES (${ev.cid}, ${ev.body})`);
       newlyInserted.push(ev.cid);
       insertedIds.push(inserted.id);
       if (inserted.id > maxInsertedId) maxInsertedId = inserted.id;
@@ -259,26 +251,17 @@ export function insertBatchRows(
   for (const meta of attachments) {
     const observer = firstObserver.get(meta.cid);
     if (!observer) {
-      const existing = tx
-        .select({ cid: attachmentsTable.cid })
-        .from(attachmentsTable)
-        .where(eq(attachmentsTable.cid, meta.cid))
-        .get();
+      const existing = tx.get(sql`SELECT cid FROM attachments WHERE cid = ${meta.cid}`);
       if (existing) continue; // already known; nothing to reconcile
       throw new EnvelopeError(`attachment ${meta.cid}: not referenced by any event in the batch`, {
         cid: meta.cid,
       });
     }
-    tx.insert(attachmentsTable)
-      .values({
-        cid: meta.cid,
-        sizeBytes: meta.sizeBytes,
-        mimeType: meta.mimeType,
-        firstObservedAssertionCid: observer.cid,
-        ingestedAt,
-      })
-      .onConflictDoNothing()
-      .run();
+    tx.run(sql`
+      INSERT INTO attachments (cid, size_bytes, mime_type, first_observed_assertion_cid, ingested_at)
+      VALUES (${meta.cid}, ${meta.sizeBytes}, ${meta.mimeType}, ${observer.cid}, ${ingestedAt})
+      ON CONFLICT DO NOTHING
+    `);
   }
 
   return { cids: newlyInserted, insertedIds, maxInsertedId };

@@ -2,10 +2,9 @@ import type { SqliteDriver } from './driver.js';
 import { applyDebugViews } from './views.js';
 
 /**
- * DDL for the store. Mirrors `schema.ts` (the typed query source of truth)
- * one-to-one; the two must stay in sync. In dev this is applied to test and
- * file databases directly. Any drift surfaces immediately in the permutation
- * tests.
+ * DDL for the store: the one definition of its tables, which the fold and the
+ * readers query with `sql`. In dev this is applied to test and file databases
+ * directly. Cache columns carry a `cached_` prefix to mark them as disposable.
  *
  * Foreign keys are enforced (PRAGMA foreign_keys=ON per connection) on every
  * integer reference, including the merge-rewritten `cached_*_entity_id` caches:
@@ -25,25 +24,30 @@ import { applyDebugViews } from './views.js';
  * of silently reinterpreting stored ids.
  */
 export const SCHEMA_DDL = `
+-- The log, the only source of truth. No source column: it lives in the hashed
+-- body and is read back from assertion_payloads.body by the few source-scoped
+-- readers (see assertionSource.ts). The lifted columns are the fold's join keys only.
 CREATE TABLE IF NOT EXISTS assertions (
-  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,  -- local "what's new since" ordering only; never crosses the wire
   cid          TEXT NOT NULL UNIQUE,
   kind         TEXT NOT NULL,               -- 'assert' | 'restated' | 'confirm'; derived from the body's @kind marker
   claim_cid    TEXT NOT NULL,               -- hash of body minus root @assertedAt; shared by an assert and its confirms
   target_key   TEXT,                        -- keyset hash of the projected action; NULL for a confirm (no action body)
-  asserted_at  INTEGER NOT NULL,            -- source lives in the body only: json_extract(assertion_payloads.body, '$.source')
-  ingested_at  INTEGER NOT NULL
+  asserted_at  INTEGER NOT NULL,            -- source assertion time; part of the assertion content (in the CID)
+  ingested_at  INTEGER NOT NULL             -- transaction time; lives only on the log layer, never in derived state
 );
 CREATE INDEX IF NOT EXISTS assertions_target ON assertions(target_key);
 CREATE INDEX IF NOT EXISTS assertions_claim ON assertions(claim_cid, kind);
 
 CREATE TABLE IF NOT EXISTS assertion_payloads (
   cid   TEXT PRIMARY KEY REFERENCES assertions(cid),
-  body  TEXT NOT NULL
+  body  TEXT NOT NULL                       -- canonical bytes: the exact text that was hashed into the CID
 );
 
 -- Binary content referenced by assertions via attachmentCid. Metadata only —
 -- the bytes live in the blob store, keyed by the same CID (CIDv1, raw codec).
+-- Rows are minted at ingest when contentData is rewritten into attachmentCid;
+-- the earliest observing assertion wins first_observed_assertion_cid.
 CREATE TABLE IF NOT EXISTS attachments (
   cid                           TEXT PRIMARY KEY,
   size_bytes                    INTEGER NOT NULL,
@@ -64,12 +68,17 @@ CREATE TABLE IF NOT EXISTS meta (
 -- carrying the name beats a join on every read for a few bytes per row.
 CREATE TABLE IF NOT EXISTS vals (
   id    INTEGER PRIMARY KEY AUTOINCREMENT,
-  key   TEXT NOT NULL UNIQUE,
-  body  TEXT NOT NULL
+  key   TEXT NOT NULL UNIQUE,               -- hash of the canonical JSON body
+  body  TEXT NOT NULL                       -- canonical JSON of the literal
 );
 
+-- The cluster record: identity plus the one value that must stay materialized;
+-- everything else is derived from the chains on read.
 CREATE TABLE IF NOT EXISTS entities (
-  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,  -- local surrogate; never crosses the wire
+  -- Elected display name, the lone materialized cache on the cluster: FTS,
+  -- name-matching queries, and reference rendering all need it as an indexed
+  -- column, so it can't be derived on read like the rest.
   cached_name  TEXT
 );
 -- Name lookups (\`name:"…"\`, \`agent:"…"\`) start here.
@@ -77,7 +86,9 @@ CREATE INDEX IF NOT EXISTS entities_name ON entities(cached_name);
 
 CREATE TABLE IF NOT EXISTS sourced_entities (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  key        TEXT NOT NULL UNIQUE,
+  key        TEXT NOT NULL UNIQUE,         -- hash of the primary @key keyset
+  -- The only place harmonization is recorded; merges rewrite it before the
+  -- loser entity row is deleted (the FK enforces that order).
   entity_id  INTEGER NOT NULL REFERENCES entities(id),
   -- The namespace the identity belongs to: usually a product, but the protocol
   -- namespace for a portable id -- email/phone/isbn, and "url" for a
@@ -95,10 +106,13 @@ CREATE TABLE IF NOT EXISTS sourced_entities (
   -- stands; an unkeyed one is a Run and this is its elected current value.
   handle     TEXT,
   url        TEXT,
+  -- A source record has exactly one @type (it's part of the keyset). The
+  -- multi-type union lives at the entity level (entity_types).
   type       TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS sourced_entities_entity ON sourced_entities(entity_id);
 
+-- Union over sourced types; an indexed substitute for arrays.
 CREATE TABLE IF NOT EXISTS entity_types (
   entity_id  INTEGER NOT NULL REFERENCES entities(id),
   type       TEXT NOT NULL,
@@ -114,8 +128,8 @@ CREATE TABLE IF NOT EXISTS entity_types (
 -- never changes the key or breaks references.
 CREATE TABLE IF NOT EXISTS location_values (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  key           TEXT NOT NULL UNIQUE,
-  payload       TEXT NOT NULL,
+  key           TEXT NOT NULL UNIQUE,       -- hash of canonical(payload)
+  payload       TEXT NOT NULL,              -- verbatim raw location JSON (immutable; the only truth here)
   latitude         REAL GENERATED ALWAYS AS (json_extract(payload, '$.latitude'))  STORED,
   longitude        REAL GENERATED ALWAYS AS (json_extract(payload, '$.longitude')) STORED,
   -- The named place this location IS (Venue/City), when a sourced entity claims
@@ -145,14 +159,14 @@ CREATE INDEX IF NOT EXISTS location_values_entity   ON location_values(cached_en
 CREATE TABLE IF NOT EXISTS observations (
   subject_id         INTEGER NOT NULL REFERENCES sourced_entities(id),
   predicate          TEXT NOT NULL,
-  valid_at           INTEGER NOT NULL,
-  observed_at        INTEGER NOT NULL,
+  valid_at           INTEGER NOT NULL,    -- placement; defaults to observed_at at shred time
+  observed_at        INTEGER NOT NULL,    -- the carrying assertion's asserted_at
   value_id           INTEGER REFERENCES vals(id),
   value_sourced_id   INTEGER REFERENCES sourced_entities(id),
   value_location_id  INTEGER REFERENCES location_values(id),
-  action_id          INTEGER NOT NULL REFERENCES actions(id),
-  assertion_id       INTEGER NOT NULL REFERENCES assertions(id),
-  grade              INTEGER NOT NULL,
+  action_id          INTEGER NOT NULL REFERENCES actions(id),     -- observing activity (anchor target)
+  assertion_id       INTEGER NOT NULL REFERENCES assertions(id),  -- assertion provenance
+  grade              INTEGER NOT NULL,    -- 0 = observed, 1 = origin (deterministic from assertion content)
   CHECK ((value_id IS NOT NULL) + (value_sourced_id IS NOT NULL) + (value_location_id IS NOT NULL) <= 1)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS observations_identity ON observations(
@@ -160,14 +174,17 @@ CREATE UNIQUE INDEX IF NOT EXISTS observations_identity ON observations(
   IFNULL(value_id, 0), IFNULL(value_sourced_id, 0), IFNULL(value_location_id, 0), action_id, assertion_id
 );
 
+-- Actions: fully immutable content, the founding payload deterministically elected.
 CREATE TABLE IF NOT EXISTS actions (
   id                           INTEGER PRIMARY KEY AUTOINCREMENT,
-  key                          TEXT NOT NULL UNIQUE,
+  key                          TEXT NOT NULL UNIQUE,   -- @key keyset hash = assertions.target_key
   -- Dedupe keyset preimage; NULL when identity arrived pre-derived as @id.
   keyset                       TEXT,
   type                         TEXT NOT NULL,
   source                       TEXT NOT NULL,
   source_id                    TEXT,
+  -- Founding payload's assertion time (@assertedAt ?? timestamp ?? startTime
+  -- ?? endTime); timeless payloads are rejected at ingest, so NOT NULL.
   asserted_at                  INTEGER NOT NULL,
   start_time                   INTEGER,
   end_time                     INTEGER,
@@ -184,7 +201,17 @@ CREATE TABLE IF NOT EXISTS actions (
   -- True when the fold materialised this action (no backing source assertion); keyed
   -- by content (type + participants). UX filtering + re-election precedence only.
   synthetic                    INTEGER NOT NULL DEFAULT 0,
+  -- The assertion whose payload this row projects: smallest (asserted_at, cid)
+  -- among assertions sharing the target key, so deterministic across arrival
+  -- orders. The full founding payload is not stored here; it is recoverable
+  -- through founding_assertion_cid -> assertion_payloads.body.
   founding_assertion_cid              TEXT NOT NULL REFERENCES assertions(cid),
+  -- Per role slot, a truth/cache FK pair (first entity wins when a payload
+  -- carries several): the sourced ids are truth (FK-enforced), the
+  -- cached_*_entity_id columns merge-rewritten caches. An action's location is
+  -- a point: one FK to the location value (a bare coordinate, or a named
+  -- place's canonical location, which links up to its entity through
+  -- location_values.cached_entity_id).
   agent_sourced_id                    INTEGER REFERENCES sourced_entities(id),
   cached_agent_entity_id              INTEGER REFERENCES entities(id),
   object_sourced_id                   INTEGER REFERENCES sourced_entities(id),
@@ -209,6 +236,7 @@ CREATE INDEX IF NOT EXISTS actions_agent_entity ON actions(cached_agent_entity_i
 CREATE INDEX IF NOT EXISTS actions_result_entity ON actions(cached_result_entity_id);
 CREATE INDEX IF NOT EXISTS actions_location ON actions(location_location_id);
 CREATE INDEX IF NOT EXISTS actions_type_object ON actions(type, cached_object_entity_id);
+-- Special-property chain scans: (object sourced, type, agent sourced).
 CREATE INDEX IF NOT EXISTS actions_object_sourced_type ON actions(object_sourced_id, type);
 
 -- Encounter event log: one row per interaction instance — the
@@ -230,8 +258,11 @@ CREATE TABLE IF NOT EXISTS encounters (
   cached_subject_entity_id  INTEGER NOT NULL REFERENCES entities(id),
   level                     TEXT NOT NULL
 );
+-- Recency-sort and pair lookup: MAX(cached_timestamp) GROUP BY subject.
 CREATE INDEX IF NOT EXISTS encounters_pair ON encounters(cached_encounterer_entity_id, cached_subject_entity_id, cached_timestamp);
+-- The subject side of the uniform timeline scan (received, group posts).
 CREATE INDEX IF NOT EXISTS encounters_subject ON encounters(cached_subject_entity_id, cached_timestamp);
+-- Idempotency: delete-by-action before re-emit.
 CREATE INDEX IF NOT EXISTS encounters_action ON encounters(originating_action_id);
 
 -- Participant edges: one row per (action, role, entity filler) —
@@ -250,34 +281,46 @@ CREATE TABLE IF NOT EXISTS action_role_edges (
 CREATE INDEX IF NOT EXISTS action_role_edges_action ON action_role_edges(action_id, role);
 CREATE INDEX IF NOT EXISTS action_role_edges_entity ON action_role_edges(cached_entity_id);
 
--- Derived validity runs. Anchors are observation references (valid_at,
--- observed_at, action_id); period bounds derive FROM anchors. Special
--- properties (encountered/liked/...) live here with the agent columns set.
--- A run always carries a value, so exactly one value column is set.
+-- Derived validity runs (disposable; rebuilt per chain). A run is one maximal
+-- stretch of one value on a chain: (subject, predicate, value) is immutable;
+-- period bounds and anchors are revised as evidence arrives. Anchors are
+-- observation references (valid_at, observed_at, action_id); period bounds
+-- derive FROM anchors, and cached_period_from/to copy their placement times so
+-- temporal predicates hit indexes. Row ids are best-effort stable (positional
+-- run matching), never contractual. Special properties (encountered/liked/...)
+-- live here with the agent columns set. A run always carries a value, so
+-- exactly one value column is set.
 CREATE TABLE IF NOT EXISTS properties (
   id                           INTEGER PRIMARY KEY AUTOINCREMENT,
   sourced_entity_id            INTEGER NOT NULL REFERENCES sourced_entities(id),
-  cached_entity_id             INTEGER NOT NULL REFERENCES entities(id),
+  cached_entity_id             INTEGER NOT NULL REFERENCES entities(id),  -- merge-rewritten, query-only
   predicate                    TEXT NOT NULL,
   value_id                     INTEGER REFERENCES vals(id),
   value_sourced_id             INTEGER REFERENCES sourced_entities(id),
   value_location_id            INTEGER REFERENCES location_values(id),
-  agent_sourced_id             INTEGER REFERENCES sourced_entities(id),
+  agent_sourced_id             INTEGER REFERENCES sourced_entities(id),   -- special properties only
   cached_agent_entity_id       INTEGER REFERENCES entities(id),
-  cached_object_entity_id      INTEGER REFERENCES entities(id),
+  cached_object_entity_id      INTEGER REFERENCES entities(id),           -- for entity-valued predicates
+  -- min-wins anchor: the run's earliest evidence
   first_observed_valid_at      INTEGER NOT NULL,
   first_observed_observed_at   INTEGER NOT NULL,
   first_observed_action_id     INTEGER NOT NULL REFERENCES actions(id),
+  -- max-wins anchor: its latest evidence (the staleness signal)
   last_confirmed_valid_at      INTEGER NOT NULL,
   last_confirmed_observed_at   INTEGER NOT NULL,
   last_confirmed_action_id     INTEGER NOT NULL REFERENCES actions(id),
+  -- what closed the run: the competing value's first sighting or an absence /
+  -- snapshot marker (NULL = open)
   closing_valid_at             INTEGER,
   closing_observed_at          INTEGER,
   closing_action_id            INTEGER REFERENCES actions(id),
-  cached_period_from           INTEGER,
-  cached_period_to             INTEGER,
+  cached_period_from           INTEGER,                                   -- NULL = unknown start
+  cached_period_to             INTEGER,                                   -- NULL = open
+  -- The occurrence that opened this run when its start is an agentless
+  -- lifecycle occurrence: a birthPlace/creator edge points back to the
+  -- BirthAction/CreateAction it was routed from. NULL for ordinary runs.
   originator_action_id         INTEGER REFERENCES actions(id),
-  grade                        INTEGER NOT NULL DEFAULT 0,
+  grade                        INTEGER NOT NULL DEFAULT 0,  -- max grade of the run's evidence (0 observed, 1 origin); election input
   CHECK ((value_id IS NOT NULL) + (value_sourced_id IS NOT NULL) + (value_location_id IS NOT NULL) = 1)
 );
 CREATE INDEX IF NOT EXISTS properties_chain ON properties(sourced_entity_id, predicate);
@@ -285,6 +328,9 @@ CREATE INDEX IF NOT EXISTS properties_lookup ON properties(predicate, value_id, 
 CREATE INDEX IF NOT EXISTS properties_entity ON properties(cached_entity_id, predicate);
 CREATE INDEX IF NOT EXISTS properties_object ON properties(cached_object_entity_id, predicate);
 CREATE INDEX IF NOT EXISTS properties_agent ON properties(cached_agent_entity_id, predicate);
+-- Reverse lookup for boundary invalidation: when an action's occurrence
+-- register narrows, find the runs it anchors (opener or closer). Two
+-- single-column indexes let SQLite OR-union them.
 CREATE INDEX IF NOT EXISTS properties_originator ON properties(originator_action_id);
 CREATE INDEX IF NOT EXISTS properties_closer ON properties(closing_action_id);
 -- The few runs whose value is a location value, by that value.
@@ -335,7 +381,7 @@ export const DERIVED_TABLES = [
 
 export function applySchema(sqlite: SqliteDriver): void {
   sqlite.exec(SCHEMA_DDL);
-  applyDebugViews(sqlite); // read-only conveniences; not part of the schema mirror
+  applyDebugViews(sqlite); // read-only conveniences; not part of the schema
   dropLegacyAssertionsSource(sqlite); // after the views: a view naming the column blocks the drop
   createStatisticsTables(sqlite);
 }
@@ -377,10 +423,14 @@ export const OPS_SCHEMA_VERSION = 1;
 export const OPS_DISPOSABLE_TABLES = ['inbox', 'receipts', 'blob_cache'] as const;
 
 /**
- * DDL for the ops sidecar (`persistence.ops.db`). Mirrors `opsSchema.ts`
- * one-to-one. Kept out of the graph file so that the graph is a pure function
- * of the assertion set and a queue append never contends with a fold for the
- * same file's write lock.
+ * DDL for the ops sidecar (`persistence.ops.db`): the machinery around one
+ * archive — a cursor into its log, rows waiting to be folded into it, tokens
+ * that let an app write to it — paired to that archive by `archive_id`. None
+ * of it is hashed, replicated, or a function of the assertion set, and none of
+ * it survives into a backup: copying the graph file alone yields a valid
+ * archive with no queue, no cursors, no tokens. Kept out of the graph file so
+ * that the graph is a pure function of the assertion set and a queue append
+ * never contends with a fold for the same file's write lock.
  */
 export const OPS_DDL = `
 -- Pairing + versioning: archive_id (the graph this sidecar belongs to).
@@ -406,7 +456,8 @@ CREATE TABLE IF NOT EXISTS blob_cache (
 );
 
 -- Direct-source connections: the credential a local app is issued to
--- stream events into this replica's inbox. Only the sha256 hex of the bearer
+-- stream events into this replica's inbox. Write-only: a connection token
+-- reaches the inbox routes and nothing else. Only the sha256 hex of the bearer
 -- token is stored. Revocation keeps the row (revoked_at set) so receipts keep
 -- their provenance. Never wiped.
 CREATE TABLE IF NOT EXISTS connections (
@@ -423,7 +474,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS connections_active_name ON connections(name) W
 -- The inbox: a QUEUE of loose claims waiting to be folded. A row is deleted
 -- when its claim is delivered or dead-lettered and its outcome moves to
 -- receipts, so a folded payload exists in one place only: the assertion log.
--- The drain takes rows lane by lane (0 interactive, 1 bulk import) and
+-- (connection_id, client_id) is the app-chosen idempotency key. The drain takes rows lane by lane (0 interactive, 1 bulk import) and
 -- round-robin across appenders (appender_pid, else the connection) within a
 -- lane. cid / outcome / attachments are the drain's recorded intent — the
 -- promotion gate's verdict, written BEFORE the archive write, so a crash

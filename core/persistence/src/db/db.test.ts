@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { eq } from 'drizzle-orm';
+import { upsertSourcedEntity } from '../fold/sourcedEntity.js';
 import { makeTestDb } from '../testing/testDb.js';
-import { entities, sourcedEntities } from './schema.js';
+import { sql } from './sql.js';
 
 describe('database harness', () => {
   it('applies the schema and lists all expected tables', () => {
@@ -69,22 +69,25 @@ describe('database harness', () => {
     }
   });
 
-  it('round-trips a JSON column through Drizzle', () => {
+  it('keeps a keyset as JSON text that reads back as the same object', () => {
     const { db, close } = makeTestDb();
     try {
       const keyset = { source: 'test', sourceId: 'p1' };
-      const entity = db.insert(entities).values({}).returning({ id: entities.id }).get();
-      const [inserted] = db
-        .insert(sourcedEntities)
-        .values({ key: 'k1', entityId: entity.id, source: 'test', keyset, type: 'Person' })
-        .returning()
-        .all();
-      const fetched = db
-        .select()
-        .from(sourcedEntities)
-        .where(eq(sourcedEntities.id, inserted.id))
-        .get();
-      expect(fetched?.keyset).toEqual(keyset);
+      const entity = db.get<{ id: number }>(sql`INSERT INTO entities DEFAULT VALUES RETURNING id`)!;
+      const id = upsertSourcedEntity(db, {
+        key: 'k1',
+        entityId: entity.id,
+        source: 'test',
+        keyset,
+        sourceId: 'p1',
+        handle: null,
+        url: null,
+        type: 'Person',
+      });
+      const row = db.get<{ keyset: string }>(
+        sql`SELECT keyset FROM sourced_entities WHERE id = ${id}`
+      )!;
+      expect(JSON.parse(row.keyset)).toEqual(keyset);
     } finally {
       close();
     }

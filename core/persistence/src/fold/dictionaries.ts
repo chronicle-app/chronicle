@@ -1,9 +1,6 @@
-import { eq } from 'drizzle-orm';
-import type { Db } from '../db/open.js';
-import { locationValues, vals } from '../db/schema.js';
+import type { Tx } from '../db/driver.js';
+import { sql } from '../db/sql.js';
 import { canonicalJson, valueKey } from '../cid/canonical.js';
-
-type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 
 /**
  * Per-fold interning cache. Scoped to a fold invocation (not module-global) so
@@ -25,11 +22,10 @@ export function internVal(tx: Tx, caches: DictCaches, value: unknown): number {
   const cached = caches.valsByKey.get(key);
   if (cached !== undefined) return cached;
 
-  tx.insert(vals)
-    .values({ key, body: canonicalJson(value) })
-    .onConflictDoNothing()
-    .run();
-  const { id } = tx.select({ id: vals.id }).from(vals).where(eq(vals.key, key)).get()!;
+  tx.run(
+    sql`INSERT INTO vals (key, body) VALUES (${key}, ${canonicalJson(value)}) ON CONFLICT DO NOTHING`
+  );
+  const { id } = tx.get<{ id: number }>(sql`SELECT id FROM vals WHERE key = ${key}`)!;
   caches.valsByKey.set(key, id);
   return id;
 }
@@ -50,15 +46,11 @@ export function internLocationValue(
   const cached = caches.locationsByKey.get(key);
   if (cached !== undefined) return cached;
 
-  tx.insert(locationValues)
-    .values({ key, payload: canonicalJson(payload) })
-    .onConflictDoNothing()
-    .run();
-  const { id } = tx
-    .select({ id: locationValues.id })
-    .from(locationValues)
-    .where(eq(locationValues.key, key))
-    .get()!;
+  tx.run(sql`
+    INSERT INTO location_values (key, payload) VALUES (${key}, ${canonicalJson(payload)})
+    ON CONFLICT DO NOTHING
+  `);
+  const { id } = tx.get<{ id: number }>(sql`SELECT id FROM location_values WHERE key = ${key}`)!;
   caches.locationsByKey.set(key, id);
   return id;
 }

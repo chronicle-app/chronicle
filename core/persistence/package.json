@@ -23,7 +23,6 @@
   "dependencies": {
     "@chronicle.app/cql": "0.5.0",
     "@noble/hashes": "^2.2.0",
-    "drizzle-orm": "^0.44.4",
     "multiformats": "^13.3.7"
   },
   "devDependencies": {

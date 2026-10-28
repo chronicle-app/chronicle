@@ -1,5 +1,5 @@
-import { sql } from 'drizzle-orm';
-import type { Db } from '../db/open.js';
+import { sql } from '../db/sql.js';
+import type { Tx } from '../db/driver.js';
 import {
   GRADE_ORIGIN,
   getSpecialPropertyDef,
@@ -9,8 +9,6 @@ import { internVal } from './dictionaries.js';
 import { diffRuns } from './runs.js';
 import type { Run } from './runs.js';
 import type { FoldContext } from './context.js';
-
-type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 
 interface ActionScanRow {
   id: number;

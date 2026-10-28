@@ -1,10 +1,8 @@
-import { sql } from 'drizzle-orm';
-import type { Db } from '../db/open.js';
+import { sql } from '../db/sql.js';
+import type { Tx } from '../db/driver.js';
 import { getPredicateAnnotation } from '../annotations/ontology.js';
 import { isSpecialPredicate } from '../annotations/actionTypes.js';
 import { URL_SOURCE } from '../cid/cid.js';
-
-type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 
 export interface CandidateRow {
   predicate: string;

@@ -1,9 +1,8 @@
 import { ActionAndChildrenSchema } from '@chronicle.app/schema';
-import { and, eq, ne } from 'drizzle-orm';
 import type { Db } from '../db/open.js';
 import type { Tx } from '../db/driver.js';
 import { runImmediate } from '../db/retry.js';
-import { attachments as attachmentsTable, assertionPayloads, assertions } from '../db/schema.js';
+import { sql } from '../db/sql.js';
 import type { BlobStore } from '../blob/BlobStore.js';
 import {
   extractEntityIdentities,
@@ -172,7 +171,7 @@ export interface PreparedIngest {
 }
 
 /** The gate's decision, computed the same way outside and inside the transaction. */
-type Reader = Pick<Db, 'select'>;
+type Reader = Pick<Db, 'get'>;
 
 /**
  * Layer 1, prepared: validate a JSON-LD action payload, mint its content CID,
@@ -300,17 +299,11 @@ export async function prepareIngest(
   const decide = (
     reader: Reader
   ): { resultCid: string; isNew: boolean; confirm?: { cid: string; body: string } } => {
-    const existing = reader
-      .select({ cid: assertions.cid })
-      .from(assertions)
-      .where(eq(assertions.cid, cid))
-      .get();
+    const existing = reader.get(sql`SELECT cid FROM assertions WHERE cid = ${cid}`);
     if (existing) return { resultCid: cid, isNew: false };
-    const priorClaim = reader
-      .select({ cid: assertions.cid })
-      .from(assertions)
-      .where(and(eq(assertions.claimCid, claimCid), ne(assertions.kind, 'confirm')))
-      .get();
+    const priorClaim = reader.get(
+      sql`SELECT cid FROM assertions WHERE claim_cid = ${claimCid} AND kind <> 'confirm'`
+    );
     if (priorClaim) {
       const confirmBody = {
         '@kind': 'confirm',
@@ -319,11 +312,7 @@ export async function prepareIngest(
       };
       const { cid: confirmCid, canonicalBody: confirmCanonical } =
         generateAssertionBodyCID(confirmBody);
-      const confirmExisting = reader
-        .select({ cid: assertions.cid })
-        .from(assertions)
-        .where(eq(assertions.cid, confirmCid))
-        .get();
+      const confirmExisting = reader.get(sql`SELECT cid FROM assertions WHERE cid = ${confirmCid}`);
       return {
         resultCid: confirmCid,
         isNew: !confirmExisting,
@@ -338,17 +327,11 @@ export async function prepareIngest(
   // first_observed_assertion_cid (conflict = no-op).
   const healAttachments = (tx: Tx): IngestedAttachment[] =>
     attachments.map(a => {
-      const inserted = tx
-        .insert(attachmentsTable)
-        .values({
-          cid: a.cid,
-          sizeBytes: a.bytes.byteLength,
-          mimeType: a.mimeType,
-          firstObservedAssertionCid: cid,
-          ingestedAt,
-        })
-        .onConflictDoNothing()
-        .run();
+      const inserted = tx.run(sql`
+        INSERT INTO attachments (cid, size_bytes, mime_type, first_observed_assertion_cid, ingested_at)
+        VALUES (${a.cid}, ${a.bytes.byteLength}, ${a.mimeType}, ${cid}, ${ingestedAt})
+        ON CONFLICT DO NOTHING
+      `);
       return {
         cid: a.cid,
         sizeBytes: a.bytes.byteLength,
@@ -364,12 +347,7 @@ export async function prepareIngest(
           cid: a.cid,
           sizeBytes: a.bytes.byteLength,
           mimeType: a.mimeType,
-          isNew:
-            reader
-              .select({ cid: attachmentsTable.cid })
-              .from(attachmentsTable)
-              .where(eq(attachmentsTable.cid, a.cid))
-              .get() === undefined,
+          isNew: reader.get(sql`SELECT cid FROM attachments WHERE cid = ${a.cid}`) === undefined,
         }));
 
   return {
@@ -390,27 +368,23 @@ export async function prepareIngest(
         const decided = decide(tx);
         if (decided.confirm) {
           if (decided.isNew) {
-            tx.insert(assertions)
-              .values({
-                cid: decided.confirm.cid,
-                kind: 'confirm',
-                claimCid,
-                targetKey: null,
-                assertedAt,
-                ingestedAt,
-              })
-              .run();
-            tx.insert(assertionPayloads)
-              .values({ cid: decided.confirm.cid, body: decided.confirm.body })
-              .run();
+            tx.run(sql`
+              INSERT INTO assertions (cid, kind, claim_cid, target_key, asserted_at, ingested_at)
+              VALUES (${decided.confirm.cid}, 'confirm', ${claimCid}, NULL, ${assertedAt}, ${ingestedAt})
+            `);
+            tx.run(sql`
+              INSERT INTO assertion_payloads (cid, body)
+              VALUES (${decided.confirm.cid}, ${decided.confirm.body})
+            `);
           }
           return { resultCid: decided.resultCid, isNew: decided.isNew, ingested: [] };
         }
         if (decided.isNew) {
-          tx.insert(assertions)
-            .values({ cid, kind, claimCid, targetKey, assertedAt, ingestedAt })
-            .run();
-          tx.insert(assertionPayloads).values({ cid, body: canonicalBody }).run();
+          tx.run(sql`
+            INSERT INTO assertions (cid, kind, claim_cid, target_key, asserted_at, ingested_at)
+            VALUES (${cid}, ${kind}, ${claimCid}, ${targetKey}, ${assertedAt}, ${ingestedAt})
+          `);
+          tx.run(sql`INSERT INTO assertion_payloads (cid, body) VALUES (${cid}, ${canonicalBody})`);
         }
         return { resultCid: cid, isNew: decided.isNew, ingested: healAttachments(tx) };
       });
@@ -461,8 +435,7 @@ function prepareConfirm(
   const { cid, canonicalBody } = generateAssertionBodyCID(root);
   const { targetKey, claimCid } = deriveAssertionColumns(root);
   const exists = (reader: Reader): boolean =>
-    reader.select({ cid: assertions.cid }).from(assertions).where(eq(assertions.cid, cid)).get() !==
-    undefined;
+    reader.get(sql`SELECT cid FROM assertions WHERE cid = ${cid}`) !== undefined;
 
   return {
     cid,
@@ -472,17 +445,11 @@ function prepareConfirm(
     commit() {
       const isNew = runImmediate(db, tx => {
         if (exists(tx)) return false;
-        tx.insert(assertions)
-          .values({
-            cid,
-            kind: 'confirm',
-            claimCid,
-            targetKey,
-            assertedAt,
-            ingestedAt: now,
-          })
-          .run();
-        tx.insert(assertionPayloads).values({ cid, body: canonicalBody }).run();
+        tx.run(sql`
+          INSERT INTO assertions (cid, kind, claim_cid, target_key, asserted_at, ingested_at)
+          VALUES (${cid}, 'confirm', ${claimCid}, ${targetKey}, ${assertedAt}, ${now})
+        `);
+        tx.run(sql`INSERT INTO assertion_payloads (cid, body) VALUES (${cid}, ${canonicalBody})`);
         return true;
         // `runImmediate`: read-then-write — see foldAssertions.
       });

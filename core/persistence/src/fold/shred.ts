@@ -1,16 +1,6 @@
-import { and, eq, isNull, sql } from 'drizzle-orm';
 import { VALUE_TYPES } from '../annotations/schema.js';
-import type { Db } from '../db/open.js';
-import {
-  actions,
-  encounters,
-  assertionPayloads,
-  assertions,
-  locationValues,
-  metrics,
-  observations,
-  sourcedEntities,
-} from '../db/schema.js';
+import type { Tx } from '../db/driver.js';
+import { sql } from '../db/sql.js';
 import {
   extractEntityIdentities,
   generateKeysetCID,
@@ -36,8 +26,6 @@ import { upsertSourcedEntity } from './sourcedEntity.js';
 import { upsertAction } from './actions.js';
 import { internLocationValue, internVal } from './dictionaries.js';
 import type { FoldContext } from './context.js';
-
-type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 
 /**
  * Force a full recompute of every ordinary run whose boundary is anchored to
@@ -267,18 +255,18 @@ function placeLocationValue(node: Record<string, unknown>): Record<string, unkno
  * recomputation happens once per dirty chain at batch commit.
  */
 export function shredAssertion(tx: Tx, ctx: FoldContext, cid: string): void {
-  const eventRow = tx
-    .select({
-      id: assertions.id,
-      kind: assertions.kind,
-      claimCid: assertions.claimCid,
-      assertedAt: assertions.assertedAt,
-      body: assertionPayloads.body,
-    })
-    .from(assertions)
-    .innerJoin(assertionPayloads, eq(assertionPayloads.cid, assertions.cid))
-    .where(eq(assertions.cid, cid))
-    .get();
+  const eventRow = tx.get<{
+    id: number;
+    kind: string;
+    claimCid: string;
+    assertedAt: number;
+    body: string;
+  }>(sql`
+    SELECT a.id AS id, a.kind AS kind, a.claim_cid AS claimCid, a.asserted_at AS assertedAt,
+           p.body AS body
+    FROM assertions a JOIN assertion_payloads p ON p.cid = a.cid
+    WHERE a.cid = ${cid}
+  `);
   if (!eventRow) throw new Error(`No payload for event ${cid}`);
   ctx.trace({ phase: 'shred', step: 'start', cid, kind: eventRow.kind });
 
@@ -364,11 +352,9 @@ export function shredAssertion(tx: Tx, ctx: FoldContext, cid: string): void {
   // entity row and repoint its sourced members onto the survivor: `sourced_id`
   // is the stable handle, `entity_id` is a cache that moves under it.
   const liveEntityId = (sourcedId: number): number =>
-    tx
-      .select({ entityId: sourcedEntities.entityId })
-      .from(sourcedEntities)
-      .where(eq(sourcedEntities.id, sourcedId))
-      .get()!.entityId;
+    tx.get<{ entityId: number }>(
+      sql`SELECT entity_id AS entityId FROM sourced_entities WHERE id = ${sourcedId}`
+    )!.entityId;
 
   const processEntity = (
     entityData: Record<string, unknown>,
@@ -736,10 +722,10 @@ export function shredAssertion(tx: Tx, ctx: FoldContext, cid: string): void {
           const locId = internLocationValue(tx, ctx.caches, locationPayload(placeLoc));
           // Claim the up-link only if unclaimed — never clobber a point that
           // already names a place (the cached_entity_id is a merge-rewritten cache).
-          tx.update(locationValues)
-            .set({ entityId: liveEntityId(res.sourcedId) })
-            .where(and(eq(locationValues.id, locId), isNull(locationValues.entityId)))
-            .run();
+          tx.run(sql`
+            UPDATE location_values SET cached_entity_id = ${liveEntityId(res.sourcedId)}
+            WHERE id = ${locId} AND cached_entity_id IS NULL
+          `);
           locationLocationId ??= locId;
         }
         continue;
@@ -889,22 +875,16 @@ export function shredAssertion(tx: Tx, ctx: FoldContext, cid: string): void {
   const newRelations = new Map<string, { subjectSourcedId: number; targetSourcedId: number }>();
   for (const o of pendingObs) {
     const chain = ctx.dirtyChain(tx, o.subjectId, o.predicate);
-    const inserted = tx
-      .insert(observations)
-      .values({
-        subjectId: o.subjectId,
-        predicate: o.predicate,
-        validAt: o.validAt,
-        observedAt: o.observedAt,
-        valueId: o.valueId,
-        valueSourcedId: o.valueSourcedId,
-        valueLocationId: o.valueLocationId,
-        actionId,
-        assertionId,
-        grade: o.grade,
-      })
-      .onConflictDoNothing()
-      .run();
+    const inserted = tx.run(sql`
+      INSERT INTO observations (
+        subject_id, predicate, valid_at, observed_at, value_id, value_sourced_id,
+        value_location_id, action_id, assertion_id, grade
+      ) VALUES (
+        ${o.subjectId}, ${o.predicate}, ${o.validAt}, ${o.observedAt}, ${o.valueId},
+        ${o.valueSourcedId}, ${o.valueLocationId}, ${actionId}, ${assertionId}, ${o.grade}
+      )
+      ON CONFLICT DO NOTHING
+    `);
     if (inserted.changes > 0) {
       chain.recordNewRow({ validAt: o.validAt, observedAt: o.observedAt });
       ctx.trace({
@@ -933,10 +913,15 @@ export function shredAssertion(tx: Tx, ctx: FoldContext, cid: string): void {
   }
 
   for (const m of pendingMetrics) {
-    tx.insert(metrics)
-      .values({ ...m, entityId: liveEntityId(m.sourcedEntityId), actionId })
-      .onConflictDoNothing()
-      .run();
+    tx.run(sql`
+      INSERT INTO metrics (
+        sourced_entity_id, cached_entity_id, predicate, action_id, value, valid_at, observed_at
+      ) VALUES (
+        ${m.sourcedEntityId}, ${liveEntityId(m.sourcedEntityId)}, ${m.predicate}, ${actionId},
+        ${m.value}, ${m.validAt}, ${m.observedAt}
+      )
+      ON CONFLICT DO NOTHING
+    `);
   }
 
   // Special-property chains this action participates in (as opener or closer).
@@ -960,7 +945,7 @@ export function shredAssertion(tx: Tx, ctx: FoldContext, cid: string): void {
   // the pending observation rows rather than re-queried.
   const emit = encounterEmitFor(actionType);
   if (emit) {
-    tx.delete(encounters).where(eq(encounters.originatingActionId, actionId)).run();
+    tx.run(sql`DELETE FROM encounters WHERE originating_action_id = ${actionId}`);
 
     let subjectSourcedId: number | null = null;
     if (roles.object) {
@@ -991,24 +976,20 @@ export function shredAssertion(tx: Tx, ctx: FoldContext, cid: string): void {
       // occurred_at = COALESCE(time_earliest, asserted_at); asserted_at is NOT
       // NULL, so it never resolves null (the ?? only satisfies the column type).
       const cachedTimestamp =
-        tx
-          .select({ occurredAt: actions.occurredAt })
-          .from(actions)
-          .where(eq(actions.id, actionId))
-          .get()!.occurredAt ?? rootObservedAt;
+        tx.get<{ occurredAt: number | null }>(
+          sql`SELECT occurred_at AS occurredAt FROM actions WHERE id = ${actionId}`
+        )!.occurredAt ?? rootObservedAt;
       const encountererSourcedId = roles.agent?.sourcedId ?? null;
       const encountererEntityId = roles.agent ? liveEntityId(roles.agent.sourcedId) : null;
-      tx.insert(encounters)
-        .values({
-          originatingActionId: actionId,
-          cachedTimestamp,
-          encountererSourcedId,
-          encountererEntityId,
-          subjectSourcedId,
-          subjectEntityId: liveEntityId(subjectSourcedId),
-          level: emit.level,
-        })
-        .run();
+      tx.run(sql`
+        INSERT INTO encounters (
+          originating_action_id, cached_timestamp, encounterer_sourced_id,
+          cached_encounterer_entity_id, subject_sourced_id, cached_subject_entity_id, level
+        ) VALUES (
+          ${actionId}, ${cachedTimestamp}, ${encountererSourcedId}, ${encountererEntityId},
+          ${subjectSourcedId}, ${liveEntityId(subjectSourcedId)}, ${emit.level}
+        )
+      `);
 
       // Phase 2: encountering the object also encounters its allowlisted
       // relation targets (a track's album/artist). Only for object-kind emits —

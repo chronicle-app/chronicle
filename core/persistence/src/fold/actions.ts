@@ -1,9 +1,6 @@
-import { eq } from 'drizzle-orm';
-import type { Db } from '../db/open.js';
-import { actions, assertions } from '../db/schema.js';
+import type { Tx } from '../db/driver.js';
+import { sql } from '../db/sql.js';
 import { KIND_RANK, type AssertionKind } from '../assertionKind.js';
-
-type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 
 export interface UpsertActionInput {
   key: string;
@@ -59,61 +56,50 @@ export function upsertAction(
   tx: Tx,
   input: UpsertActionInput
 ): { id: number; rangeChanged: boolean } {
-  const existing = tx
-    .select({
-      id: actions.id,
-      // The founding assertion's OWN stamp and kind — the election keys below.
-      // Read through the join, NOT `actions.asserted_at`: that column is the
-      // observed anchor (earliest sighting, which `reconcileObservedAnchor` may
-      // lower below the founding stamp when a re-crawl confirm predates the
-      // founding assert), so it can no longer serve as the election key without
-      // making founding depend on arrival order. Join is FK-safe.
-      foundingAssertedAt: assertions.assertedAt,
-      foundingAssertionCid: actions.foundingAssertionCid,
-      foundingKind: assertions.kind,
-      timeEarliest: actions.timeEarliest,
-      timeLatest: actions.timeLatest,
-      endTime: actions.endTime,
-    })
-    .from(actions)
-    .innerJoin(assertions, eq(assertions.cid, actions.foundingAssertionCid))
-    .where(eq(actions.key, input.key))
-    .get();
+  // The founding assertion's OWN stamp and kind — the election keys below.
+  // Read through the join, NOT `actions.asserted_at`: that column is the
+  // observed anchor (earliest sighting, which `reconcileObservedAnchor` may
+  // lower below the founding stamp when a re-crawl confirm predates the
+  // founding assert), so it can no longer serve as the election key without
+  // making founding depend on arrival order. Join is FK-safe.
+  const existing = tx.get<{
+    id: number;
+    foundingAssertedAt: number;
+    foundingAssertionCid: string;
+    foundingKind: string;
+    timeEarliest: number | null;
+    timeLatest: number | null;
+    endTime: number | null;
+  }>(sql`
+    SELECT a.id AS id, f.asserted_at AS foundingAssertedAt,
+           a.founding_assertion_cid AS foundingAssertionCid, f.kind AS foundingKind,
+           a.time_earliest AS timeEarliest, a.time_latest AS timeLatest, a.end_time AS endTime
+    FROM actions a JOIN assertions f ON f.cid = a.founding_assertion_cid
+    WHERE a.key = ${input.key}
+  `);
 
-  const payloadColumns = {
-    type: input.type,
-    source: input.source,
-    sourceId: input.sourceId,
-    assertedAt: input.assertedAt,
-    startTime: input.startTime,
-    endTime: input.endTime,
-    synthetic: input.synthetic,
-    foundingAssertionCid: input.assertionCid,
-    agentSourcedId: input.agentSourcedId,
-    agentEntityId: input.agentEntityId,
-    objectSourcedId: input.objectSourcedId,
-    objectEntityId: input.objectEntityId,
-    locationLocationId: input.locationLocationId,
-    resultSourcedId: input.resultSourcedId,
-    resultEntityId: input.resultEntityId,
-    instrumentSourcedId: input.instrumentSourcedId,
-    instrumentEntityId: input.instrumentEntityId,
-    targetSourcedId: input.targetSourcedId,
-    targetEntityId: input.targetEntityId,
-  };
+  const synthetic = input.synthetic ? 1 : 0;
 
   if (!existing) {
-    const { id } = tx
-      .insert(actions)
-      .values({
-        key: input.key,
-        keyset: input.keyset,
-        ...payloadColumns,
-        timeEarliest: input.timeEarliest,
-        timeLatest: input.timeLatest,
-      })
-      .returning({ id: actions.id })
-      .get();
+    const { id } = tx.get<{ id: number }>(sql`
+      INSERT INTO actions (
+        key, keyset, type, source, source_id, asserted_at, start_time, end_time, synthetic,
+        founding_assertion_cid, agent_sourced_id, cached_agent_entity_id, object_sourced_id,
+        cached_object_entity_id, location_location_id, result_sourced_id, cached_result_entity_id,
+        instrument_sourced_id, cached_instrument_entity_id, target_sourced_id,
+        cached_target_entity_id, time_earliest, time_latest
+      ) VALUES (
+        ${input.key}, ${input.keyset === null ? null : JSON.stringify(input.keyset)},
+        ${input.type}, ${input.source}, ${input.sourceId}, ${input.assertedAt},
+        ${input.startTime}, ${input.endTime}, ${synthetic}, ${input.assertionCid},
+        ${input.agentSourcedId}, ${input.agentEntityId}, ${input.objectSourcedId},
+        ${input.objectEntityId}, ${input.locationLocationId}, ${input.resultSourcedId},
+        ${input.resultEntityId}, ${input.instrumentSourcedId}, ${input.instrumentEntityId},
+        ${input.targetSourcedId}, ${input.targetEntityId}, ${input.timeEarliest},
+        ${input.timeLatest}
+      )
+      RETURNING id
+    `)!;
     return { id, rangeChanged: false };
   }
 
@@ -147,20 +133,31 @@ export function upsertAction(
 
   if (incomingWins) {
     // Founding election governs the point fields; the registers still merge.
-    tx.update(actions)
-      .set({
-        ...payloadColumns,
-        endTime: mergedEndTime,
-        timeEarliest: mergedEarliest,
-        timeLatest: mergedLatest,
-      })
-      .where(eq(actions.id, existing.id))
-      .run();
+    tx.run(sql`
+      UPDATE actions SET
+        type = ${input.type}, source = ${input.source}, source_id = ${input.sourceId},
+        asserted_at = ${input.assertedAt}, start_time = ${input.startTime},
+        end_time = ${mergedEndTime}, synthetic = ${synthetic},
+        founding_assertion_cid = ${input.assertionCid},
+        agent_sourced_id = ${input.agentSourcedId}, cached_agent_entity_id = ${input.agentEntityId},
+        object_sourced_id = ${input.objectSourcedId},
+        cached_object_entity_id = ${input.objectEntityId},
+        location_location_id = ${input.locationLocationId},
+        result_sourced_id = ${input.resultSourcedId},
+        cached_result_entity_id = ${input.resultEntityId},
+        instrument_sourced_id = ${input.instrumentSourcedId},
+        cached_instrument_entity_id = ${input.instrumentEntityId},
+        target_sourced_id = ${input.targetSourcedId},
+        cached_target_entity_id = ${input.targetEntityId},
+        time_earliest = ${mergedEarliest}, time_latest = ${mergedLatest}
+      WHERE id = ${existing.id}
+    `);
   } else if (rangeChanged || endTimeChanged) {
-    tx.update(actions)
-      .set({ endTime: mergedEndTime, timeEarliest: mergedEarliest, timeLatest: mergedLatest })
-      .where(eq(actions.id, existing.id))
-      .run();
+    tx.run(sql`
+      UPDATE actions
+      SET end_time = ${mergedEndTime}, time_earliest = ${mergedEarliest}, time_latest = ${mergedLatest}
+      WHERE id = ${existing.id}
+    `);
   }
   return { id: existing.id, rangeChanged };
 }

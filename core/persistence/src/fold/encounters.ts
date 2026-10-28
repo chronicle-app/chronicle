@@ -1,8 +1,6 @@
-import { sql } from 'drizzle-orm';
-import type { Db } from '../db/open.js';
+import { sql } from '../db/sql.js';
+import type { Tx } from '../db/driver.js';
 import { propagatingRelationNames } from '../annotations/actionTypes.js';
-
-type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 
 const RELATION_NAMES = propagatingRelationNames();
 const relationInList = sql.join(

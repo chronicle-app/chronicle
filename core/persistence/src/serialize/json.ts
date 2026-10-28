@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { sql } from '../db/sql.js';
 import type { Db } from '../db/open.js';
 import { formatInstant } from '../time.js';
 import { chunked, entityContentIris, entityTypesFor } from './entityIris.js';

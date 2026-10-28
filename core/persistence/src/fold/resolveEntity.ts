@@ -1,16 +1,5 @@
-import { eq, inArray, sql } from 'drizzle-orm';
-import type { Db } from '../db/open.js';
-import {
-  actions,
-  encounters,
-  entities,
-  entityTypes,
-  locationValues,
-  properties,
-  sourcedEntities,
-} from '../db/schema.js';
-
-type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
+import type { Tx } from '../db/driver.js';
+import { sql } from '../db/sql.js';
 
 export interface Resolution {
   entityId: number;
@@ -34,11 +23,9 @@ export interface Resolution {
 export function resolveEntity(tx: Tx, keysetKeys: string[], types: string[]): Resolution {
   const hits =
     keysetKeys.length > 0
-      ? tx
-          .select({ entityId: sourcedEntities.entityId })
-          .from(sourcedEntities)
-          .where(inArray(sourcedEntities.key, keysetKeys))
-          .all()
+      ? tx.all<{ entityId: number }>(
+          sql`SELECT entity_id AS entityId FROM sourced_entities WHERE key IN ${keysetKeys}`
+        )
       : [];
 
   const hitEntityIds = [...new Set(hits.map(h => h.entityId))];
@@ -47,7 +34,7 @@ export function resolveEntity(tx: Tx, keysetKeys: string[], types: string[]): Re
   let merged: Resolution['merged'];
 
   if (hitEntityIds.length === 0) {
-    entityId = tx.insert(entities).values({}).returning({ id: entities.id }).get().id;
+    entityId = tx.get<{ id: number }>(sql`INSERT INTO entities DEFAULT VALUES RETURNING id`)!.id;
   } else if (hitEntityIds.length === 1) {
     entityId = hitEntityIds[0];
   } else {
@@ -61,7 +48,9 @@ export function resolveEntity(tx: Tx, keysetKeys: string[], types: string[]): Re
 
   // Union the asserted types.
   for (const type of types) {
-    tx.insert(entityTypes).values({ entityId, type }).onConflictDoNothing().run();
+    tx.run(
+      sql`INSERT INTO entity_types (entity_id, type) VALUES (${entityId}, ${type}) ON CONFLICT DO NOTHING`
+    );
   }
 
   return { entityId, merged };
@@ -81,10 +70,7 @@ function mergeEntities(
   const repKey = new Map<number, string>();
   for (const id of entityIds) {
     const keys = tx
-      .select({ key: sourcedEntities.key })
-      .from(sourcedEntities)
-      .where(eq(sourcedEntities.entityId, id))
-      .all()
+      .all<{ key: string }>(sql`SELECT key FROM sourced_entities WHERE entity_id = ${id}`)
       .map(r => r.key);
     // representative content key for this entity
     repKey.set(id, keys.length > 0 ? keys.reduce((a, b) => (a < b ? a : b)) : '');
@@ -108,58 +94,49 @@ function mergeEntities(
 
   for (const loser of losers) {
     // truth column
-    tx.update(sourcedEntities)
-      .set({ entityId: survivor })
-      .where(eq(sourcedEntities.entityId, loser))
-      .run();
+    tx.run(sql`UPDATE sourced_entities SET entity_id = ${survivor} WHERE entity_id = ${loser}`);
     // type union: move loser types onto survivor, ignoring dupes, then drop loser's
     tx.run(
       sql`INSERT OR IGNORE INTO entity_types (entity_id, type)
           SELECT ${survivor}, type FROM entity_types WHERE entity_id = ${loser}`
     );
-    tx.delete(entityTypes).where(eq(entityTypes.entityId, loser)).run();
+    tx.run(sql`DELETE FROM entity_types WHERE entity_id = ${loser}`);
     // caches
-    tx.update(properties).set({ entityId: survivor }).where(eq(properties.entityId, loser)).run();
+    tx.run(
+      sql`UPDATE properties SET cached_entity_id = ${survivor} WHERE cached_entity_id = ${loser}`
+    );
     // entity-valued property references pointing at the loser
-    tx.update(properties)
-      .set({ objectEntityId: survivor })
-      .where(eq(properties.objectEntityId, loser))
-      .run();
-    tx.update(properties)
-      .set({ agentEntityId: survivor })
-      .where(eq(properties.agentEntityId, loser))
-      .run();
+    tx.run(
+      sql`UPDATE properties SET cached_object_entity_id = ${survivor} WHERE cached_object_entity_id = ${loser}`
+    );
+    tx.run(
+      sql`UPDATE properties SET cached_agent_entity_id = ${survivor} WHERE cached_agent_entity_id = ${loser}`
+    );
     tx.run(
       sql`UPDATE metrics SET cached_entity_id = ${survivor} WHERE cached_entity_id = ${loser}`
     );
     // loser-keyed projections (the survivor's are refreshed by the fold)
     tx.run(sql`DELETE FROM entity_fts WHERE rowid = ${loser}`);
-    tx.update(actions)
-      .set({ agentEntityId: survivor })
-      .where(eq(actions.agentEntityId, loser))
-      .run();
-    tx.update(actions)
-      .set({ objectEntityId: survivor })
-      .where(eq(actions.objectEntityId, loser))
-      .run();
+    tx.run(
+      sql`UPDATE actions SET cached_agent_entity_id = ${survivor} WHERE cached_agent_entity_id = ${loser}`
+    );
+    tx.run(
+      sql`UPDATE actions SET cached_object_entity_id = ${survivor} WHERE cached_object_entity_id = ${loser}`
+    );
     // The location up-link is an entity cache too: a merged-away named place
     // moves to the survivor.
-    tx.update(locationValues)
-      .set({ entityId: survivor })
-      .where(eq(locationValues.entityId, loser))
-      .run();
-    tx.update(actions)
-      .set({ resultEntityId: survivor })
-      .where(eq(actions.resultEntityId, loser))
-      .run();
-    tx.update(actions)
-      .set({ instrumentEntityId: survivor })
-      .where(eq(actions.instrumentEntityId, loser))
-      .run();
-    tx.update(actions)
-      .set({ targetEntityId: survivor })
-      .where(eq(actions.targetEntityId, loser))
-      .run();
+    tx.run(
+      sql`UPDATE location_values SET cached_entity_id = ${survivor} WHERE cached_entity_id = ${loser}`
+    );
+    tx.run(
+      sql`UPDATE actions SET cached_result_entity_id = ${survivor} WHERE cached_result_entity_id = ${loser}`
+    );
+    tx.run(
+      sql`UPDATE actions SET cached_instrument_entity_id = ${survivor} WHERE cached_instrument_entity_id = ${loser}`
+    );
+    tx.run(
+      sql`UPDATE actions SET cached_target_entity_id = ${survivor} WHERE cached_target_entity_id = ${loser}`
+    );
     // Participant edges: rewrite the cache half; sourced_id truth
     // is stable, so the (action, role, sourced) identity never collides.
     tx.run(
@@ -168,16 +145,14 @@ function mergeEntities(
     // Encounter-log entity caches: rewrite the cache halves only; the
     // _sourced_id truth columns point at stable sourced_entities rows. Duplicate
     // rows the merge may produce are correct (two real events).
-    tx.update(encounters)
-      .set({ subjectEntityId: survivor })
-      .where(eq(encounters.subjectEntityId, loser))
-      .run();
-    tx.update(encounters)
-      .set({ encountererEntityId: survivor })
-      .where(eq(encounters.encountererEntityId, loser))
-      .run();
+    tx.run(
+      sql`UPDATE encounters SET cached_subject_entity_id = ${survivor} WHERE cached_subject_entity_id = ${loser}`
+    );
+    tx.run(
+      sql`UPDATE encounters SET cached_encounterer_entity_id = ${survivor} WHERE cached_encounterer_entity_id = ${loser}`
+    );
     // the convergence point itself
-    tx.delete(entities).where(eq(entities.id, loser)).run();
+    tx.run(sql`DELETE FROM entities WHERE id = ${loser}`);
   }
 
   return { survivor, losers, referrers: [...referrers] };
