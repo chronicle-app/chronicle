@@ -1,0 +1,28 @@
+# @chronicle.app/apple-podcasts
+
+## 0.5.0
+
+### Minor Changes
+
+- eea5dd3: Add the Apple Podcasts plugin, run as `chronicle extract apple-podcasts`. It extracts the episodes you played or saved in Podcasts on a Mac, and the shows you follow. A played episode is a `ListenAction`, and a finished one also a `CompleteAction`, dated when it was last played; a saved episode is a `BookmarkAction`; and a followed show is a `FollowAction`, dated when it was added to the library. Each is keyed by the episode or show it acted on, which is keyed by Apple's catalog ID for it, the same on each device, and an episode or show links to its page on Apple Podcasts and `references` the page its feed links it to, with you as its `agent`; what isn't in the catalog is left out, and the run says how many. The episode is a `PodcastEpisode` with its show as its `series`, when it was released as its `datePublished`, its audio file as its `rendition`, its artwork, its description as Markdown, and its `transcript` when the app has downloaded one. The author a feed names for a show or an episode is its `author`, an `Agent` by that name, and a show's channel on Apple Podcasts is its `publisher`, keyed by the channel's catalog ID. Without an Apple Account signed in to the Mac, extraction stops and says to sign in. Each run is a snapshot, since the library keeps only each episode's latest state.
+
+  The vocabulary adds `PodcastSeries`, a podcast; `webFeed`, the RSS or Atom feeds that publish a work's items, such as a podcast's episodes or a blog's posts; and `series`, the series a work is one of, such as the podcast an episode belongs to.
+
+- 9d6d834: iMessage, Apple Call History, Voice Memos, Apple Wallet, Shazam, Things, Apple Podcasts, and WhatsApp declare the tables and columns they read in their app's database, so `chronicle scan ~/Library/Messages` finds a `chat.db`, as does a scan of any folder with a copy of one, and extract refuses a version of the database it can't read. A scan of a folder calls what it finds by its schema a database, as in "Found 2 exports and 1 database", and when it finds only databases where their apps keep them, doesn't list the rest of the folder, the app's own, as unrecognized.
+- 266f585: `chronicle survey` counts what each source on this computer holds, and over which years, without extracting it. It surveys every source `chronicle scan` finds ready, all at once, and fills in a table as each answers, with where each count comes from. A source that isn't ready is listed with what's in its way, and what to do about it. One read online is listed as not surveyable, with the command that extracts it, and so, in a survey of a folder, a zip, or one source, is one that can't say how much it holds. `chronicle survey <source>` shows one source's records by year, and takes the options `extract` does, so `chronicle survey moves-app --input ~/moves_export` counts an export before you extract it. `--type`, `--since`, and `--until` count what a run with them would extract, and `--format json` or `csv` gives the counts as data.
+
+  An extractor says how much a run would read with `survey()`. For each record type it gives a count, the first and last times, totals worth showing beside the count, like Chrome's pages or iMessage's conversations and attachment bytes, and, when asked, the records in each month. It's measured as cheaply as the source allows, with aggregate queries or file dates, and only a source with no other way to count reads every record. `@chronicle.app/etl-sqlite` adds `monthSql` and `countsByMonth` to count records by month in a query. Apple Call History, Apple Notes, Apple Podcasts, Voice Memos, Apple Wallet, Arc Timeline, Chrome, Claude Code, FoodNoms, iMessage, Moves, Obsidian, Safari, Shazam, the shell history, Things, Timing, WhatsApp, and Zotero each survey what they hold.
+
+### Patch Changes
+
+- 1d04da0: Apple Podcasts, Voice Memos, Chrome, FoodNoms, Things, and WhatsApp list Full Disk Access among what they need, so `chronicle sources info` says so. On Linux and Windows, `sources info` leaves Full Disk Access out, since only macOS grants it.
+- 67d3035: `chronicle scan` finds the sources on this computer and says whether each is ready to extract, with the command that extracts it. `chronicle scan chrome` looks for one source, and `--format json` or `csv` lists every row with its command. It opens what it finds to check it can be read, reads none of it, and stays off the network. A row macOS blocks says it needs Full Disk Access, and a source whose plugin isn't installed says which plugin to install.
+
+  A plugin's manifest says where each strategy's files are, as `locations` under the strategy: a path in the home folder, with `*` for any name within one folder and `{option}` for a name that is also the run's option, like Chrome's `{profile}`. A plugin can export a `Locator` from `@chronicle.app/etl` to name what a location matched, or to find what no path can. Chrome names each profile as its profile menu does, with the account it's signed in to. Obsidian lists each vault it has opened, and GitHub finds the credential a run would use without asking GitHub whether it still works.
+
+- Updated dependencies [27ce35d]
+- Updated dependencies [679e9c8]
+- Updated dependencies [b112f78]
+- Updated dependencies [266f585]
+  - @chronicle.app/apple@0.5.0
+  - @chronicle.app/etl-sqlite@0.5.0
