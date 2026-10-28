@@ -67,13 +67,21 @@ cannot. Each package's trusted publisher on npmjs.com names this repository and
 workflow token do not trigger other workflows, so CI does not run on the Version
 Packages pull request itself.
 
-To publish from a local checkout instead, such as before trusted publishers exist,
-authenticate with npm and run `npm run release` from a clean `main`. It runs the
-same checks, publishes every version not already on the registry, and creates the
-release with `gh`. npm asks for two-factor authentication. Rerun it to continue
-after an interrupted publish. It doesn't deploy the schema site, so run the Schema
-site workflow by hand once it finishes (`gh workflow run schema-site.yml --ref main`).
-Until then, a new vocabulary version has no snapshot on the site.
+npm can trust a publisher only for a package that exists, so the workflow can't
+stage a package's first version. A release that adds a package is published from
+a local checkout.
+
+To publish from a local checkout, authenticate with npm and run `npm run release`
+from a clean `main`. It runs the same checks, publishes every version not already
+on the registry, and creates the release with `gh`. Last, it gives each package
+new on npm its trusted publisher, through `npm trust github` in npm 12. npm asks
+for two-factor authentication; when it offers to skip it for five minutes, accept,
+and the rest of the packages go through. Rerun it to continue after an
+interrupted publish, or run `npm run release:trust` to retry only the trusted
+publishers, naming packages to trust others. It doesn't deploy the schema site,
+so run the Schema site workflow by hand once it finishes
+(`gh workflow run schema-site.yml --ref main`). Until then, a new vocabulary
+version has no snapshot on the site.
 
 After publishing, verify the released versions by installing them in an isolated
 consumer, for example `npx @chronicle.app/cli@latest sources` in an empty directory.

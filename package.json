@@ -42,7 +42,8 @@
     "release:version": "changeset version && node scripts/version-packages.js --sync",
     "versions:check": "node scripts/version-packages.js --check",
     "prepare": "husky",
-    "release": "npm run quality && npm run packages:check && changeset publish --no-git-tag && node scripts/tag-release.js",
+    "release": "npm run quality && npm run packages:check && changeset publish --no-git-tag && node scripts/tag-release.js && node scripts/trust-packages.js",
+    "release:trust": "node scripts/trust-packages.js",
     "release:approve": "node scripts/approve-release.js"
   },
   "devDependencies": {

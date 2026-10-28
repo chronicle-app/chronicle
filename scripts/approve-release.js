@@ -27,12 +27,14 @@ function npm(args, options) {
   return run(NPM[0], [...NPM.slice(1), ...args], options);
 }
 
-// Runs `npm stage approve`, showing its output (including the browser sign-in
-// prompt) while keeping the errors to tell outcomes apart.
-function approveStaged(id, otp) {
-  const args = [...NPM.slice(1), 'stage', 'approve', id, ...(otp ? ['--otp', otp] : [])];
+// Runs an npm command at the terminal, showing its output (including the
+// browser sign-in prompt) while keeping the errors to tell outcomes apart.
+// npm asks for two-factor authentication only when its output is a terminal.
+export function npmAtTerminal(args) {
   return new Promise((resolve, reject) => {
-    const child = spawn(NPM[0], args, { stdio: ['inherit', 'inherit', 'pipe'] });
+    const child = spawn(NPM[0], [...NPM.slice(1), ...args], {
+      stdio: ['inherit', 'inherit', 'pipe'],
+    });
     let stderr = '';
     child.stderr.on('data', chunk => {
       process.stderr.write(chunk);
@@ -41,6 +43,10 @@ function approveStaged(id, otp) {
     child.on('error', reject);
     child.on('close', status => resolve({ status, stderr }));
   });
+}
+
+function approveStaged(id, otp) {
+  return npmAtTerminal(['stage', 'approve', id, ...(otp ? ['--otp', otp] : [])]);
 }
 
 // Picks the staged item for each package at the release version.
@@ -148,7 +154,7 @@ async function waitUntilPublished(name, version, attempts = 12) {
   return false;
 }
 
-function publicPackages() {
+export function publicPackages() {
   const result = run('npm', ['query', '.workspace', '--json']);
   assert.equal(result.status, 0, result.stderr);
   return JSON.parse(result.stdout).filter(pkg => !pkg.private);
