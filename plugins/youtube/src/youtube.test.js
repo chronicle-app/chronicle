@@ -166,9 +166,8 @@ test('subscriptions, playlists and uploads map to Follow, Create, Add and Publis
   assert.deepEqual(subs.nodes, [
     complete({
       '@type': 'FollowAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      '@key': ['@type', 'source', 'object.handle'],
       source: 'youtube',
-      sourceId: CHANNEL_ID,
       timestamp: new Date('2023-12-06T13:53:59Z'),
       agent: apiSelf,
       object: channel(CHANNEL_ID, {
@@ -186,9 +185,8 @@ test('subscriptions, playlists and uploads map to Follow, Create, Add and Publis
   assert.deepEqual(playlists.nodes, [
     complete({
       '@type': 'CreateAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      '@key': ['@type', 'source', 'result.sourceId'],
       source: 'youtube',
-      sourceId: 'PLxyz',
       timestamp: new Date('2019-05-24T03:17:07Z'),
       agent: apiSelf,
       result: collection,
@@ -215,12 +213,11 @@ test('subscriptions, playlists and uploads map to Follow, Create, Add and Publis
   assert.deepEqual(uploads.nodes, [
     {
       '@type': 'PublishAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      '@key': ['@type', 'source', 'result.sourceId'],
       source: 'youtube',
-      sourceId: 'vidUPLOAD01',
       timestamp: publishedAt,
       agent: apiSelf,
-      object: bareVideo('vidUPLOAD01', {
+      result: bareVideo('vidUPLOAD01', {
         name: 'My Upload',
         duration: 'PT6M2S',
         emblem: image('https://i.example/vidUPLOAD01-high.jpg'),
@@ -317,9 +314,8 @@ test('a Takeout archive maps to the same shapes as the API', async t => {
     follow,
     complete({
       '@type': 'FollowAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      '@key': ['@type', 'source', 'object.handle'],
       source: 'youtube',
-      sourceId: CHANNEL_ID,
       agent: takeoutSelf,
       object: channel(CHANNEL_ID, { name: 'Some Channel' }),
       '@assertedAt': assertedAt,
@@ -338,9 +334,8 @@ test('a Takeout archive maps to the same shapes as the API', async t => {
     create,
     complete({
       '@type': 'CreateAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      '@key': ['@type', 'source', 'result.sourceId'],
       source: 'youtube',
-      sourceId: 'PLxyz',
       timestamp: new Date('2019-05-24T03:17:07Z'),
       agent: takeoutSelf,
       result: { ...takeoutCollection, visibility: 'unlisted' },
@@ -365,12 +360,11 @@ test('a Takeout archive maps to the same shapes as the API', async t => {
     publish,
     complete({
       '@type': 'PublishAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      '@key': ['@type', 'source', 'result.sourceId'],
       source: 'youtube',
-      sourceId: 'vidUPLOAD01',
       timestamp: new Date('2021-06-25T21:41:25Z'),
       agent: takeoutSelf,
-      object: bareVideo('vidUPLOAD01', {
+      result: bareVideo('vidUPLOAD01', {
         name: 'My Upload',
         description: 'Line one\nline two',
         duration: 'PT2M3S',
@@ -384,9 +378,8 @@ test('a Takeout archive maps to the same shapes as the API', async t => {
     comment,
     complete({
       '@type': 'AnnotateAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      '@key': ['@type', 'source', 'result.sourceId'],
       source: 'youtube',
-      sourceId: 'Ugy5w_comment1',
       timestamp: new Date('2020-04-20T18:52:40Z'),
       agent: takeoutSelf,
       object: bareVideo('vidAAAAAAA1'),

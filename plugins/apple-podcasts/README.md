@@ -116,7 +116,8 @@ merge.
   `references`, keyed by its url.
 
 Actions (all with the iCloud `Person` as `agent`; without an Apple Account
-signed in, extraction stops):
+signed in, extraction stops), each keyed by the episode or show it acted on
+(`object.sourceId`), so no action shares its episode's or show's ID:
 
 - `ListenAction` — per played episode, timestamped at the real listen date.
 - `CompleteAction` — when the episode was finished (a non-zero play count),

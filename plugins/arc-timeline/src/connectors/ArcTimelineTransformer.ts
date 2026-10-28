@@ -73,9 +73,9 @@ export default class ArcTimelineTransformer extends ChronicleTransformer {
 
     const action = {
       '@type': 'TravelAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      // Keyed by the journey it made, which has the timeline item's ID.
+      '@key': ['@type', 'source', 'result.sourceId'],
       source: 'arc',
-      sourceId: item.base.id,
       agent: person,
       result: journey,
       startTime: new Date(item.base.startDate),

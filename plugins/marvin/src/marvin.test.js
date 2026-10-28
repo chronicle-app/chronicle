@@ -131,28 +131,27 @@ test('annotations become QuoteActions and AnnotateActions', async t => {
   assert.deepEqual(await transform(MarvinAnnotationsExtractor, rows[0]), [
     {
       '@type': 'QuoteAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      // Keyed by the quotation it made, which has the annotation's ID.
+      '@key': ['@type', 'source', 'result.sourceId'],
       timestamp,
       '@assertedAt': timestamp,
       source: 'marvin',
-      sourceId: 'a1',
       agent: me,
       result: quotation,
     },
     {
       '@type': 'AnnotateAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      // A comment on a highlight is keyed by the quotation it's about.
+      '@key': ['@type', 'source', 'result.about[*].sourceId'],
       timestamp,
       '@assertedAt': timestamp,
       source: 'marvin',
-      sourceId: 'a1',
       agent: me,
       result: {
         '@type': 'Comment',
-        '@key': ['@type', 'source', 'sourceId'],
+        '@key': ['@type', 'source', 'about[*].sourceId'],
         description: 'Echoes the opening chapter.',
         source: 'marvin',
-        sourceId: 'a1',
         about: [quotation],
       },
     },
@@ -169,11 +168,11 @@ test('annotations become QuoteActions and AnnotateActions', async t => {
   assert.deepEqual(await transform(MarvinAnnotationsExtractor, rows[2]), [
     {
       '@type': 'AnnotateAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      // A comment on its own has the annotation's ID.
+      '@key': ['@type', 'source', 'result.sourceId'],
       timestamp: noteOnly,
       '@assertedAt': noteOnly,
       source: 'marvin',
-      sourceId: 'a3',
       agent: me,
       result: {
         '@type': 'Comment',

@@ -39,19 +39,19 @@ gh's default scopes (`repo`, `read:org`, `gist`) cover everything. For a persona
 
 ## Schema
 
-| GitHub activity                                    | Chronicle action                  | `object`                  | Other                         |
-| -------------------------------------------------- | --------------------------------- | ------------------------- | ----------------------------- |
-| You opened an issue                                | `PlanAction`                      | `Task`                    |                               |
-| You opened a pull request                          | `PublishAction`                   | `Changeset`               |                               |
-| You or someone else commented                      | `RespondAction`                   | the `Task` or `Changeset` | `result`: the `Comment`       |
-| An issue was closed as completed / not planned     | `CompleteAction` / `CancelAction` | `Task`                    |                               |
-| A pull request was merged                          | `AcceptAction`                    | `Changeset`               |                               |
-| A pull request was closed unmerged by someone else | `RejectAction`                    | `Changeset`               |                               |
-| A pull request was closed unmerged by its author   | `CancelAction`                    | `Changeset`               |                               |
-| You created a repository                           | `CreateAction`                    | `result`: `Repository`    | a fork `isBasedOn` its source |
-| You committed                                      | `UpdateAction`                    | `Repository`              | `result`: the `Revision`      |
-| You starred a repository                           | `LikeAction`                      | `Repository`              |                               |
-| You created a gist                                 | `PublishAction`                   | `SoftwareSourceCode`      |                               |
+| GitHub activity                                    | Chronicle action                  | `object`                  | Other                              |
+| -------------------------------------------------- | --------------------------------- | ------------------------- | ---------------------------------- |
+| You opened an issue                                | `PlanAction`                      | `Task`                    |                                    |
+| You opened a pull request                          | `PublishAction`                   |                           | `result`: the `Changeset`          |
+| You or someone else commented                      | `RespondAction`                   | the `Task` or `Changeset` | `result`: the `Comment`            |
+| An issue was closed as completed / not planned     | `CompleteAction` / `CancelAction` | `Task`                    |                                    |
+| A pull request was merged                          | `AcceptAction`                    | `Changeset`               |                                    |
+| A pull request was closed unmerged by someone else | `RejectAction`                    | `Changeset`               |                                    |
+| A pull request was closed unmerged by its author   | `CancelAction`                    | `Changeset`               |                                    |
+| You created a repository                           | `CreateAction`                    | `result`: `Repository`    | a fork `isBasedOn` its source      |
+| You committed                                      | `UpdateAction`                    | `Repository`              | `result`: the `Revision`           |
+| You starred a repository                           | `LikeAction`                      | `Repository`              |                                    |
+| You created a gist                                 | `PublishAction`                   |                           | `result`: the `SoftwareSourceCode` |
 
 | GitHub thing            | Chronicle entity                          | Key                                                                                | Properties                                                                                                                                               |
 | ----------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -71,7 +71,7 @@ gh's default scopes (`repo`, `read:org`, `gist`) cover everything. For a persona
 
 **Issues and pull requests are keyed by repository and number.** The `#12` in an issue's or pull request's URL is its `handle`, and with its repository it's the key: the name people use for it, which other sources can see in a URL or a commit message. Issues and pull requests share one sequence of numbers in a repository, so a number is never both. Like its repository, an issue or pull request becomes a new node when the repository's `owner/name` changes, or when an issue moves to another repository.
 
-**Everything else is keyed by its GitHub node id.** Comments and resolutions have no number of their own, and the kinds of objects are numbered separately, so numeric ids could collide; node ids can't. The plugin asks for GitHub's next-generation ids, which are stable: without that, old objects answer with legacy ids GitHub is migrating away from. An action shares its `sourceId` with what it creates where both have one.
+**Everything else is keyed by its GitHub node id.** Comments and resolutions have no number of their own, and the kinds of objects are numbered separately, so numeric ids could collide; node ids can't. The plugin asks for GitHub's next-generation ids, which are stable: without that, old objects answer with legacy ids GitHub is migrating away from. An action has no ID of its own, so it's keyed through what it acted on or made: a comment's `RespondAction` by the comment, an opened issue's `PlanAction` by the issue's repository and number, and a commit's `UpdateAction` by its hash. A resolution is the exception, since GitHub gives the event its own node id.
 
 **An issue is a `Task`.** An issue is work to be done, filed against a repository, as a to-do item is filed in a project, so it's a `Task` that `isPartOf` its `Repository`, and its life follows a to-do's: opening it is a `PlanAction`, closing it as completed a `CompleteAction`, and closing it as not planned or a duplicate a `CancelAction`. A close from before GitHub recorded reasons counts as completed, as GitHub shows it. A task isn't a creative work, so who filed it is the agent of its `PlanAction`, and it carries no `author` or `visibility` of its own. A comment on a pull request is on the pull request, not on the issue GitHub keeps behind it.
 

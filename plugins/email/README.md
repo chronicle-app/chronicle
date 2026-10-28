@@ -65,7 +65,7 @@ The extractor parses the following email components:
 
 Messages are built by [@chronicle.app/email-core](../../core/email/README.md), the same way the Gmail plugin builds them:
 
-- Each email is a `MessageAction` by the sender whose object is a `Message`.
+- Each email is a `MessageAction` by the sender whose `result` is a `Message`, and the action is keyed by it.
   The message's `name` is the subject, its `recipient`s are the To, Cc and Bcc
   addresses, and it is `inReplyTo` the message its In-Reply-To names.
 - Its `body` is what the sender wrote, as plain text or Markdown: no HTML,

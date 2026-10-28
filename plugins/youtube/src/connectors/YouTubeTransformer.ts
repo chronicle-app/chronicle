@@ -85,9 +85,9 @@ export default class YouTubeTransformer extends ChronicleTransformer {
 
     const action: FollowAction = {
       '@type': 'FollowAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      // Keyed by the channel it follows.
+      '@key': ['@type', 'source', 'object.handle'],
       source: 'youtube',
-      sourceId: channelId,
       timestamp: ytTime(subscription.snippet.publishedAt),
       agent: this.resolveSelf(record),
       object: this.buildChannelAgent(channelId, {
@@ -107,9 +107,9 @@ export default class YouTubeTransformer extends ChronicleTransformer {
 
     const action: CreateAction = {
       '@type': 'CreateAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      // Keyed by the playlist it made.
+      '@key': ['@type', 'source', 'result.sourceId'],
       source: 'youtube',
-      sourceId: playlist.id,
       timestamp: ytTime(playlist.snippet.publishedAt),
       agent: this.resolveSelf(record),
       result: this.buildCollection(playlist),
@@ -153,12 +153,12 @@ export default class YouTubeTransformer extends ChronicleTransformer {
 
     const action: PublishAction = {
       '@type': 'PublishAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      // Keyed by the video it published.
+      '@key': ['@type', 'source', 'result.sourceId'],
       source: 'youtube',
-      sourceId: upload.item.snippet.resourceId.videoId,
       timestamp: ytTime(upload.item.snippet.publishedAt),
       agent: this.resolveSelf(record),
-      object: video,
+      result: video,
     };
 
     return [action];

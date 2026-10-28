@@ -51,7 +51,7 @@ function messageAction(iso, sender, body, extra = {}) {
     timestamp,
     '@assertedAt': timestamp,
     agent: sender,
-    object: {
+    result: {
       '@type': 'Message',
       '@key': ['@type', 'source', 'body', 'author'],
       source: 'slack',
@@ -69,7 +69,7 @@ test('messages across conversations become MessageActions, newest first', async 
   // The channel_join notice is left out; the merge across conversations is
   // globally newest-first.
   assert.deepEqual(
-    out.map(a => a.object.body),
+    out.map(a => a.result.body),
     [
       'Deploy finished',
       'Hi from a guest',
@@ -80,7 +80,7 @@ test('messages across conversations become MessageActions, newest first', async 
     ]
   );
 
-  const byBody = new Map(out.map(a => [a.object.body, a]));
+  const byBody = new Map(out.map(a => [a.result.body, a]));
   // A public channel is a broadcast: no recipients.
   assert.deepEqual(
     byBody.get('Morning, everyone'),
@@ -121,7 +121,7 @@ test('messages across conversations become MessageActions, newest first', async 
 test('attachments are included when enabled, with a contentPath only for downloaded files', async t => {
   const input = exportDir(t);
   const out = await actions({ input, attachments: true });
-  const dm = out.find(a => a.object.body === 'Photos from the hike');
+  const dm = out.find(a => a.result.body === 'Photos from the hike');
   assert.deepEqual(
     dm,
     messageAction('2024-01-01T11:00:00.000Z', alex, 'Photos from the hike', {
@@ -153,7 +153,7 @@ test('attachments are included when enabled, with a contentPath only for downloa
 
 test('since, until, and limit bound the extraction', async t => {
   const input = exportDir(t);
-  const bodies = async config => (await actions({ input, ...config })).map(a => a.object.body);
+  const bodies = async config => (await actions({ input, ...config })).map(a => a.result.body);
 
   // Both boundaries are inclusive.
   assert.deepEqual(

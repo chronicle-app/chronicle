@@ -105,7 +105,9 @@ test('each recording is extracted newest first, with its file and transcript, as
     assert.equal(record.extraction.recordAssertedAt, libraryChanged);
     const action = await transform(record);
     assert.equal(action['@type'], 'RecordAction');
-    assert.equal(action.sourceId, record.data.uniqueID);
+    // Keyed by the recording it made, which has the memo's ID.
+    assert.deepEqual(action['@key'], ['@type', 'source', 'result.sourceId']);
+    assert.equal(action.sourceId, undefined);
     assert.equal(action.agent.sourceId, account.dsid);
     assert.equal(action.result['@type'], 'AudioObject');
     assert.deepEqual(action.result['@key'], ['@type', 'source', 'sourceId']);

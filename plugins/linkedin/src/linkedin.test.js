@@ -165,7 +165,7 @@ test('the whole export becomes schema-valid actions, newest first', async t => {
     '@type',
     'source',
     'timestamp',
-    'object.isPartOf[*].sourceId',
+    'result.isPartOf[*].sourceId',
     'agent.handle',
     'agent.name',
   ];
@@ -178,7 +178,7 @@ test('the whole export becomes schema-valid actions, newest first', async t => {
     source: 'linkedin',
     timestamp: '2026-03-13T04:00:00.000Z',
     agent: ada,
-    object: {
+    result: {
       '@type': 'Message',
       '@key': bodyKey,
       source: 'linkedin',
@@ -198,7 +198,7 @@ test('the whole export becomes schema-valid actions, newest first', async t => {
     '@key': messageKey,
     source: 'linkedin',
     timestamp: '2025-01-02T10:00:00.000Z',
-    object: {
+    result: {
       '@type': 'Message',
       '@key': bodyKey,
       source: 'linkedin',
@@ -218,7 +218,7 @@ test('the whole export becomes schema-valid actions, newest first', async t => {
     source: 'linkedin',
     name: 'Ada Recruiter',
   };
-  assert.deepEqual(sponsored.object, {
+  assert.deepEqual(sponsored.result, {
     '@type': 'Message',
     '@key': bodyKey,
     source: 'linkedin',

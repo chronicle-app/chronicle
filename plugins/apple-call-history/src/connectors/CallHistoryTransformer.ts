@@ -71,9 +71,9 @@ export default class CallHistoryTransformer extends ChronicleTransformer {
 
     const action: CallAction & ActionAndChildren = {
       '@type': 'CallAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      // Keyed by the session it made, which has the call's ID.
+      '@key': ['@type', 'source', 'result.sourceId'],
       source: SOURCE,
-      sourceId: ctx.uuid,
       startTime: secondsToISO(ctx.startSec),
       endTime: secondsToISO(ctx.startSec + ctx.durationSec),
       result: session,

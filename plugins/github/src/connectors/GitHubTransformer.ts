@@ -58,6 +58,15 @@ const THREAD_KEY = [
  * and its forge share the node.
  */
 const REVISION_KEY = ['@type', 'sourceId'];
+/**
+ * The key of an action with no ID of its own: the key of what it acted on or
+ * made, through `role`, so it never takes that node's ID as its own.
+ */
+const through = (role: 'object' | 'result', key: readonly string[]) => [
+  '@type',
+  'source',
+  ...key.filter(field => field !== '@type' && field !== 'source').map(field => `${role}.${field}`),
+];
 /** You star a repository once, so the repository identifies the star. */
 const STAR_KEY = ['@type', 'source', 'object.creator[*].handle', 'object.handle'];
 
@@ -109,9 +118,8 @@ export default class GitHubTransformer extends ChronicleTransformer {
   private buildIssueOpened(issue: GitHubThread): PlanAction {
     return {
       '@type': 'PlanAction',
-      '@key': KEY,
+      '@key': through('object', THREAD_KEY),
       source: SOURCE,
-      sourceId: issue.id,
       timestamp: new Date(issue.createdAt),
       ...(issue.author && { agent: this.buildActor(issue.author) }),
       object: this.buildTask(issue),
@@ -122,12 +130,11 @@ export default class GitHubTransformer extends ChronicleTransformer {
   private buildPullRequestOpened(pullRequest: GitHubThread): PublishAction {
     return {
       '@type': 'PublishAction',
-      '@key': KEY,
+      '@key': through('result', THREAD_KEY),
       source: SOURCE,
-      sourceId: pullRequest.id,
       timestamp: new Date(pullRequest.createdAt),
       ...(pullRequest.author && { agent: this.buildActor(pullRequest.author) }),
-      object: this.buildChangeset(pullRequest),
+      result: this.buildChangeset(pullRequest),
     };
   }
 
@@ -178,9 +185,8 @@ export default class GitHubTransformer extends ChronicleTransformer {
   private buildRepositoryCreated(repository: GitHubOwnRepository): CreateAction {
     return {
       '@type': 'CreateAction',
-      '@key': KEY,
+      '@key': through('result', REPOSITORY_KEY),
       source: SOURCE,
-      sourceId: repository.id,
       timestamp: new Date(repository.createdAt),
       ...(this.viewer && { agent: this.buildSelf() }),
       result: {
@@ -212,9 +218,8 @@ export default class GitHubTransformer extends ChronicleTransformer {
     };
     return {
       '@type': 'UpdateAction',
-      '@key': KEY,
+      '@key': through('result', REVISION_KEY),
       source: SOURCE,
-      sourceId: commit.oid,
       timestamp: new Date(commit.authoredDate),
       ...(this.viewer && { agent: this.buildSelf() }),
       object: this.buildRepository(commit.repository),
@@ -231,9 +236,8 @@ export default class GitHubTransformer extends ChronicleTransformer {
   private buildComment(comment: GitHubComment, thread: GitHubThread): RespondAction {
     return {
       '@type': 'RespondAction',
-      '@key': KEY,
+      '@key': through('result', KEY),
       source: SOURCE,
-      sourceId: comment.id,
       timestamp: new Date(comment.createdAt),
       ...(comment.author && { agent: this.buildActor(comment.author) }),
       object: this.buildThread(thread),
@@ -268,12 +272,11 @@ export default class GitHubTransformer extends ChronicleTransformer {
     };
     return {
       '@type': 'PublishAction',
-      '@key': KEY,
+      '@key': through('result', KEY),
       source: SOURCE,
-      sourceId: gist.id,
       timestamp: new Date(gist.createdAt),
       ...(this.viewer && { agent: this.buildSelf() }),
-      object: code,
+      result: code,
     };
   }
 

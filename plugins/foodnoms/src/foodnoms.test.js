@@ -170,9 +170,8 @@ test('food entries become schema-valid EatActions and DrinkActions, newest first
     agent: me,
     object: {
       '@type': 'Meal',
-      '@key': ['@type', 'source', 'sourceId'],
+      '@key': ['@type', 'source', 'action.sourceId'],
       source: 'foodnoms',
-      sourceId: '3f6c2a9e-1b4d-4c8e-9a7f-2d5e8b1c4a60',
       name: 'Lentil soup',
       category: ['Lunch'],
       description: 'Lunch - Brand: Hearth Kitchen - 1.5 cup - 270 calories',
@@ -190,9 +189,8 @@ test('food entries become schema-valid EatActions and DrinkActions, newest first
     agent: me,
     object: {
       '@type': 'Meal',
-      '@key': ['@type', 'source', 'sourceId'],
+      '@key': ['@type', 'source', 'action.sourceId'],
       source: 'foodnoms',
-      sourceId: '8b1e4d7a-2c9f-4e3b-b6a1-5f0d3c7e9a24',
       name: 'Iced latte',
       category: ['Breakfast'],
       description: 'Breakfast - 12 fl oz - 190 calories',
@@ -204,9 +202,8 @@ test('food entries become schema-valid EatActions and DrinkActions, newest first
   assert.equal(cakeAction.data['@type'], 'DrinkAction');
   assert.deepEqual(cakeAction.data.object, {
     '@type': 'Meal',
-    '@key': ['@type', 'source', 'sourceId'],
+    '@key': ['@type', 'source', 'action.sourceId'],
     source: 'foodnoms',
-    sourceId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
     name: 'Coffee cake',
   });
 

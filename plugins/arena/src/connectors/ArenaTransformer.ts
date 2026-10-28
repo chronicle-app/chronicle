@@ -25,6 +25,8 @@ import {
 
 const SOURCE = 'arena';
 const KEY = ['@type', 'source', 'sourceId'];
+/** An action is keyed by what it made, which has the ID. */
+const MADE_KEY = ['@type', 'source', 'result.sourceId'];
 
 export default class ArenaTransformer extends ChronicleTransformer {
   /** Authenticated user id (the "me"), set per record from context. */
@@ -70,12 +72,12 @@ export default class ArenaTransformer extends ChronicleTransformer {
   private buildChannelCreate(channel: ArenaChannel): ActionAndChildren[] {
     const createAction: CreateAction = {
       '@type': 'CreateAction',
-      '@key': KEY,
+      // Keyed by the channel it made.
+      '@key': MADE_KEY,
       timestamp: new Date(channel.created_at),
       source: SOURCE,
-      sourceId: `channel-${channel.id}`,
       agent: this.buildUser(channel.owner),
-      object: this.buildCollection(channel),
+      result: this.buildCollection(channel),
     };
     return [createAction];
   }
@@ -104,12 +106,12 @@ export default class ArenaTransformer extends ChronicleTransformer {
   private buildBlockCreate(block: ArenaBlock): ActionAndChildren[] {
     const createAction: CreateAction = {
       '@type': 'CreateAction',
-      '@key': KEY,
+      // Keyed by the block it made.
+      '@key': MADE_KEY,
       timestamp: new Date(block.created_at),
       source: SOURCE,
-      sourceId: `block-${block.id}`,
       agent: this.buildUser(block.user),
-      object: this.buildPost(block),
+      result: this.buildPost(block),
     };
     return [createAction];
   }
@@ -134,12 +136,12 @@ export default class ArenaTransformer extends ChronicleTransformer {
 
     const createAction: CreateAction = {
       '@type': 'CreateAction',
-      '@key': KEY,
+      // Keyed by the comment it made.
+      '@key': MADE_KEY,
       timestamp: new Date(comment.created_at),
       source: SOURCE,
-      sourceId: `comment-${comment.id}`,
       agent: this.buildUser(comment.user),
-      object: commentEntity,
+      result: commentEntity,
     };
     return [createAction];
   }

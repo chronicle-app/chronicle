@@ -90,7 +90,7 @@ test('owner states and notes become schema-valid actions on an Article', async t
   const actions = await transform(records);
   assert.deepEqual(
     actions.map(a => a['@type']),
-    ['ReadAction', 'PublishAction', 'LikeAction', 'AnnotateAction']
+    ['ReadAction', 'ShareAction', 'LikeAction', 'AnnotateAction']
   );
 
   const article = {
@@ -104,9 +104,9 @@ test('owner states and notes become schema-valid actions on an Article', async t
   };
   assert.deepEqual(actions[0], {
     '@type': 'ReadAction',
-    '@key': ['@type', 'source', 'sourceId', 'agent.sourceId'],
+    // Keyed by the article it's about, and whose it is.
+    '@key': ['@type', 'source', 'object.sourceId', 'agent.sourceId'],
     source: 'google-reader',
-    sourceId: 'tag:google.com,2005:reader/item/0001',
     timestamp: JAN_1,
     '@assertedAt': JAN_1,
     agent: owner,

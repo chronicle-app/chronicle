@@ -99,7 +99,7 @@ async function actions(dir) {
   for (const record of records) {
     for (const node of await transformer.performTransform(record)) out.push(node.data);
   }
-  return new Map(out.map(action => [action.sourceId, action]));
+  return new Map(out.map(action => [action.result.sourceId, action]));
 }
 
 const key = ['@type', 'source', 'sourceId'];
@@ -127,11 +127,11 @@ const party = (source, handle, extra = {}) => ({
   ...(extra.name && { name: extra.name }),
   sameAs: [{ '@type': 'Agent', '@key': partyKey, source, handle }, ...(extra.sameAs ?? [])],
 });
-const call = (sourceId, start, end, fields) => ({
+// A call is keyed by the session it made, which has the call's ID.
+const call = (start, end, fields) => ({
   '@type': 'CallAction',
-  '@key': key,
+  '@key': ['@type', 'source', 'result.sourceId'],
   source: 'apple-call-history',
-  sourceId,
   startTime: start,
   endTime: end,
   '@assertedAt': start,
@@ -157,7 +157,7 @@ test('calls become schema-valid CallActions, newest first', async t => {
   // carries ZNAME, and links to the phone handle and the Contacts card.
   assert.deepEqual(
     byId.get('CALL-OUT'),
-    call('CALL-OUT', '2025-01-01T00:01:00.000Z', '2025-01-01T00:01:33.000Z', {
+    call('2025-01-01T00:01:00.000Z', '2025-01-01T00:01:33.000Z', {
       agent: me,
       result: session('CALL-OUT', {
         recipient: [
@@ -171,7 +171,7 @@ test('calls become schema-valid CallActions, newest first', async t => {
   // address; I am the recipient.
   assert.deepEqual(
     byId.get('CALL-IN'),
-    call('CALL-IN', '2025-01-01T00:02:00.000Z', '2025-01-01T00:02:10.000Z', {
+    call('2025-01-01T00:02:00.000Z', '2025-01-01T00:02:10.000Z', {
       agent: party('email', 'friend@example.com'),
       result: session('CALL-IN', { recipient: [me] }),
     })
@@ -180,7 +180,7 @@ test('calls become schema-valid CallActions, newest first', async t => {
   // A missed call is a zero-length span.
   assert.deepEqual(
     byId.get('CALL-MISSED'),
-    call('CALL-MISSED', '2025-01-01T00:03:00.000Z', '2025-01-01T00:03:00.000Z', {
+    call('2025-01-01T00:03:00.000Z', '2025-01-01T00:03:00.000Z', {
       agent: party('phone', '+14165559999'),
       result: session('CALL-MISSED', { recipient: [me] }),
     })
@@ -189,7 +189,7 @@ test('calls become schema-valid CallActions, newest first', async t => {
   // A blocked or private number has no participant.
   assert.deepEqual(
     byId.get('CALL-BLOCKED'),
-    call('CALL-BLOCKED', '2025-01-01T00:04:00.000Z', '2025-01-01T00:04:05.000Z', {
+    call('2025-01-01T00:04:00.000Z', '2025-01-01T00:04:05.000Z', {
       result: session('CALL-BLOCKED'),
     })
   );
@@ -198,7 +198,7 @@ test('calls become schema-valid CallActions, newest first', async t => {
   // initiator is unknown, and ZNAME is not used for any member.
   assert.deepEqual(
     byId.get('CALL-GROUP'),
-    call('CALL-GROUP', '2025-01-01T00:05:00.000Z', '2025-01-01T00:06:30.000Z', {
+    call('2025-01-01T00:05:00.000Z', '2025-01-01T00:06:30.000Z', {
       result: session('CALL-GROUP', {
         isPartOf: [
           {

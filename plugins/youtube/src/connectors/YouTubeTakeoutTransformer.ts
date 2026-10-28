@@ -113,9 +113,9 @@ export default class YouTubeTakeoutTransformer extends ChronicleTransformer {
 
     const action: FollowAction = {
       '@type': 'FollowAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      // Keyed by the channel it follows, as the API path keys it.
+      '@key': ['@type', 'source', 'object.handle'],
       source: 'youtube',
-      sourceId: subscription.channelId,
       agent: this.resolveSelf(record),
       object: this.buildChannelAgent(subscription.channelId, subscription.channelTitle),
     };
@@ -128,9 +128,9 @@ export default class YouTubeTakeoutTransformer extends ChronicleTransformer {
 
     const action: CreateAction = {
       '@type': 'CreateAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      // Keyed by the playlist it made, as the API path keys it.
+      '@key': ['@type', 'source', 'result.sourceId'],
       source: 'youtube',
-      sourceId: playlist.playlistId,
       timestamp: ytTime(playlist.createdAt),
       agent: this.resolveSelf(record),
       result: this.buildCollection(playlist.playlistId, {
@@ -179,12 +179,12 @@ export default class YouTubeTakeoutTransformer extends ChronicleTransformer {
 
     const action: PublishAction = {
       '@type': 'PublishAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      // Keyed by the video it published, as the API path keys it.
+      '@key': ['@type', 'source', 'result.sourceId'],
       source: 'youtube',
-      sourceId: upload.videoId,
       timestamp: ytTime(upload.publishedAt),
       agent: this.resolveSelf(record),
-      object: video,
+      result: video,
     };
 
     return [action];
@@ -207,9 +207,9 @@ export default class YouTubeTakeoutTransformer extends ChronicleTransformer {
 
     const action: AnnotateAction = {
       '@type': 'AnnotateAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      // Keyed by the comment it made.
+      '@key': ['@type', 'source', 'result.sourceId'],
       source: 'youtube',
-      sourceId: data.commentId,
       timestamp: ytTime(data.createdAt),
       agent,
       object: video,

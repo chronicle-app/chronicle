@@ -136,12 +136,12 @@ test('channels, connections, blocks and comments become schema-valid actions', a
   const [channelCreate, blockBookmark, blockCreate, channelBookmark, commentCreate] = payloads;
   assert.deepEqual(channelCreate, {
     '@type': 'CreateAction',
-    '@key': KEY,
+    // Keyed by the channel it made.
+    '@key': ['@type', 'source', 'result.sourceId'],
     timestamp: new Date('2025-01-01T00:00:00Z'),
     source: 'arena',
-    sourceId: 'channel-10',
     agent: pat,
-    object: moodBoard,
+    result: moodBoard,
     '@assertedAt': assertedAt,
     '@asserts': ['*'],
   });
@@ -157,18 +157,18 @@ test('channels, connections, blocks and comments become schema-valid actions', a
     '@assertedAt': assertedAt,
     '@asserts': ['*'],
   });
-  assert.deepEqual(blockCreate.object, photoPost);
-  assert.equal(blockCreate.sourceId, 'block-20');
+  assert.deepEqual(blockCreate.result, photoPost);
+  assert.deepEqual(blockCreate['@key'], ['@type', 'source', 'result.sourceId']);
+  assert.equal(blockCreate.sourceId, undefined);
   // A `closed` channel is publicly viewable, so it maps to `public`.
   assert.deepEqual(channelBookmark.object, sharedReading);
   assert.deepEqual(commentCreate, {
     '@type': 'CreateAction',
-    '@key': KEY,
+    '@key': ['@type', 'source', 'result.sourceId'],
     timestamp: new Date('2025-01-04T00:00:00Z'),
     source: 'arena',
-    sourceId: 'comment-30',
     agent: pat,
-    object: {
+    result: {
       '@type': 'Comment',
       '@key': KEY,
       source: 'arena',

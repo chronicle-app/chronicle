@@ -67,9 +67,9 @@ export default class ThingsTodoTransformer extends ChronicleTransformer {
       const updateAction: UpdateAction & ActionAndChildren = {
         '@type': 'UpdateAction',
         timestamp: new Date(record.data.userModificationDate * 1000),
-        '@key': ['@type', 'source', 'sourceId'],
+        // Keyed by the task: Things keeps only its latest edit.
+        '@key': ['@type', 'source', 'object.sourceId'],
         source: 'things-todo',
-        sourceId: record.data.uuid,
         agent: user,
         object: task,
       };
@@ -126,12 +126,13 @@ export default class ThingsTodoTransformer extends ChronicleTransformer {
     timestamp: number;
     type: 'PlanAction' | 'CompleteAction' | 'CancelAction' | 'DeleteAction';
   }): ActionAndChildren {
+    // A task is planned, completed, cancelled, or deleted once, so the task
+    // identifies the action.
     return {
       '@type': type,
       timestamp: new Date(timestamp * 1000),
-      '@key': ['@type', 'source', 'sourceId'],
+      '@key': ['@type', 'source', 'object.sourceId'],
       source: 'things-todo',
-      sourceId: data.uuid,
       agent: agentObj,
       object: taskObj,
     };

@@ -107,10 +107,10 @@ export default class MarvinTransformer extends ChronicleTransformer {
 
       const quoteAction: QuoteAction = {
         '@type': 'QuoteAction',
-        '@key': ['@type', 'source', 'sourceId'],
+        // Keyed by the quotation it made, which has the annotation's ID.
+        '@key': ['@type', 'source', 'result.sourceId'],
         timestamp,
         source: 'marvin',
-        sourceId: data.ID,
         agent: this.buildAgent(),
         result: quotation,
       };
@@ -120,21 +120,33 @@ export default class MarvinTransformer extends ChronicleTransformer {
 
     // Handle annotation (EntryText)
     if (data.EntryText) {
-      const comment: Comment = {
-        '@type': 'Comment',
-        '@key': ['@type', 'source', 'sourceId'],
-        description: data.EntryText,
-        source: 'marvin',
-        sourceId: data.ID,
-        about: quotation ? [quotation] : [sourceBook], // Comment about quote if it exists, otherwise about book
-      };
+      // A comment on a highlight is keyed by the quotation it's about, which
+      // has the annotation's ID. A comment on its own has the ID itself.
+      const comment: Comment = quotation
+        ? {
+            '@type': 'Comment',
+            '@key': ['@type', 'source', 'about[*].sourceId'],
+            description: data.EntryText,
+            source: 'marvin',
+            about: [quotation],
+          }
+        : {
+            '@type': 'Comment',
+            '@key': ['@type', 'source', 'sourceId'],
+            description: data.EntryText,
+            source: 'marvin',
+            sourceId: data.ID,
+            about: [sourceBook],
+          };
 
       const annotateAction: AnnotateAction = {
         '@type': 'AnnotateAction',
-        '@key': ['@type', 'source', 'sourceId'],
+        // Keyed by the comment it made.
+        '@key': quotation
+          ? ['@type', 'source', 'result.about[*].sourceId']
+          : ['@type', 'source', 'result.sourceId'],
         timestamp,
         source: 'marvin',
-        sourceId: data.ID,
         agent: this.buildAgent(),
         result: comment,
       };

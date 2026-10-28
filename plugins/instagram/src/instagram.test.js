@@ -76,20 +76,20 @@ test('posts and stories become PublishActions of Posts containing their media', 
   // posts.json's reel, then posts_1.json's carousel. The flat duplicate of the
   // reel and the uri that escapes the export are dropped.
   assert.deepEqual(
-    posts.map(a => a.object.sourceId),
-    ['333333333', '111111111']
+    // A post is keyed by the files it contains: a carousel by all of them.
+    posts.map(a => a.result.contains.map(file => file.sourceId).join(',')),
+    ['333333333', '111111111,222222222']
   );
   assert.deepEqual(posts[0], {
     '@type': 'PublishAction',
-    '@key': ['@type', 'source', 'object.sourceId'],
+    '@key': ['@type', 'source', 'result.contains[*].sourceId'],
     source: 'instagram',
     ...at('2024-08-30T06:40:00.000Z'),
     agent: me,
-    object: {
+    result: {
       '@type': 'Post',
-      '@key': postKey,
+      '@key': ['@type', 'source', 'contains[*].sourceId'],
       source: 'instagram',
-      sourceId: '333333333',
       sourceFormat: 'reel',
       body: 'Sunset reel',
       contains: [
@@ -105,7 +105,7 @@ test('posts and stories become PublishActions of Posts containing their media', 
     },
   });
   // The older shape has no caption on its media, so the entry's title is used.
-  const carousel = posts[1].object;
+  const carousel = posts[1].result;
   assert.equal(carousel.sourceFormat, 'feed');
   assert.equal(carousel.body, 'Trail day');
   assert.deepEqual(
@@ -121,7 +121,7 @@ test('posts and stories become PublishActions of Posts containing their media', 
     since: new Date('2020-01-01'),
   });
   assert.deepEqual(
-    since.map(a => a.object.sourceId),
+    since.map(a => a.result.contains.map(file => file.sourceId).join(',')),
     ['333333333']
   );
   const counter = new InstagramArchivePostsExtractor({ input: dir });
@@ -132,15 +132,14 @@ test('posts and stories become PublishActions of Posts containing their media', 
   assert.equal(stories.length, 2);
   assert.deepEqual(stories[0], {
     '@type': 'PublishAction',
-    '@key': ['@type', 'source', 'object.sourceId'],
+    '@key': ['@type', 'source', 'result.contains[*].sourceId'],
     source: 'instagram',
     ...at('2024-09-02T18:00:00.000Z'),
     agent: me,
-    object: {
+    result: {
       '@type': 'Post',
-      '@key': postKey,
+      '@key': ['@type', 'source', 'contains[*].sourceId'],
       source: 'instagram',
-      sourceId: '4444444444',
       sourceFormat: 'story',
       visibility: 'private',
       url: 'https://www.instagram.com/stories/archive/4444444444/',
@@ -157,7 +156,7 @@ test('posts and stories become PublishActions of Posts containing their media', 
       ],
     },
   });
-  assert.equal(stories[1].object.contains[0]['@type'], 'VideoObject');
+  assert.equal(stories[1].result.contains[0]['@type'], 'VideoObject');
 });
 
 test('direct messages become MessageActions, with reactions as RespondActions', async t => {
@@ -166,7 +165,8 @@ test('direct messages become MessageActions, with reactions as RespondActions', 
   // Newest first. The reaction echo message is dropped; the reactions[] entries
   // on the messages they react to become RespondActions.
   assert.deepEqual(
-    out.map(a => [a['@type'], a.object.sourceId]),
+    // A message is what its action made; a reaction is to a message.
+    out.map(a => [a['@type'], (a.object ?? a.result).sourceId]),
     [
       ['MessageAction', 'alexchen_123/1700000001000'],
       ['MessageAction', 'alexchen_123/1700000000000'],
@@ -181,12 +181,12 @@ test('direct messages become MessageActions, with reactions as RespondActions', 
   // resolves to, and a shared post is a referenced Post keyed by its shortcode.
   assert.deepEqual(out[0], {
     '@type': 'MessageAction',
-    '@key': postKey,
+    // Keyed by the message it sent.
+    '@key': ['@type', 'source', 'result.sourceId'],
     source: 'instagram',
-    sourceId: 'alexchen_123/1700000001000',
     ...at('2023-11-14T22:13:21.000Z'),
     agent: alex,
-    object: {
+    result: {
       '@type': 'Message',
       '@key': postKey,
       source: 'instagram',
@@ -216,7 +216,7 @@ test('direct messages become MessageActions, with reactions as RespondActions', 
     recipient: [alex],
   };
   assert.deepEqual(out[1].agent, me);
-  assert.deepEqual(out[1].object, sent);
+  assert.deepEqual(out[1].result, sent);
   assert.deepEqual(out[2], {
     '@type': 'RespondAction',
     '@key': ['@type', 'source', 'object.sourceId', 'agent.handle', 'agent.name', 'result.body'],
@@ -242,7 +242,7 @@ test('direct messages become MessageActions, with reactions as RespondActions', 
   // A group thread: members are known only by display name, and no recipient
   // is asserted. A reaction with no timestamp has no time.
   assert.deepEqual(out[3].agent, named('Jordan Lee'));
-  assert.equal(out[3].object.recipient, undefined);
+  assert.equal(out[3].result.recipient, undefined);
   assert.deepEqual(out[4].agent, named('Alex Chen'));
   assert.equal(out[4].timestamp, undefined);
   assert.equal(out[4]['@assertedAt'], undefined);

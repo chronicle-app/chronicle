@@ -41,9 +41,9 @@ export default class AppleVoiceMemosTransformer extends ChronicleTransformer {
     // recording's duration isn't always the end.
     const action: RecordAction = {
       '@type': 'RecordAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      // Keyed by the recording it made, which has the memo's ID.
+      '@key': ['@type', 'source', 'result.sourceId'],
       source: SOURCE,
-      sourceId: memo.uniqueID,
       timestamp: new Date(memo.date),
       ...(recorder && { agent: recorder }),
       ...(instrument.length > 0 && { instrument }),

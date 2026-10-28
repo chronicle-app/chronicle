@@ -38,21 +38,21 @@ export default class GoogleReaderTransformer extends ChronicleTransformer {
         case 'ReadAction':
           actions.push({
             '@type': 'ReadAction',
-            '@key': ['@type', 'source', 'sourceId', 'agent.sourceId'],
+            // Keyed by the article it's about, and whose it is.
+            '@key': ['@type', 'source', 'object.sourceId', 'agent.sourceId'],
             source: 'google-reader',
-            sourceId: item.id,
             timestamp,
             agent: user,
             object: article,
           });
           break;
 
-        case 'PublishAction':
+        // Reader's Share passes along an article someone else wrote.
+        case 'ShareAction':
           actions.push({
-            '@type': 'PublishAction',
-            '@key': ['@type', 'source', 'sourceId', 'agent.sourceId'],
+            '@type': 'ShareAction',
+            '@key': ['@type', 'source', 'object.sourceId', 'agent.sourceId'],
             source: 'google-reader',
-            sourceId: item.id,
             timestamp,
             agent: user,
             object: article,
@@ -62,9 +62,9 @@ export default class GoogleReaderTransformer extends ChronicleTransformer {
         case 'LikeAction':
           actions.push({
             '@type': 'LikeAction',
-            '@key': ['@type', 'source', 'sourceId', 'agent.sourceId'],
+            // Keyed by the article it's about, and whose it is.
+            '@key': ['@type', 'source', 'object.sourceId', 'agent.sourceId'],
             source: 'google-reader',
-            sourceId: item.id,
             timestamp,
             agent: user,
             object: article,
@@ -160,7 +160,7 @@ export default class GoogleReaderTransformer extends ChronicleTransformer {
         actions.push('ReadAction');
       }
       if (category === `user/${userId}/state/com.google/broadcast`) {
-        actions.push('PublishAction');
+        actions.push('ShareAction');
       }
       if (category === `user/${userId}/state/com.google/starred`) {
         actions.push('LikeAction');

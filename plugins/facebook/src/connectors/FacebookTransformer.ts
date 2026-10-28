@@ -57,10 +57,11 @@ export default class FacebookTransformer extends ChronicleTransformer {
       const messageAction: MessageAction = {
         '@type': 'MessageAction',
         timestamp: record.data.timestamp,
-        '@key': ['@type', 'source', 'timestamp', 'agent.name', 'object.body'],
+        '@key': ['@type', 'source', 'timestamp', 'agent.name', 'result.body'],
         source: 'facebook',
         agent: sender,
-        object: message,
+        // Sending makes the message, so it's the action's result.
+        result: message,
       };
 
       actions.push(messageAction);

@@ -252,11 +252,12 @@ export default class InstagramTransformer extends ChronicleTransformer {
 
   /**
    * A published post or story: PublishAction → Post → contains → Media.
-   * The Post is the semantic work (identity, caption, url, sourceFormat) — it
-   * has its own shortcode identity, receives likes/comments, and can be a
-   * carousel — so it stays a container; the file(s) it is made of hang off it
-   * as MediaObjects via `contains`. Work and file share the media pk and differ
-   * only by @type, so both key cleanly.
+   * The Post is the semantic work (caption, url, sourceFormat) — it receives
+   * likes/comments, and can be a carousel — so it stays a container; the
+   * file(s) it is made of hang off it as MediaObjects via `contains`, each
+   * keyed by its media pk. The export gives the post no ID of its own, so it's
+   * keyed by the files it contains: one pk, or a carousel's several. Publishing
+   * makes the post, so it's the action's result, and the action is keyed by it.
    */
   private buildPublicationActions(record: Record): ActionAndChildren[] {
     const d = record.data;
@@ -267,9 +268,8 @@ export default class InstagramTransformer extends ChronicleTransformer {
 
     const post: Post = {
       '@type': 'Post',
-      '@key': ['@type', 'source', 'sourceId'],
+      '@key': ['@type', 'source', 'contains[*].sourceId'],
       source: 'instagram',
-      sourceId: d.id,
       sourceFormat: d.sourceFormat,
       ...(d.visibility && { visibility: d.visibility }),
       ...(d.url && { url: d.url }),
@@ -280,11 +280,11 @@ export default class InstagramTransformer extends ChronicleTransformer {
     const publishAction: PublishAction = {
       '@type': 'PublishAction',
       // Keyed on the post's identity: one publish per post, no synthesized id.
-      '@key': ['@type', 'source', 'object.sourceId'],
+      '@key': ['@type', 'source', 'result.contains[*].sourceId'],
       source: 'instagram',
       timestamp: d.timestamp,
       agent: user,
-      object: post,
+      result: post,
     };
 
     return [publishAction];
@@ -353,12 +353,12 @@ export default class InstagramTransformer extends ChronicleTransformer {
 
     const messageAction: MessageAction = {
       '@type': 'MessageAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      // Keyed by the message it sent.
+      '@key': ['@type', 'source', 'result.sourceId'],
       source: 'instagram',
-      sourceId: d.id,
       timestamp: d.created_at || d.timestamp,
       agent: sender,
-      object: message,
+      result: message,
     };
 
     actions.push(messageAction, ...this.buildReactionActions(record, message, self, other));

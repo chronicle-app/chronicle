@@ -35,15 +35,15 @@ test('each record type is a tree of the nodes it becomes, with their keys', () =
 
   // Copied (name ← title) and converted (visibility ← lower(state)) values are
   // plain; nothing in the record says 3 or 5, so the transformer computed it.
-  // A key without `source` is shared across sources.
+  // A key shows all its fields, so one shared across sources has no `source`.
   assert.equal(
     tree,
     [
-      'PublishAction key(sourceId) {',
+      'PublishAction key(@type, source, sourceId) {',
       '  sourceId',
-      '  object: Post key(sourceId) {',
+      '  object: Post key(@type, source, sourceId) {',
       '    name, visibility, score*',
-      '    references[]?: Entity key(url, any source) { url }',
+      '    references[]?: Entity key(url) { url }',
       '  }',
       '}',
       '',
@@ -59,12 +59,12 @@ test('a further action a record becomes is its own node', () => {
   assert.equal(
     tree,
     [
-      'PublishAction key(sourceId) {',
+      'PublishAction key(@type, source, sourceId) {',
       '  sourceId',
-      '  object: Post key(sourceId) { name }',
+      '  object: Post key(@type, source, sourceId) { name }',
       '}',
       '// Some records also become:',
-      'LikeAction key(sourceId) { sourceId }',
+      'LikeAction key(@type, source, sourceId) { sourceId }',
       '',
     ].join('\n')
   );
@@ -79,7 +79,7 @@ test('a value the record lacks is computed, unless it never changes', () => {
   ]);
   // `body` was seen once and matches nothing in the record; `tag` is the same
   // everywhere it appears, so it's a constant.
-  assert.match(tree, /object: Post key\(sourceId\) \{ body\*, tag \}\n/);
+  assert.match(tree, /object: Post key\(@type, source, sourceId\) \{ body\*, tag \}\n/);
 });
 
 /** One record through a stand-in extractor and transformer, becoming one node with `body`. */

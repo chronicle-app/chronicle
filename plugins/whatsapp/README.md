@@ -16,7 +16,8 @@ the on-device database is unencrypted). The companion-device database holds the
 window of history that synced to this Mac (see "Coverage" below), with rich
 metadata: JIDs, message ids, direction, and group membership.
 
-Each WhatsApp message becomes a `MessageAction` → `Message`. Every identity is
+Each WhatsApp message becomes a `MessageAction` whose `result` is the `Message`,
+keyed by the message it sent. Every identity is
 keyed in the **`whatsapp`** namespace on its raw JID — a genuine WhatsApp-issued id,
 never synthesized — and the portable phone number rides along as a `sameAs` edge
 rather than being the primary key:
@@ -58,8 +59,9 @@ ingest); otherwise it's a **placeholder** with no bytes — WhatsApp Desktop kee
 only ~4% of media locally, so most are placeholders. Captions (stored in
 `ZWAMEDIAITEM.ZTITLE`, never `ZTEXT`) become the message body.
 
-Each attachment is keyed by its owning message's id (`@key:
-['@type','source','sourceId']`, `sourceId` = the message stanza id). A message has
+Each attachment is keyed by the message it's in (`@key:
+['@type','source','action.result.sourceId']`, the message's stanza id), rather than
+taking that id as its own. A message has
 exactly one attachment, and the stanza id is identical on this companion DB and on
 a future iPhone-backup DB — so a placeholder and the real file **collapse to one
 node** when the backup is ingested, the file simply adding `contentPath`. (The

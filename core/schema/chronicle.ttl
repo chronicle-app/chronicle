@@ -651,7 +651,7 @@
   rdfs:subClassOf :CreativeWork;
   skos:broadMatch schemaorg:SocialMediaPosting .
 :PublishAction a owl:Class;
-  rdfs:comment "The agent published or released the :object. The work's :datePublished is when this happened.";
+  rdfs:comment "The agent published or released a work, such as a post, a video, or a pull request. Its :result is the work, and the work's :datePublished is when this happened.";
   rdfs:subClassOf :CreateAction .
 :CreateAction a owl:Class;
   rdfs:comment "The agent brought a work into being. Its :result is the work. The subclasses name the kind of making.";

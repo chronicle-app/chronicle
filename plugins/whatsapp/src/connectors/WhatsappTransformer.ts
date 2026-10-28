@@ -31,12 +31,12 @@ export default class WhatsappTransformer extends ChronicleTransformer {
 
     return {
       '@type': 'MessageAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      // Keyed by the message it sent.
+      '@key': ['@type', 'source', 'result.sourceId'],
       source: 'whatsapp',
-      sourceId: ctx.stanzaId,
       timestamp: new Date(ctx.timestamp).toISOString() as any,
       agent,
-      object: this.buildMessage(record, recipients, channel),
+      result: this.buildMessage(record, recipients, channel),
     };
   }
 
@@ -176,7 +176,8 @@ export default class WhatsappTransformer extends ChronicleTransformer {
    * (bytes captured at ingest); otherwise it's a placeholder with no bytes —
    * WhatsApp Desktop keeps only ~4% of media locally, so most are placeholders.
    *
-   * Either way it is keyed by the owning message's `stanzaId`: a message has
+   * Either way it is keyed by the message it's in (`action.result.sourceId`,
+   * the message's `stanzaId`), not given that ID as its own: a message has
    * exactly one attachment, and the stanzaId is the same on this companion DB and
    * on a future iPhone-backup DB — so a placeholder and the real file collapse to
    * one node when the backup is ingested. (ZVCARDNAME content hashes are absent on
@@ -197,8 +198,7 @@ export default class WhatsappTransformer extends ChronicleTransformer {
     });
 
     mediaObject.source = 'whatsapp';
-    mediaObject.sourceId = ctx.stanzaId;
-    mediaObject['@key'] = ['@type', 'source', 'sourceId'];
+    mediaObject['@key'] = ['@type', 'source', 'action.result.sourceId'];
     return mediaObject;
   }
 }

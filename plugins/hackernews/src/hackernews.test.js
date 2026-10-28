@@ -77,11 +77,12 @@ const comment = (id, author, body, about) => ({
   author: [author],
   about: [about],
 });
+// An action is keyed by the post or comment it made.
+const madeKey = ['@type', 'source', 'result.sourceId'];
 const respond = (id, agent, object, result) => ({
   '@type': 'RespondAction',
-  '@key': key,
+  '@key': madeKey,
   source,
-  sourceId: String(id),
   timestamp: date(id),
   '@assertedAt': date(id),
   agent,
@@ -94,15 +95,14 @@ test('submissions become PublishActions of stories, Ask HN posts, and polls', as
   const { keys, actions } = await extract(HackerNewsSubmissionsExtractor);
 
   assert.deepEqual(keys, ['105', '103', '100']);
-  const publish = (id, object) => ({
+  const publish = (id, result) => ({
     '@type': 'PublishAction',
-    '@key': key,
+    '@key': madeKey,
     source,
-    sourceId: String(id),
     timestamp: date(id),
     '@assertedAt': date(id),
     agent: sam,
-    object,
+    result,
   });
   assert.deepEqual(actions, [
     publish(105, post(105, sam, { name: 'Favourite flour?' })),

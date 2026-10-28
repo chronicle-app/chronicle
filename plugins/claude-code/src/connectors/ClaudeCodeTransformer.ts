@@ -53,13 +53,13 @@ export default class ClaudeCodeTransformer extends ChronicleTransformer {
     return [
       {
         '@type': 'MessageAction',
-        '@key': BY_SOURCE_ID,
+        // Keyed by the message it sent.
+        '@key': ['@type', 'source', 'result.sourceId'],
         source: SOURCE,
-        sourceId: message.uuid,
         timestamp: new Date(message.timestamp),
         agent: author,
         ...(!human && { instrument: [this.model(message.model!)] }),
-        object: {
+        result: {
           '@type': 'Message',
           '@key': BY_SOURCE_ID,
           source: SOURCE,

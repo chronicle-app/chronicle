@@ -76,15 +76,15 @@ test('Gmail messages become emails in their thread, with labels, newest first', 
   // Yours, in reply to the message before it, in the thread.
   assert.deepEqual(reply, {
     '@type': 'MessageAction',
-    '@key': ['@type', 'source', 'sourceId'],
+    // Keyed by the message it sent.
+    '@key': ['@type', 'source', 'result.sourceId'],
     source: 'email',
-    sourceId: 'reply@example.com',
     timestamp: new Date('2025-03-02T09:00:00Z'),
     '@assertedAt': new Date('2025-03-02T09:00:00Z'),
     agent: owner,
     // Keyed by its Message-ID, without the angle brackets, as every copy is,
     // and held in the account.
-    object: {
+    result: {
       '@type': 'Message',
       '@key': ['@type', 'source', 'sourceId'],
       source: 'email',
@@ -108,15 +108,15 @@ test('Gmail messages become emails in their thread, with labels, newest first', 
   });
   // A quoted-printable body is decoded; you, as a recipient, are you; your
   // labels go by name, and read state isn't one.
-  assert.equal(plans.object.body, 'Café this weekend?');
+  assert.equal(plans.result.body, 'Café this weekend?');
   // No display name in the To header, so no name: only the address.
-  assert.deepEqual(plans.object.recipient, [person(OWNER, undefined, you)]);
+  assert.deepEqual(plans.result.recipient, [person(OWNER, undefined, you)]);
   assert.deepEqual(plans.agent, friend);
-  assert.deepEqual(plans.object.tags, ['Inbox', 'Starred', 'Work', 'Café']);
-  assert.deepEqual(plans.object.isPartOf, [thread]);
+  assert.deepEqual(plans.result.tags, ['Inbox', 'Starred', 'Work', 'Café']);
+  assert.deepEqual(plans.result.isPartOf, [thread]);
   // An HTML-only message's text, without the markup.
-  assert.equal(sale.object.body, 'Half off');
-  assert.deepEqual(sale.object.tags, ['Inbox', 'Category Promotions']);
+  assert.equal(sale.result.body, 'Half off');
+  assert.deepEqual(sale.result.tags, ['Inbox', 'Category Promotions']);
 });
 
 test('--sent and --label go by label ID, --query and the window by search', async t => {
@@ -167,7 +167,7 @@ test('a Takeout becomes the same messages and labels, in no account', async t =>
 
   // The mbox is oldest first, as Takeout writes it here; Spam is left out.
   const bySourceId = actions =>
-    Object.fromEntries(actions.map(action => [action.sourceId, action]));
+    Object.fromEntries(actions.map(action => [action.result.sourceId, action]));
   const api = bySourceId(fromApi.actions);
   const local = bySourceId(fromTakeout.actions);
   assert.deepEqual(Object.keys(local).sort(), Object.keys(api).sort());
@@ -181,17 +181,17 @@ test('a Takeout becomes the same messages and labels, in no account', async t =>
     source: 'gmail',
     sourceId: THREAD,
   };
-  const { inAccount: _inAccount, ...reply } = api['reply@example.com'].object;
+  const { inAccount: _inAccount, ...reply } = api['reply@example.com'].result;
   assert.deepEqual(local['reply@example.com'], {
     ...api['reply@example.com'],
     agent: me,
-    object: { ...reply, author: [byKey(me)], isPartOf: [threadById] },
+    result: { ...reply, author: [byKey(me)], isPartOf: [threadById] },
   });
-  const plans = local['plans@example.com'].object;
+  const plans = local['plans@example.com'].result;
   assert.deepEqual(plans.recipient, [person(OWNER, undefined, ['@me'])]);
   assert.deepEqual(plans.isPartOf, [threadById]);
   assert.deepEqual(plans.tags, ['Inbox', 'Starred', 'Work', 'Café']);
-  for (const action of fromTakeout.actions) assert.equal(action.object.inAccount, undefined);
+  for (const action of fromTakeout.actions) assert.equal(action.result.inAccount, undefined);
 });
 
 test('a Takeout never reads your contacts', async t => {
@@ -202,7 +202,7 @@ test('a Takeout never reads your contacts', async t => {
     linkContacts: true,
   });
   assert.ok(!requests.some(r => r.path === '/people/me/connections'));
-  assert.deepEqual(actions[0].object.recipient, [person(FRIEND, 'Test Friend')]);
+  assert.deepEqual(actions[0].result.recipient, [person(FRIEND, 'Test Friend')]);
 });
 
 test('a Takeout run filters each message itself', async t => {
@@ -237,13 +237,13 @@ test('--link-contacts links people to your contacts; without access, the run say
   await extract(GmailApiExtractor, { sent: true });
   assert.ok(!requests.some(r => r.path === '/people/me/connections'));
   const linked = await extract(GmailApiExtractor, { sent: true, linkContacts: true });
-  assert.deepEqual(linked.actions[0].object.recipient, [linkedFriend]);
+  assert.deepEqual(linked.actions[0].result.recipient, [linkedFriend]);
 });
 
 test('without Contacts access, linked people go unlinked and the run says how to link them', async t => {
   await fakeGmail(t, { noContacts: true });
   const { actions, events } = await extract(GmailApiExtractor, { sent: true, linkContacts: true });
-  assert.deepEqual(actions[0].object.recipient, [person(FRIEND, 'Test Friend')]);
+  assert.deepEqual(actions[0].result.recipient, [person(FRIEND, 'Test Friend')]);
   const hint = events.find(event => event.kind === 'hint');
   assert.match(hint.hint.action, /chronicle auth login google --add contacts/);
 });

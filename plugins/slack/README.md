@@ -55,7 +55,7 @@ chronicle extract slack --input ./my-slack-export --since 2024-01-01
 
 This plugin maps Slack data onto the following Chronicle types:
 
-- **Messages** → `MessageAction` whose `object` is a `Message` (`source: slack`, `body`, `author`, `recipient`)
+- **Messages** → `MessageAction` whose `result` is a `Message` (`source: slack`, `body`, `author`, `recipient`)
 - **Users** → `Agent` (resolved to a `handle` and `name` from `users.json`, group-DM metadata, and message profiles)
 - **File attachments** → `ImageObject` / `AudioObject` / `VideoObject` / `DocumentObject` (by MIME type), with `contentPath` to the locally exported file when available
 

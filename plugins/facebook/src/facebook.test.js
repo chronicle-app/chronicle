@@ -104,10 +104,10 @@ test('Messenger messages become schema-valid MessageActions', async t => {
       '@type': 'MessageAction',
       timestamp: iso(T0 + 5),
       '@assertedAt': iso(T0 + 5),
-      '@key': ['@type', 'source', 'timestamp', 'agent.name', 'object.body'],
+      '@key': ['@type', 'source', 'timestamp', 'agent.name', 'result.body'],
       source: 'facebook',
       agent: alex,
-      object: {
+      result: {
         '@type': 'Message',
         '@key': ['@type', 'source', 'body', 'recipient'],
         source: 'facebook',

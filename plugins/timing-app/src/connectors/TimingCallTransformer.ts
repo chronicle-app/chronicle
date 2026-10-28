@@ -77,9 +77,10 @@ export default class TimingCallTransformer extends ChronicleTransformer {
 
     return {
       '@type': 'CallAction',
-      '@key': ['@type', 'source', 'sourceId'],
+      // Keyed by its session, as the apple-call-history plugin keys a call, so
+      // the two fold into one call.
+      '@key': ['@type', 'source', 'result.sourceId'],
       source: SOURCE,
-      sourceId: ctx.uuid,
       startTime: secondsToISO(ctx.startSec),
       endTime: secondsToISO(ctx.endSec ?? ctx.startSec),
       result: session,

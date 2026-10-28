@@ -121,22 +121,32 @@ const filesystem = (type, file) => ({
     handle: MACHINE,
   },
 });
-const action = (type, sourceId, timestamp, rest) =>
+// An action has no ID of its own: a bookmark or a view is keyed by what it
+// saved or opened, and a quote or a note by what it made. A comment on a
+// highlight is keyed by the quotation it's about.
+const actionKey = (type, rest) => {
+  if (type === 'ViewAction') {
+    return ['@type', 'source', 'object.sourceId', 'object.inRealm.handle', 'timestamp'];
+  }
+  if (type === 'BookmarkAction')
+    return ['@type', 'source', 'object.sourceId', 'object.inRealm.handle'];
+  return rest.result?.sourceId === undefined
+    ? ['@type', 'source', 'result.about[*].sourceId', 'result.inRealm.handle']
+    : ['@type', 'source', 'result.sourceId', 'result.inRealm.handle'];
+};
+const action = (type, timestamp, rest) =>
   snapshot({
     '@type': type,
-    '@key':
-      type === 'ViewAction'
-        ? ['@type', 'source', 'sourceId', 'object.inRealm.handle', 'timestamp']
-        : type === 'BookmarkAction'
-          ? ['@type', 'source', 'sourceId', 'object.inRealm.handle']
-          : ['@type', 'source', 'sourceId', 'result.inRealm.handle'],
+    '@key': actionKey(type, rest),
     source: 'zotero',
-    sourceId,
     timestamp: new Date(timestamp),
     agent: me,
     ...rest,
   });
 const expected = node => ({ ...node, '@assertedAt': assertedAt });
+// What an action is about, by its ID: what it saved or opened, what it made, or
+// the quotation a comment on a highlight is about.
+const idOf = a => a.object?.sourceId ?? a.result.sourceId ?? a.result.about[0].sourceId;
 
 test('a Zotero library becomes schema-valid actions', async t => {
   const dir = fixture(t);
@@ -147,7 +157,7 @@ test('a Zotero library becomes schema-valid actions', async t => {
   // first. Trashed items, anything under them, and group libraries are left
   // out, as are annotations with neither text nor a comment.
   assert.deepEqual(
-    out.map(a => `${a['@type']} ${a.sourceId}`),
+    out.map(a => `${a['@type']} ${idOf(a)}`),
     [
       'BookmarkAction WORKAAAA',
       'ViewAction ATTPDF01',
@@ -164,14 +174,14 @@ test('a Zotero library becomes schema-valid actions', async t => {
       'AnnotateAction NOTE0001',
     ]
   );
-  const find = (type, sourceId) => out.find(a => a['@type'] === type && a.sourceId === sourceId);
+  const find = (type, sourceId) => out.find(a => a['@type'] === type && idOf(a) === sourceId);
 
   // The work carries its fields, creators, protocol sameAs edges, periodical,
   // nested collections, and tags. seriesEditor is skipped.
   assert.deepEqual(
     find('BookmarkAction', 'WORKAAAA'),
     expected(
-      action('BookmarkAction', 'WORKAAAA', '2025-01-10T08:00:00.000Z', {
+      action('BookmarkAction', '2025-01-10T08:00:00.000Z', {
         object: {
           ...article,
           description: 'How foot traffic wears down alpine trails.',
@@ -228,7 +238,7 @@ test('a Zotero library becomes schema-valid actions', async t => {
   assert.deepEqual(
     find('ViewAction', 'ATTPDF01'),
     expected(
-      action('ViewAction', 'ATTPDF01', new Date(READ_1 * 1000).toISOString(), {
+      action('ViewAction', new Date(READ_1 * 1000).toISOString(), {
         object: {
           ...ref('DocumentObject', 'ATTPDF01'),
           mimeType: 'application/pdf',
@@ -238,7 +248,7 @@ test('a Zotero library becomes schema-valid actions', async t => {
       })
     )
   );
-  assert.equal(out.filter(a => a.sourceId === 'ATTSNAP1').length, 0);
+  assert.equal(out.filter(a => idOf(a) === 'ATTSNAP1').length, 0);
 
   // A book: ISBN-10 becomes ISBN-13, and pageCount and publisher are set.
   const book = ref('Book', 'BOOKAAAA', 'Collected Trails');
@@ -246,7 +256,7 @@ test('a Zotero library becomes schema-valid actions', async t => {
   assert.deepEqual(
     find('BookmarkAction', 'BOOKAAAA'),
     expected(
-      action('BookmarkAction', 'BOOKAAAA', '2024-11-05T10:00:00.000Z', {
+      action('BookmarkAction', '2024-11-05T10:00:00.000Z', {
         object: {
           ...book,
           datePublished: '2019',
@@ -272,7 +282,7 @@ test('a Zotero library becomes schema-valid actions', async t => {
   assert.deepEqual(
     find('ViewAction', 'BOOKATT1'),
     expected(
-      action('ViewAction', 'BOOKATT1', new Date(READ_2 * 1000).toISOString(), {
+      action('ViewAction', new Date(READ_2 * 1000).toISOString(), {
         object: {
           ...ref('DocumentObject', 'BOOKATT1'),
           mimeType: 'application/pdf',
@@ -303,22 +313,33 @@ test('a Zotero library becomes schema-valid actions', async t => {
       },
     ],
   };
-  const comment = (sourceId, rest) => ({
-    '@type': 'Comment',
-    '@key': ['@type', 'source', 'sourceId', 'inRealm.handle'],
-    source: 'zotero',
-    sourceId,
-    inRealm: library,
-    ...rest,
-  });
+  // A comment on a highlight is keyed by the quotation it's about; one on its
+  // own has the annotation's key.
+  const comment = (sourceId, rest) =>
+    rest.about?.[0]['@type'] === 'Quotation'
+      ? {
+          '@type': 'Comment',
+          '@key': ['@type', 'source', 'about[*].sourceId', 'inRealm.handle'],
+          source: 'zotero',
+          inRealm: library,
+          ...rest,
+        }
+      : {
+          '@type': 'Comment',
+          '@key': ['@type', 'source', 'sourceId', 'inRealm.handle'],
+          source: 'zotero',
+          sourceId,
+          inRealm: library,
+          ...rest,
+        };
   assert.deepEqual(
     find('QuoteAction', 'ANNOPDF1'),
-    expected(action('QuoteAction', 'ANNOPDF1', '2025-01-11T09:00:00.000Z', { result: quotation }))
+    expected(action('QuoteAction', '2025-01-11T09:00:00.000Z', { result: quotation }))
   );
   assert.deepEqual(
     find('AnnotateAction', 'ANNOPDF1'),
     expected(
-      action('AnnotateAction', 'ANNOPDF1', '2025-01-11T09:00:00.000Z', {
+      action('AnnotateAction', '2025-01-11T09:00:00.000Z', {
         result: comment('ANNOPDF1', { description: 'Check the 2023 data.', about: [quotation] }),
       })
     )
@@ -359,7 +380,7 @@ test('a Zotero library becomes schema-valid actions', async t => {
   assert.deepEqual(
     find('BookmarkAction', 'ORPHAN01'),
     expected(
-      action('BookmarkAction', 'ORPHAN01', '2025-01-20T12:00:00.000Z', {
+      action('BookmarkAction', '2025-01-20T12:00:00.000Z', {
         object: {
           ...epub,
           mimeType: 'application/epub+zip',
@@ -381,16 +402,14 @@ test('a Zotero library becomes schema-valid actions', async t => {
   );
   assert.deepEqual(
     find('ViewAction', 'ORPHAN01'),
-    expected(
-      action('ViewAction', 'ORPHAN01', new Date(READ_1 * 1000).toISOString(), { object: epub })
-    )
+    expected(action('ViewAction', new Date(READ_1 * 1000).toISOString(), { object: epub }))
   );
 
   // Note items keep Zotero's HTML verbatim; a child note is about its work.
   assert.deepEqual(
     find('AnnotateAction', 'NOTE0001'),
     expected(
-      action('AnnotateAction', 'NOTE0001', '2025-01-12T18:00:00.000Z', {
+      action('AnnotateAction', '2025-01-12T18:00:00.000Z', {
         result: comment('NOTE0001', {
           body: '<div data-schema-version="9"><p>Reading notes</p><p>Useful for the talk.</p></div>',
           name: 'Reading notes',
@@ -428,7 +447,7 @@ test('since, until, and limit filter on each item’s dateModified', async t => 
   // The limit counts records across every record type.
   const limited = await actions({ input: join(dir, 'zotero.sqlite'), limit: 2 });
   assert.deepEqual(
-    limited.map(a => a.sourceId),
+    limited.map(a => idOf(a)),
     ['WORKAAAA', 'ATTPDF01', 'SECTION1']
   );
 });
