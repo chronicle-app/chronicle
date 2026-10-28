@@ -293,18 +293,15 @@ test('an event’s agent is who put it on the calendar, and you are the signed-i
 
   const { actions } = await extract();
   const plan = name => actions.find(action => action.object.name === name);
-  assert.ok(actions.every(action => action.agent));
+  // Only the event that names no one, on a calendar that isn't an account's own, has no agent.
+  assert.deepEqual(
+    actions.filter(action => !action.agent).map(action => action.object.name),
+    ['unnamed']
+  );
   // Its owner, not you, though Google marks them as the calendar's.
   assert.deepEqual(plan('theirs').agent, person(PARTNER));
   assert.deepEqual(plan('made').agent, person(OWNER, undefined, { sameAs: you }));
   assert.deepEqual(plan('imported').agent, person(OWNER, undefined, { sameAs: you }));
-  assert.deepEqual(plan('unnamed').agent, {
-    '@type': 'Agent',
-    '@key': ['@type', 'source', 'sourceId'],
-    source: 'google-calendar',
-    sourceId: TEAM,
-    name: 'Work',
-  });
   assert.deepEqual(plan('alias').object.attendee, [
     person('alias@example.com', undefined, { sameAs: you }),
   ]);

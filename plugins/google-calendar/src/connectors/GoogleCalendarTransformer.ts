@@ -42,18 +42,17 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
       account: account ?? (calendar.primary ? calendar.id.toLowerCase() : undefined),
     };
 
-    // Who put it on the calendar, always someone: its organizer, unless
-    // that's a calendar (Google makes a calendar the organizer of events
-    // created on it), else its creator, else the calendar's owner when it's
-    // an account's own calendar, else (an event with neither, on a calendar
-    // made in an account) the calendar itself.
+    // Who put it on the calendar: its organizer, unless that's a calendar
+    // (Google makes a calendar the organizer of events created on it), else
+    // its creator, else the calendar's owner when it's an account's own
+    // calendar. An event with neither on any other calendar, such as a
+    // holiday or a subscribed feed's, names no one, so it has no agent.
     const person = (who?: EventPerson) =>
       who?.email && !CALENDAR_ID.test(who.email) ? who : undefined;
     const organizer =
       this.buildAgent(person(event.organizer), context) ??
       this.buildAgent(person(event.creator), context) ??
-      this.buildAgent(person({ email: calendar.id }), context) ??
-      this.calendarAgent(calendar);
+      this.buildAgent(person({ email: calendar.id }), context);
 
     const plan: PlanAction = {
       '@type': 'PlanAction',
@@ -62,7 +61,7 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
       source: ICALENDAR,
       // When it was put on the calendar; the event carries when it happens.
       timestamp: plannedAt(event),
-      agent: organizer,
+      ...(organizer && { agent: organizer }),
       object: this.buildEvent(event, context),
     };
     return [plan];
@@ -103,17 +102,6 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
       ...(event.location && { location: { '@type': 'Location', address: event.location } }),
       isPartOf: [calendarCollection(calendar)],
       ...(attendees.length > 0 && { attendee: attendees }),
-    };
-  }
-
-  /** A calendar made in an account, as the agent of an event no one is named for. */
-  private calendarAgent(calendar: EventRecord['calendar']): Agent {
-    return {
-      '@type': 'Agent',
-      '@key': ['@type', 'source', 'sourceId'],
-      source,
-      sourceId: calendar.id,
-      ...(namedOtherThan(calendar.summary, calendar.id) && { name: calendar.summary }),
     };
   }
 
