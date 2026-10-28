@@ -54,9 +54,6 @@ import { terminal } from './full-disk-access.js';
 /** Longest a survey may take before its count is left out. */
 const SURVEY_TIMEOUT_MS = 30_000;
 
-/** How long the scan waits for counts once it's done, before going on without them. */
-const COUNT_GRACE_MS = 10_000;
-
 /** Local midnight a year ago: where what setup extracts starts. */
 function yearAgo(now = new Date()): Date {
   const since = new Date(now);
@@ -89,6 +86,8 @@ const rowKey = (row: ScanRow) => targetKey(targetFor(row, []));
 
 /** The value of the picker's row that looks in another folder. */
 const ANOTHER = '';
+/** The value of the folder question's row that looks in none; a folder's is its whole path. */
+const NOWHERE = 'nowhere';
 
 /**
  * `chronicle setup [folder…]`: find what this Mac holds, in folders of
@@ -211,13 +210,14 @@ export default class Setup extends BaseCommand<typeof Setup> {
         }
       }
       await this.lookAround();
+      if (!(await this.allowAccess())) return;
       let more = !this.settings.targets?.length || folders.length > 0;
       if (!more) {
         await this.checklist(root);
         more = await this.lookForMore();
       }
       if (more) {
-        if (!(await this.pickSources(folders))) return;
+        await this.pickSources(folders);
         await this.pickAccounts();
       }
       await this.extract(root, await this.fixAll());
@@ -283,9 +283,8 @@ export default class Setup extends BaseCommand<typeof Setup> {
 
   /**
    * Look around this computer, showing at a terminal what's found as it's
-   * found, and what each holds as it's counted. Done once the scan is and
-   * the counts have answered, or had a few seconds more; any still counting
-   * fill in later.
+   * found. Done once the scan is: what each holds is counted after, while
+   * the questions are up, so counting doesn't hold up the scan.
    */
   private async lookAround(): Promise<void> {
     const title = 'Looking around this computer';
@@ -305,7 +304,6 @@ export default class Setup extends BaseCommand<typeof Setup> {
             )
           )
         : undefined;
-    const counting: Promise<unknown>[] = [];
     this.redraw = () => live?.redraw();
     this.print(['']);
     live?.start();
@@ -315,25 +313,14 @@ export default class Setup extends BaseCommand<typeof Setup> {
         PluginScanner.scanAllPlugins(),
       ]);
       const { rows } = await scan({
-        onSource: ({ rows: more, done, total }) => {
+        onSource({ rows: more, done, total }) {
           const offered = more.filter(row => OFFERED.has(row.status));
           found.push(...offered);
-          counting.push(...this.countRows(offered));
           progress = `Checked ${count(done)} of ${count(total)} sources`;
           live?.redraw();
         },
       });
       this.rows = rows;
-      progress = 'Counting what each holds';
-      live?.redraw();
-      let grace: NodeJS.Timeout | undefined;
-      await Promise.race([
-        Promise.allSettled(counting),
-        new Promise(done => {
-          grace = setTimeout(done, COUNT_GRACE_MS);
-        }),
-      ]);
-      clearTimeout(grace);
     } finally {
       live?.stop();
       this.redraw = undefined;
@@ -344,6 +331,33 @@ export default class Setup extends BaseCommand<typeof Setup> {
         ? `Found ${count(sources)} ${plural('sources', sources)} on this computer`
         : 'Found nothing on this computer to extract'
     );
+  }
+
+  /**
+   * Straight after the scan, before anything's counted: when it found
+   * sources macOS keeps from the terminal, offer Full Disk Access, which
+   * takes reopening the terminal. Those skipped before aren't asked about
+   * again. False when reopening is next.
+   */
+  private async allowAccess(): Promise<boolean> {
+    if (process.platform !== 'darwin' || !this.asking) return true;
+    const skipped = this.settings.skipped ?? [];
+    const blocked = this.rows.filter(
+      row => row.status === 'blocked' && !skipped.some(target => reads(target, row))
+    );
+    const names = unique(blocked.map(row => row.source));
+    if (names.length === 0) return true;
+    const { confirm } = await import('../../output/prompts.js');
+    const { confirmed, cancelled: stopped } = await confirm(
+      `${names.join(', ')} ${names.length === 1 ? 'needs' : 'need'} Full Disk Access. Turn it on now?`,
+      { defaultValue: true, theme: this.flags.theme }
+    );
+    if (stopped) throw cancelled();
+    if (!confirmed) return true;
+    await this.config.runCommand('setup:full-disk-access', []);
+    const { app } = await terminal();
+    this.hint(`Quit ${app} and open it again, then run \`chronicle setup\` to continue.`);
+    return false;
   }
 
   /** After a plugin is installed: its sources, extractors, and what they find. */
@@ -503,13 +517,11 @@ export default class Setup extends BaseCommand<typeof Setup> {
   /**
    * Count what each ready row holds, every record of the kinds it would
    * extract, each filling in as its survey answers. An export isn't counted
-   * here, since that means reading all of it; a database is. The counts
-   * under way, to wait for.
+   * here, since that means reading all of it; a database is.
    */
-  private countRows(rows: ScanRow[]): Promise<unknown>[] {
-    const counting: Promise<unknown>[] = [];
+  private countRows(rows: ScanRow[]): void {
     // Only a person at a terminal sees them.
-    if (!this.asking || this.flags.quiet) return counting;
+    if (!this.asking || this.flags.quiet) return;
     for (const row of rows) {
       const pool = (this.extractors.get(row.source) ?? []).filter(e => e.strategy === row.strategy);
       const local = pool.length > 0 && pool.every(e => e.delivery !== 'api');
@@ -518,7 +530,7 @@ export default class Setup extends BaseCommand<typeof Setup> {
       this.held.set(row, undefined);
       const survey = surveyRow(row, this.extractors);
       this.surveys.push(survey);
-      const counted = within(survey, SURVEY_TIMEOUT_MS).then(
+      within(survey, SURVEY_TIMEOUT_MS).then(
         answer => {
           const kinds = this.rowKinds(row);
           const parts = Object.entries(answer ?? {}).filter(
@@ -533,9 +545,7 @@ export default class Setup extends BaseCommand<typeof Setup> {
           this.redraw?.();
         }
       );
-      counting.push(counted);
     }
-    return counting;
   }
 
   /**
@@ -709,7 +719,9 @@ export default class Setup extends BaseCommand<typeof Setup> {
   /**
    * Which folders to look in for exports: Downloads, checked until a run
    * leaves it out, and those saved or named, checked. "Another folder…"
-   * adds one, checked, and asks again. Without asking, those saved or named.
+   * adds one, checked, and asks again. "Don't look in any folders" takes
+   * none, and is checked when nothing else is. Without asking, those saved
+   * or named.
    */
   private async chooseFolders(given: string[]): Promise<string[]> {
     const saved = this.settings.folders;
@@ -725,11 +737,16 @@ export default class Setup extends BaseCommand<typeof Setup> {
         [
           ...offered.map(folder => ({ label: fromHome(folder, this.home), value: folder })),
           { label: `Another folder${glyphs.ellipsis}`, value: ANOTHER, action: true },
+          { label: "Don't look in any folders", value: NOWHERE, alone: true },
         ],
-        { initial: chosen, none: true, theme: this.flags.theme }
+        {
+          initial: chosen.length > 0 ? chosen : [NOWHERE],
+          none: true,
+          theme: this.flags.theme,
+        }
       );
       if (result.cancelled) throw cancelled();
-      chosen = result.values.filter(value => value !== ANOTHER);
+      chosen = result.values.filter(value => value !== ANOTHER && value !== NOWHERE);
       if (!result.values.includes(ANOTHER)) return chosen;
       const folder = await this.askFolder();
       if (!folder) continue;
@@ -743,10 +760,8 @@ export default class Setup extends BaseCommand<typeof Setup> {
    * computer, and the exports in the folders picked to look in. How much each
    * holds fills in while the questions are up. Looking in another folder
    * from the list adds what's there and asks again, keeping what was picked.
-   * A pick macOS keeps from the terminal offers Full Disk Access, which
-   * takes reopening the terminal: false when that's next.
    */
-  private async pickSources(given: string[]): Promise<boolean> {
+  private async pickSources(given: string[]): Promise<void> {
     const here = this.rows.filter(row => OFFERED.has(row.status));
     // Counted while the folders are picked.
     this.countRows(here);
@@ -773,21 +788,6 @@ export default class Setup extends BaseCommand<typeof Setup> {
     }
     this.settings.folders = folders;
     await this.adopt(offers, picked);
-
-    const blocked = picked.filter(o => o.row.status === 'blocked');
-    if (blocked.length === 0 || process.platform !== 'darwin' || !this.asking) return true;
-    const names = unique(blocked.map(o => o.row.source)).join(', ');
-    const { confirm } = await import('../../output/prompts.js');
-    const { confirmed, cancelled: stopped } = await confirm(
-      `${names} ${blocked.length === 1 ? 'needs' : 'need'} Full Disk Access. Turn it on now?`,
-      { defaultValue: true, theme: this.flags.theme }
-    );
-    if (stopped) throw cancelled();
-    if (!confirmed) return true;
-    await this.config.runCommand('setup:full-disk-access', []);
-    const { app } = await terminal();
-    this.hint(`Quit ${app} and open it again, then run \`chronicle setup\` to continue.`);
-    return false;
   }
 
   /**

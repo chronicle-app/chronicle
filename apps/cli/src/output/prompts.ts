@@ -30,6 +30,12 @@ export interface SelectOption {
    * else: Enter on it answers with what's selected and it. It can't be selected.
    */
   action?: boolean;
+  /**
+   * In a multiSelect, a choice that stands alone, like none of the others:
+   * selecting it clears the rest, and selecting another clears it. It's set
+   * apart from those above it by a rule.
+   */
+  alone?: boolean;
 }
 
 /** Hides the terminal's cursor while a list is up; the prompt shows it again when done. */
@@ -305,13 +311,15 @@ function choices(
   chosen: string[],
   cursor?: number
 ) {
-  const rows = options.map((option, i) => {
+  const rule = t.muted(`  ${'─'.repeat(Math.max(...options.map(o => o.label.length)) + 2)}`);
+  const rows = options.flatMap((option, i) => {
     const mark = option.action
       ? ' '
       : chosen.includes(option.value)
         ? glyphs.chosen
         : glyphs.unchosen;
-    return optionRow(t, option, i === cursor, `${mark} `);
+    const row = optionRow(t, option, i === cursor, `${mark} `);
+    return option.alone && i > 0 && !options[i - 1].alone ? [rule, row] : [row];
   });
   return `${t.strong(message)}\n\n${rows.join('\n')}`;
 }
@@ -320,7 +328,8 @@ function choices(
  * Space toggles the highlighted option, and Enter starts: with nothing
  * toggled it takes just the highlighted one, so a single pick is one key,
  * or with `none`, nothing. Enter on an action takes what's toggled and the
- * action. `a` toggles all, `d` selects the defaults. (Shift+Enter can't be
+ * action. A choice that stands alone clears the others when it's toggled,
+ * and they it. `a` toggles all but those, `d` selects the defaults. (Shift+Enter can't be
  * told from Enter in most terminals, so it isn't used.)
  */
 const multiSelectPrompt = createPrompt<
@@ -353,12 +362,17 @@ const multiSelectPrompt = createPrompt<
     if (isUp(key)) setCursor(cursor > 0 ? cursor - 1 : options.length - 1);
     else if (isDown(key)) setCursor(cursor < options.length - 1 ? cursor + 1 : 0);
     else if (isSpaceKey(key)) {
-      const { value, action } = options[cursor];
+      const { value, action, alone } = options[cursor];
       if (action) return;
-      setChosen(chosen.includes(value) ? chosen.filter(v => v !== value) : [...chosen, value]);
+      const apart = new Set(options.filter(option => option.alone).map(option => option.value));
+      if (chosen.includes(value)) setChosen(chosen.filter(v => v !== value));
+      else if (alone) setChosen([value]);
+      else setChosen([...chosen.filter(v => !apart.has(v)), value]);
     } else if (key.name === 'a') {
-      const choosable = options.filter(option => !option.action).map(option => option.value);
-      setChosen(chosen.length === choosable.length ? [] : choosable);
+      const choosable = options
+        .filter(option => !option.action && !option.alone)
+        .map(option => option.value);
+      setChosen(choosable.every(v => chosen.includes(v)) ? [] : choosable);
     } else if (key.name === 'd' && defaults.length > 0) {
       setChosen(defaults);
     } else if (isEnterKey(key)) {

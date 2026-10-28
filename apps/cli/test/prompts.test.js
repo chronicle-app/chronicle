@@ -118,6 +118,17 @@ test('multiSelect takes the toggled options, or the highlighted one, or the defa
   });
   assert.deepEqual(acted.values, ['notes', 'more']);
   assert.match(acting.drawn(), /notes 3 notes/);
+
+  // A choice that stands alone clears the others, under a rule, and
+  // another clears it.
+  const apart = [...OPTIONS, { label: 'none of them', value: 'nothing', alone: true }];
+  const alone = typing('k', ' ', '\r');
+  const nothing = await multiSelect('Which?', apart, { initial: ['notes', 'tags'], ...alone });
+  assert.deepEqual(nothing.values, ['nothing']);
+  assert.match(alone.drawn(), /○ links\n {2}─+\n {2}◉ none of them\n$/);
+  const other = typing(' ', '\r');
+  const notes = await multiSelect('Which?', apart, { initial: ['nothing'], ...other });
+  assert.deepEqual(notes.values, ['notes']);
 });
 
 test('Ctrl+C cancels a question and leaves nothing of it', async () => {
