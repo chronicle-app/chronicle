@@ -16,7 +16,9 @@
     "build": "tsc -b tsconfig.lib.json",
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint src scripts --ext .ts,.js",
-    "test": "node scripts/check-generated.js && vitest run"
+    "test": "node scripts/check-generated.js && vitest run",
+    "load": "tsc -b tsconfig.lib.json && node scripts/load.js",
+    "query": "tsc -b tsconfig.lib.json && node scripts/query.js"
   },
   "author": "Andrew Louis",
   "license": "MIT",
