@@ -18,7 +18,7 @@ styled. Commands, loaders, and sinks build their text from this module.
   readable columns hiding schema properties). See
   [Writing messages](#writing-messages).
 - **No boxes, no `====` underlines, no emoji.** One glyph set (`glyphs`):
-  `✓ ✗ ! · → ↳ ━ ─ …`, braille spinner frames, `❯ ◉ ○` for pickers, and
+  `✓ ✗ ! · → ↳ ✦ ━ ─ …`, braille spinner frames, `❯ ◉ ○` for pickers, and
   `▁▂▃▄▅▆▇█` for sparklines, a column high by eighths of a row.
 - **Color only carries meaning** (`tokens`): status (`success`, `danger`,
   `warning`), emphasis (`strong`), de-emphasis (`muted`), one `accent` (the
@@ -40,7 +40,7 @@ Write the way a person would say it at a terminal: short, plain sentences.
 
 ```
 ✗ Error: hackernews has no record type "likes"
-  ↳ Run `chronicle extract hackernews --list-types` to see what it has.
+  ✦ Run `chronicle extract hackernews --list-types` to see what it has.
 ```
 
 - **The error says what happened**, in a few words, with no period and no

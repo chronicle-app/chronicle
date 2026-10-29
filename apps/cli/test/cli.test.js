@@ -247,10 +247,10 @@ test('raw extraction, four output loaders, file output and stream mode', t => {
     Array.from({ length: 101 }, (_, i) => `: ${1700000000 + i}:0;echo ${i}\n`).join('')
   );
   const capped = run('extract', 'shell', '--input', long, '--raw', '--output', 'stdout');
-  assert.match(capped.stderr, /100 commands\n.*↳ .*--limit 0/);
+  assert.match(capped.stderr, /100 commands\n.*✦ .*--limit 0/);
   // With a count from the source (a streamed run asks), the hint says how many there are.
   const counted = run('extract', 'shell', '--input', long, '--raw', '--stream');
-  assert.match(counted.stderr, /↳ .*101.*--limit 0/);
+  assert.match(counted.stderr, /✦ .*101.*--limit 0/);
   // The default limit that didn't cut anything short gets no hint.
   const exact = join(dir, 'exact-history');
   writeFileSync(
@@ -1392,13 +1392,13 @@ test('scan finds the exports in a folder or zip, with the command that reads eac
   const broken = join(root, 'broken.zip', 'apple_health_export');
   const unopened = scan('survey', 'apple-health', '--input', broken);
   assert.equal(unopened.status, 4);
-  assert.match(unopened.stderr, /↳ .*`--input <path>`/);
+  assert.match(unopened.stderr, /✦ .*`--input <path>`/);
   if (process.getuid?.() !== 0) {
     chmodSync(join(root, 'export.zip'), 0o000);
     try {
       const refused = scan('survey', 'apple-health', '--input', inZip);
       assert.equal(refused.status, 4);
-      assert.match(refused.stderr, /↳ .*permissions/);
+      assert.match(refused.stderr, /✦ .*permissions/);
     } finally {
       chmodSync(join(root, 'export.zip'), 0o644);
     }
@@ -1667,7 +1667,7 @@ test('unsupported loader and missing input file fail without success output, eve
     chmodSync(locked, 0o000);
     const refused = run('extract', 'shell', '--input', locked);
     assert.equal(refused.status, 4);
-    assert.match(refused.stderr, /Can't read the shell history.*\n.*↳ .*permissions/);
+    assert.match(refused.stderr, /Can't read the shell history.*\n.*✦ .*permissions/);
   }
 });
 

@@ -5,7 +5,10 @@ export const glyphs = {
   warning: '!',
   bullet: '·',
   arrow: '→',
+  // A live line's current item, under it.
   child: '↳',
+  // What to do next, under what it follows.
+  hint: '✦',
   bar: '━',
   rule: '─',
   ellipsis: '…',
