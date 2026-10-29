@@ -3,6 +3,7 @@ import { BaseCommand } from '../../baseCommand.js';
 import { DELIVERY } from '../../help/render.js';
 import { card, definitions, heading, line, stdoutWidth, tokens } from '../../output/index.js';
 import { listSources } from '../../plugins/catalog.js';
+import { bareRunStrategy } from '../../utils/recordKinds.js';
 import { PLATFORM_NAMES } from '../../utils/sourcesTable.js';
 
 export default class SourcesInfo extends BaseCommand<typeof SourcesInfo> {
@@ -28,6 +29,7 @@ export default class SourcesInfo extends BaseCommand<typeof SourcesInfo> {
     }
 
     const types = [...new Set(listing.strategies.flatMap(strategy => strategy.recordTypes))];
+    const chosen = bareRunStrategy(listing.strategies, strategy => Boolean(strategy.default));
     const runsOn = listing.platforms.map(p => PLATFORM_NAMES[p] ?? p).join(', ');
     // Full Disk Access is macOS's to grant; elsewhere it asks nothing.
     const needs = listing.requires.filter(
@@ -64,7 +66,7 @@ export default class SourcesInfo extends BaseCommand<typeof SourcesInfo> {
     for (const entry of definitions(
       listing.strategies.map(strategy => ({
         term: [[strategy.name, t.command]],
-        text: `${DELIVERY[strategy.delivery] ?? strategy.delivery}.${strategy.default ? ' The default.' : ''}`,
+        text: `${DELIVERY[strategy.delivery] ?? strategy.delivery}.${strategy === chosen ? ' The default.' : ''}`,
       })),
       t,
       width
@@ -77,7 +79,7 @@ export default class SourcesInfo extends BaseCommand<typeof SourcesInfo> {
       return;
     }
     // Point at a strategy a bare run would not take.
-    const alternate = listing.strategies.find(strategy => !strategy.default);
+    const alternate = listing.strategies.find(strategy => strategy !== chosen);
     this.hint(
       listing.strategies.length > 1 && alternate
         ? `Run \`chronicle extract ${args.source}\` to extract it, or ` +

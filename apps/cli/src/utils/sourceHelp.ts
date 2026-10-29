@@ -1,9 +1,13 @@
 import { BaseCommand } from '../baseCommand.js';
 import { sourceHelp, helpWidth, type FlagLike, type SourceHelpInput } from '../help/render.js';
 import { tokens } from '../output/index.js';
-import { defaultKinds } from './recordKinds.js';
+import { bareRunStrategy, defaultKinds } from './recordKinds.js';
 import { FlagManager } from './FlagManager.js';
-import { strategiesOf, type ExtractorMetadata } from '../plugins/PluginScanner.js';
+import {
+  strategiesOf,
+  type ExtractorMetadata,
+  type StrategyInfo,
+} from '../plugins/PluginScanner.js';
 
 // Global/base flags (limit, since, loader, etc.) — excluded from the per-source
 // flag list so help shows only what's specific to the source.
@@ -64,6 +68,11 @@ export function renderRecordTypes(candidates: ExtractorMetadata[]): string {
     .join('\n');
 }
 
+/** The strategy whose defaults a bare run reads, mirroring ExtractorSelector. */
+function defaultStrategy(strategies: StrategyInfo[]): StrategyInfo | undefined {
+  return bareRunStrategy(strategies, s => s.extractors.some(e => e.default));
+}
+
 /**
  * What a run without kinds reads, mirroring ExtractorSelector: the default
  * strategy's (or the only one's) declared default kinds. Undefined when the
@@ -71,7 +80,7 @@ export function renderRecordTypes(candidates: ExtractorMetadata[]): string {
  */
 function bareRunKinds(candidates: ExtractorMetadata[]): string[] | undefined {
   const strategies = strategiesOf(candidates);
-  const chosen = strategies.find(s => s.extractors.some(e => e.default)) ?? strategies[0];
+  const chosen = defaultStrategy(strategies) ?? strategies[0];
   const kinds = chosen ? defaultKinds(chosen.extractors) : [];
   return kinds.length > 0 ? kinds : undefined;
 }
@@ -89,7 +98,7 @@ export function recordTypesHint(
 ): { message: string; action: string } | undefined {
   if (new Set(candidates.flatMap(e => e.recordType)).size <= 1) return undefined;
   const strategies = strategiesOf(candidates);
-  const chosen = strategies.find(s => s.extractors.some(e => e.default)) ?? strategies[0];
+  const chosen = defaultStrategy(strategies) ?? strategies[0];
   const strategy = strategies.length > 1 ? ` --strategy ${chosen.name}` : '';
   const bare = bareRunKinds(candidates) ?? [];
   const others = chosen.recordTypes.filter(kind => !bare.includes(kind));
@@ -127,13 +136,15 @@ export function describeSource(
   const kinds = bareRunKinds(candidates);
   const commonFlags = help?.flags ?? BASE_FLAGS;
   const all = new Set(candidates.flatMap(e => e.recordType));
+  const strategies = strategiesOf(candidates);
+  const chosen = defaultStrategy(strategies);
   return {
     source,
     verb,
-    strategies: strategiesOf(candidates).map(s => ({
+    strategies: strategies.map(s => ({
       name: s.name,
       delivery: s.delivery,
-      default: s.extractors.some(e => e.default),
+      default: s === chosen,
       recordTypes: s.recordTypes,
     })),
     flags: sourceFlagInfos(candidates).map(f => ({
