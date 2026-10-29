@@ -6,6 +6,7 @@ import { FULL_DISK_ACCESS, segmentPattern } from '@chronicle.app/etl';
 import { BaseCommand } from '../baseCommand.js';
 import { LiveRegion, count, glyphs, plural, stdoutWidth, table, tokens } from '../output/index.js';
 import { listSources } from '../plugins/catalog.js';
+import type { ExtractorMetadata } from '../plugins/PluginScanner.js';
 import {
   fromHome,
   isPathArgument,
@@ -15,6 +16,7 @@ import {
   type PathScanResult,
   type ScanRow,
 } from '../plugins/scan.js';
+import { surveyable } from '../plugins/survey.js';
 import { PLATFORM_NAMES } from '../utils/sourcesTable.js';
 
 /** What stands in a row's way, as the table says it, or `ready`. */
@@ -208,7 +210,7 @@ export default class Scan extends BaseCommand<typeof Scan> {
       }
     }
 
-    const { rows, looked } = await scan({ source });
+    const { rows, looked, extractors } = await scan({ source });
     if (this.printed(rows)) return;
 
     if (rows.length === 0) {
@@ -242,7 +244,7 @@ export default class Scan extends BaseCommand<typeof Scan> {
       `Found ${count(sources)} ${plural('sources', sources)}` +
         (rows.length > sources ? ` in ${count(rows.length)} places` : '')
     );
-    this.hints(rows, ['chronicle survey', source].filter(Boolean).join(' '));
+    this.hints(rows, extractors, ['chronicle survey', source].filter(Boolean).join(' '));
   }
 
   /**
@@ -304,7 +306,7 @@ export default class Scan extends BaseCommand<typeof Scan> {
     if (rows.length === 0) return;
     // A file or folder in an export is surveyed as the export.
     const whole = rows.find(row => scanned.startsWith(`${row.root}${path.sep}`))?.root;
-    this.hints(rows, `chronicle survey ${shellWord(whole ?? scanned, home)}`);
+    this.hints(rows, found.extractors, `chronicle survey ${shellWord(whole ?? scanned, home)}`);
   }
 
   /** The rows as JSON or CSV, when the format asks for one: whether it did. */
@@ -387,12 +389,18 @@ export default class Scan extends BaseCommand<typeof Scan> {
   }
 
   /** The next steps under the table: one per kind of thing in the way. */
-  private hints(rows: ScanRow[], survey: string): void {
+  private hints(
+    rows: ScanRow[],
+    extractors: Map<string, ExtractorMetadata[]>,
+    survey: string
+  ): void {
     const ready = rows.filter(row => row.installed && row.status === 'ready');
-    if (ready.length > 0) {
-      this.hint(`Run \`${survey}\` to see how much ${ready.length === 1 ? 'it' : 'each'} holds.`);
-      this.hint(extractHint(ready));
+    // A survey counts only what's on this computer, never an account online.
+    const counted = ready.filter(row => surveyable(row, extractors)).length;
+    if (counted > 0) {
+      this.hint(`Run \`${survey}\` to see how much ${counted === 1 ? 'it' : 'each'} holds.`);
     }
+    if (ready.length > 0) this.hint(extractHint(ready));
     for (const hint of blockerHints(rows)) this.hint(hint);
   }
 }

@@ -409,7 +409,8 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
 
       const t = tokens({ stream: 'stdout', theme: this.flags.theme });
       // One source gets its details; every source, a row each.
-      const summary = source && (await listSources()).find(s => s.source === source)?.summary;
+      const listing = source ? (await listSources()).find(s => s.source === source) : undefined;
+      const summary = listing?.summary;
       const lines = source
         ? this.details(found, surveys, t, stdoutWidth(), summary)
         : this.table(found, surveys, t, stdoutWidth());
@@ -418,6 +419,12 @@ export default class SurveyCommand extends SourceDispatchCommand<typeof SurveyCo
         // A source's details end apart from the hints under them.
         if (source) this.log('');
         else this.counted(targets, surveys, Date.now() - started, path !== undefined);
+      } else if (listing?.strategies.every(strategy => strategy.delivery === 'api')) {
+        // An account signed in to isn't on this computer for a survey to read.
+        this.logger.info(
+          `${source} is read online, and a survey counts only what's on this computer`
+        );
+        this.hint(`Run \`chronicle extract ${source}\` to extract it.`);
       } else {
         this.logger.info(
           source ? `Nothing of ${source}'s to survey` : 'Nothing to survey on this computer'
