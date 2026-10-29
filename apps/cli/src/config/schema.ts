@@ -35,6 +35,10 @@ export const ConfigSchema = z.object({
   skipped: z.array(TargetSchema).optional(),
   /** Exports asked for and not here yet, with when. */
   requested: z.array(TargetSchema.extend({ at: z.string().datetime() })).optional(),
+  /** Sources picked to add that need a step first, like a sign-in, and how each is read. */
+  wanted: z.array(z.object({ source: z.string(), strategy: z.string() })).optional(),
+  /** When each of setup's todos was last put off, by its key: they come after the rest. */
+  later: z.record(z.string().datetime()).optional(),
 });
 
 export type PresetConfig = z.infer<typeof PresetConfigSchema>;

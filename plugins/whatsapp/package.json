@@ -66,6 +66,17 @@
             "delivery": "export",
             "recordTypes": [
               "messages"
+            ],
+            "setup": [
+              {
+                "do": "in finder, back up your iphone to this mac, unencrypted"
+              },
+              {
+                "do": "it lands in ~/Library/Application Support/MobileSync/Backup"
+              },
+              {
+                "wait": "until the backup finishes"
+              }
             ]
           },
           "app-db": {

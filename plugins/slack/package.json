@@ -72,7 +72,19 @@
             "recordTypes": [
               "messages"
             ],
-            "default": true
+            "default": true,
+            "setup": [
+              {
+                "open": "https://my.slack.com/services/export"
+              },
+              {
+                "do": "as a workspace admin, start an export"
+              },
+              {
+                "wait": "a few hours",
+                "via": "email"
+              }
+            ]
           }
         }
       }

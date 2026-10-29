@@ -67,6 +67,40 @@ test('select starts at the default and moves with the arrows or j and k', async 
   assert.equal((await select('Which?', OPTIONS, up)).value, 'links');
 });
 
+test('select can sit inline, under a header and over a body, and be withdrawn', async () => {
+  const right = typing('\u001B[C', '\r');
+  const options = [
+    { label: 'open', value: 'go' },
+    { label: 'later', value: 'later' },
+  ];
+  const later = await select('goodreads', options, {
+    inline: true,
+    header: () => ['✓ scan'],
+    body: ['  1  open the page'],
+    ...right,
+  });
+  assert.equal(later.value, 'later');
+  assert.match(right.drawn(), /✓ scan\n\ngoodreads\n {2}1 {2}open the page\n\n❯ open {5}later/);
+
+  // What the highlighted option involves is drawn under the list, and follows the cursor.
+  const steps = { go: ['  1  open the page'], later: ['  put off'] };
+  const detailed = typing('j', '\r');
+  await select('Which way?', options, { detail: value => steps[value], ...detailed });
+  assert.match(detailed.writes()[0], /later\n\n {2}1 {2}open the page/);
+  assert.match(detailed.drawn(), /later\n\n {2}put off/);
+
+  // Withdrawn, it answers as cancelled, for the caller to tell from Esc by its signal.
+  const withdrawn = new AbortController();
+  const waiting = select('waiting', options, { signal: withdrawn.signal, ...typing() });
+  setTimeout(() => withdrawn.abort(), 20);
+  assert.deepEqual(await waiting, { value: '', cancelled: true });
+
+  // Cleared, an answer leaves nothing behind.
+  const cleared = typing('\r');
+  await multiSelect('Which?', OPTIONS, { clear: true, ...cleared });
+  assert.doesNotMatch(cleared.drawn(), /◉ notes what you wrote\n {2}○ tags\n {2}○ links\n$/);
+});
+
 test('multiSelect takes the toggled options, or the highlighted one, or the defaults', async () => {
   const toggled = typing(' ', 'j', 'j', ' ', '\r');
   assert.deepEqual((await multiSelect('Which?', OPTIONS, toggled)).values, ['notes', 'links']);
@@ -129,6 +163,43 @@ test('multiSelect takes the toggled options, or the highlighted one, or the defa
   const other = typing(' ', '\r');
   const notes = await multiSelect('Which?', apart, { initial: ['nothing'], ...other });
   assert.deepEqual(notes.values, ['notes']);
+
+  // A key action answers with what's selected and its value; with nothing
+  // selected, Enter says it skips.
+  const folder = typing(' ', 'f');
+  const actions = [{ key: 'f', label: 'add folder', value: 'folder' }];
+  const looked = await multiSelect('Which?', OPTIONS, {
+    none: true,
+    skip: 'skip',
+    actions,
+    ...folder,
+  });
+  assert.deepEqual(looked.values, ['notes', 'folder']);
+  assert.match(folder.drawn(), /f add folder · enter skip/);
+
+  // One of several steps, ← goes back with what's selected, and → goes on as Enter does.
+  const left = typing(' ', '\u001B[D');
+  const back = await multiSelect('Which?', OPTIONS, { none: true, back: 'scan', ...left });
+  assert.deepEqual(back, { values: ['notes'], cancelled: false, back: true });
+  assert.match(left.drawn(), /← scan · enter start/);
+  const right = typing('j', ' ', '\u001B[C');
+  const on = await multiSelect('Which?', OPTIONS, {
+    none: true,
+    enter: 'next',
+    onward: true,
+    ...right,
+  });
+  assert.deepEqual(on, { values: ['tags'], cancelled: false });
+  assert.match(right.drawn(), /enter\/→ next/);
+  // Without them, the arrows do nothing.
+  const still = typing('\u001B[D', '\u001B[C', '\r');
+  assert.deepEqual((await multiSelect('Which?', OPTIONS, still)).values, ['notes']);
+
+  // With no options at all, Enter goes on with none.
+  const empty = typing('\r');
+  const nothing2 = await multiSelect('Which?', [], { none: true, skip: 'skip', actions, ...empty });
+  assert.deepEqual(nothing2.values, []);
+  assert.match(empty.drawn(), /f add folder · enter skip · esc cancel/);
 });
 
 test('Ctrl+C cancels a question and leaves nothing of it', async () => {

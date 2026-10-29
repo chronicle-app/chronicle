@@ -1,5 +1,14 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import { closeSync, openSync, readSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  closeSync,
+  mkdtempSync,
+  openSync,
+  readSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createInterface } from 'node:readline';
 import { targetArgs, type Target } from './targets.js';
@@ -12,6 +21,15 @@ const HEAP_MB = 8192;
 
 /** How often a running job's file is counted. */
 const COUNT_EVERY_MS = 250;
+
+/**
+ * How long a child has to end on Ctrl-C before it's killed. One reading a
+ * database can't hear it until its query returns.
+ */
+const STOP_MS = 2000;
+
+/** What ends setup without its exit running: closing the terminal, or `kill`. */
+const SIGNALS: NodeJS.Signals[] = ['SIGTERM', 'SIGHUP'];
 
 /** One target's extraction, run as a child `chronicle extract`. */
 export interface Job {
@@ -95,17 +113,52 @@ class LineCounter {
  * Runs jobs a few at a time, biggest first by their surveys' counts. Each
  * child writes its records to a `.partial` file, given to it as stdout, so
  * its writes never wait on this process; the file is renamed when the child
- * exits cleanly, with the target beside it. `stop()` ends the children and
- * deletes their partial files.
+ * exits cleanly, with the target beside it. A job can join while others run,
+ * with `add()`. `stop()` ends the children and deletes their partial files.
+ * Each child has a temporary folder of its own, for its copies of the
+ * databases it reads, deleted when it ends however it ends, killed too.
+ * Should this process end while they run, they end with it, and leave
+ * neither a partial file nor a copy.
  */
 export class JobRunner {
   private readonly children = new Map<Job, ChildProcess>();
+  /** Each running child's partial file and temporary folder. */
+  private readonly files = new Map<Job, { partial: string; scratch: string }>();
   private stopping = false;
+  /** The jobs not started, biggest first. */
+  private readonly queue: Job[] = [];
+  /** How many jobs are running now. */
+  private active = 0;
+  /** Those waiting for every job to finish. */
+  private waiters: (() => void)[] = [];
 
   constructor(
     readonly jobs: Job[],
     private readonly options: RunOptions
-  ) {}
+  ) {
+    process.once('exit', this.clean);
+    for (const signal of SIGNALS) process.once(signal, this.ended);
+  }
+
+  /** End every child still running, and delete its partial file and its folder. */
+  private clean = () => {
+    for (const [job, child] of this.children) {
+      child.kill('SIGKILL');
+      const files = this.files.get(job);
+      if (files) {
+        rmSync(files.partial, { force: true });
+        rmSync(files.scratch, { recursive: true, force: true });
+      }
+    }
+    this.files.clear();
+  };
+
+  /** Ended by a signal: clean up, then end as the signal would have. */
+  private ended = (signal: NodeJS.Signals) => {
+    this.clean();
+    process.removeListener('exit', this.clean);
+    process.kill(process.pid, signal);
+  };
 
   /** The command a job runs, after `chronicle`. */
   args(job: Job): string[] {
@@ -125,15 +178,42 @@ export class JobRunner {
     ];
   }
 
-  async run(): Promise<void> {
-    const queue = [...this.jobs].sort((a, b) => (b.total ?? -1) - (a.total ?? -1));
-    const next = async (): Promise<void> => {
-      const job = queue.shift();
-      if (!job || this.stopping) return;
-      await this.runOne(job);
-      return next();
-    };
-    await Promise.all(Array.from({ length: this.options.concurrency }, () => next()));
+  /** Run every job, and any added meanwhile, until they're finished. */
+  run(): Promise<void> {
+    this.queue.push(...this.jobs.filter(job => job.state === 'waiting'));
+    this.pump();
+    return this.drained();
+  }
+
+  /** Run another job, as soon as there's room. */
+  add(job: Job): void {
+    this.jobs.push(job);
+    this.queue.push(job);
+    this.pump();
+  }
+
+  /** Once no job is running or waiting to. */
+  drained(): Promise<void> {
+    if (this.active === 0 && (this.queue.length === 0 || this.stopping)) return Promise.resolve();
+    return new Promise(resolve => this.waiters.push(resolve));
+  }
+
+  /** Start jobs while there's room, biggest first, as the surveys counted them so far. */
+  private pump(): void {
+    this.queue.sort((a, b) => (b.total ?? -1) - (a.total ?? -1));
+    while (!this.stopping && this.active < this.options.concurrency && this.queue.length > 0) {
+      const job = this.queue.shift()!;
+      this.active++;
+      this.runOne(job).finally(() => {
+        this.active--;
+        this.pump();
+      });
+    }
+    if (this.active === 0 && (this.queue.length === 0 || this.stopping)) {
+      const { waiters } = this;
+      this.waiters = [];
+      for (const resolve of waiters) resolve();
+    }
   }
 
   /** End every running child, delete its partial file, and start no more. */
@@ -145,11 +225,17 @@ export class JobRunner {
           if (child.exitCode !== null || child.signalCode !== null) return resolve();
           child.once('exit', () => resolve());
           child.kill('SIGINT');
-          // One that ignores the interrupt is ended outright.
-          setTimeout(() => child.kill('SIGKILL'), 5000).unref();
+          // One that can't hear the interrupt in time is ended outright.
+          setTimeout(() => child.kill('SIGKILL'), STOP_MS).unref();
         })
     );
     await Promise.all(exits);
+  }
+
+  /** End every child at once, for a second Ctrl-C. */
+  kill(): void {
+    this.stopping = true;
+    this.clean();
   }
 
   private runOne(job: Job): Promise<void> {
@@ -157,12 +243,15 @@ export class JobRunner {
     const partial = partialFile(root, job.name);
     const out = openSync(partial, 'w');
     const counter = new LineCounter(partial);
+    const scratch = mkdtempSync(path.join(tmpdir(), 'chronicle-job-'));
+    this.files.set(job, { partial, scratch });
     const child = spawn(
       process.execPath,
       [`--max-old-space-size=${HEAP_MB}`, bin, ...this.args(job)],
       {
         stdio: ['ignore', out, 'pipe'],
-        env: { ...process.env, CHRONICLE_SKIP_NEW_VERSION_CHECK: '1' },
+        // Its copies go in its own folder, deleted with it.
+        env: { ...process.env, CHRONICLE_SKIP_NEW_VERSION_CHECK: '1', TMPDIR: scratch },
       }
     );
     closeSync(out);
@@ -198,6 +287,8 @@ export class JobRunner {
         finished = true;
         clearInterval(ticker);
         this.children.delete(job);
+        rmSync(scratch, { recursive: true, force: true });
+        this.files.delete(job);
         job.processed = counter.update();
         job.endedAt = Date.now();
         // A child stopped by Ctrl-C exits 130, maybe before this process hears it.

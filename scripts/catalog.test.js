@@ -71,11 +71,14 @@ test('each manifest matches its plugin’s exported extractor classes', async ()
     for (const [name, source] of Object.entries(pkg.chronicle.sources ?? {})) {
       declared[name] = {};
       for (const [strategyName, strategy] of Object.entries(source.strategies)) {
-        // Where it's found, and what its exports look like, aren't things the extractor classes say.
+        // Where it's found, what its exports look like, and how setup gets it ready aren't
+        // things the extractor classes say.
         const {
           locations: _locations,
           layouts: _layouts,
           files: _files,
+          setup: _setup,
+          summary: _summary,
           ...declaredStrategy
         } = strategy;
         declared[name][strategyName] = { ...declaredStrategy, default: Boolean(strategy.default) };

@@ -27,6 +27,8 @@ export interface OAuthCommandOptions {
   timeout?: number;
   /** Run the provider's setup again from the start. */
   fresh?: boolean;
+  /** Open the sign-in page without asking first, for a person who just asked to sign in. */
+  openAtOnce?: boolean;
 }
 
 export class OAuthCommand {
@@ -102,7 +104,7 @@ export class OAuthCommand {
       const authUrl = provider.buildAuthUrl();
 
       // The URL is the one thing a person must act on, so it isn't cut to fit.
-      await this.open(authUrl, this.server.waitForCallback());
+      await this.open(authUrl, this.server.waitForCallback(), this.options.openAtOnce);
 
       logger.info('Waiting for authorization…');
 
@@ -283,9 +285,9 @@ export class OAuthCommand {
 
   /**
    * Show a page's URL, and open it in the browser once the person presses
-   * Enter. Without a terminal to ask at, or a browser, the URL is all.
+   * Enter, or `atOnce`. Without a terminal to ask at, or a browser, the URL is all.
    */
-  private async open(url: string, settled?: Promise<unknown>): Promise<void> {
+  private async open(url: string, settled?: Promise<unknown>, atOnce = false): Promise<void> {
     // Keyed by the URL, so a run that opens several pages never rolls one
     // up as a repeat: each is a link the person needs.
     logger.emit({
@@ -296,6 +298,12 @@ export class OAuthCommand {
       key: url,
     });
     if (this.options.noBrowser || !interactive() || !(await BrowserLauncher.canOpenBrowser())) {
+      return;
+    }
+    if (atOnce) {
+      await BrowserLauncher.openUrl(url).catch(error => {
+        logger.warn("Couldn't open a browser", { error: String(error) });
+      });
       return;
     }
     // The person may open the URL themselves: once `settled` (the sign-in

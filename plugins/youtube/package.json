@@ -71,7 +71,31 @@
               "subscriptions",
               "uploads"
             ],
-            "default": true
+            "summary": "likes, playlists, subscriptions",
+            "default": true,
+            "setup": [
+              {
+                "open": "https://console.cloud.google.com/apis/library/youtube.googleapis.com"
+              },
+              {
+                "do": "enable the youtube data api"
+              },
+              {
+                "open": "https://console.cloud.google.com/auth/clients/create"
+              },
+              {
+                "do": "create a web client with redirect uri http://127.0.0.1:7463/callback"
+              },
+              {
+                "ask": "client-id"
+              },
+              {
+                "ask": "client-secret"
+              },
+              {
+                "sign-in": "youtube"
+              }
+            ]
           },
           "takeout": {
             "delivery": "export",
@@ -97,6 +121,19 @@
               "playlist-items",
               "uploads",
               "comments"
+            ],
+            "summary": "watch and search history, and more",
+            "setup": [
+              {
+                "open": "https://takeout.google.com/settings/takeout/custom/youtube"
+              },
+              {
+                "do": "keep history as html, then create export"
+              },
+              {
+                "wait": "a few hours",
+                "via": "email"
+              }
             ]
           }
         }

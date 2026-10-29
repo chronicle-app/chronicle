@@ -145,48 +145,28 @@ export interface Found {
 }
 
 /**
- * A scan as it goes: what's been found so far, each with what it holds once
- * it's counted or what's in its way, then how far the scan has got. As many
- * found as fit in `room` lines, and how many more.
- *
- *   Looking around this computer
+ * What a scan has found so far, each with what it holds once it's counted
+ * or what's in its way: as many as fit in `room` lines, and how many more.
  *
  *     imessage  ~/Library/Messages/chat.db   52,111 messages
  *     safari    ~/Library/Safari/History.db  counting…
- *
- *   ⠼ Checked 31 of 44 sources
  */
-export function scanningLines(
-  title: string,
-  found: Found[],
-  progress: string,
-  t: Tokens,
-  width: number,
-  frame: number,
-  room: number
-): string[] {
-  const shown = found.length > room - 5 ? found.slice(0, Math.max(0, room - 6)) : found;
+export function foundLines(found: Found[], t: Tokens, width: number, room: number): string[] {
+  const shown = found.length > room ? found.slice(0, Math.max(0, room - 1)) : found;
   const sources = Math.max(0, ...shown.map(f => f.source.length));
   const labels = Math.min(40, Math.max(0, ...shown.map(f => f.label.length)));
-  const lines = [line([[title, t.strong]], width), ''];
-  for (const f of shown) {
-    lines.push(
-      line(
-        [
-          [`  ${f.source.padEnd(sources)}  `],
-          [`${truncatePath(f.label, labels).padEnd(labels)}  `],
-          [f.note, t.muted],
-        ],
-        width
-      )
-    );
-  }
+  const lines = shown.map(f =>
+    line(
+      [
+        [`  ${f.source.padEnd(sources)}  `],
+        [`${truncatePath(f.label, labels).padEnd(labels)}  `],
+        [f.note, t.muted],
+      ],
+      width
+    )
+  );
   if (shown.length < found.length) {
     lines.push(line([[`  and ${count(found.length - shown.length)} more`, t.muted]], width));
   }
-  if (shown.length > 0) lines.push('');
-  lines.push(
-    line([[glyphs.spinner[frame % glyphs.spinner.length], t.accent], [` ${progress}`]], width)
-  );
   return lines;
 }

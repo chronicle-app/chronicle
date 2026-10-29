@@ -42,7 +42,34 @@ export interface ManifestStrategy {
   databases?: DatabaseSchema[];
   /** What one file it reads looks like, for `scan <path>`. */
   files?: FileFormat[];
+  /** What a person does to make it ready, in order, for `setup` to walk them through. */
+  setup?: SetupStep[];
+  /**
+   * What it gets, in a few words, for `setup` to say when a source has more
+   * than one way in: `full listening history`. Its record types otherwise.
+   */
+  summary?: string;
 }
+
+/**
+ * One thing a person does to get a strategy ready, as `chronicle setup`
+ * draws and runs it. Text is a short imperative, lowercase, like a man page's.
+ *
+ * - `open`: a page to open in the browser.
+ * - `do`: what to do there.
+ * - `ask`: something to paste back, kept for the sign-in after it.
+ * - `sign-in`: sign in to a provider, as `chronicle auth login` does.
+ * - `wait`: how long an export takes to come, and how it says it has, if
+ *   it does: `download` means soon, in the browser; `email` means later.
+ *
+ * An export's steps end with setup asking where it is, or to look later.
+ */
+export type SetupStep =
+  | { open: string }
+  | { do: string }
+  | { ask: 'client-id' | 'client-secret' }
+  | { 'sign-in': string }
+  | { wait: string; via?: 'download' | 'email' };
 
 export interface ManifestSource {
   strategies: Record<string, ManifestStrategy>;

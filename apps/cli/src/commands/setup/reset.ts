@@ -21,7 +21,7 @@ export default class SetupReset extends BaseCommand<typeof SetupReset> {
   static override summary = 'Forget what setup saved, so it starts over';
 
   static override description =
-    'Forgets the sources picked, the folders to look in, and the exports waited for. ' +
+    'Forgets the sources picked, the folders to look in, the exports waited for, and what was put off. ' +
     'With `--files`, deletes the files it extracted too.';
 
   static override examples = ['chronicle setup reset', 'chronicle setup reset --files'];
@@ -45,6 +45,8 @@ export default class SetupReset extends BaseCommand<typeof SetupReset> {
     delete config.folders;
     delete config.skipped;
     delete config.requested;
+    delete config.wanted;
+    delete config.later;
     await manager.saveConfig(config);
 
     const root = this.flags.output

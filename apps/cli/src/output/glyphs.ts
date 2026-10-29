@@ -19,4 +19,6 @@ export const glyphs = {
   pointer: '❯',
   chosen: '◉',
   unchosen: '○',
+  // A checklist's step that's waiting on the person.
+  current: '●',
 } as const;

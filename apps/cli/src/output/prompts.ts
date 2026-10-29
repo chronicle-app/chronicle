@@ -1,4 +1,5 @@
 import {
+  AbortPromptError,
   ExitPromptError,
   createPrompt,
   isEnterKey,
@@ -19,6 +20,8 @@ import { tokens, type Tokens } from './tokens.js';
  * `multiSelect`, and `input`, and `awaitEnter` for one drawn elsewhere. Each draws on stderr, so stdout stays for records, and reads keys
  * only while it's asking. Esc, Ctrl+C, or Ctrl+D cancels. Callers check
  * `canAsk()` first and, without a terminal, say which flag to pass instead.
+ * `select`, `multiSelect`, and `input` can draw lines above themselves, like
+ * a run's progress, and be withdrawn.
  */
 
 export interface SelectOption {
@@ -45,6 +48,32 @@ const HIDE_CURSOR = '\u001B[?25l';
 export interface Terminal {
   input?: NodeJS.ReadableStream;
   output?: NodeJS.WritableStream;
+}
+
+/** What `select`, `multiSelect`, and `input` take besides their own. */
+export interface Around {
+  theme?: string;
+  terminal?: Terminal;
+  /** Lines drawn above the question, each time it's drawn: what's going on around it. */
+  header?: () => string[];
+  /** For a header or options that change while asked: called with what draws them again. */
+  subscribe?: (redraw: () => void) => () => void;
+  /** Leave nothing once answered, rather than the answer. */
+  clear?: boolean;
+  /** Withdraws the question, which then answers as cancelled. */
+  signal?: AbortSignal;
+  /** What Esc says it does: `cancel` unless given, like `quit` for a question that ends a run. */
+  esc?: string;
+}
+
+/**
+ * In a multiSelect, a key that does something else, like looking in a
+ * folder: pressing it answers with what's selected and `value`.
+ */
+export interface KeyAction {
+  key: string;
+  label: string;
+  value: string;
 }
 
 const keysLine = (t: Tokens, keys: string[]) => t.muted(keys.join(` ${glyphs.bullet} `));
@@ -76,9 +105,11 @@ async function ask<Value extends { cancelled: boolean }>(
     input?: NodeJS.ReadableStream;
     output: NodeJS.WritableStream;
     clearPromptOnDone: boolean;
+    signal?: AbortSignal;
   }) => Promise<Value>,
   cancelled: Value,
-  answered?: (value: Value) => string
+  answered?: (value: Value) => string,
+  signal?: AbortSignal
 ): Promise<Value> {
   const output = terminal.output ?? process.stderr;
   // A caller that forgot to check would wait on a pipe for keys that never come.
@@ -90,9 +121,9 @@ async function ask<Value extends { cancelled: boolean }>(
   }
   let value: Value;
   try {
-    value = await run({ input: terminal.input, output, clearPromptOnDone: true });
+    value = await run({ input: terminal.input, output, clearPromptOnDone: true, signal });
   } catch (error) {
-    if (error instanceof ExitPromptError) return cancelled;
+    if (error instanceof ExitPromptError || error instanceof AbortPromptError) return cancelled;
     throw error;
   }
   if (answered && !value.cancelled) output.write(`${answered(value)}\n`);
@@ -105,6 +136,18 @@ function optionRow(t: Tokens, option: SelectOption, here: boolean, mark = '') {
   return (
     (here ? t.accent(row) : row) + (option.description ? t.muted(` ${option.description}`) : '')
   );
+}
+
+/** A header's lines, apart from the question under them. */
+const above = (header?: () => string[]) => {
+  const lines = header?.() ?? [];
+  return lines.length > 0 ? `${lines.join('\n')}\n\n` : '';
+};
+
+/** Draw the question again whenever `subscribe` says to. */
+function useRedraws(subscribe?: (redraw: () => void) => () => void) {
+  const [, setDrawn] = useState(0);
+  useEffect(() => subscribe?.(() => setDrawn(n => n + 1)), []);
 }
 
 export interface ConfirmResult {
@@ -249,8 +292,20 @@ export interface SelectResult {
 
 const selectPrompt = createPrompt<
   SelectResult,
-  { message: string; options: SelectOption[]; defaultValue?: string; t: Tokens }
->(({ message, options, defaultValue, t }, done) => {
+  {
+    message: string;
+    options: SelectOption[];
+    defaultValue?: string;
+    inline: boolean;
+    body: string[];
+    detail?: (value: string) => string[];
+    esc: string;
+    header?: () => string[];
+    subscribe?: (redraw: () => void) => () => void;
+    t: Tokens;
+  }
+>((props, done) => {
+  const { message, options, defaultValue, inline, body, detail, esc, header, subscribe, t } = props;
   const [cursor, setCursor] = useState(() =>
     Math.max(
       0,
@@ -263,55 +318,95 @@ const selectPrompt = createPrompt<
     done(result);
   };
   useCancelOnClose(() => done({ value: '', cancelled: true }));
+  useRedraws(subscribe);
 
   useKeypress((key, rl) => {
     if (finished) return;
     rl.clearLine(0);
-    if (isUp(key)) setCursor(cursor > 0 ? cursor - 1 : options.length - 1);
-    else if (isDown(key)) setCursor(cursor < options.length - 1 ? cursor + 1 : 0);
+    const back = isUp(key) || (inline && key.name === 'left');
+    const on = isDown(key) || (inline && key.name === 'right');
+    if (back) setCursor(cursor > 0 ? cursor - 1 : options.length - 1);
+    else if (on) setCursor(cursor < options.length - 1 ? cursor + 1 : 0);
     else if (isEnterKey(key)) finish({ value: options[cursor].value, cancelled: false });
     else if (isEscape(key)) finish({ value: '', cancelled: true });
   });
 
   if (finished) return '';
-  const rows = options.map((option, i) => optionRow(t, option, i === cursor));
+  // Inline, the options sit side by side, like buttons.
+  const rows = inline
+    ? options
+        .map((option, i) =>
+          i === cursor ? t.accent(`${glyphs.pointer} ${option.label}`) : `  ${option.label}`
+        )
+        .join('   ')
+    : options.map((option, i) => optionRow(t, option, i === cursor)).join('\n');
+  const said = body.length > 0 ? `\n${body.join('\n')}` : '';
+  // What the highlighted option involves, under them all.
+  const more = detail ? detail(options[cursor].value) : [];
+  const under = more.length > 0 ? `\n\n${more.join('\n')}` : '';
   return [
-    `${t.strong(message)}\n\n${rows.join('\n')}${HIDE_CURSOR}`,
-    `\n${keysLine(t, ['↑/↓ move', 'enter select', 'esc cancel'])}`,
+    `${above(header)}${t.strong(message)}${said}\n\n${rows}${under}${HIDE_CURSOR}`,
+    `\n${keysLine(t, [inline ? '←/→ move' : '↑/↓ move', 'enter select', `esc ${esc}`])}`,
   ];
 });
 
-/** Ask for one of `options`. The question clears once answered. */
+/**
+ * Ask for one of `options`, listed, or `inline` side by side, with any lines
+ * of `body` between the question and them, and `detail`'s lines about the
+ * highlighted one under them. The question clears once answered.
+ */
 export function select(
   message: string,
   options: SelectOption[],
   {
     defaultValue,
+    inline = false,
+    body = [],
+    detail,
+    header,
+    subscribe,
+    signal,
+    esc = 'cancel',
     theme,
     terminal,
-  }: { defaultValue?: string; theme?: string; terminal?: Terminal } = {}
+  }: {
+    defaultValue?: string;
+    inline?: boolean;
+    body?: string[];
+    detail?: (value: string) => string[];
+  } & Around = {}
 ): Promise<SelectResult> {
   const t = tokens({ stream: 'stderr', theme });
-  return ask(terminal, context => selectPrompt({ message, options, defaultValue, t }, context), {
-    value: '',
-    cancelled: true,
-  });
+  return ask(
+    terminal,
+    context =>
+      selectPrompt(
+        { message, options, defaultValue, inline, body, detail, esc, header, subscribe, t },
+        context
+      ),
+    { value: '', cancelled: true },
+    undefined,
+    signal
+  );
 }
 
 export interface MultiSelectResult {
   values: string[];
   cancelled: boolean;
+  /** Answered with ←, to go back to what came before. */
+  back?: boolean;
 }
 
-/** The question and its options, the chosen ones filled. */
+/** The question, any lines under it, and its options, the chosen ones filled. */
 function choices(
   t: Tokens,
   message: string,
   options: SelectOption[],
   chosen: string[],
-  cursor?: number
+  cursor?: number,
+  body: string[] = []
 ) {
-  const rule = t.muted(`  ${'─'.repeat(Math.max(...options.map(o => o.label.length)) + 2)}`);
+  const rule = t.muted(`  ${'─'.repeat(Math.max(0, ...options.map(o => o.label.length)) + 2)}`);
   const rows = options.flatMap((option, i) => {
     const mark = option.action
       ? ' '
@@ -321,16 +416,19 @@ function choices(
     const row = optionRow(t, option, i === cursor, `${mark} `);
     return option.alone && i > 0 && !options[i - 1].alone ? [rule, row] : [row];
   });
-  return `${t.strong(message)}\n\n${rows.join('\n')}`;
+  const said = body.length > 0 ? `\n${body.join('\n')}` : '';
+  return `${t.strong(message)}${said}${rows.length > 0 ? `\n\n${rows.join('\n')}` : ''}`;
 }
 
 /**
  * Space toggles the highlighted option, and Enter starts: with nothing
  * toggled it takes just the highlighted one, so a single pick is one key,
  * or with `none`, nothing. Enter on an action takes what's toggled and the
- * action. A choice that stands alone clears the others when it's toggled,
- * and they it. `a` toggles all but those, `d` selects the defaults. (Shift+Enter can't be
- * told from Enter in most terminals, so it isn't used.)
+ * action, as does a key action's key. A choice that stands alone clears the
+ * others when it's toggled, and they it. `a` toggles all but those, `d`
+ * selects the defaults. With `back`, ← takes what's toggled and goes back;
+ * with `onward`, → is Enter. (Shift+Enter can't be told from Enter in most
+ * terminals, so it isn't used.)
  */
 const multiSelectPrompt = createPrompt<
   MultiSelectResult,
@@ -340,10 +438,20 @@ const multiSelectPrompt = createPrompt<
     defaults: string[];
     initial: string[];
     none: boolean;
+    enter: string;
+    skip?: string;
+    body: string[];
+    actions: KeyAction[];
+    back?: string;
+    onward: boolean;
+    esc: string;
+    header?: () => string[];
     subscribe?: (redraw: () => void) => () => void;
     t: Tokens;
   }
->(({ message, options, defaults, initial, none, subscribe, t }, done) => {
+>((props, done) => {
+  const { message, options, defaults, initial, none, enter, skip, body, actions, esc } = props;
+  const { back, onward, header, subscribe, t } = props;
   const [cursor, setCursor] = useState(0);
   const [chosen, setChosen] = useState<string[]>(initial);
   const [finished, setFinished] = useState(false);
@@ -353,8 +461,7 @@ const multiSelectPrompt = createPrompt<
   };
   useCancelOnClose(() => done({ values: [], cancelled: true }));
   // Options that change while asked are drawn again when they do.
-  const [, setDrawn] = useState(0);
-  useEffect(() => subscribe?.(() => setDrawn(n => n + 1)), []);
+  useRedraws(subscribe);
 
   useKeypress((key, rl) => {
     if (finished) return;
@@ -362,6 +469,8 @@ const multiSelectPrompt = createPrompt<
     if (isUp(key)) setCursor(cursor > 0 ? cursor - 1 : options.length - 1);
     else if (isDown(key)) setCursor(cursor < options.length - 1 ? cursor + 1 : 0);
     else if (isSpaceKey(key)) {
+      // With no options, there's nothing to toggle.
+      if (!options[cursor]) return;
       const { value, action, alone } = options[cursor];
       if (action) return;
       const apart = new Set(options.filter(option => option.alone).map(option => option.value));
@@ -375,13 +484,21 @@ const multiSelectPrompt = createPrompt<
       setChosen(choosable.every(v => chosen.includes(v)) ? [] : choosable);
     } else if (key.name === 'd' && defaults.length > 0) {
       setChosen(defaults);
-    } else if (isEnterKey(key)) {
+    } else if (actions.some(action => action.key === key.name && !key.ctrl)) {
+      const picked = options.map(option => option.value).filter(v => chosen.includes(v));
+      const { value } = actions.find(action => action.key === key.name)!;
+      finish({ values: [...picked, value], cancelled: false });
+    } else if (back && key.name === 'left') {
+      const picked = options.map(option => option.value).filter(v => chosen.includes(v));
+      finish({ values: picked, cancelled: false, back: true });
+    } else if (isEnterKey(key) || (onward && key.name === 'right')) {
       // In the order they're listed, not the order they were toggled.
       const picked = options.map(option => option.value).filter(v => chosen.includes(v));
       const here = options[cursor];
-      const values = here.action
+      // With no options, Enter takes none.
+      const values = here?.action
         ? [...picked, here.value]
-        : picked.length > 0 || none
+        : picked.length > 0 || none || !here
           ? picked
           : [here.value];
       finish({ values, cancelled: false });
@@ -391,15 +508,20 @@ const multiSelectPrompt = createPrompt<
   });
 
   if (finished) return '';
+  // With nothing selected, Enter goes on without any: it says so.
+  const going = none && skip && chosen.length === 0 && !options[cursor]?.action ? skip : enter;
+  const some = options.length > 0;
   const keys = [
-    'space select',
-    'enter start',
-    'a all',
+    ...(some ? ['space select'] : []),
+    ...actions.map(action => `${action.key} ${action.label}`),
+    ...(back ? [`← ${back}`] : []),
+    `${onward ? 'enter/→' : 'enter'} ${going}`,
+    ...(some ? ['a all'] : []),
     ...(defaults.length > 0 ? ['d defaults'] : []),
-    'esc cancel',
+    `esc ${esc}`,
   ];
   return [
-    `${choices(t, message, options, chosen, cursor)}${HIDE_CURSOR}`,
+    `${above(header)}${choices(t, message, options, chosen, cursor, body)}${HIDE_CURSOR}`,
     `\n${keysLine(t, keys)}`,
   ];
 });
@@ -409,7 +531,11 @@ const multiSelectPrompt = createPrompt<
  * `initial` are selected to start with. With `none`, Enter with nothing
  * selected picks nothing, rather than the highlighted option. An option's
  * description can change while it's asked, drawn again through `subscribe`.
- * The picks stay on screen.
+ * `enter` says what Enter does, `start` unless given, and `skip` what it
+ * does with nothing selected. Any lines of `body` go under the question,
+ * and `actions` are keys that do something else. For a question that's one
+ * of several steps, `back` says where ← goes, answering `back`, and with
+ * `onward`, → goes on as Enter does. The picks stay on screen, unless `clear`.
  */
 export function multiSelect(
   message: string,
@@ -418,26 +544,58 @@ export function multiSelect(
     defaults = [],
     initial = [],
     none = false,
+    enter = 'start',
+    skip,
+    body = [],
+    actions = [],
+    back,
+    onward = false,
+    header,
     subscribe,
+    clear = false,
+    signal,
+    esc = 'cancel',
     theme,
     terminal,
   }: {
     defaults?: string[];
     initial?: string[];
     none?: boolean;
-    /** For options that change while asked: called with what draws them again. */
-    subscribe?: (redraw: () => void) => () => void;
-    theme?: string;
-    terminal?: Terminal;
-  } = {}
+    enter?: string;
+    skip?: string;
+    body?: string[];
+    actions?: KeyAction[];
+    back?: string;
+    onward?: boolean;
+  } & Around = {}
 ): Promise<MultiSelectResult> {
   const t = tokens({ stream: 'stderr', theme });
   return ask(
     terminal,
     context =>
-      multiSelectPrompt({ message, options, defaults, initial, none, subscribe, t }, context),
+      multiSelectPrompt(
+        {
+          message,
+          options,
+          defaults,
+          initial,
+          none,
+          enter,
+          skip,
+          body,
+          actions,
+          back,
+          onward,
+          esc,
+          header,
+          subscribe,
+          t,
+        },
+        context
+      ),
     { values: [], cancelled: true },
-    ({ values }) => choices(t, message, options, values)
+    clear ? undefined : ({ values }) => choices(t, message, options, values),
+    signal
   );
 }
 
@@ -452,9 +610,13 @@ const inputPrompt = createPrompt<
     message: string;
     defaultValue?: string;
     validate?: (value: string) => string | boolean;
+    body: string[];
+    esc: string;
+    header?: () => string[];
+    subscribe?: (redraw: () => void) => () => void;
     t: Tokens;
   }
->(({ message, defaultValue, validate, t }, done) => {
+>(({ message, defaultValue, validate, body, esc, header, subscribe, t }, done) => {
   const [value, setValue] = useState('');
   const [error, setError] = useState<string | undefined>();
   const [finished, setFinished] = useState(false);
@@ -463,6 +625,7 @@ const inputPrompt = createPrompt<
     done(result);
   };
   useCancelOnClose(() => done({ value: '', cancelled: true }));
+  useRedraws(subscribe);
 
   // The default is typed in for you, to keep or edit.
   useEffect(rl => {
@@ -493,31 +656,41 @@ const inputPrompt = createPrompt<
   if (finished) return '';
   // The line being typed ends the question, where the terminal's cursor is.
   return [
-    `${t.strong(message)}\n\n${t.accent(glyphs.pointer)} ${value}`,
-    `${error ? `\n${t.danger(error)}` : ''}\n${keysLine(t, ['enter submit', 'esc cancel'])}`,
+    `${above(header)}${t.strong(message)}${body.length > 0 ? `\n${body.join('\n')}` : ''}\n\n${t.accent(glyphs.pointer)} ${value}`,
+    `${error ? `\n${t.danger(error)}` : ''}\n${keysLine(t, ['enter submit', `esc ${esc}`])}`,
   ];
 });
 
-/** Ask for a line of text. */
+/**
+ * Ask for a line of text, with any lines of `body` under the question. The
+ * answer stays on screen, unless `clear`.
+ */
 export function input(
   message: string,
   {
     defaultValue,
     validate,
+    body = [],
+    header,
+    subscribe,
+    clear = false,
+    signal,
+    esc = 'cancel',
     theme,
     terminal,
   }: {
     defaultValue?: string;
     validate?: (value: string) => string | boolean;
-    theme?: string;
-    terminal?: Terminal;
-  } = {}
+    body?: string[];
+  } & Around = {}
 ): Promise<InputResult> {
   const t = tokens({ stream: 'stderr', theme });
   return ask(
     terminal,
-    context => inputPrompt({ message, defaultValue, validate, t }, context),
+    context =>
+      inputPrompt({ message, defaultValue, validate, body, esc, header, subscribe, t }, context),
     { value: '', cancelled: true },
-    ({ value }) => `${t.strong(message)} ${t.muted(value)}`
+    clear ? undefined : ({ value }) => `${t.strong(message)} ${t.muted(value)}`,
+    signal
   );
 }

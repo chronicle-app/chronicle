@@ -81,7 +81,19 @@
               "likes",
               "tweets"
             ],
-            "default": true
+            "default": true,
+            "setup": [
+              {
+                "open": "https://x.com/settings/download_your_data"
+              },
+              {
+                "do": "request archive"
+              },
+              {
+                "wait": "a day or more",
+                "via": "email"
+              }
+            ]
           }
         }
       }
