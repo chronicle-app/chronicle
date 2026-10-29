@@ -545,7 +545,6 @@ const find = (timestamp, query) => ({
     '@type': 'Query',
     '@key': ['@type', 'source', 'body'],
     source: 'spotify',
-    name: query,
     body: query,
   },
   '@assertedAt': new Date(timestamp),

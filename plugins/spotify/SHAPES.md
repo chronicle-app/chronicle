@@ -115,6 +115,6 @@ FollowAction key(@type, source, agent.handle, object.sourceId) {
 FindAction key(@type, source, agent.handle, object.body, timestamp) {
   timestamp*
   agent: Agent key(@type, source, handle) { handle, name, sameAs[], url }
-  object: Query key(@type, source, body) { name, body }
+  object: Query key(@type, source, body) { body }
 }
 ```

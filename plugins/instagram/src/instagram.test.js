@@ -393,7 +393,6 @@ test('likes, follows, saves, comments and searches', async t => {
         '@type': 'Query',
         '@key': ['@type', 'source', 'body'],
         source: 'instagram',
-        name: 'vegan ramen',
         body: 'vegan ramen',
       },
     },

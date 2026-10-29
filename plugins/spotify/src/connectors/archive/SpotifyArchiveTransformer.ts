@@ -237,7 +237,6 @@ export default class SpotifyArchiveTransformer extends ChronicleTransformer {
         '@type': 'Query',
         '@key': ['@type', 'source', 'body'],
         source: SOURCE,
-        name: query,
         body: query,
       },
     };

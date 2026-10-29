@@ -241,7 +241,6 @@ test('search history becomes FindActions with the query entered', async t => {
         '@type': 'Query',
         '@key': ['@type', 'source', 'body'],
         source: 'facebook',
-        name: 'trail running shoes',
         body: 'trail running shoes',
       },
     },
