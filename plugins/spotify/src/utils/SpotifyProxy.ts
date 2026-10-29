@@ -1,4 +1,4 @@
-import { ApiAuthError, ApiProxy } from '@chronicle.app/etl';
+import { ApiAuthError, ApiProxy, ApiRateLimitError } from '@chronicle.app/etl';
 import { TokenHelper } from '@chronicle.app/auth';
 
 export interface SpotifyTrack {
@@ -201,6 +201,29 @@ export default class SpotifyProxy extends ApiProxy {
     }
   }
 
+  /**
+   * Tracks by ID, up to 50 at a time, in the order asked: null for an ID
+   * Spotify doesn't know. A rate limit is waited out as long as Spotify asks,
+   * up to two minutes at a time.
+   */
+  public async getTracks(ids: string[]): Promise<Array<SpotifyTrack | null>> {
+    await this.initialize();
+    for (let attempt = 1; ; attempt++) {
+      try {
+        const data = await this.request<{ tracks?: Array<SpotifyTrack | null> }>({
+          url: '/tracks',
+          method: 'GET',
+          params: { ids: ids.join(',') },
+        });
+        return data.tracks ?? [];
+      } catch (error) {
+        const wait = error instanceof ApiRateLimitError ? (error.retryAfter ?? 5) : undefined;
+        if (wait === undefined || wait > 120 || attempt >= 5) throw error;
+        await this.delay(wait * 1000);
+      }
+    }
+  }
+
   public async getSavedTracks(limit?: number): Promise<SpotifySavedTrack[]> {
     await this.initialize();
 
@@ -271,7 +294,7 @@ export default class SpotifyProxy extends ApiProxy {
             limit: batchSize,
             offset,
             fields:
-              'items(added_at,track(id,name,artists,album,duration_ms,external_urls,popularity)),total',
+              'items(added_at,added_by(id),track(id,name,artists,album,duration_ms,external_urls,popularity)),total',
           },
         });
         return data.items || [];
