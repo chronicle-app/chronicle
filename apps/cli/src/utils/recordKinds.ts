@@ -1,3 +1,4 @@
+import type { Delivery } from '@chronicle.app/etl';
 import type { ExtractorMetadata } from '../plugins/PluginScanner.js';
 
 /** `--type all`: every kind the strategy reads. */
@@ -29,4 +30,17 @@ export function expandKinds(requested: string[], pool: ExtractorMetadata[]): str
       )
     ),
   ];
+}
+
+/**
+ * Of the strategies with default kinds, the one a run takes when it names no
+ * strategy and passes no `--input`: the first that doesn't read a file handed
+ * to it, else the first. An export's default kinds are what `--input` reads.
+ */
+export function bareRunStrategy<S extends { delivery: Delivery }>(
+  strategies: S[],
+  hasDefaults: (strategy: S) => boolean
+): S | undefined {
+  const withDefaults = strategies.filter(strategy => hasDefaults(strategy));
+  return withDefaults.find(s => s.delivery !== 'export') ?? withDefaults[0];
 }

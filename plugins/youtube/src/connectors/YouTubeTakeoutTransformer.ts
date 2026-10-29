@@ -88,7 +88,6 @@ export default class YouTubeTakeoutTransformer extends ChronicleTransformer {
       '@type': 'Query',
       '@key': ['@type', 'source', 'body'],
       source: 'youtube',
-      name: search.query,
       body: search.query,
     };
 

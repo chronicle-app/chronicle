@@ -208,7 +208,7 @@
       "name": "spotify",
       "package": "@chronicle.app/spotify",
       "tier": "official",
-      "summary": "Spotify listens, saved tracks and albums, playlists"
+      "summary": "Spotify listens, library, playlists, and searches, from the API or a data download"
     },
     {
       "name": "things-todo",

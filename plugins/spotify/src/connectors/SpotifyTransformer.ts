@@ -2,14 +2,15 @@ import { ChronicleTransformer, Record, createImageObject } from '@chronicle.app/
 import {
   ActionAndChildren,
   Agent,
-  Entity,
+  Collection,
   ListenAction,
   AddAction,
   LikeAction,
   MusicRecording,
-  MusicGroup,
   MusicAlbum,
 } from '@chronicle.app/schema';
+import { LISTEN_KEY, toSecond } from '../utils/listens.js';
+import { buildMusicAlbum, buildMusicRecording } from './music.js';
 
 export default class SpotifyTransformer extends ChronicleTransformer {
   async transform(record: Record): Promise<ActionAndChildren[]> {
@@ -34,12 +35,15 @@ export default class SpotifyTransformer extends ChronicleTransformer {
   private buildListenActions(record: Record): ActionAndChildren[] {
     const { data } = record;
     const user = this.buildUser(record);
-    const track = this.buildMusicRecording(data.track);
+    const track = buildMusicRecording(data.track);
 
+    // `played_at` is when the track stopped, to the millisecond. A data
+    // download logs the same moment to the second, so a listen keeps the
+    // second, and a play read both ways is one listen.
     const action: ListenAction = {
       '@type': 'ListenAction',
-      '@key': ['@type', 'source', 'agent.handle', 'object.sourceId', 'timestamp'],
-      timestamp: new Date(data.played_at),
+      '@key': LISTEN_KEY,
+      timestamp: toSecond(data.played_at),
       source: 'spotify',
       agent: user,
       object: track,
@@ -56,10 +60,10 @@ export default class SpotifyTransformer extends ChronicleTransformer {
 
     if (data.track) {
       // Saved track
-      object = this.buildMusicRecording(data.track);
+      object = buildMusicRecording(data.track);
     } else if (data.album) {
       // Saved album
-      object = this.buildMusicAlbum(data.album);
+      object = buildMusicAlbum(data.album);
     } else {
       throw new Error('Save action must have either track or album data');
     }
@@ -78,9 +82,13 @@ export default class SpotifyTransformer extends ChronicleTransformer {
 
   private buildPlaylistTrackActions(record: Record): ActionAndChildren[] {
     const { data } = record;
+    // A local file in a playlist has no Spotify ID to key it by, so it's left
+    // out, as it is from a data download.
+    if (!data.track?.id) return [];
     const user = this.buildUser(record);
-    const track = this.buildMusicRecording(data.track);
-    const playlist = this.buildPlaylistEntity(data.playlist);
+    const track = buildMusicRecording(data.track);
+    const playlist = this.buildPlaylist(data.playlist);
+    const agent = this.buildAddedBy(data.added_by, user);
 
     // AddAction represents adding a track to a playlist collection
     const action: AddAction = {
@@ -88,7 +96,7 @@ export default class SpotifyTransformer extends ChronicleTransformer {
       '@key': ['@type', 'source', 'object.sourceId', 'target.sourceId', 'timestamp'],
       timestamp: new Date(data.added_at),
       source: 'spotify',
-      agent: user,
+      ...(agent && { agent }),
       object: track, // The track being added
       target: playlist, // The playlist collection
     };
@@ -96,68 +104,10 @@ export default class SpotifyTransformer extends ChronicleTransformer {
     return [action];
   }
 
-  private buildMusicRecording(trackData: any): MusicRecording {
-    const recording: MusicRecording = {
-      '@type': 'MusicRecording',
-      '@key': ['@type', 'source', 'sourceId'],
-      source: 'spotify',
-      sourceId: trackData.id,
-      url: trackData.external_urls.spotify,
-      name: trackData.name,
-      duration: `PT${Math.floor(trackData.duration_ms / 1000)}S`,
-      ...(trackData.preview_url && { contentUrl: trackData.preview_url }),
-    };
-
-    // Add artists
-    if (trackData.artists && trackData.artists.length > 0) {
-      recording.artist = trackData.artists.map((artist: any) => this.buildMusicGroup(artist));
-    }
-
-    // Add album
-    if (trackData.album) {
-      recording.inAlbum = this.buildMusicAlbum(trackData.album);
-    }
-
-    // Add track image (usually from album artwork)
-    if (trackData.album?.images?.[0]) {
-      const largestImage = trackData.album.images[0];
-      recording.emblem = createImageObject({
-        url: largestImage.url,
-        width: largestImage.width,
-        height: largestImage.height,
-      });
-    }
-
-    return recording;
-  }
-
-  private buildMusicGroup(artistData: any): MusicGroup {
-    const group: MusicGroup = {
-      '@type': 'MusicGroup',
-      '@key': ['@type', 'source', 'sourceId'],
-      source: 'spotify',
-      sourceId: artistData.id,
-      url: artistData.external_urls?.spotify || `https://open.spotify.com/artist/${artistData.id}`,
-      name: artistData.name,
-      ...(artistData.genres && { genre: artistData.genres }),
-    };
-
-    // Add artist image as attachment if available
-    if (artistData.images?.[0]) {
-      const largestImage = artistData.images[0];
-      group.emblem = createImageObject({
-        url: largestImage.url,
-        width: largestImage.width,
-        height: largestImage.height,
-      });
-    }
-
-    return group;
-  }
-
-  private buildPlaylistEntity(playlistData: any): Entity {
-    const entity: Entity = {
-      '@type': 'Entity',
+  // A playlist is a Collection, as a data download's is, keyed by its ID.
+  private buildPlaylist(playlistData: any): Collection {
+    const playlist: Collection = {
+      '@type': 'Collection',
       '@key': ['@type', 'source', 'sourceId'],
       source: 'spotify',
       sourceId: playlistData.id,
@@ -169,43 +119,30 @@ export default class SpotifyTransformer extends ChronicleTransformer {
     // Add playlist image as attachment if available
     if (playlistData.images?.[0]) {
       const largestImage = playlistData.images[0];
-      entity.emblem = createImageObject({
+      playlist.emblem = createImageObject({
         url: largestImage.url,
         width: largestImage.width,
         height: largestImage.height,
       });
     }
 
-    return entity;
+    return playlist;
   }
 
-  private buildMusicAlbum(albumData: any): MusicAlbum {
-    const album: MusicAlbum = {
-      '@type': 'MusicAlbum',
-      '@key': ['@type', 'source', 'sourceId'],
+  // Who added a playlist item: the account, or for a playlist it follows or
+  // shares, whoever else did, by their Spotify ID. Spotify leaves the ID
+  // empty on some items, mostly old ones, which then have no agent. A record
+  // from before `added_by` was asked for is the account's.
+  private buildAddedBy(addedBy: { id?: string } | undefined, user: Agent): Agent | undefined {
+    if (!addedBy || addedBy.id === user.handle) return user;
+    if (!addedBy.id) return undefined;
+    return {
+      '@type': 'Agent',
+      '@key': ['@type', 'source', 'handle'],
       source: 'spotify',
-      sourceId: albumData.id,
-      url: albumData.external_urls?.spotify || `https://open.spotify.com/album/${albumData.id}`,
-      name: albumData.name,
-      ...(albumData.release_date && { datePublished: albumData.release_date }),
+      handle: addedBy.id,
+      url: `https://open.spotify.com/user/${addedBy.id}`,
     };
-
-    // Add album art as attachment if available
-    if (albumData.images?.[0]) {
-      const largestImage = albumData.images[0];
-      album.emblem = createImageObject({
-        url: largestImage.url,
-        width: largestImage.width,
-        height: largestImage.height,
-      });
-    }
-
-    // Add album artists
-    if (albumData.artists && albumData.artists.length > 0) {
-      album.artist = albumData.artists.map((artist: any) => this.buildMusicGroup(artist));
-    }
-
-    return album;
   }
 
   private buildUser(record: Record): Agent {

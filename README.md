@@ -77,7 +77,7 @@ other source by name, for example `chronicle plugins install lastfm`, or let
 | Pinboard bookmarks                                                                     | [pinboard](plugins/pinboard/README.md)                     | api                             |
 | Songs identified with Shazam and Music Recognition                                     | [shazam](plugins/shazam/README.md)                         | app-db (local)                  |
 | Slack messages from a slackdump export                                                 | [slack](plugins/slack/README.md)                           | archive (export)                |
-| Spotify listens, saved tracks and albums, playlists                                    | [spotify](plugins/spotify/README.md)                       | api                             |
+| Spotify listens, library, playlists, and searches, from the API or a data download     | [spotify](plugins/spotify/README.md)                       | api, archive (export)           |
 | Timing app usage, time entries, and calls                                              | [timing-app](plugins/timing-app/README.md)                 | app-db (local)                  |
 | Twitter/X archive tweets, likes, and DMs                                               | [twitter](plugins/twitter/README.md)                       | archive (export)                |
 | WhatsApp messages                                                                      | [whatsapp](plugins/whatsapp/README.md)                     | app-db (local), backup (export) |

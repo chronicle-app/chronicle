@@ -1,5 +1,6 @@
 import { table, type Tokens } from '../output/index.js';
 import type { SourceListing } from '../plugins/catalog.js';
+import { bareRunStrategy } from './recordKinds.js';
 
 export const PLATFORM_NAMES: Partial<Record<NodeJS.Platform, string>> = {
   darwin: 'macOS',
@@ -33,8 +34,7 @@ export function sourcesTable(sources: SourceListing[], t: Tokens, width: number)
       cells: sources.map((row, i) => [
         row.source,
         // The default strategy first; it's what a bare `extract` takes.
-        [...row.strategies]
-          .sort((a, b) => Number(Boolean(b.default)) - Number(Boolean(a.default)))
+        defaultFirst(row.strategies)
           .map(strategy => strategy.name)
           .join(', '),
         ...(status ? [statuses[i]] : []),
@@ -45,4 +45,10 @@ export function sourcesTable(sources: SourceListing[], t: Tokens, width: number)
     t,
     width
   ).lines;
+}
+
+/** The strategies with the one a bare `extract` takes first. */
+function defaultFirst<S extends SourceListing['strategies'][number]>(strategies: S[]): S[] {
+  const chosen = bareRunStrategy(strategies, strategy => Boolean(strategy.default));
+  return [...strategies].sort((a, b) => Number(b === chosen) - Number(a === chosen));
 }

@@ -216,7 +216,6 @@ export default class InstagramTransformer extends ChronicleTransformer {
           '@type': 'Query',
           '@key': ['@type', 'source', 'body'],
           source: 'instagram',
-          name: d.query,
           body: d.query,
         }
       : undefined;

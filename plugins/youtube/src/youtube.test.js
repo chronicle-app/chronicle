@@ -302,7 +302,6 @@ test('a Takeout archive maps to the same shapes as the API', async t => {
         '@type': 'Query',
         '@key': ['@type', 'source', 'body'],
         source: 'youtube',
-        name: 'cowboy songs',
         body: 'cowboy songs',
       },
       '@assertedAt': assertedAt,

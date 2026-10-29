@@ -1,7 +1,14 @@
 import { EXIT_CODES, ExtractorError } from '@chronicle.app/logging';
 import { closest } from './closest.js';
 import { canMerge, combineExtractors } from './combineExtractors.js';
-import { ALL_KINDS, DEFAULT_KINDS, allKinds, defaultKinds, expandKinds } from './recordKinds.js';
+import {
+  ALL_KINDS,
+  DEFAULT_KINDS,
+  allKinds,
+  bareRunStrategy,
+  defaultKinds,
+  expandKinds,
+} from './recordKinds.js';
 import {
   strategiesOf,
   type ExtractorMetadata,
@@ -147,8 +154,8 @@ export class ExtractorSelector {
 
   /**
    * The strategy's extractors, when the pool still spans several strategies:
-   * the one that reads every named kind, else the one with defaults, else a
-   * person's pick.
+   * the one that reads every named kind, else the one with defaults a bare
+   * run takes, else a person's pick.
    */
   private async resolveStrategyFor(
     pool: ExtractorMetadata[],
@@ -161,7 +168,7 @@ export class ExtractorSelector {
       literal.length > 0
         ? strategies.filter(s => literal.every(kind => s.recordTypes.includes(kind)))
         : strategies;
-    const withDefaults = covering.find(s => s.extractors.some(e => e.default));
+    const withDefaults = bareRunStrategy(covering, s => s.extractors.some(e => e.default));
     if (covering.length === 1) return covering[0].extractors;
     if (withDefaults) return withDefaults.extractors;
     if (covering.length === 0) {

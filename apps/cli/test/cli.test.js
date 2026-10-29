@@ -78,9 +78,10 @@ test('bundled sources are discoverable from an unrelated cwd; JSON has no diagno
     );
   }
   // A bare `chronicle extract <source>` reads one strategy's defaults, so a
-  // source has at most one; with none, the run asks which kinds.
+  // source has at most one that needs no file; with none, the run asks which
+  // kinds. An export's defaults are what a run with `--input` reads.
   for (const { source, strategies } of all.filter(x => x.installed)) {
-    const defaults = strategies.filter(strategy => strategy.default);
+    const defaults = strategies.filter(s => s.default && s.delivery !== 'export');
     assert.ok(defaults.length <= 1, `${source} has ${defaults.length} default strategies`);
   }
   // Legacy sources are listed only on request, and a hint under the table says so.
@@ -573,6 +574,48 @@ export class Backup extends Extractor {
     JSON.parse(success(run('extract', 'two', '--raw', '--strategy', 'dump', '--input', 'x'))).from,
     'dump'
   );
+});
+
+test('a bare run takes the default that needs no file; --input reads the export’s', t => {
+  const { dir, run } = fixture(t);
+  // Shaped like Spotify: a download whose strategy has defaults of its own,
+  // which sorts first, beside a default that reads without a file.
+  mkdirSync(join(dir, 'both-defaults'));
+  writeFileSync(
+    join(dir, 'both-defaults/package.json'),
+    JSON.stringify({ name: 'both-defaults', type: 'module', exports: './index.js' })
+  );
+  writeFileSync(
+    join(dir, 'both-defaults/index.js'),
+    `import { Extractor, z } from '@chronicle.app/etl';
+export class Download extends Extractor {
+  static source = 'both'; static strategy = 'archive'; static delivery = 'export';
+  static recordTypes = ['plays']; static default = true;
+  static schema = Extractor.schema.extend({ input: z.string().optional() });
+  async *extract() { yield this.createRecord({ from: 'archive plays' }); }
+}
+export class DownloadSearches extends Extractor {
+  static source = 'both'; static strategy = 'archive'; static delivery = 'export';
+  static recordTypes = ['searches'];
+  static schema = Extractor.schema.extend({ input: z.string().optional() });
+  async *extract() { yield this.createRecord({ from: 'archive searches' }); }
+}
+export class Live extends Extractor {
+  static source = 'both'; static strategy = 'live'; static delivery = 'local';
+  static recordTypes = ['plays']; static default = true;
+  async *extract() { yield this.createRecord({ from: 'live plays' }); }
+}`
+  );
+  success(run('plugins', 'add', './both-defaults'));
+  assert.equal(JSON.parse(success(run('extract', 'both', '--raw'))).from, 'live plays');
+  assert.equal(JSON.parse(success(run('extract', 'both', '--raw', 'plays'))).from, 'live plays');
+  assert.equal(
+    JSON.parse(success(run('extract', 'both', '--raw', '--input', 'x'))).from,
+    'archive plays'
+  );
+  const info = success(run('sources', 'info', 'both'));
+  assert.match(info, /live +From files on this computer\. The default\./);
+  assert.doesNotMatch(info, /archive .*The default\./);
 });
 
 test('plugins add runs a file in place, taking over its source until removed', t => {

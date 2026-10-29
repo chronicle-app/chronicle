@@ -11,7 +11,8 @@
     "build": "tsc -b tsconfig.lib.json",
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint src --ext .ts,.js",
-    "test": "node --test src/*.test.js"
+    "test": "node --test src/*.test.js",
+    "shapes": "node src/shapes.test.js --update"
   },
   "keywords": [
     "chronicle",
@@ -68,6 +69,52 @@
               "listens",
               "saved-albums",
               "saved-tracks"
+            ],
+            "default": true
+          },
+          "archive": {
+            "delivery": "export",
+            "layouts": [
+              {
+                "name": "Extended streaming history",
+                "files": [
+                  "Streaming_History_Audio_*.json"
+                ],
+                "match": [
+                  {
+                    "path": "Streaming_History_Audio_*.json",
+                    "head": "^\\s*\\[\\s*\\{\\s*\"ts\"\\s*:"
+                  }
+                ]
+              },
+              {
+                "name": "Extended streaming history, endsong files",
+                "files": [
+                  "endsong_*.json"
+                ],
+                "match": [
+                  {
+                    "path": "endsong_*.json",
+                    "head": "^\\s*\\[\\s*\\{\\s*\"ts\"\\s*:"
+                  }
+                ]
+              },
+              {
+                "name": "Account data",
+                "files": [
+                  "Userdata.json",
+                  "YourLibrary.json"
+                ]
+              }
+            ],
+            "recordTypes": [
+              "listens",
+              "saved-tracks",
+              "saved-albums",
+              "saved-episodes",
+              "follows",
+              "playlist-tracks",
+              "searches"
             ],
             "default": true
           }

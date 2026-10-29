@@ -139,7 +139,6 @@ export default class FacebookTransformer extends ChronicleTransformer {
         '@type': 'Query',
         '@key': ['@type', 'source', 'body'],
         source: 'facebook',
-        name: record.data.searchText,
         body: record.data.searchText,
       } satisfies Query,
     };

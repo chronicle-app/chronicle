@@ -1018,7 +1018,6 @@ instead.
       a :Query;
       doc:key ("@type" "source" "body");
       :source "instagram";
-      :name "vegan ramen";
       :body "vegan ramen"
     ]
   ] .
@@ -1916,7 +1915,6 @@ A :FindAction from the search history in a Google Takeout archive. The
       a :Query;
       doc:key ("@type" "source" "body");
       :source "youtube";
-      :name "fix bike chain";
       :body "fix bike chain"
     ]
   ] .
@@ -3700,7 +3698,6 @@ the account owner here, so the :agent is Facebook's own self node, keyed by
       a :Query;
       doc:key ("@type" "source" "body");
       :source "facebook";
-      :name "trail running shoes";
       :body "trail running shoes"
     ]
   ] .
