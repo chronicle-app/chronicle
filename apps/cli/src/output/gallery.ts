@@ -106,7 +106,7 @@ export const EVENTS: OutputEvent[] = [
       level: 'error',
       kind: 'error',
       scope: 'runner',
-      message: `Extraction error: Schema validation error: record ${i + 1} is missing a timestamp`,
+      message: `Schema validation error: record ${i + 1} is missing a timestamp`,
       key: 'record.validation',
     })
   ),

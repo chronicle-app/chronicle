@@ -38,6 +38,7 @@ export class RunReport {
   private total = 0;
   private read = 0;
   private readCounts: { [type: string]: number } = {};
+  private skippedCounts: { [type: string]: number } = {};
   private current = '';
   private target?: string;
 
@@ -72,13 +73,21 @@ export class RunReport {
     this.progress();
   }
 
-  /** Count a processed record, and report its failures, keyed so a flood aggregates. */
+  /**
+   * Count a processed record, and report its failures and, for `--verbose`,
+   * its skip, each naming the record and keyed so a flood aggregates.
+   */
   record(log: RunLog): void {
     if (!log.record) return;
     const { stats } = this;
     stats.processed++;
     const type = log.record.extraction.recordType ?? 'records';
     stats.counts[type] = (stats.counts[type] ?? 0) + 1;
+    // The record for a person: what it loaded as, else what was extracted,
+    // as when a transformer makes another system's payload, with no label.
+    const loaded = log.results.at(-1)?.record?.data;
+    const name = label(loaded) || label(log.record.data);
+    const about = { type, ...(name && { record: name }) };
     const failures: [key: string, message: string | undefined][] = [
       ...(log.error ? [['record.transform', log.error] as [string, string]] : []),
       ...(log.validationErrors ?? []).map(
@@ -93,14 +102,26 @@ export class RunReport {
       this.logger.emit({
         level: 'error',
         kind: 'error',
-        message: `Extraction error: ${message ?? 'load failed'}`,
+        message: message ?? "Couldn't load the record",
         key,
+        fields: about,
+        sensitive: ['record'],
       });
     }
     stats.written += log.results.filter(result => result.success).length;
-    if (log.filtered) stats.skipped++;
-    const loaded = log.results.at(-1)?.record?.data;
-    this.current = label(loaded ?? log.record.data) || this.current;
+    if (log.filtered) {
+      stats.skipped++;
+      this.skippedCounts[type] = (this.skippedCounts[type] ?? 0) + 1;
+      this.logger.emit({
+        level: 'debug',
+        kind: 'diagnostic',
+        message: 'Skipped a record',
+        key: 'record.skip',
+        fields: about,
+        sensitive: ['record'],
+      });
+    }
+    this.current = name || this.current;
     this.progress();
   }
 
@@ -135,7 +156,7 @@ export class RunReport {
       records: processed,
       // Only when it says something the counts don't: a fan-out, or failures.
       ...(written !== processed - skipped && { written }),
-      ...(skipped > 0 && { skipped }),
+      ...(skipped > 0 && { skipped, skippedCounts: { ...this.skippedCounts } }),
       ...(failed > 0 && { failed }),
       durationMs: Date.now() - this.startedAt,
       ...(this.output && { output: this.output }),

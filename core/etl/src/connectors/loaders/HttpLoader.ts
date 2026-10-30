@@ -2,6 +2,9 @@ import { z } from 'zod';
 import { LoadResult, Record } from '../../types.js';
 import { Loader } from '../../loader.js';
 
+/** The most of a failed response's body a load error repeats. */
+const BODY_LENGTH = 200;
+
 export class HttpLoader extends Loader<typeof HttpLoader> {
   static override source = 'http';
   static override schema = z.object({
@@ -26,7 +29,12 @@ export class HttpLoader extends Loader<typeof HttpLoader> {
     });
 
     if (!response.ok) {
-      return { success: false, record, error: await response.text() };
+      // The status first, short enough to leave room for the record the run
+      // names beside it, and what the endpoint said on a line of its own.
+      const status = `HTTP ${response.status} ${response.statusText}`.trim();
+      const body = (await response.text()).replaceAll(/\s+/g, ' ').trim();
+      const said = body.length > BODY_LENGTH ? `${body.slice(0, BODY_LENGTH - 1)}…` : body;
+      return { success: false, record, error: said ? `${status}\n${said}` : status };
     }
 
     return { success: true, record };

@@ -64,7 +64,14 @@ export function summary(
       ([type, n]) => [n, plural(type.replaceAll('-', ' '), n), undefined] as const
     ),
     ...(failed ? [[fields.failed!, 'failed', t.danger] as const] : []),
-    ...(fields.skipped ? [[fields.skipped, 'skipped', t.muted] as const] : []),
+    // Skips by kind when the run says, so `12 bookmarks skipped` explains itself.
+    ...(fields.skippedCounts
+      ? Object.entries(fields.skippedCounts).map(
+          ([type, n]) => [n, `${plural(type.replaceAll('-', ' '), n)} skipped`, t.muted] as const
+        )
+      : fields.skipped
+        ? [[fields.skipped, 'skipped', t.muted] as const]
+        : []),
     ...(fields.written === undefined ? [] : [[fields.written, 'written', t.muted] as const]),
   ];
   const digits = Math.max(0, ...rows.map(([n]) => (n === undefined ? 0 : count(n).length)));

@@ -98,6 +98,8 @@ export type SummaryFields = {
   /** What reached the output, when that differs from records read less skipped: a fan-out, or failures. */
   written?: number;
   skipped?: number;
+  /** Records skipped, by type, when any were. */
+  skippedCounts?: Record<string, number>;
   failed?: number;
   durationMs: number;
   /** Where the records went, when that's a file. */
