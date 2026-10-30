@@ -10,6 +10,9 @@ export class HttpLoader extends Loader<typeof HttpLoader> {
     token: z.string().optional().describe('HTTP bearer token to use for authorization'),
   });
 
+  // It sends records to the endpoint and prints none.
+  static override printsRecords = false;
+
   async load(record: Record): Promise<LoadResult> {
     const { endpoint, method, token } = this.config;
 

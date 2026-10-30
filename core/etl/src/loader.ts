@@ -7,6 +7,12 @@ type LoaderConfigObjectOutput<T extends typeof Loader> = z.output<T['schema']>;
 export abstract class Loader<SelfClass extends typeof Loader = typeof Loader> {
   static source?: string;
   static schema = z.object({});
+  /**
+   * Whether the loader prints records to stdout when it has no output file,
+   * as the JSON, CSV and YAML loaders do. A host showing live progress on
+   * the same terminal stops when such a loader starts, so the two don't mix.
+   */
+  static printsRecords = true;
 
   protected config!: LoaderConfigObjectOutput<SelfClass>;
 

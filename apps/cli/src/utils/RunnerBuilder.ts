@@ -77,6 +77,15 @@ export class RunnerBuilder {
   }
 
   /**
+   * Whether the run's loader prints records to stdout without `--output`, so
+   * they share a terminal with the live view. Known before the loader is built.
+   */
+  printsRecords(): boolean {
+    const LoaderClass = loaderRegistry[this.flags.loader as keyof typeof loaderRegistry];
+    return LoaderClass?.printsRecords ?? true;
+  }
+
+  /**
    * Build extractor configuration from flags
    */
   buildExtractorConfig(selectedExtractor: any): any {
