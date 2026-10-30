@@ -6,6 +6,7 @@ import { Config } from '@oclif/core';
 import { glob } from 'glob';
 import { Delivery, Extractor, type Locator, type Transformer } from '@chronicle.app/etl';
 import { createLogger } from '@chronicle.app/logging';
+import { chronicleDataDir } from '../config/dataDir.js';
 import { isShared } from './sharedModules.js';
 
 const logger = createLogger({ scope: 'plugins' });
@@ -134,8 +135,18 @@ async function forgetLocalPlugins(paths: string[]): Promise<void> {
   await configManager.saveConfig(config);
 }
 
-/** The data directory `chronicle plugins install` installs into. */
+/** The folder `chronicle plugins install` installs into: `plugins` in the Chronicle data directory. */
 export async function pluginDataDir(): Promise<string> {
+  return path.join(chronicleDataDir(), 'plugins');
+}
+
+/**
+ * Where installs went before they moved into the Chronicle data directory:
+ * oclif's own data directory. Plugins there still load and uninstall, but
+ * new installs don't go there. They stay where npm put them because npm
+ * records a plugin installed from a path relative to the folder.
+ */
+export async function legacyPluginDataDir(): Promise<string> {
   return (await Config.load(cliRoot)).dataDir;
 }
 
@@ -302,7 +313,11 @@ export class PluginScanner {
         add(workspace, 'workspace');
       }
 
-      add(await pluginsIn(path.join(await pluginDataDir(), 'node_modules')), 'installed');
+      // Installed plugins, then any from before installs moved, which a newer
+      // install of the same plugin replaces.
+      for (const dir of [await pluginDataDir(), await legacyPluginDataDir()]) {
+        add(await pluginsIn(path.join(dir, 'node_modules')), 'installed');
+      }
       // Under npx or a flat install, the CLI's own dependencies sit beside it:
       // those copies are bundled, while a separately installed copy stays beside-cli.
       const bundled = await bundledPlugins();

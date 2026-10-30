@@ -622,6 +622,8 @@ export class Fixture extends Extractor {
 }`
   );
   success(run('plugins', 'install', './fixture-plugin'));
+  // Installs go in the plugins folder of the Chronicle data directory.
+  assert.ok(existsSync(join(dir, 'data', 'plugins', 'node_modules', 'fixture-plugin')));
   // Reinstalling from the same path leaves its dependency entry unchanged.
   success(run('plugins', 'install', './fixture-plugin'));
   assert.match(success(run('plugins')), /fixture-plugin +1\.0\.0 +installed/);
@@ -639,6 +641,48 @@ export class Fixture extends Extractor {
   success(run('plugins', 'uninstall', 'fixture-plugin'));
   assert.equal(
     JSON.parse(success(run('sources', '--source', 'fixture', '--format', 'json'))).length,
+    0
+  );
+});
+
+test('a plugin installed before installs moved to the plugins folder still loads and uninstalls', t => {
+  const { dir, run } = fixture(t);
+  // Where an older CLI installed it: oclif's data directory, which
+  // CHRONICLE_DATA_DIR names here as well.
+  const legacy = join(dir, 'data');
+  const plugin = join(legacy, 'node_modules', 'legacy-plugin');
+  mkdirSync(plugin, { recursive: true });
+  writeFileSync(
+    join(legacy, 'package.json'),
+    JSON.stringify({ private: true, dependencies: { 'legacy-plugin': '1.0.0' } })
+  );
+  writeFileSync(
+    join(plugin, 'package.json'),
+    JSON.stringify({
+      name: 'legacy-plugin',
+      version: '1.0.0',
+      type: 'module',
+      exports: './index.js',
+      chronicle: { plugin: true },
+    })
+  );
+  writeFileSync(
+    join(plugin, 'index.js'),
+    `import { Extractor } from '@chronicle.app/etl';
+export class Legacy extends Extractor {
+  static source = 'legacy'; static strategy = 'file'; static delivery = 'export';
+  static recordTypes = ['rows']; static default = true;
+  async *extract() { yield this.createRecord({ name: 'legacy fixture' }); }
+}`
+  );
+  const [listing] = JSON.parse(success(run('sources', '--source', 'legacy', '--format', 'json')));
+  assert.equal(listing.origin, 'installed');
+  assert.equal(JSON.parse(success(run('extract', 'legacy', '--raw'))).name, 'legacy fixture');
+
+  success(run('plugins', 'uninstall', 'legacy-plugin'));
+  assert.ok(!existsSync(plugin));
+  assert.equal(
+    JSON.parse(success(run('sources', '--source', 'legacy', '--format', 'json'))).length,
     0
   );
 });
