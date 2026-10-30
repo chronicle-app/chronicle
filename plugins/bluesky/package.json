@@ -67,7 +67,27 @@
               "follows",
               "likes"
             ],
-            "default": true
+            "default": true,
+            "setup": [
+              {
+                "open": "https://bsky.app/settings/app-passwords"
+              },
+              {
+                "do": "add an app password, then copy it"
+              },
+              {
+                "do": "your username is your handle, like you.bsky.social"
+              },
+              {
+                "ask": "username"
+              },
+              {
+                "ask": "password"
+              },
+              {
+                "sign-in": "bluesky"
+              }
+            ]
           }
         }
       }

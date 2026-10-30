@@ -1,34 +1,51 @@
-import type { Intro, Step } from '../output/index.js';
+import { count, type Intro, type Step } from '../output/index.js';
 
 const STEPS: Step[] = [
-  { name: 'scan', description: 'find what this mac holds' },
-  { name: 'add', description: 'pick services to bring in' },
-  { name: 'extract', description: 'write each to its own file' },
-  { name: 'todo', description: 'sign in and request exports, now or later' },
+  { name: 'gather', description: 'pick what to bring in' },
+  { name: 'prepare', description: 'sign in and ask for exports, now or later' },
+  { name: 'import', description: 'bring in the last year of each' },
 ];
 
-/** What setup does, said on a first run beside the logo. */
+/** What setup does, said beside the logo on a run that starts. */
 export const INTRO: Intro = {
-  title: 'Bring in your history',
+  title: 'Set up Chronicle',
   steps: STEPS,
-  note: 'Nothing is extracted until you pick it.',
+  note: 'Nothing is imported until you pick it.',
 };
 
+/** Where a pick stands, on a run that carries on: imported, waiting on an export, or left to do. */
+export interface Standing {
+  source: string;
+  /** How it's named: its source, and which of its picks when it has more than one. */
+  name: string;
+  state: 'done' | 'waiting' | 'left';
+  text: string;
+}
+
+/** The most picks a resumed run lists one by one. Past it, those imported are counted on one line. */
+const LISTED = 8;
+
 /**
- * What setup does, said on a later run: the same steps, under a title that
- * says it's carrying on, and a note on where it left off.
+ * What setup says on a run that carries on from the last, before any of
+ * it is through: that it's resuming, and where each pick stands, in place
+ * of the steps: those imported, then those waiting, then those left.
  */
-export function resumed({
-  picked,
-  extracted,
-  left,
-}: {
-  picked: number;
-  extracted: number;
-  left: string[];
-}): Intro {
-  const picks = `${picked === 1 ? 'pick' : 'picks'} extracted.`;
-  const done = extracted === picked ? `${picked} ${picks}` : `${extracted} of ${picked} ${picks}`;
-  const todo = left.length > 0 ? ` Left to do: ${left.join(', ')}.` : '';
-  return { title: 'Resuming setup', steps: STEPS, note: `${done}${todo} Your picks are kept.` };
+export function resumed(picks: Standing[]): Intro {
+  const done = picks.filter(pick => pick.state === 'done');
+  const rest = [
+    ...picks.filter(pick => pick.state === 'waiting'),
+    ...picks.filter(pick => pick.state === 'left'),
+  ];
+  const imported =
+    picks.length > LISTED && done.length > 1
+      ? [{ name: `${count(done.length)} sources`, state: 'done' as const, text: 'imported' }]
+      : done;
+  return {
+    title: 'Resuming setup',
+    steps: [...imported, ...rest].map(({ name, state, text }) => ({
+      name,
+      description: text,
+      mark: state,
+    })),
+  };
 }

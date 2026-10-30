@@ -1,4 +1,5 @@
 import { wrap } from '../blocks.js';
+import { glyphs } from '../glyphs.js';
 import type { RGB, Style, Tokens } from '../tokens.js';
 import { SLANT, WORDMARK, unrolledAt } from './art.js';
 import { GRAY, PAPER, RED, gradient, hue, print, type Ink } from './color.js';
@@ -9,6 +10,12 @@ import { visibleWidth } from './text.js';
 export interface Step {
   name: string;
   description: string;
+  /**
+   * Where it stands, said by a mark in its number's place: done, waiting on
+   * something else, or left to do. Steps with marks are a list of where
+   * things stand, not steps in turn.
+   */
+  mark?: 'done' | 'waiting' | 'left';
 }
 
 /** What's ahead, said beside the logo: a title, any sentences, the steps, and a note to end on. */
@@ -60,10 +67,18 @@ function named(lines: string[], color: RGB, { color: paint, width }: Brush): str
     : [];
 }
 
+/** A step's mark, in its number's place. */
+const MARKS: Record<NonNullable<Step['mark']>, (t: Tokens) => string> = {
+  done: t => t.success(glyphs.success),
+  waiting: t => t.muted(glyphs.ellipsis),
+  left: t => t.muted(glyphs.bullet),
+};
+
 /**
  * What's ahead as a walkthrough: its title, any sentences, its steps, each
  * numbered in the color `accent` gives it, its name in bold, a dash, and
- * what it does, the dashes lined up, and its note in light.
+ * what it does, the dashes lined up, and its note in light. Steps with
+ * marks have them in place of numbers, and no dash.
  */
 function walkthrough(
   intro: Intro | undefined,
@@ -78,11 +93,18 @@ function walkthrough(
   if (intro.text?.length) lines.push('');
   const { steps } = intro;
   const names = Math.max(...steps.map(step => step.name.length));
+  const marked = steps.some(step => step.mark);
+  const lead = marked ? 1 : `${steps.length}`.length;
+  const dash = marked ? '  ' : ' - ';
   // Where a description starts: after the number, the name, and the dash.
-  const hang = 2 + `${steps.length}`.length + 2 + names + 3;
-  for (const [i, { name, description }] of steps.entries()) {
-    const number = color(accent(i, steps.length))(`${i + 1}`.padStart(`${steps.length}`.length));
-    const named = `  ${number}  ${t.strong(name)}${' '.repeat(names - name.length)} - `;
+  const hang = 2 + lead + 2 + names + dash.length;
+  for (const [i, { name, description, mark }] of steps.entries()) {
+    const number = marked
+      ? mark
+        ? MARKS[mark](t)
+        : ' '
+      : color(accent(i, steps.length))(`${i + 1}`.padStart(lead));
+    const named = `  ${number}  ${t.strong(name)}${' '.repeat(names - name.length)}${dash}`;
     for (const [j, part] of wrap(description, width - hang).entries()) {
       lines.push(j === 0 ? `${named}${part}` : `${' '.repeat(hang)}${part}`);
     }

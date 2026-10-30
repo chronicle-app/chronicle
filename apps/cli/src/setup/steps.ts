@@ -1,7 +1,7 @@
 import { glyphs, line, type Segment, type Tokens } from '../output/index.js';
 
-/** Setup's steps, in order, each named for the command it stands for. */
-export const STEPS = ['scan', 'add', 'extract', 'todo'] as const;
+/** Setup's steps, in order: pick what to bring in, get it ready, and import it. */
+export const STEPS = ['gather', 'prepare', 'import'] as const;
 
 export type StepName = (typeof STEPS)[number];
 
@@ -13,13 +13,12 @@ export type StepState = 'waiting' | 'working' | 'asking' | 'done';
 
 /**
  * Setup's checklist: each step, where it is, and a few words on it, like
- * `23 found`. Drawn above whatever the step shows, so it's always plain
+ * `23 picked`. Drawn above whatever the step shows, so it's always plain
  * which step this is and what's left.
  *
- *   ✓ scan      23 found
- *   ● add
- *   · extract
- *   · todo
+ *   ✓ gather    23 picked
+ *   ● prepare   1 of 3
+ *   · import
  */
 export class Steps {
   private readonly states = new Map<StepName, { state: StepState; note: string }>(

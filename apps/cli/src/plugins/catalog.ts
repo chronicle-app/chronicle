@@ -57,17 +57,24 @@ export interface ManifestStrategy {
  *
  * - `open`: a page to open in the browser.
  * - `do`: what to do there.
- * - `ask`: something to paste back, kept for the sign-in after it.
- * - `sign-in`: sign in to a provider, as `chronicle auth login` does.
+ * - `ask`: something to paste back, kept for the sign-in after it: an
+ *   app's client ID and secret, or a token, username, or password.
+ * - `sign-in`: sign in to a provider, as `chronicle auth login` does; or,
+ *   for one that doesn't sign in in the browser, keep what was pasted, as
+ *   `chronicle auth set` does. A strategy whose steps sign in this way is
+ *   one setup can get ready.
  * - `wait`: how long an export takes to come, and how it says it has, if
  *   it does: `download` means soon, in the browser; `email` means later.
  *
  * An export's steps end with setup asking where it is, or to look later.
  */
+/** What a setup step can ask to have pasted back. */
+export type Answer = 'client-id' | 'client-secret' | 'token' | 'username' | 'password';
+
 export type SetupStep =
   | { open: string }
   | { do: string }
-  | { ask: 'client-id' | 'client-secret' }
+  | { ask: Answer }
   | { 'sign-in': string }
   | { wait: string; via?: 'download' | 'email' };
 

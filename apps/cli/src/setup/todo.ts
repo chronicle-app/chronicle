@@ -11,14 +11,27 @@ export interface Way {
 }
 
 /**
- * Something a person does before some sources can be extracted, which setup
- * offers once the rest are under way: a sign-in, an export to ask for, or
- * Full Disk Access.
+ * Whether a strategy reads with no account: its steps ask for what it
+ * needs, like Hacker News's username, and never sign in. The answers are
+ * its flags.
+ */
+export const accountless = (strategy?: { setup?: SetupStep[] }): boolean =>
+  Boolean(strategy?.setup?.some(step => 'ask' in step)) &&
+  !strategy?.setup?.some(step => 'sign-in' in step);
+
+/** What a strategy's steps ask for, in words: `username`. */
+export const asked = (steps: SetupStep[] = []): string =>
+  steps.flatMap(step => ('ask' in step ? [step.ask.replace('-', ' ')] : [])).join(' and ');
+
+/**
+ * Something a person does before some sources can be imported, which setup
+ * offers in its prepare step: a sign-in, an export to ask for, what an
+ * account-less source needs, like a username, or Full Disk Access.
  */
 export interface Todo {
   /** What it's known by between runs: `sign-in:google`, `setup:goodreads:csv`, `full-disk-access`. */
   key: string;
-  kind: 'sign-in' | 'export' | 'access';
+  kind: 'sign-in' | 'export' | 'settings' | 'access';
   /** For an export asked for on an earlier run: when. Its steps are done; it waits for its path. */
   requested?: string;
   /** Its name, like `google`. */
@@ -32,10 +45,11 @@ export interface Todo {
   cost: number;
 }
 
-/** What a source needs before it can be extracted, as setup works it out. */
+/** What a source needs before it can be imported, as setup works it out. */
 export type Need =
   | (Way & { need: 'sign-in'; provider: string; steps?: SetupStep[]; client: boolean })
   | (Way & { need: 'export'; steps: SetupStep[]; requested?: string })
+  | (Way & { need: 'settings'; steps: SetupStep[] })
   | (Way & { need: 'full-disk-access' });
 
 /** The steps of an export whose plugin gives none: ask for it, and wait. */
@@ -62,59 +76,81 @@ export function todosFor(needs: Need[]): Todo[] {
   const todos = new Map<string, Todo>();
   for (const need of needs) {
     const way = { source: need.source, strategy: need.strategy };
-    if (need.need === 'sign-in') {
-      const key = `sign-in:${need.provider}`;
-      const known = todos.get(key);
-      if (known) {
-        known.ways.push(way);
-        continue;
+    switch (need.need) {
+      case 'sign-in': {
+        const key = `sign-in:${need.provider}`;
+        const known = todos.get(key);
+        if (known) {
+          known.ways.push(way);
+          break;
+        }
+        const steps = need.client
+          ? [{ 'sign-in': need.provider }]
+          : (need.steps ?? appSteps(need.provider));
+        todos.set(key, {
+          key,
+          kind: 'sign-in',
+          name: need.provider,
+          what: 'sign in',
+          ways: [way],
+          steps,
+          cost: need.client ? 1 : 2,
+        });
+        break;
       }
-      const steps = need.client
-        ? [{ 'sign-in': need.provider }]
-        : (need.steps ?? appSteps(need.provider));
-      todos.set(key, {
-        key,
-        kind: 'sign-in',
-        name: need.provider,
-        what: 'sign in',
-        ways: [way],
-        steps,
-        cost: need.client ? 1 : 2,
-      });
-    } else if (need.need === 'export') {
-      const key = `setup:${need.source}:${need.strategy}`;
-      const later = need.steps.some(step => 'wait' in step && step.via === 'email');
-      const { requested } = need;
-      todos.set(key, {
-        key,
-        kind: 'export',
-        ...(requested && { requested }),
-        name: need.source,
-        what: requested
-          ? `requested ${requested.slice(0, 10)}`
-          : later
-            ? 'request export'
-            : 'export',
-        ways: [way],
-        steps: requested ? [] : need.steps,
-        cost: requested ? 3 : later ? 4 : 3,
-      });
-    } else {
-      const key = 'full-disk-access';
-      const known = todos.get(key);
-      if (known) {
-        if (!known.ways.some(w => w.source === need.source)) known.ways.push(way);
-        continue;
+      case 'export': {
+        const key = `setup:${need.source}:${need.strategy}`;
+        const later = need.steps.some(step => 'wait' in step && step.via === 'email');
+        const { requested } = need;
+        todos.set(key, {
+          key,
+          kind: 'export',
+          ...(requested && { requested }),
+          name: need.source,
+          what: requested
+            ? `requested ${requested.slice(0, 10)}`
+            : later
+              ? 'request export'
+              : 'export',
+          ways: [way],
+          steps: requested ? [] : need.steps,
+          cost: requested ? 3 : later ? 4 : 3,
+        });
+        break;
       }
-      todos.set(key, {
-        key,
-        kind: 'access',
-        name: 'full disk access',
-        what: '',
-        ways: [way],
-        steps: [],
-        cost: 9,
-      });
+      case 'settings': {
+        const key = `setup:${need.source}:${need.strategy}`;
+        todos.set(key, {
+          key,
+          kind: 'settings',
+          name: need.source,
+          what: `your ${asked(need.steps)}`,
+          ways: [way],
+          steps: need.steps,
+          // Typed in a moment.
+          cost: 1,
+        });
+        break;
+      }
+      case 'full-disk-access': {
+        const key = 'full-disk-access';
+        const known = todos.get(key);
+        if (known) {
+          if (!known.ways.some(w => w.source === need.source)) known.ways.push(way);
+          break;
+        }
+        todos.set(key, {
+          key,
+          kind: 'access',
+          name: 'full disk access',
+          what: '',
+          ways: [way],
+          steps: [],
+          // First, as turning it on means reopening the terminal: the run carries on from there.
+          cost: 0,
+        });
+        break;
+      }
     }
   }
   return [...todos.values()];
@@ -140,7 +176,11 @@ export const address = (url: string) => url.replace(/^https?:\/\/(www\.)?/, '').
 export function stepText(step: SetupStep): string {
   if ('open' in step) return `open ${address(step.open)}`;
   if ('do' in step) return step.do;
-  if ('ask' in step) return `paste the ${step.ask.replace('-', ' ')}`;
+  if ('ask' in step) {
+    return step.ask === 'username'
+      ? 'type your username'
+      : `paste the ${step.ask.replace('-', ' ')}`;
+  }
   if ('sign-in' in step) return `sign in to ${step['sign-in']}`;
   return `wait ${step.wait}${step.via ? ` for the ${step.via}` : ''}`;
 }

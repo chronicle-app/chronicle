@@ -6,18 +6,21 @@ import {
   isSpaceKey,
   useEffect,
   useKeypress,
+  useRef,
   useState,
   type KeypressEvent,
 } from '@inquirer/core';
 import { emitKeypressEvents } from 'node:readline';
 import { EXIT_CODES } from '@chronicle.app/logging';
+import { truncate } from './format.js';
 import { glyphs } from './glyphs.js';
+import { visibleWidth } from './logo/text.js';
 import { canAsk } from './sinks.js';
 import { tokens, type Tokens } from './tokens.js';
 
 /**
  * Questions asked at a terminal: `confirm`, `proceed`, `select`,
- * `multiSelect`, and `input`, and `awaitEnter` for one drawn elsewhere. Each draws on stderr, so stdout stays for records, and reads keys
+ * `multiSelect`, and `input`, and `awaitEnter` and `awaitKey` for one drawn elsewhere. Each draws on stderr, so stdout stays for records, and reads keys
  * only while it's asking. Esc, Ctrl+C, or Ctrl+D cancels. Callers check
  * `canAsk()` first and, without a terminal, say which flag to pass instead.
  * `select`, `multiSelect`, and `input` can draw lines above themselves, like
@@ -39,6 +42,12 @@ export interface SelectOption {
    * apart from those above it by a rule.
    */
   alone?: boolean;
+  /**
+   * In a multiSelect, the name of a group this option starts, said above it
+   * after a blank line, and any lines after it, like what's in the group.
+   * The group runs to the next option with a heading.
+   */
+  heading?: string;
 }
 
 /** Hides the terminal's cursor while a list is up; the prompt shows it again when done. */
@@ -133,11 +142,12 @@ async function ask<Value extends { cancelled: boolean }>(
 }
 
 /** Highlighted row first, then the option and what it is. */
-function optionRow(t: Tokens, option: SelectOption, here: boolean, mark = '') {
+function optionRow(t: Tokens, option: SelectOption, here: boolean, mark = '', columns?: number) {
   const row = `${here ? glyphs.pointer : ' '} ${mark}${option.label}`;
-  return (
-    (here ? t.accent(row) : row) + (option.description ? t.muted(` ${option.description}`) : '')
-  );
+  // Within `columns`, when given: what it is is cut short, rather than wrapping.
+  const room = columns ? columns - 1 - visibleWidth(row) - 1 : Number.POSITIVE_INFINITY;
+  const description = option.description && room > 1 ? truncate(option.description, room) : '';
+  return (here ? t.accent(row) : row) + (description ? t.muted(` ${description}`) : '');
 }
 
 /** A header's lines, apart from the question under them. */
@@ -219,40 +229,63 @@ export function confirm(
 
 export interface ProceedResult {
   cancelled: boolean;
+  /** The key action's key, when one was pressed instead of Enter. */
+  key?: string;
 }
 
-const proceedPrompt = createPrompt<ProceedResult, { message: string; t: Tokens }>(
-  ({ message, t }, done) => {
-    const [finished, setFinished] = useState(false);
-    const finish = (result: ProceedResult) => {
-      setFinished(true);
-      done(result);
-    };
-    useCancelOnClose(() => done({ cancelled: true }));
+const proceedPrompt = createPrompt<
+  ProceedResult,
+  { message: string; enter: string; actions: { key: string; label: string }[]; t: Tokens }
+>(({ message, enter, actions, t }, done) => {
+  const [finished, setFinished] = useState(false);
+  const finish = (result: ProceedResult) => {
+    setFinished(true);
+    done(result);
+  };
+  useCancelOnClose(() => done({ cancelled: true }));
 
-    useKeypress((key, rl) => {
-      if (finished) return;
-      rl.clearLine(0);
-      if (isEnterKey(key)) finish({ cancelled: false });
-      else if (isEscape(key)) finish({ cancelled: true });
-    });
+  useKeypress((key, rl) => {
+    if (finished) return;
+    rl.clearLine(0);
+    if (isEnterKey(key)) finish({ cancelled: false });
+    else if (isEscape(key)) finish({ cancelled: true });
+    else if (actions.some(action => action.key === key.name && !key.ctrl)) {
+      finish({ cancelled: false, key: key.name });
+    }
+  });
 
-    if (finished) return '';
-    return [
-      // Apart from what it follows, which says what Enter goes on to.
-      `\n${t.accent(glyphs.pointer)} ${t.strong(message)}${HIDE_CURSOR}`,
-      `\n${keysLine(t, ['enter continue', 'esc cancel'])}`,
-    ];
-  }
-);
+  if (finished) return '';
+  const keys = [`enter ${enter}`, ...actions.map(a => `${a.key} ${a.label}`), 'esc cancel'];
+  return [
+    // Apart from what it follows, which says what Enter goes on to.
+    `\n${t.accent(glyphs.pointer)} ${t.strong(message)}${HIDE_CURSOR}`,
+    `\n${keysLine(t, keys)}`,
+  ];
+});
 
-/** Wait for Enter, saying what it does: `Press Enter to start`. The question clears once answered. */
+/**
+ * Wait for Enter, saying what it does: `Press Enter to start`, and `enter`
+ * in the keys, `continue` unless given. `actions` are other keys that
+ * answer, by `key`. The question clears once answered.
+ */
 export function proceed(
   message: string,
-  { theme, terminal }: { theme?: string; terminal?: Terminal } = {}
+  {
+    enter = 'continue',
+    actions = [],
+    theme,
+    terminal,
+  }: {
+    enter?: string;
+    actions?: { key: string; label: string }[];
+    theme?: string;
+    terminal?: Terminal;
+  } = {}
 ): Promise<ProceedResult> {
   const t = tokens({ stream: 'stderr', theme });
-  return ask(terminal, context => proceedPrompt({ message, t }, context), { cancelled: true });
+  return ask(terminal, context => proceedPrompt({ message, enter, actions, t }, context), {
+    cancelled: true,
+  });
 }
 
 /**
@@ -261,7 +294,19 @@ export function proceed(
  * false for Esc, Ctrl+C, or Ctrl+D, which cancel. Without a terminal it
  * fails, as every question does.
  */
-export function awaitEnter(input: NodeJS.ReadStream = process.stdin): Promise<boolean> {
+export async function awaitEnter(input: NodeJS.ReadStream = process.stdin): Promise<boolean> {
+  return (await awaitKey([], input)) === 'enter';
+}
+
+/**
+ * Wait for Enter or one of `keys`, drawing nothing, as `awaitEnter` does:
+ * `enter`, or the key's name. Undefined for Esc, Ctrl+C, or Ctrl+D, which
+ * cancel.
+ */
+export function awaitKey(
+  keys: string[],
+  input: NodeJS.ReadStream = process.stdin
+): Promise<string | undefined> {
   if (!input.isTTY) {
     throw Object.assign(new Error("Can't ask a question without a terminal"), {
       code: 'no-terminal',
@@ -272,16 +317,18 @@ export function awaitEnter(input: NodeJS.ReadStream = process.stdin): Promise<bo
     emitKeypressEvents(input);
     input.setRawMode(true);
     input.resume();
-    const done = (entered: boolean) => {
+    const done = (answer?: string) => {
       input.removeListener('keypress', onKey);
       input.setRawMode(false);
       input.pause();
-      resolve(entered);
+      resolve(answer);
     };
     const onKey = (_: string, key: KeypressEvent | undefined) => {
       if (!key) return;
-      if (isEnterKey(key)) done(true);
-      else if (isEscape(key) || (key.ctrl && (key.name === 'c' || key.name === 'd'))) done(false);
+      if (isEnterKey(key)) done('enter');
+      else if (isEscape(key) || (key.ctrl && (key.name === 'c' || key.name === 'd'))) {
+        done();
+      } else if (!key.ctrl && key.name && keys.includes(key.name)) done(key.name);
     };
     input.on('keypress', onKey);
   });
@@ -399,27 +446,98 @@ export interface MultiSelectResult {
   back?: boolean;
 }
 
-/** The question, any lines under it, and its options, the chosen ones filled. */
+/** Where a list is drawn: how many rows and columns it has, when it's a terminal. */
+interface Size {
+  rows?: number;
+  columns?: number;
+}
+
+/** How many rows a line takes, wrapped at `columns`. */
+const height = (line: string, columns?: number) =>
+  columns ? Math.max(1, Math.ceil(visibleWidth(line) / columns)) : 1;
+
+/**
+ * The options to show, from `start` up to `end`: those that fit in `room`
+ * rows, `heights` giving each one's, with a row each to say how many more
+ * are above and below. All of them, when they fit. The cursor's always
+ * among them, and the window moves no more than it has to from `top`,
+ * where it started last time.
+ */
+function windowed(
+  heights: number[],
+  cursor: number,
+  room: number,
+  top: number
+): { start: number; end: number } {
+  const rows = (from: number, to: number) => heights.slice(from, to).reduce((n, h) => n + h, 0);
+  if (rows(0, heights.length) <= room) return { start: 0, end: heights.length };
+  const fits = Math.max(1, room - 2);
+  let start = Math.min(top, cursor);
+  while (start < cursor && rows(start, cursor + 1) > fits) start++;
+  let end = start;
+  while (end < heights.length && rows(start, end + 1) <= fits) end++;
+  end = Math.max(end, cursor + 1);
+  // At the end of the list, what room's left goes to those above.
+  while (start > 0 && rows(start - 1, end) <= fits) start--;
+  return { start, end };
+}
+
+/**
+ * The question, any lines under it, and its options, the chosen ones
+ * filled. With `fit`, only as many as fit in its `room` rows, around the
+ * cursor, saying how many more are above and below; `top` keeps where the
+ * window starts, from one drawing to the next.
+ */
 function choices(
   t: Tokens,
   message: string,
   options: SelectOption[],
   chosen: string[],
   cursor?: number,
-  body: string[] = []
+  body: string[] = [],
+  fit?: { room: number; columns?: number; top: { current: number } }
 ) {
   const rule = t.muted(`  ${'─'.repeat(Math.max(0, ...options.map(o => o.label.length)) + 2)}`);
-  const rows = options.flatMap((option, i) => {
+  const blocks = options.map((option, i) => {
     const mark = option.action
       ? ' '
       : chosen.includes(option.value)
         ? glyphs.chosen
         : glyphs.unchosen;
-    const row = optionRow(t, option, i === cursor, `${mark} `);
-    return option.alone && i > 0 && !options[i - 1].alone ? [rule, row] : [row];
+    const row = optionRow(t, option, i === cursor, `${mark} `, fit?.columns);
+    // A group after the first is apart from the one above it by a blank line.
+    const heading = option.heading
+      ? [
+          ...(i > 0 ? [''] : []),
+          ...option.heading.split('\n').map(text => (text ? t.muted(`  ${text}`) : '')),
+        ]
+      : [];
+    return option.alone && i > 0 && !options[i - 1].alone
+      ? [...heading, rule, row]
+      : [...heading, row];
   });
+  let rows = blocks.flat();
+  if (fit && cursor !== undefined && options.length > 0) {
+    const heights = blocks.map(lines => lines.reduce((n, l) => n + height(l, fit.columns), 0));
+    const { start, end } = windowed(heights, cursor, fit.room, fit.top.current);
+    fit.top.current = start;
+    rows = [
+      ...(start > 0 ? [t.muted(`  ↑ ${start} more`)] : []),
+      ...blocks.slice(start, end).flat(),
+      ...(end < options.length ? [t.muted(`  ↓ ${options.length - end} more`)] : []),
+    ];
+  }
   const said = body.length > 0 ? `\n${body.join('\n')}` : '';
   return `${t.strong(message)}${said}${rows.length > 0 ? `\n\n${rows.join('\n')}` : ''}`;
+}
+
+/** The options in the same group as the one at `cursor`: all of them, without headings. */
+function groupOf(options: SelectOption[], cursor: number): SelectOption[] {
+  let start = cursor;
+  while (start > 0 && !options[start].heading) start--;
+  let end = cursor + 1;
+  while (end < options.length && !options[end].heading) end++;
+  return options.slice(start, end);
 }
 
 /**
@@ -427,7 +545,8 @@ function choices(
  * toggled it takes just the highlighted one, so a single pick is one key,
  * or with `none`, nothing. Enter on an action takes what's toggled and the
  * action, as does a key action's key. A choice that stands alone clears the
- * others when it's toggled, and they it. `a` toggles all but those, `d`
+ * others when it's toggled, and they it. `a` toggles all but those, in the
+ * highlighted option's group when there are headings, and `d`
  * selects the defaults. With `back`, ← takes what's toggled and goes back;
  * with `onward`, → is Enter. (Shift+Enter can't be told from Enter in most
  * terminals, so it isn't used.)
@@ -449,12 +568,15 @@ const multiSelectPrompt = createPrompt<
     esc: string;
     header?: () => string[];
     subscribe?: (redraw: () => void) => () => void;
+    size: () => Size;
     t: Tokens;
   }
 >((props, done) => {
   const { message, options, defaults, initial, none, enter, skip, body, actions, esc } = props;
-  const { back, onward, header, subscribe, t } = props;
+  const { back, onward, header, subscribe, size, t } = props;
   const [cursor, setCursor] = useState(0);
+  // Where the window of options starts, on a terminal too short for them all.
+  const top = useRef(0);
   const [chosen, setChosen] = useState<string[]>(initial);
   const [finished, setFinished] = useState(false);
   const finish = (result: MultiSelectResult) => {
@@ -480,10 +602,16 @@ const multiSelectPrompt = createPrompt<
       else if (alone) setChosen([value]);
       else setChosen([...chosen.filter(v => !apart.has(v)), value]);
     } else if (key.name === 'a') {
-      const choosable = options
+      // With no options, there's nothing to toggle.
+      if (!options[cursor]) return;
+      const choosable = groupOf(options, cursor)
         .filter(option => !option.action && !option.alone)
         .map(option => option.value);
-      setChosen(choosable.every(v => chosen.includes(v)) ? [] : choosable);
+      setChosen(
+        choosable.every(v => chosen.includes(v))
+          ? chosen.filter(v => !choosable.includes(v))
+          : [...new Set([...chosen, ...choosable])]
+      );
     } else if (key.name === 'd' && defaults.length > 0) {
       setChosen(defaults);
     } else if (actions.some(action => action.key === key.name && !key.ctrl)) {
@@ -518,13 +646,31 @@ const multiSelectPrompt = createPrompt<
     ...actions.map(action => `${action.key} ${action.label}`),
     ...(back ? [`← ${back}`] : []),
     `${onward ? 'enter/→' : 'enter'} ${going}`,
-    ...(some ? ['a all'] : []),
+    // With headings, `a` takes the highlighted group.
+    ...(some ? [options.some(option => option.heading) ? 'a group' : 'a all'] : []),
     ...(defaults.length > 0 ? ['d defaults'] : []),
     `esc ${esc}`,
   ];
+  const head = above(header);
+  const bottom = keysLine(t, keys);
+  // What the options have room for: the terminal's rows, less the lines
+  // around them, and one spare, so nothing scrolls off to be drawn again.
+  const { rows, columns } = size();
+  const around = [
+    ...(head ? head.split('\n').slice(0, -1) : []),
+    message,
+    ...body,
+    '',
+    '',
+    bottom,
+    '',
+  ];
+  const fit = rows
+    ? { room: rows - around.reduce((n, l) => n + height(l, columns), 0), columns, top }
+    : undefined;
   return [
-    `${above(header)}${choices(t, message, options, chosen, cursor, body)}${HIDE_CURSOR}`,
-    `\n${keysLine(t, keys)}`,
+    `${head}${choices(t, message, options, chosen, cursor, body, fit)}${HIDE_CURSOR}`,
+    `\n${bottom}`,
   ];
 });
 
@@ -591,6 +737,8 @@ export function multiSelect(
           esc,
           header,
           subscribe,
+          // Read each time it's drawn, so a resized terminal gets a window that fits.
+          size: () => (terminal?.output ?? process.stderr) as Size,
           t,
         },
         context
@@ -617,11 +765,12 @@ const inputPrompt = createPrompt<
     body: string[];
     esc: string;
     back: boolean;
+    secret: boolean;
     header?: () => string[];
     subscribe?: (redraw: () => void) => () => void;
     t: Tokens;
   }
->(({ message, defaultValue, validate, body, esc, back, header, subscribe, t }, done) => {
+>(({ message, defaultValue, validate, body, esc, back, secret, header, subscribe, t }, done) => {
   const [value, setValue] = useState('');
   const [error, setError] = useState<string | undefined>();
   const [finished, setFinished] = useState(false);
@@ -661,8 +810,9 @@ const inputPrompt = createPrompt<
 
   if (finished) return '';
   // The line being typed ends the question, where the terminal's cursor is.
+  const shown = secret ? glyphs.secret.repeat(value.length) : value;
   return [
-    `${above(header)}${t.strong(message)}${body.length > 0 ? `\n${body.join('\n')}` : ''}\n\n${t.accent(glyphs.pointer)} ${value}`,
+    `${above(header)}${t.strong(message)}${body.length > 0 ? `\n${body.join('\n')}` : ''}\n\n${t.accent(glyphs.pointer)} ${shown}`,
     `${error ? `\n${t.danger(error)}` : ''}\n${keysLine(t, ['enter submit', `esc ${back ? 'back' : esc}`])}`,
   ];
 });
@@ -670,7 +820,8 @@ const inputPrompt = createPrompt<
 /**
  * Ask for a line of text, with any lines of `body` under the question. The
  * answer stays on screen, unless `clear`. With `back`, Esc answers `back`
- * rather than cancelling, and Ctrl+C still cancels.
+ * rather than cancelling, and Ctrl+C still cancels. With `secret`, what's
+ * typed is shown as a mark a character, like a token.
  */
 export function input(
   message: string,
@@ -684,6 +835,7 @@ export function input(
     signal,
     esc = 'cancel',
     back = false,
+    secret = false,
     theme,
     terminal,
   }: {
@@ -691,6 +843,7 @@ export function input(
     validate?: (value: string) => string | boolean;
     body?: string[];
     back?: boolean;
+    secret?: boolean;
   } & Around = {}
 ): Promise<InputResult> {
   const t = tokens({ stream: 'stderr', theme });
@@ -698,11 +851,14 @@ export function input(
     terminal,
     context =>
       inputPrompt(
-        { message, defaultValue, validate, body, esc, back, header, subscribe, t },
+        { message, defaultValue, validate, body, esc, back, secret, header, subscribe, t },
         context
       ),
     { value: '', cancelled: true },
-    clear ? undefined : ({ value }) => `${t.strong(message)} ${t.muted(value)}`,
+    clear
+      ? undefined
+      : ({ value }) =>
+          `${t.strong(message)} ${t.muted(secret ? glyphs.secret.repeat(value.length) : value)}`,
     signal
   );
 }

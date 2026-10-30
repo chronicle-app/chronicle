@@ -1451,7 +1451,7 @@ function safariHistory(file, { older = false, visited = new Date('2025-01-01T00:
   db.close();
 }
 
-test('setup --yes extracts the last year of what is ready here, a record a line, once', t => {
+test('setup --yes imports the last year of what is ready here, a record a line, once', t => {
   const { dir, run } = fixture(t);
   const home = join(dir, 'home');
   const day = 86_400;
@@ -1470,7 +1470,7 @@ test('setup --yes extracts the last year of what is ready here, a record a line,
   // No credential from the machine running the tests.
   const setup = run.with({ HOME: home, GH_TOKEN: undefined, GITHUB_TOKEN: undefined });
 
-  // Setup asks which sources to extract; without a terminal, --yes says to take what's ready.
+  // Setup asks which sources to import; without a terminal, --yes says to take what's ready.
   const unasked = setup('setup', '--log-format', 'json');
   assert.equal(unasked.status, 2);
   assert.match(JSON.parse(unasked.stderr.trim().split('\n').at(-1)).hint.action, /--yes/);
@@ -1501,11 +1501,11 @@ test('setup --yes extracts the last year of what is ready here, a record a line,
   const beside = JSON.parse(readFileSync(join(extracts, 'shell.target.json'), 'utf8'));
   assert.equal(beside.records, 2);
 
-  // A second run extracts nothing it has a file for.
+  // A second run imports nothing it has a file for.
   const before = readFileSync(join(extracts, 'shell.jsonl'), 'utf8');
   const again = setup('setup', '--yes');
   assert.equal(again.status, 0, again.stderr);
-  assert.match(again.stderr, /Nothing new to extract/);
+  assert.match(again.stderr, /Nothing new to import/);
   assert.equal(readFileSync(join(extracts, 'shell.jsonl'), 'utf8'), before);
 
   // Reset forgets the picks, so setup starts over, and keeps the files unless told.

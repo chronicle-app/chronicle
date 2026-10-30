@@ -21,4 +21,6 @@ export const glyphs = {
   unchosen: '○',
   // A checklist's step that's waiting on the person.
   current: '●',
+  // Each character of something typed in secret, like a token.
+  secret: '*',
 } as const;

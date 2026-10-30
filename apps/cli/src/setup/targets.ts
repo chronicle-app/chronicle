@@ -7,6 +7,7 @@ import type { SourceListing } from '../plugins/catalog.js';
 import type { ExtractorMetadata } from '../plugins/PluginScanner.js';
 import { check, shellWord, type ScanRow } from '../plugins/scan.js';
 import { checkInZip, surveyWith } from '../plugins/survey.js';
+import { accountless } from './todo.js';
 import { ExtractorSelector } from '../utils/ExtractorSelector.js';
 import { FlagManager } from '../utils/FlagManager.js';
 import { allKinds, defaultKinds } from '../utils/recordKinds.js';
@@ -238,6 +239,10 @@ export async function checkTarget(
     }
   }
   if (isOnline(listing, target.flags.strategy)) {
+    // One with no account is ready as it is: what it needs is in its flags.
+    if (accountless(listing!.strategies.find(s => s.name === target.flags.strategy))) {
+      return { state: 'ready' };
+    }
     return { state: (await signedInTo(target.source)) ? 'ready' : 'sign-in' };
   }
   return { state: 'missing' };
@@ -266,7 +271,7 @@ export function stateText(checked: Checked, exported: boolean): string {
     case 'sign-in':
       return 'needs sign-in';
     case 'missing':
-      return exported ? 'export not found' : 'not found on this Mac';
+      return exported ? 'export not found' : 'not found on this computer';
     case 'empty':
       return 'empty';
     case 'unsupported':

@@ -8,11 +8,12 @@ import { test } from 'node:test';
 delete process.env.FORCE_COLOR;
 process.env.NO_COLOR = '1';
 
-const { action, exportSteps, gets, order, stepText, todosFor } =
+const { accountless, action, exportSteps, gets, order, stepText, todosFor } =
   await import('../dist/setup/todo.js');
 const { splitArgs } = await import('../dist/setup/args.js');
 const { Steps } = await import('../dist/setup/steps.js');
-const { tokens } = await import('../dist/output/index.js');
+const { INTRO, resumed } = await import('../dist/setup/intro.js');
+const { SPLASH_STYLES, tokens } = await import('../dist/output/index.js');
 const { JobRunner, setupFiles } = await import('../dist/setup/jobs.js');
 
 const EXPORT = [
@@ -21,7 +22,7 @@ const EXPORT = [
   { wait: 'a few minutes', via: 'download' },
 ];
 
-test('todos sign in once a provider, walk through an app without a client, and come cheapest first', () => {
+test('todos sign in once a provider, walk through an app without a client, and come Full Disk Access first, then cheapest', () => {
   const todos = todosFor([
     { source: 'safari', strategy: 'history', need: 'full-disk-access' },
     {
@@ -45,25 +46,25 @@ test('todos sign in once a provider, walk through an app without a client, and c
   assert.deepEqual(
     sorted.map(todo => todo.key),
     [
+      'full-disk-access',
       'sign-in:google',
       'sign-in:lastfm',
       'setup:goodreads:csv',
       'setup:youtube:takeout',
-      'full-disk-access',
     ]
   );
   // One sign-in gets both of Google's sources ready.
   assert.deepEqual(
-    sorted[0].ways.map(way => way.source),
+    sorted[1].ways.map(way => way.source),
     ['gmail', 'google-calendar']
   );
-  assert.deepEqual(sorted[0].steps, [{ 'sign-in': 'google' }]);
+  assert.deepEqual(sorted[1].steps, [{ 'sign-in': 'google' }]);
   // Without a client, the steps make one first, and end signing in.
   assert.deepEqual(
-    sorted[1].steps.map(step => Object.keys(step)[0]),
+    sorted[2].steps.map(step => Object.keys(step)[0]),
     ['do', 'ask', 'ask', 'sign-in']
   );
-  assert.equal(sorted[3].what, 'request export');
+  assert.equal(sorted[4].what, 'request export');
 
   // Put off, a todo goes after those that weren't, the longest ago first.
   const later = order(todos, {
@@ -83,6 +84,37 @@ test('a todo says its steps and its button tersely', () => {
     'wait a few minutes for the download',
   ]);
   assert.equal(stepText({ ask: 'client-id' }), 'paste the client id');
+  assert.equal(stepText({ ask: 'token' }), 'paste the token');
+  assert.equal(stepText({ ask: 'username' }), 'type your username');
+
+  // A sign-in by a pasted token, with no app to make, takes its plugin's steps.
+  const TOKEN = [
+    { open: 'https://pinboard.in/settings/password' },
+    { ask: 'token' },
+    { 'sign-in': 'pinboard' },
+  ];
+  const [pinboard] = todosFor([
+    {
+      source: 'pinboard',
+      strategy: 'api',
+      need: 'sign-in',
+      provider: 'pinboard',
+      steps: TOKEN,
+      client: false,
+    },
+  ]);
+  assert.deepEqual(pinboard.steps, TOKEN);
+  assert.equal(action(pinboard), 'open');
+
+  // A way in with no account asks for what it needs, like a username, and never signs in.
+  assert.equal(accountless({ setup: [{ ask: 'username' }] }), true);
+  assert.equal(accountless({ setup: TOKEN }), false);
+  assert.equal(accountless({}), false);
+  const [hackernews] = todosFor([
+    { source: 'hackernews', strategy: 'api', need: 'settings', steps: [{ ask: 'username' }] },
+  ]);
+  assert.equal(hackernews.what, 'your username');
+  assert.equal(action(hackernews), 'start');
   const [goodreads] = todosFor([
     { source: 'goodreads', strategy: 'csv', need: 'export', steps: EXPORT },
   ]);
@@ -130,17 +162,48 @@ test('setup takes sources by name and folders by path, and says what each way in
 
 test('the checklist says each step, where it is, and a note', () => {
   const steps = new Steps();
-  steps.set('scan', 'done', '21 of 23');
-  steps.set('add', 'asking');
+  steps.set('gather', 'done', '3 picked');
+  steps.set('prepare', 'asking', '1 of 2');
   assert.deepEqual(steps.lines(tokens({ stream: 'stderr' }), 80), [
-    ' ✓ scan      21 of 23',
-    ' ● add',
-    ' · extract',
-    ' · todo',
+    ' ✓ gather    3 picked',
+    ' ● prepare   1 of 2',
+    ' · import',
   ]);
   assert.equal(steps.working(), false);
-  steps.set('extract', 'working', '12/40');
+  steps.set('import', 'working', '12/40');
   assert.equal(steps.working(), true);
+});
+
+test('the splash says the steps of setup, and where each pick stands on a resumed one', () => {
+  const t = tokens({ stream: 'stderr' });
+  const column = intro =>
+    SPLASH_STYLES.ink.column(intro, { t, color: () => text => text, width: 60 }).body;
+  assert.equal(INTRO.title, 'Set up Chronicle');
+  assert.ok(column(INTRO).includes('  1  gather  - pick what to bring in'));
+
+  const picks = [
+    { name: 'linkedin', state: 'left', text: 'export put off' },
+    { name: 'twitter', state: 'waiting', text: 'export requested 2026-10-28' },
+    { name: 'goodreads', state: 'done', text: 'imported, 2 records' },
+  ];
+  const resume = resumed(picks);
+  assert.equal(resume.title, 'Resuming setup');
+  // Imported first, each by its mark in place of a number, and no dash.
+  assert.deepEqual(column(resume).slice(2, 5), [
+    '  ✓  goodreads  imported, 2 records',
+    '  …  twitter    export requested 2026-10-28',
+    '  ·  linkedin   export put off',
+  ]);
+  // Past eight, those imported are counted on one line, and what's left is each listed.
+  const many = Array.from({ length: 8 }, (_, i) => ({
+    name: `source${i}`,
+    state: 'done',
+    text: 'imported',
+  }));
+  assert.deepEqual(
+    resumed([...many, ...picks]).steps.map(step => step.name),
+    ['9 sources', 'twitter', 'linkedin']
+  );
 });
 
 const ACCOUNT = { source: 'spotify', flags: { strategy: 'api', type: ['listens'] } };

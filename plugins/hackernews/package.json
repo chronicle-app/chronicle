@@ -64,7 +64,12 @@
               "replies",
               "submissions"
             ],
-            "default": true
+            "default": true,
+            "setup": [
+              {
+                "ask": "username"
+              }
+            ]
           }
         }
       }

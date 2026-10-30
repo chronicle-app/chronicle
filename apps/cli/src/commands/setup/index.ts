@@ -25,7 +25,12 @@ import {
   type Tokens,
 } from '../../output/index.js';
 import type { SelectOption } from '../../output/prompts.js';
-import { listSources, type ManifestStrategy, type SourceListing } from '../../plugins/catalog.js';
+import {
+  listSources,
+  type Answer,
+  type ManifestStrategy,
+  type SourceListing,
+} from '../../plugins/catalog.js';
 import { PluginScanner, type ExtractorMetadata } from '../../plugins/PluginScanner.js';
 import { commandFor, fromHome, scan, scanPath, type ScanRow } from '../../plugins/scan.js';
 import { splitArgs } from '../../setup/args.js';
@@ -58,7 +63,9 @@ import {
 } from '../../setup/targets.js';
 import {
   SIGN_IN_PORT,
+  accountless,
   action,
+  asked,
   exportSteps,
   gets,
   order,
@@ -68,7 +75,7 @@ import {
   type Todo,
   type Way,
 } from '../../setup/todo.js';
-import { INTRO, resumed } from '../../setup/intro.js';
+import { INTRO, resumed, type Standing } from '../../setup/intro.js';
 import { allKinds } from '../../utils/recordKinds.js';
 import { closest } from '../../utils/closest.js';
 import { PLATFORM_NAMES } from '../../utils/sourcesTable.js';
@@ -106,14 +113,6 @@ interface Offer {
   checked: boolean;
 }
 
-/** The add step as it was left: what was ticked, what folders turned up and where, and what the last said. */
-interface Adding {
-  initial: string[];
-  found: Offer[];
-  foundIn: Map<Offer, string>;
-  searched: string;
-}
-
 /** A way a source named alone can come in: its strategy, and what's here of it, if anything. */
 interface WayIn {
   strategy: ManifestStrategy & { name: string };
@@ -126,8 +125,8 @@ interface WayIn {
 const HOW: Record<string, string> = {
   api: 'sign in',
   export: 'export',
-  local: 'on this mac',
-  direct: 'on this mac',
+  local: 'on this computer',
+  direct: 'on this computer',
 };
 
 /** How a way comes in, in words: `sign in`, or `export · takeout` when another is an export too. */
@@ -146,18 +145,52 @@ const rowKey = (row: ScanRow) => targetKey(targetFor(row, []));
 /** The value of a picker's row that looks in another folder. */
 const ANOTHER = '';
 
+/** Offers by source, then where they are. */
+const bySource = (a: Offer, b: Offer) =>
+  a.row.source.localeCompare(b.row.source) || a.label.localeCompare(b.label);
+
+/** A service gather offers to add: one way it comes in, what that takes, and what it gets. */
+interface Service {
+  source: string;
+  way: ManifestStrategy & { name: string };
+  takes: string;
+  gets: string;
+}
+
+/** The values of gather's rows: what was found, by what it reads, and each service's way in. */
+const foundKey = (offer: Offer) => `found:${rowKey(offer.row)}`;
+const serviceKey = (service: Service) => `service:${service.source}:${service.way.name}`;
+
+/** What a run is: one that starts, or one carrying on from the last, with something left. */
+type Kind = 'start' | 'resume';
+
+/** Names as a person lists them: `a`, `a and b`, `a, b, and c`. */
+function inWords(names: string[]): string {
+  if (names.length <= 2) return names.join(' and ');
+  return `${names.slice(0, -1).join(', ')}, and ${names.at(-1)}`;
+}
+
+/** Each pick's mark, where the splash can't show it. */
+const MARKS: Record<Standing['state'], string> = {
+  done: glyphs.success,
+  waiting: glyphs.ellipsis,
+  left: glyphs.bullet,
+};
+
 /** Whether a source and strategy are the same as a way's. */
 const same = (way: Way, source: string, strategy: unknown) =>
   way.source === source && way.strategy === strategy;
 
 /**
- * `chronicle setup [folder…]`: scan this computer and the folders of
- * exports, pick what to extract, add services that need a sign-in or an
- * export, then extract the last year of each to a JSON Lines file while
- * the sign-ins and exports are offered one at a time, each to do now or
- * later. A checklist of the four steps stays above it all. Only the picks
- * are saved. Each run works out again what stands in each one's way, and a
- * pick with a finished file is skipped.
+ * `chronicle setup [folder…]`: setup, in three steps. Gather finds
+ * what this computer and the folders of exports hold, and asks what to
+ * import, with the services that need a sign-in or an export. Prepare
+ * offers those sign-ins and exports one at a time, each to do now or later,
+ * and Full Disk Access first, when a pick needs it. Import writes the last
+ * year of each pick to a JSON Lines file. A checklist of the steps stays
+ * above it all. Only the picks are saved. A run that carries on starts at
+ * what's left, works out again what stands in each pick's way, and skips a
+ * pick with a finished file.
  *
  * `chronicle setup <source>` is that source alone, without the steps: how
  * it can come in, one way picked, then that way's steps, if any, until
@@ -166,12 +199,13 @@ const same = (way: Way, source: string, strategy: unknown) =>
 export default class Setup extends BaseCommand<typeof Setup> {
   static override hidden = true;
 
-  static override summary = 'Pick your sources and extract them';
+  static override summary = 'Pick your sources and import them';
 
   static override description =
-    'Scans this computer and any folders you name, asks which to extract and which services ' +
-    'to add, extracts each to a JSON Lines file, and meanwhile walks through what is left, ' +
-    'like a sign-in or an export to ask for, now or later. Run it again to carry on. ' +
+    'Sets up Chronicle in three steps: gathers what this computer and any folders you name hold, and asks ' +
+    'which to import and which services to add; prepares what is left, like a sign-in or an ' +
+    'export to ask for, now or later; then imports each to a JSON Lines file. Run it again ' +
+    'to carry on where it left off. ' +
     'Name a source to get only that one ready to extract: how it can come in, then that way, ' +
     'by --strategy or asked, and the `chronicle extract` command for it.';
 
@@ -204,12 +238,12 @@ export default class Setup extends BaseCommand<typeof Setup> {
       summary: 'The folder for the files. The default is the extracts folder in the data folder.',
       helpValue: '<folder>',
     }),
-    again: Flags.boolean({ summary: 'Extract each pick again, even one with a finished file' }),
+    again: Flags.boolean({ summary: 'Import each pick again, even one with a finished file' }),
     strategy: Flags.string({
       summary: 'How the source named comes in, when it can come in more than one way',
       helpValue: '<strategy>',
     }),
-    jobs: Flags.integer({ hidden: true, default: 2, summary: 'How many to extract at once' }),
+    jobs: Flags.integer({ hidden: true, default: 2, summary: 'How many to import at once' }),
     splash: Flags.string({
       hidden: true,
       summary: 'How the splash looks',
@@ -225,18 +259,22 @@ export default class Setup extends BaseCommand<typeof Setup> {
   private extractors = new Map<string, ExtractorMetadata[]>();
   /** What a scan found on this computer. */
   private rows: ScanRow[] = [];
-  /** What the scan step offered: this computer's, the folders', and the accounts signed in to. */
+  /** What gather found to offer: this computer's, the folders', and the accounts signed in to. */
   private offered: Offer[] = [];
+  /** The rows of accounts gather offers, rather than what's on this computer. */
+  private readonly accounted = new Set<ScanRow>();
   /** The source named, when setup is for it alone. */
   private alone?: string;
-  /** The folders the scan step looked in, besides this computer. */
+  /** The folders gather looked in, besides this computer. */
   private folders: string[] = [];
-  /** The folder the scan step found each row in, of those it found in one. */
+  /** The folder gather found each row in, of those it found in one. */
   private readonly folderOf = new Map<ScanRow, string>();
-  /** The add step as ← left it, for coming back to. */
-  private adding?: Adding;
   /** How many records each target's run would extract, by its key. */
   private counts = new Map<string, number | null>();
+  /** The counts still being made, by the target's key. */
+  private readonly counting = new Map<string, Promise<number | null>>();
+  /** Whether the import was left for later, at the plan. */
+  private later = false;
   /** How many records each row holds: undefined while it's counted, null when it can't say. */
   private held = new Map<ScanRow, number | null | undefined>();
   /** Draws the question or live lines again, while one is up. */
@@ -256,15 +294,17 @@ export default class Setup extends BaseCommand<typeof Setup> {
   private states = new Map<Target, Checked>();
   /** The providers setup can sign in to, once they're loaded. */
   private signIns?: Set<string>;
-  /** This run's extractions: those started, and those that joined once a todo got them ready. */
+  /** This run's imports: each pick that's ready once prepare is through. */
   private readonly jobs: Job[] = [];
   private runner?: JobRunner;
-  /** When the first extraction started. */
+  /** When the first of the imports started. */
   private started = 0;
-  /** What the extractions said meanwhile, kept until no question is up. */
+  /** What the imports said meanwhile, kept for the report. */
   private readonly events: { job: Job; event: ChildEvent }[] = [];
-  /** Full Disk Access, when it's wanted: offered last, as it means reopening the terminal. */
+  /** Full Disk Access, when it's wanted: offered first, as turning it on means reopening the terminal. */
   private access?: Todo;
+  /** The terminal to reopen, once Full Disk Access is being turned on: the run ends for it. */
+  private reopening?: string;
   /** How the todos went: done, waiting on an export, failed, and put off. */
   private readonly tally = { done: 0, waiting: 0, failed: 0, later: 0 };
   /** Whether Ctrl-C was pressed, outside a question, which takes its own. */
@@ -274,7 +314,7 @@ export default class Setup extends BaseCommand<typeof Setup> {
 
   /**
    * Ctrl-C, outside a question: whatever setup's waiting on gives way, and
-   * it ends, stopping the extractions. Pressed again, it ends at once.
+   * it ends, stopping the imports. Pressed again, it ends at once.
    */
   private onInterrupt = () => {
     this.interrupted = true;
@@ -283,7 +323,7 @@ export default class Setup extends BaseCommand<typeof Setup> {
     process.once('SIGINT', this.onSecond);
   };
 
-  /** Ctrl-C again: the extractions and counts are ended outright, and so is setup, as the signal ends it. */
+  /** Ctrl-C again: the imports and counts are ended outright, and so is setup, as the signal ends it. */
   private onSecond = () => {
     this.runner?.kill();
     this.counter.close();
@@ -320,13 +360,11 @@ export default class Setup extends BaseCommand<typeof Setup> {
     const folders = (await this.named(argv as string[])).map(folder => this.resolve(folder));
     if (!this.flags.yes && !canAsk()) {
       this.fail(
-        this.alone
-          ? `Setup asks how ${this.alone} comes in`
-          : 'Setup asks which sources to extract',
+        this.alone ? `Setup asks how ${this.alone} comes in` : 'Setup asks which sources to import',
         {
           hint: this.alone
             ? 'Run it at a terminal, or use `--yes` to take the way that is ready without asking.'
-            : 'Run it at a terminal, or use `--yes` to extract what is ready without asking.',
+            : 'Run it at a terminal, or use `--yes` to import what is ready without asking.',
         }
       );
     }
@@ -341,10 +379,10 @@ export default class Setup extends BaseCommand<typeof Setup> {
       if (!this.interrupted) throw error;
     } finally {
       process.removeListener('SIGINT', this.onInterrupt);
-      // Stopped partway, by Ctrl-C or a failure: no extraction keeps on. One
+      // Stopped partway, by Ctrl-C or a failure: no import keeps on. One
       // reading a database may take a moment to; Ctrl-C again doesn't wait.
       if (this.interrupted && this.jobs.some(job => job.state === 'running')) {
-        this.print([this.t.muted('stopping the extraction; ctrl-c again to end it now')]);
+        this.print([this.t.muted('stopping the import; ctrl-c again to end it now')]);
       }
       await this.runner?.stop();
       this.counter.close();
@@ -363,22 +401,214 @@ export default class Setup extends BaseCommand<typeof Setup> {
     }
   }
 
-  /** Setup's steps, in turn, for every source. */
+  /**
+   * Setup's steps, in turn, for every source. A run that carries on starts
+   * at what's left, with the picks kept, unless it's asked to change them
+   * or given folders to look in, or it's aborted. Turning on Full Disk
+   * Access ends it before the import, for the next run to carry on.
+   */
   private async setupAll(folders: string[]): Promise<void> {
-    if (this.asking && !this.flags.quiet) await this.welcome();
-    await this.scanHere(folders);
-    await this.pickHere();
-    if (this.asking) {
-      // ← at the add step goes back to the scan step's picks, and → or Enter on again.
-      while (!(await this.addMore())) await this.pickHere();
-    } else {
-      this.steps.set('add', 'done', 'skipped');
-      this.steps.set('todo', 'done', 'skipped');
+    const kind = this.kind();
+    let gathering = kind !== 'resume' || folders.length > 0 || !this.asking;
+    if (this.asking && !this.flags.quiet) {
+      const answer = await this.welcome(kind);
+      if (answer === 'abort') {
+        await this.abort();
+        return;
+      }
+      if (answer === 'gather') gathering = true;
     }
-    await this.prepare();
-    this.startExtract();
-    if (this.asking) await this.todo();
-    await this.finishExtract();
+    if (gathering) {
+      await this.scanHere(folders);
+      await this.gather();
+    } else {
+      await this.keepPicks();
+    }
+    await this.checkPicks();
+    if (!this.asking) this.steps.set('prepare', 'done', 'skipped');
+    else if (!(await this.prepare())) {
+      this.reopen();
+      return;
+    }
+    this.later = this.asking && !(await this.confirm());
+    await this.importAll();
+  }
+
+  /** The picks the import takes: each that's ready, without a finished file unless `--again`. */
+  private importing(): Target[] {
+    const targets = this.settings.targets ?? [];
+    return targets.filter(
+      target =>
+        this.states.get(target)?.state === 'ready' &&
+        (this.flags.again || !existsSync(finishedFile(this.root, targetName(target, targets))))
+    );
+  }
+
+  /**
+   * Before the import, its plan, to import now or leave for later: what's
+   * imported, the last year of each pick that's ready, counted while it's
+   * up; what's left for later, and why; and what's imported already. True
+   * to import. With nothing to import, there's nothing to ask.
+   */
+  private async confirm(): Promise<boolean> {
+    const now = this.importing();
+    if (now.length === 0) return true;
+    for (const target of now) this.countTarget(target).then(() => this.redraw?.());
+    this.steps.set('import', 'asking', `${count(now.length)} ready`);
+    const { select } = await import('../../output/prompts.js');
+    const { value, cancelled: stopped } = await select(
+      `Begin importing ${count(now.length)} ${plural('sources', now.length)}?`,
+      [
+        { label: 'import', value: 'go' },
+        { label: 'later', value: 'later' },
+      ],
+      { inline: true, ...this.around(() => this.plan(now)) }
+    );
+    if (stopped) throw cancelled();
+    return value === 'go';
+  }
+
+  /**
+   * The import's plan, under the checklist: each pick that's ready, where
+   * it reads from, and how many records it holds, as its count comes in;
+   * each not ready yet, as the next run's splash would say; and those
+   * imported already.
+   */
+  private plan(now: Target[]): string[] {
+    const { t } = this;
+    const targets = this.settings.targets ?? [];
+    const labels = now.map(target => targetLabel(target, targets));
+    const picks = this.standing().filter(pick => this.mine(pick.source));
+    const later = picks.filter(pick => pick.state !== 'done' && !labels.includes(pick.name));
+    const done = picks.filter(pick => pick.state === 'done' && !labels.includes(pick.name));
+    const names = Math.max(...labels.map(l => l.length), ...later.map(pick => pick.name.length));
+    const wheres = now.map(target => truncatePath(this.from(target), 48));
+    const wide = Math.max(...wheres.map(where => where.length));
+    const held = (target: Target) => {
+      const key = targetKey(target);
+      if (!this.counts.has(key)) return `counting${glyphs.ellipsis}`;
+      const n = this.counts.get(key);
+      return n === null || n === undefined ? '' : `${count(n)} ${plural('records', n)}`;
+    };
+    return [
+      t.strong('ready to import'),
+      ...now.map(
+        (target, i) =>
+          `  ${t.accent(glyphs.arrow)} ${labels[i].padEnd(names)}  ${wheres[i].padEnd(wide)}  ${t.muted(held(target))}`
+      ),
+      ...(later.length > 0
+        ? [
+            '',
+            t.strong('not ready yet'),
+            ...later.map(
+              pick =>
+                `  ${t.muted(MARKS[pick.state])} ${pick.name.padEnd(names)}  ${t.muted(pick.text)}`
+            ),
+          ]
+        : []),
+      ...(done.length > 0
+        ? ['', t.muted(`already imported: ${inWords(done.map(pick => pick.name))}`)]
+        : []),
+    ];
+  }
+
+  /**
+   * Where a target reads from, in a few words: its account, or what it was
+   * given for one with none, like a username; its file; or what the scan found.
+   */
+  private from(target: Target): string {
+    const strategy = this.strategy(target.source, target.flags.strategy);
+    if (accountless(strategy)) {
+      const { strategy: _strategy, type: _type, ...given } = target.flags;
+      return Object.values(given).map(String).join(' ');
+    }
+    if (strategy?.delivery === 'api') return `${providerFor(target.source)} account`;
+    const { input } = target.flags;
+    if (typeof input === 'string') return fromHome(input, this.home);
+    const row = this.rows.find(r => reads(target, r));
+    return row ? this.labelOf(row) : '';
+  }
+
+  /**
+   * What this run is: one that carries on, with a pick not yet imported,
+   * or a service or export still to get ready; or else one that starts, as
+   * the first does, whatever's imported already.
+   */
+  private kind(): Kind {
+    return this.standing().some(pick => pick.state !== 'done') ? 'resume' : 'start';
+  }
+
+  /**
+   * Where each pick stands, as the last run left it: imported, with how
+   * many records; waiting on an export asked for; or left to do, like a
+   * sign-in, an export to ask for, or the import itself.
+   */
+  private standing(): Standing[] {
+    const { targets = [], wanted = [], requested = [], later = {} } = this.settings;
+    const ways = [
+      ...targets.map(t => ({ source: t.source, strategy: String(t.flags.strategy) })),
+      ...wanted,
+      ...requested.map(r => ({ source: r.source, strategy: String(r.flags.strategy) })),
+    ];
+    // A source picked more than one way says which.
+    const name = (source: string, strategy: string) =>
+      ways.filter(way => way.source === source).length > 1 ? `${source} ${strategy}` : source;
+    const picks: Standing[] = targets.map(target => {
+      const { source } = target;
+      const file = targetName(target, targets);
+      if (!existsSync(finishedFile(this.root, file))) {
+        // Checked this run, it says what's in its way.
+        const state = this.states.get(target)?.state;
+        const text =
+          state === 'full-disk-access'
+            ? 'needs full disk access'
+            : state === 'sign-in'
+              ? 'sign-in to do'
+              : 'to import';
+        return { source, name: targetLabel(target, targets), state: 'left', text };
+      }
+      const records = this.extracted(file);
+      return {
+        source,
+        name: targetLabel(target, targets),
+        state: 'done',
+        text:
+          records === undefined
+            ? 'imported'
+            : `imported, ${count(records)} ${plural('records', records)}`,
+      };
+    });
+    for (const asked of requested) {
+      picks.push({
+        source: asked.source,
+        name: name(asked.source, String(asked.flags.strategy)),
+        state: 'waiting',
+        text: `export requested ${asked.at.slice(0, 10)}`,
+      });
+    }
+    for (const way of wanted) {
+      // Before the listings load, as when working out what kind of run this is, it's an export.
+      const strategy = this.strategy(way.source, way.strategy);
+      const given = accountless(strategy);
+      const online = strategy?.delivery === 'api' && !given;
+      const key = online
+        ? `sign-in:${providerFor(way.source)}`
+        : `setup:${way.source}:${way.strategy}`;
+      const what = given ? asked(strategy!.setup) : online ? 'sign-in' : 'export';
+      picks.push({
+        source: way.source,
+        name: name(way.source, way.strategy),
+        state: 'left',
+        text: later[key]
+          ? `${what} put off`
+          : given
+            ? `${what} to give`
+            : online
+              ? 'sign-in to do'
+              : 'export to request',
+      });
+    }
+    return picks;
   }
 
   /**
@@ -428,10 +658,12 @@ export default class Setup extends BaseCommand<typeof Setup> {
   }
 
   /**
-   * The splash, with the steps ahead, while plugins load: on a later run,
-   * saying it's carrying on, and where it left off. Enter starts.
+   * The splash, while plugins load. A run that starts says the steps ahead.
+   * One that carries on says it's resuming, and where each pick stands; `g`
+   * goes back to gather, to change the picks, and `x` aborts it, once it's
+   * sure. Enter starts, or continues.
    */
-  private async welcome(): Promise<void> {
+  private async welcome(kind: Kind): Promise<'start' | 'gather' | 'abort'> {
     // Plugins load while the logo plays and the steps are read, so the scan starts at once.
     const loading = Promise.all([
       listSources(),
@@ -439,41 +671,99 @@ export default class Setup extends BaseCommand<typeof Setup> {
       PluginScanner.scanAllLocators(),
     ]);
     loading.catch(() => {});
-    // Every run says what's ahead, and asks to start, as the logo comes on.
-    const first =
-      !this.settings.targets?.length &&
-      !this.settings.wanted?.length &&
-      !this.settings.requested?.length;
-    const intro = first ? INTRO : resumed(this.whereLeftOff());
-    const prompt = first ? 'Press Enter to start' : 'Press Enter to continue';
-    const style = SPLASH_STYLES[this.flags.splash as SplashStyleName];
+    if (kind === 'resume') this.listings = await listSources();
+    const resuming = kind === 'resume';
+    const intro = resuming ? resumed(this.standing()) : INTRO;
+    const prompt = resuming ? 'Press Enter to continue setup' : 'Press Enter to start';
+    const enter = resuming ? 'continue' : 'start';
+    const actions = resuming
+      ? [
+          { key: 'g', label: 'change picks' },
+          { key: 'x', label: 'abort' },
+        ]
+      : [];
+    const { awaitKey, proceed } = await import('../../output/prompts.js');
+    let answer: string | undefined;
     if (Splash.fits()) {
-      const splash = new Splash(this.t, { style, intro, prompt });
+      const style = SPLASH_STYLES[this.flags.splash as SplashStyleName];
+      const keys = [`enter ${enter}`, ...actions.map(a => `${a.key} ${a.label}`), 'esc cancel'];
+      const splash = new Splash(this.t, { style, intro, prompt, keys });
       splash.start();
-      const { awaitEnter } = await import('../../output/prompts.js');
-      let entered = false;
       try {
-        entered = await awaitEnter();
+        answer = await awaitKey(actions.map(action => action.key));
       } finally {
         splash.end();
       }
-      if (!entered) throw cancelled();
     } else {
-      await this.introduce(intro, prompt);
+      answer = await this.introduce(intro, prompt, enter, actions);
     }
+    // Not sure, it's asked again, under what's said already.
+    while (answer === 'x' && !(await this.sure())) {
+      const asked = await proceed(prompt, { enter, actions, theme: this.flags.theme });
+      answer = asked.cancelled ? undefined : (asked.key ?? 'enter');
+    }
+    if (!answer) throw cancelled();
+    return answer === 'x' ? 'abort' : answer === 'g' ? 'gather' : 'start';
   }
 
-  /** Where the last run left off: the picks, how many have a finished file, and the sources still to do. */
-  private whereLeftOff(): { picked: number; extracted: number; left: string[] } {
+  /**
+   * Whether to abort setup, said with what that drops, and
+   * what stays imported.
+   */
+  private async sure(): Promise<boolean> {
+    const picks = this.standing();
+    const dropped = inWords(picks.filter(pick => pick.state !== 'done').map(pick => pick.name));
+    const kept = picks.filter(pick => pick.state === 'done').map(pick => pick.name);
+    const stays = kept.length === 1 ? 'stays' : 'stay';
+    const { select } = await import('../../output/prompts.js');
+    const { value, cancelled: stopped } = await select(
+      'abort setup?',
+      [
+        { label: 'yes, abort', value: 'yes' },
+        { label: 'no', value: 'no' },
+      ],
+      {
+        inline: true,
+        body: [
+          this.t.muted(
+            `  drops ${dropped}.${kept.length > 0 ? ` ${inWords(kept)} ${stays} imported.` : ''}`
+          ),
+        ],
+        theme: this.flags.theme,
+      }
+    );
+    if (stopped) throw cancelled();
+    return value === 'yes';
+  }
+
+  /**
+   * Abort setup: what's left of it is dropped, and what's
+   * imported stays. Picks not imported are skipped, so `--yes` leaves them
+   * too, and no export or todo is waited for, so the next run starts as the first did.
+   */
+  private async abort(): Promise<void> {
     const targets = this.settings.targets ?? [];
-    const extracted = targets.filter(target =>
-      existsSync(finishedFile(this.root, targetName(target, targets)))
-    ).length;
-    const left = unique([
-      ...(this.settings.wanted ?? []).map(way => way.source),
-      ...(this.settings.requested ?? []).map(asked => asked.source),
-    ]);
-    return { picked: targets.length, extracted, left };
+    const imported = (target: Target) =>
+      existsSync(finishedFile(this.root, targetName(target, targets)));
+    const kept = targets.filter(target => imported(target));
+    this.settings.targets = kept;
+    this.settings.skipped = [
+      ...(this.settings.skipped ?? []),
+      ...targets
+        .filter(target => !imported(target))
+        .map(({ source, flags: { type: _type, ...flags } }) => ({ source, flags })),
+    ];
+    delete this.settings.wanted;
+    delete this.settings.requested;
+    delete this.settings.later;
+    await this.save();
+    this.logger.info('Setup aborted');
+    const sources = unique(kept.map(target => target.source));
+    this.hint(
+      sources.length > 0
+        ? `${inWords(sources)} ${sources.length === 1 ? 'stays' : 'stay'} imported. Run \`chronicle setup\` to start again.`
+        : 'Run `chronicle setup` to start again.'
+    );
   }
 
   private resolve(file: string): string {
@@ -507,8 +797,9 @@ export default class Setup extends BaseCommand<typeof Setup> {
     if (!process.stderr.isTTY || this.flags.quiet) return undefined;
     return new LiveRegion((width, frame) => {
       this.frame = frame;
-      const head = this.checklist(width, frame);
+      // The body first: drawing it can change what the checklist says, as the import's count does.
       const body = render(width, frame);
+      const head = this.checklist(width, frame);
       return head.length > 0 && body.length > 0 ? [...head, '', ...body] : [...head, ...body];
     });
   }
@@ -563,8 +854,16 @@ export default class Setup extends BaseCommand<typeof Setup> {
     }
   }
 
-  /** What setup does, step by step, and Enter to start, where the splash can't say it. */
-  private async introduce(intro: Intro, prompt: string): Promise<void> {
+  /**
+   * What the splash says, step by step or pick by pick, and Enter to start,
+   * where the splash can't say it: `enter`, or the key of one of `actions`.
+   */
+  private async introduce(
+    intro: Intro,
+    prompt: string,
+    enter: string,
+    actions: { key: string; label: string }[]
+  ): Promise<string> {
     const { title, text, note, steps } = intro;
     this.logger.emit({
       level: 'info',
@@ -572,15 +871,20 @@ export default class Setup extends BaseCommand<typeof Setup> {
       message: title,
       guide: {
         text: [...(text ?? []), ...(note ? [note] : [])],
-        steps: steps.map(({ name, description }) => `${name} - ${description}`),
+        steps: steps.map(({ name, description, mark }) =>
+          mark ? `${MARKS[mark]} ${name}  ${description}` : `${name} - ${description}`
+        ),
       },
     });
     this.logger.flush();
     const { proceed } = await import('../../output/prompts.js');
-    const { cancelled: stopped } = await proceed(prompt, {
+    const { cancelled: stopped, key } = await proceed(prompt, {
+      enter,
+      actions,
       theme: this.flags.theme,
     });
     if (stopped) throw cancelled();
+    return key ?? 'enter';
   }
 
   /** The command that carries on with this run: for the source named, or all of them. */
@@ -637,7 +941,12 @@ export default class Setup extends BaseCommand<typeof Setup> {
    * it's an account, and extract it; or what's still in its way.
    */
   private async finishAlone(source: string): Promise<void> {
-    const reopen = this.access && this.asking ? await this.allowAccess(this.access) : undefined;
+    // Full Disk Access is only a Mac's.
+    const access = this.access && this.asking && process.platform === 'darwin';
+    if (access && (await this.allowAccess(this.access!)) === 'later') {
+      await this.putOff(this.access!);
+    }
+    const reopen = this.reopening;
     // Those checked this run, saved or not.
     const targets = [...this.states.keys()].filter(target => target.source === source);
     const ready = targets.filter(target => this.states.get(target)!.state === 'ready');
@@ -673,7 +982,7 @@ export default class Setup extends BaseCommand<typeof Setup> {
     }
     const { input } = target.flags;
     const where = typeof input === 'string' ? fromHome(input, this.home) : row && this.labelOf(row);
-    return where ? `it reads ${where}` : 'it reads what it found on this mac';
+    return where ? `it reads ${where}` : 'it reads what it found on this computer';
   }
 
   /**
@@ -684,7 +993,7 @@ export default class Setup extends BaseCommand<typeof Setup> {
   private nowhere(source: string): void {
     const online = this.listing(source)!.strategies.some(s => s.delivery === 'api');
     this.logger.info(
-      online ? `Setup can't sign in to ${source} for you` : `Found no ${source} on this mac`
+      online ? `Setup can't sign in to ${source} for you` : `Found no ${source} on this computer`
     );
     const hints = blockerHints(this.rows);
     if (hints.length === 0) {
@@ -736,7 +1045,6 @@ export default class Setup extends BaseCommand<typeof Setup> {
         if (row.source === source && OFFERED.has(row.status)) found.push({ row, folder });
       }
     }
-    const provider = providerFor(source);
     const signedIn = await signedInTo(source);
     const ways: WayIn[] = [];
     for (const strategy of listing.strategies) {
@@ -747,7 +1055,9 @@ export default class Setup extends BaseCommand<typeof Setup> {
         // Signed in, by `chronicle auth login` or `auth set`.
         else if (signedIn)
           ways.push({ strategy, row: this.accountRow(listing, strategy.name, true) });
-        else if (providers.has(provider)) ways.push({ strategy });
+        else if (this.signsIn(source, strategy, providers) || accountless(strategy)) {
+          ways.push({ strategy });
+        }
       } else if (strategy.delivery === 'export') {
         ways.push({ strategy, ...here });
       } else if (here) {
@@ -771,7 +1081,9 @@ export default class Setup extends BaseCommand<typeof Setup> {
       if (way) return way;
       const known = this.listing(source)!.strategies.some(s => s.name === flag);
       this.fail(
-        known ? `Found no ${source} ${flag} on this mac` : `${source} has no strategy "${flag}"`,
+        known
+          ? `Found no ${source} ${flag} on this computer`
+          : `${source} has no strategy "${flag}"`,
         { hint: `Use ${names}.` }
       );
     }
@@ -876,16 +1188,16 @@ export default class Setup extends BaseCommand<typeof Setup> {
   }
 
   /**
-   * The scan step: this computer, then the folders saved or named, never
+   * Gather's looking: this computer, then the folders saved or named, never
    * others unasked, then the accounts already signed in to, each found
-   * shown as it's found, for `pickHere` to offer.
+   * shown as it's found, for `gather` to offer.
    */
   private async scanHere(given: string[]): Promise<void> {
     const folders = unique([...(this.settings.folders ?? []), ...given]);
     this.folders = folders;
     const found: ScanRow[] = [];
     const { steps } = this;
-    steps.set('scan', 'working', '');
+    steps.set('gather', 'working', '');
     const live = this.live(width =>
       foundLines(
         found.map(row => ({ source: row.source, label: this.labelOf(row), note: this.note(row) })),
@@ -905,7 +1217,7 @@ export default class Setup extends BaseCommand<typeof Setup> {
         scan({
           onSource({ rows: more, done, total }) {
             found.push(...more.filter(row => OFFERED.has(row.status)));
-            steps.note('scan', `${count(done)}/${count(total)}`);
+            steps.note('gather', `${count(done)}/${count(total)}`);
             live?.redraw();
           },
         })
@@ -915,7 +1227,7 @@ export default class Setup extends BaseCommand<typeof Setup> {
         const known = new Set(found.map(row => rowKey(row)));
         const more = await this.stopped(
           this.search(folder, note => {
-            steps.note('scan', note);
+            steps.note('gather', note);
             live?.redraw();
           })
         );
@@ -926,44 +1238,164 @@ export default class Setup extends BaseCommand<typeof Setup> {
         }
       }
       const here = new Set(found.map(row => `${row.source}:${row.strategy}`));
-      found.push(...(await this.stopped(this.accounts(here))));
+      const accounts = await this.stopped(this.accounts(here));
+      for (const row of accounts) this.accounted.add(row);
+      found.push(...accounts);
     } finally {
       live?.stop();
       this.redraw = undefined;
     }
-    this.offered = found.map(row => this.offer(row));
+    this.offered = found.map(row => this.offer(row)).sort(bySource);
   }
 
   /**
-   * The scan step's question: which of what it found to extract, how much
-   * each holds counted while it's up. Asked again when the add step goes
-   * back to it, with what was picked still ticked.
+   * The gather step: one list of what to import. First what was found,
+   * here, in the folders, and the accounts signed in to, how much each
+   * holds counted while it's up; then the services not found here, each
+   * saying what it takes, a sign-in or an export, for prepare. `f` looks in
+   * another folder, and what it turns up joins what was found. What's
+   * found and picked is a target; a service picked is wanted. Without
+   * asking, what's ready, and no services.
    */
-  private async pickHere(): Promise<void> {
-    const { steps, offered: offers } = this;
-    if (offers.length === 0) {
-      steps.set('scan', 'done', 'none found');
+  private async gather(): Promise<void> {
+    const { steps } = this;
+    if (!this.asking) {
+      const picked = this.unasked(this.offered);
+      await this.adopt(this.offered, picked);
+      steps.set('gather', 'done', `${count(picked.length)} picked`);
       return;
     }
-    steps.set('scan', 'asking', `${count(offers.length)} found`);
-    this.countRows(offers.map(o => o.row));
-    const where = this.folders.map(folder => fromHome(folder, this.home));
-    const picked = await this.pick('pick what to extract', offers, [
-      this.t.muted(`  found on this mac${where.length > 0 ? ` and in ${where.join(', ')}` : ''}.`),
-      this.t.muted(
-        offers.some(o => o.checked)
-          ? '  ticked: what you picked before.'
-          : '  tick what to extract, or a for all.'
-      ),
-    ]);
-    // A folder is looked in again next run only when something in it was picked, as the add step keeps one.
+    const { multiSelect } = await import('../../output/prompts.js');
+    let services = await this.services();
+    const wanted = this.settings.wanted ?? [];
+    const requested = this.settings.requested ?? [];
+    const asked = (s: Service) =>
+      requested.find(r => r.source === s.source && r.flags.strategy === s.way.name);
+    let initial = [
+      ...this.offered.filter(o => o.checked).map(o => foundKey(o)),
+      ...services
+        .filter(s => asked(s) || wanted.some(w => same(w, s.source, s.way.name)))
+        .map(service => serviceKey(service)),
+    ];
+    const before = initial.length > 0;
+    // What the last folder looked in turned up, said under the question.
+    let searched = '';
+    let values: string[];
+    for (;;) {
+      const offers = this.offered;
+      steps.set('gather', 'asking', `${count(offers.length)} found`);
+      this.countRows(offers.map(o => o.row));
+      const where = this.folders.map(folder => fromHome(folder, this.home));
+      const found = this.options(offers, {
+        key: offer => foundKey(offer),
+        heading: [
+          `found on this computer${where.length > 0 ? ` and in ${where.join(', ')}` : ''}`,
+          // An account isn't on this computer, though it's here to pick.
+          ...(offers.some(o => this.accounted.has(o.row)) ? ['and your accounts'] : []),
+        ].join(', '),
+      });
+      // A table: each service, what getting it ready takes, and what it gets, under headings that line up.
+      const takes = (s: Service) => {
+        const request = asked(s);
+        return request ? `export requested ${request.at.slice(0, 10)}` : s.takes;
+      };
+      const names = Math.max(0, ...services.map(s => s.source.length));
+      const widths = Math.max(0, ...services.map(s => takes(s).length));
+      const add: SelectOption[] = services.map((service, i) => ({
+        value: serviceKey(service),
+        label: `${service.source.padEnd(names)}  ${takes(service).padEnd(widths)} `,
+        description: service.gets,
+        ...(i === 0 && {
+          heading: [
+            'everything else Chronicle can import',
+            'select any you use, and setup helps you get each one in the next step.',
+            '',
+            `  ${'source'.padEnd(names + 2)}${'how to get it'.padEnd(widths + 2)}what you get`,
+          ].join('\n'),
+        }),
+      }));
+      const result = await multiSelect('pick what to import', [...found, ...add], {
+        initial,
+        none: true,
+        enter: 'next',
+        body: [
+          this.t.muted(before ? '  selected: what you picked before.' : '  select what to import.'),
+          ...(offers.length === 0
+            ? [this.t.muted('  nothing found on this computer. f looks in a folder of exports.')]
+            : []),
+          ...(searched ? [this.t.muted(`  ${searched}`)] : []),
+        ],
+        actions: [{ key: 'f', label: 'look in a folder', value: ANOTHER }],
+        onward: true,
+        ...this.around(),
+      });
+      if (result.cancelled) throw cancelled();
+      values = result.values.filter(value => value !== ANOTHER);
+      if (!result.values.includes(ANOTHER)) break;
+      initial = values;
+      const folder = await this.askFolder();
+      if (!folder) continue;
+      const known = new Set(offers.map(o => rowKey(o.row)));
+      let looked = fromHome(folder, this.home);
+      const more = await this.spin(
+        () => looked,
+        () =>
+          this.search(folder, note => {
+            looked = note;
+          })
+      );
+      const fresh = more.filter(row => OFFERED.has(row.status) && !known.has(rowKey(row)));
+      for (const row of fresh) {
+        const offer = this.offer(row);
+        // Selected when it was picked before, or its way in was just selected: it's how that comes in now.
+        if (offer.checked || initial.includes(`service:${row.source}:${row.strategy}`)) {
+          initial.push(foundKey(offer));
+        }
+        offers.push(offer);
+        this.folderOf.set(row, folder);
+      }
+      offers.sort(bySource);
+      searched = `${fromHome(folder, this.home)}: ${fresh.length > 0 ? `${count(fresh.length)} found` : 'nothing found'}`;
+      services = await this.services();
+    }
+    const picks = new Set(values);
+    const picked = this.offered.filter(o => picks.has(foundKey(o)));
+    // A folder is looked in again next run only when something in it was picked.
     this.settings.folders = unique([
       ...(this.settings.folders ?? []),
       ...picked.flatMap(o => this.folderOf.get(o.row) ?? []),
     ]);
-    await this.adopt(offers, picked);
-    for (const offer of offers) offer.checked = picked.includes(offer);
-    steps.set('scan', 'done', `${count(picked.length)} of ${count(offers.length)}`);
+    await this.adopt(this.offered, picked);
+    for (const offer of this.offered) offer.checked = picked.includes(offer);
+    // What's no longer picked is no longer waited for.
+    for (const service of services) {
+      const { source, way } = service;
+      if (picks.has(serviceKey(service))) this.want(source, way.name);
+      else this.settle(source, way.name);
+    }
+    await this.save();
+    const added = services.filter(service => picks.has(serviceKey(service))).length;
+    steps.set('gather', 'done', `${count(picked.length + added)} picked`);
+  }
+
+  /**
+   * A run that carries on, without gathering again: the picks as they
+   * were, and what's here of just them looked for again, for what's in
+   * each one's way.
+   */
+  private async keepPicks(): Promise<void> {
+    const { targets = [], wanted = [], requested = [] } = this.settings;
+    const sources = unique([...targets, ...wanted, ...requested].map(pick => pick.source));
+    this.steps.set('gather', 'working', '');
+    this.rows = await this.spin('checking your picks', async () => {
+      [this.listings, this.extractors] = await Promise.all([
+        listSources(),
+        PluginScanner.scanAllPlugins(),
+      ]);
+      return (await scan({ sources })).rows;
+    });
+    const picks = targets.length + wanted.length + requested.length;
+    this.steps.set('gather', 'done', `${count(picks)} ${plural('picks', picks)} kept`);
   }
 
   /**
@@ -1011,8 +1443,9 @@ export default class Setup extends BaseCommand<typeof Setup> {
 
   /**
    * The accounts already signed in to, unless a scan found them, as
-   * `source:strategy` in `here`. A source found here another way, like its
-   * export, can still be read from its account.
+   * `source:strategy` in `here`, and the picks of a way in with no account.
+   * A source found here another way, like its export, can still be read
+   * from its account.
    */
   private async accounts(here: Set<string>): Promise<ScanRow[]> {
     const rows: ScanRow[] = [];
@@ -1020,10 +1453,33 @@ export default class Setup extends BaseCommand<typeof Setup> {
       const strategy = listing.strategies.find(s => s.delivery === 'api');
       if (!strategy || !listing.supported || listing.tier === 'legacy') continue;
       if (here.has(`${listing.source}:${strategy.name}`)) continue;
+      if (accountless(strategy)) {
+        rows.push(...this.given(listing, strategy.name));
+        continue;
+      }
       if (!(await signedInTo(listing.source))) continue;
       rows.push(this.accountRow(listing, strategy.name, true));
     }
     return rows;
+  }
+
+  /**
+   * The picks of a way in with no account, as rows, as if a scan found
+   * them: each by what it was given, like a username, so gather offers it
+   * again, picked.
+   */
+  private given(listing: SourceListing, strategy: string): ScanRow[] {
+    return (this.settings.targets ?? [])
+      .filter(target => target.source === listing.source && target.flags.strategy === strategy)
+      .map(target => {
+        const { strategy: _strategy, type: _type, ...config } = target.flags;
+        return {
+          ...this.accountRow(listing, strategy, true),
+          label: Object.values(config).map(String).join(' '),
+          config,
+          evidence: {},
+        };
+      });
   }
 
   /** After a plugin is installed: its sources, extractors, and what they find. */
@@ -1072,7 +1528,10 @@ export default class Setup extends BaseCommand<typeof Setup> {
   private countTarget(target: Target): Promise<number | null> {
     const key = targetKey(target);
     if (this.counts.has(key)) return Promise.resolve(this.counts.get(key)!);
-    return within(this.counter.target(target, this.since), SURVEY_TIMEOUT_MS).then(
+    // Asked for twice while it's counted, as the plan and the import do, it's counted once.
+    const counting = this.counting.get(key);
+    if (counting) return counting;
+    const counted = within(this.counter.target(target, this.since), SURVEY_TIMEOUT_MS).then(
       n => {
         this.counts.set(key, n);
         return n;
@@ -1083,6 +1542,8 @@ export default class Setup extends BaseCommand<typeof Setup> {
         return null;
       }
     );
+    this.counting.set(key, counted);
+    return counted;
   }
 
   /** A row's kinds, when it has them without asking: its plugin's defaults, or those it holds. */
@@ -1165,49 +1626,40 @@ export default class Setup extends BaseCommand<typeof Setup> {
     }
   }
 
-  /** Offers as a picker's options, their sources and labels lined up. */
-  private options(offers: Offer[]): SelectOption[] {
+  /**
+   * Offers as a picker's options, their sources and labels lined up, each
+   * valued by `key`, the first under `heading`.
+   */
+  private options(
+    offers: Offer[],
+    { key, heading }: { key: (offer: Offer) => string; heading?: string }
+  ): SelectOption[] {
     const sources = Math.max(0, ...offers.map(o => o.row.source.length));
     const labels = Math.min(48, Math.max(0, ...offers.map(o => o.label.length)));
     return offers.map((o, i) => ({
-      value: String(i),
+      value: key(o),
       label: `${o.row.source.padEnd(sources)}  ${truncatePath(o.label, labels).padEnd(labels)}`,
+      // Read each time it's drawn, so a count fills in.
       get description() {
         return o.note();
       },
+      ...(i === 0 && heading && { heading }),
     }));
   }
 
   /**
-   * Ask which offers to take, with `body` under the question saying what
-   * they are. Without asking, those that need no step, ready with their
-   * plugin installed: picked before, or on this computer and not left
-   * unpicked before.
+   * The offers taken without asking: those that need no step, ready with
+   * their plugin installed, picked before, or on this computer and not
+   * left unpicked before.
    */
-  private async pick(message: string, offers: Offer[], body: string[] = []): Promise<Offer[]> {
-    if (!this.asking) {
-      const skipped = (row: ScanRow) =>
-        (this.settings.skipped ?? []).some(target => reads(target, row));
-      return offers.filter(
-        o =>
-          o.row.installed &&
-          o.row.status === 'ready' &&
-          (o.checked || (!o.row.root && !skipped(o.row)))
-      );
-    }
-    const { multiSelect } = await import('../../output/prompts.js');
-    const result = await multiSelect(message, this.options(offers), {
-      initial: offers.flatMap((o, i) => (o.checked ? [String(i)] : [])),
-      // Unpicking them all picks none of them.
-      none: true,
-      enter: 'next',
-      skip: 'skip',
-      body,
-      onward: true,
-      ...this.around(),
-    });
-    if (result.cancelled) throw cancelled();
-    return result.values.map(value => offers[Number(value)]);
+  private unasked(offers: Offer[]): Offer[] {
+    const skipped = this.settings.skipped ?? [];
+    return offers.filter(
+      o =>
+        o.row.installed &&
+        o.row.status === 'ready' &&
+        (o.checked || (!o.row.root && !skipped.some(target => reads(target, o.row))))
+    );
   }
 
   /** Install a plugin, as `chronicle plugins install` does. */
@@ -1304,140 +1756,81 @@ export default class Setup extends BaseCommand<typeof Setup> {
 
   /**
    * The strategies setup can get ready for a source that isn't here: a
-   * sign-in with a provider it knows, or an export, with its plugin's steps
-   * or plain ones.
+   * sign-in it can do, what a source with no account needs, like a
+   * username, or an export, with its plugin's steps or plain ones.
    */
   private ways(listing: SourceListing, providers: Set<string>): SourceListing['strategies'] {
     return listing.strategies.filter(
       s =>
-        (s.delivery === 'api' && providers.has(providerFor(listing.source))) ||
+        (s.delivery === 'api' && (this.signsIn(listing.source, s, providers) || accountless(s))) ||
         s.delivery === 'export'
     );
   }
 
   /**
-   * The add step: services not found here, each saying what it takes, a
-   * sign-in or an export, and nothing done yet; and `f` to look in another
-   * folder. Enter or → goes on, with or without any. What's picked is
-   * wanted, for the todo step; what a folder turns up is picked like what
-   * the scan found. False when ← goes back to the scan step instead, what's
-   * ticked kept for when it's back.
+   * Whether setup can sign a way in: in the browser, with a provider it
+   * knows, or by keeping what's pasted, when the strategy's own steps say
+   * how, like Pinboard's token.
    */
-  private async addMore(): Promise<boolean> {
-    this.steps.set('add', 'asking', 'optional');
-    const { OAuthCommand } = await import('../../auth/OAuthCommand.js');
-    const providers = new Set(await OAuthCommand.listProviders());
+  private signsIn(
+    source: string,
+    strategy: ManifestStrategy | undefined,
+    providers: Set<string>
+  ): boolean {
+    return (
+      providers.has(providerFor(source)) ||
+      Boolean(strategy?.setup?.some(step => 'sign-in' in step))
+    );
+  }
+
+  /**
+   * The services gather offers to add, a way in each: each way setup can
+   * get ready that isn't here already, by a sign-in with a provider setup
+   * knows, or an export, with what that takes and what it gets.
+   */
+  private async services(): Promise<Service[]> {
+    const providers = await this.providers();
     const here = this.here();
-    const requested = this.settings.requested ?? [];
-    const wanted = this.settings.wanted ?? [];
-    const services = this.listings
-      .filter(l => l.supported && l.tier !== 'legacy')
-      .map(listing => ({
-        listing,
-        ways: this.ways(listing, providers).filter(w => !here.has(`${listing.source}:${w.name}`)),
-      }))
-      .filter(({ ways }) => ways.length > 0);
-    const asked = (source: string) => requested.find(r => r.source === source);
-    const names = Math.max(0, ...services.map(s => s.listing.source.length));
-    const options: SelectOption[] = services.map(({ listing, ways }) => {
-      const request = asked(listing.source);
-      const takes = unique(ways.map(w => (w.delivery === 'api' ? 'sign in' : 'export')));
-      return {
-        value: listing.source,
-        label: listing.source.padEnd(names),
-        description: request ? `requested ${request.at.slice(0, 10)}` : takes.join(' + '),
-      };
-    });
-    const kept = this.adding;
-    this.adding = undefined;
-    let initial =
-      kept?.initial ??
-      services
-        .map(s => s.listing.source)
-        .filter(source => asked(source) || wanted.some(w => w.source === source));
-    // What another folder turns up, to pick like what the scan found, and the folder each was in.
-    const found: Offer[] = kept?.found ?? [];
-    const foundIn = kept?.foundIn ?? new Map<Offer, string>();
-    // What the last folder looked in turned up, said under the question.
-    let searched = kept?.searched ?? '';
-    const { multiSelect } = await import('../../output/prompts.js');
-    let values: string[];
-    for (;;) {
-      const rows = this.options(found).map(o => ({ ...o, value: `found:${o.value}` }));
-      // A service whose export a folder turned up is offered as that export instead.
-      const turnedUp = new Set(found.map(o => o.row.source));
-      const offered = options.filter(option => !turnedUp.has(option.value));
-      initial = initial.filter(value => !turnedUp.has(value));
-      const result = await multiSelect('add services', [...rows, ...offered], {
-        initial,
-        none: true,
-        enter: 'next',
-        skip: 'skip',
-        body: [
-          ...(offered.length > 0 || rows.length > 0
-            ? [
-                this.t.muted('  not found on this mac. tick any you use.'),
-                this.t.muted('  sign-ins and exports come later, in todo. f looks in a folder,'),
-                this.t.muted('  like ~/Downloads, for exports you have.'),
-              ]
-            : [this.t.muted('  nothing to add: every service setup knows is here or signed in.')]),
-          ...(searched ? [this.t.muted(`  ${searched}`)] : []),
-        ],
-        actions: [{ key: 'f', label: 'add folder', value: ANOTHER }],
-        // Back to the scan step's question, when it asked one.
-        ...(this.offered.length > 0 && { back: 'scan' }),
-        onward: true,
-        ...this.around(),
-      });
-      if (result.cancelled) throw cancelled();
-      values = result.values.filter(value => value !== ANOTHER);
-      if (result.back) {
-        this.adding = { initial: values, found, foundIn, searched };
-        this.steps.set('add', 'waiting', '');
-        return false;
-      }
-      if (!result.values.includes(ANOTHER)) break;
-      initial = values;
-      const folder = await this.askFolder();
-      if (!folder) continue;
-      // All a folder holds, though the scan listed some of it: that step's over, and this is how to pick it now.
-      const known = new Set(found.map(o => rowKey(o.row)));
-      let looked = fromHome(folder, this.home);
-      const more = await this.spin(
-        () => looked,
-        () =>
-          this.search(folder, note => {
-            looked = note;
-          })
-      );
-      const fresh = more.filter(row => OFFERED.has(row.status) && !known.has(rowKey(row)));
-      for (const row of fresh) {
-        const offer = this.offer(row);
-        if (offer.checked) initial.push(`found:${found.length}`);
-        found.push(offer);
-        foundIn.set(offer, folder);
-      }
-      searched = `${fromHome(folder, this.home)}: ${fresh.length > 0 ? `${count(fresh.length)} found` : 'nothing found'}`;
-    }
-    const picks = new Set(values);
-    // What's no longer picked is no longer waited for.
-    for (const { listing, ways } of services) {
-      for (const way of ways) {
-        if (picks.has(listing.source)) this.want(listing.source, way.name);
-        else this.settle(listing.source, way.name);
+    const services: Service[] = [];
+    for (const listing of this.listings.filter(l => l.supported && l.tier !== 'legacy')) {
+      for (const way of this.ways(listing, providers)) {
+        if (here.has(`${listing.source}:${way.name}`)) continue;
+        const takes = await this.takes(listing.source, way);
+        services.push({ source: listing.source, way, takes, gets: gets(way) });
       }
     }
-    const chosen = found.filter((_, i) => picks.has(`found:${i}`));
-    // A folder is looked in again next run only when something in it was picked.
-    this.settings.folders = unique([
-      ...(this.settings.folders ?? []),
-      ...chosen.map(offer => foundIn.get(offer)!),
-    ]);
-    if (found.length > 0) await this.adopt(found, chosen);
-    await this.save();
-    const added = services.filter(s => picks.has(s.listing.source)).length + chosen.length;
-    this.steps.set('add', 'done', added > 0 ? `${count(added)} more` : 'none');
-    return true;
+    return services.sort((a, b) => a.source.localeCompare(b.source));
+  }
+
+  /**
+   * What getting a way in ready takes, in a few words: signing in, to the
+   * provider when it isn't the source's own, and making an app first when
+   * there's no client yet; or an export, requested when it comes by email,
+   * and how long it takes to come, as the plugin's steps say. Without steps
+   * of its plugin's, it's requested, as setup's own steps say.
+   */
+  private async takes(source: string, way: ManifestStrategy): Promise<string> {
+    if (way.delivery === 'api') {
+      if (accountless(way)) return `type your ${asked(way.setup)}, no sign-in`;
+      const provider = providerFor(source);
+      const to = provider === source ? 'sign in' : `sign in to ${provider}`;
+      if (!(await this.providers()).has(provider)) {
+        // Signed in by what's pasted: a token made for it, or an app password.
+        const asks = new Set(way.setup?.flatMap(step => ('ask' in step ? [step.ask] : [])));
+        if (asks.has('token')) return `${to}, with a token you make`;
+        if (asks.has('password')) return `${to}, with an app password`;
+        return to;
+      }
+      return (await this.client(provider)) ? to : `${to}, with an app you make`;
+    }
+    if (!way.setup?.length) return 'request your data';
+    const wait = way.setup.find(
+      (step): step is { wait: string; via?: 'download' | 'email' } => 'wait' in step
+    );
+    if (!wait) return 'export, right away';
+    const what = wait.via === 'email' ? 'request an export' : 'export';
+    // `until the backup finishes` says when, not how long.
+    return `${what}, ${wait.wait.replace(/^until /, 'once ')}`;
   }
 
   /**
@@ -1452,7 +1845,7 @@ export default class Setup extends BaseCommand<typeof Setup> {
     ]);
   }
 
-  /** Want a way in, for the todo step, unless it's wanted already or its export asked for. */
+  /** Want a way in, for prepare, unless it's wanted already or its export asked for. */
   private want(source: string, strategy: string): void {
     const known =
       (this.settings.wanted ?? []).some(w => same(w, source, strategy)) ||
@@ -1464,10 +1857,10 @@ export default class Setup extends BaseCommand<typeof Setup> {
 
   /**
    * Each target's state, with a plugin it lacks installed. An export no
-   * longer where it was is asked for again, unless it was extracted: one
+   * longer where it was is asked for again, unless it was imported: one
    * deleted once its records are out is done with.
    */
-  private async prepare(): Promise<void> {
+  private async checkPicks(): Promise<void> {
     // A fix may take a target out of the list, which this loop's copy keeps.
     for (const target of this.settings.targets ?? []) {
       let checked = await this.check(target);
@@ -1509,14 +1902,14 @@ export default class Setup extends BaseCommand<typeof Setup> {
     this.countTarget(target).then(total => {
       job.total = total;
     });
-    this.noteExtract();
+    this.noteImport();
   }
 
-  /** The extract step's note: how far it's got, or what it extracted. */
-  private noteExtract(): void {
+  /** The import step's note: how far it's got, or what it imported. */
+  private noteImport(): void {
     const { jobs } = this;
     if (jobs.length === 0) {
-      if (this.steps.state('extract') !== 'done') this.steps.set('extract', 'waiting', '');
+      if (this.steps.state('import') !== 'done') this.steps.set('import', 'waiting', '');
       return;
     }
     const going = jobs.some(job => job.state === 'running' || job.state === 'waiting');
@@ -1529,36 +1922,15 @@ export default class Setup extends BaseCommand<typeof Setup> {
         ? `${count(Math.min(processed, total))}/${count(total)}`
         : `${count(processed)} ${plural('records', processed)}`;
     this.steps.set(
-      'extract',
+      'import',
       going ? 'working' : 'done',
       failed > 0 ? `${amount} ${glyphs.bullet} ${count(failed)} failed` : amount
     );
   }
 
-  /** Start extracting each target that's ready, in the background, while the todo is up. */
-  private startExtract(): void {
-    mkdirSync(this.root, { recursive: true });
-    this.runner = new JobRunner(this.jobs, {
-      root: this.root,
-      bin: path.join(this.config.root, 'bin', 'run.js'),
-      since: this.since.toISOString(),
-      concurrency: Math.max(1, this.flags.jobs),
-      onEvent: (job, event) => this.events.push({ job, event }),
-      onChange: () => {
-        this.noteExtract();
-        this.redraw?.();
-      },
-    });
-    this.runner.run().catch(() => {});
-    for (const target of this.settings.targets ?? []) {
-      if (this.states.get(target)?.state === 'ready') this.queue(target);
-    }
-    this.noteExtract();
-  }
-
   /**
    * What's needed before the targets and wanted sources not ready yet can
-   * be extracted, as todos.
+   * be imported, as todos.
    */
   private async todos(): Promise<Todo[]> {
     const needs: Need[] = [];
@@ -1568,9 +1940,10 @@ export default class Setup extends BaseCommand<typeof Setup> {
       const way = { source: target.source, strategy: String(target.flags.strategy) };
       if (state === 'full-disk-access') needs.push({ ...way, need: 'full-disk-access' });
       // One that signs in some other way, like gh's own login, is left for the end to say how.
-      if (state === 'sign-in' && providers.has(providerFor(target.source))) {
+      const strategy = this.strategy(target.source, target.flags.strategy);
+      if (state === 'sign-in' && this.signsIn(target.source, strategy, providers)) {
         const provider = providerFor(target.source);
-        const steps = this.strategy(target.source, target.flags.strategy)?.setup;
+        const steps = strategy?.setup;
         needs.push({
           ...way,
           need: 'sign-in',
@@ -1601,8 +1974,13 @@ export default class Setup extends BaseCommand<typeof Setup> {
     return this.signIns;
   }
 
-  /** Whether a provider signs in without the person making an app first. */
+  /**
+   * Whether a provider signs in without the person making an app first.
+   * One that doesn't sign in in the browser has no app, and its steps say
+   * what to paste.
+   */
   private async client(provider: string): Promise<boolean> {
+    if (!(await this.providers()).has(provider)) return false;
     const { OAuthProviderRegistry } = await import('../../auth/ProviderRegistry.js');
     return (
       Boolean(OAuthProviderRegistry.get(provider)?.setup) ||
@@ -1611,12 +1989,15 @@ export default class Setup extends BaseCommand<typeof Setup> {
   }
 
   /**
-   * What a way in that's wanted needs before it can be extracted: a sign-in,
+   * What a way in that's wanted needs before it can be imported: a sign-in,
    * with its plugin's steps, or an export, with its plugin's or plain ones.
    * Nothing once its provider is signed in to.
    */
   private async need(way: Way): Promise<Need | undefined> {
     const strategy = this.strategy(way.source, way.strategy);
+    if (strategy?.delivery === 'api' && accountless(strategy)) {
+      return { ...way, need: 'settings', steps: strategy.setup! };
+    }
     if (strategy?.delivery === 'api') {
       const provider = providerFor(way.source);
       if (await signedInTo(way.source)) return undefined;
@@ -1631,19 +2012,22 @@ export default class Setup extends BaseCommand<typeof Setup> {
   }
 
   /**
-   * The todo step: each sign-in and export, the least work first, to do now
-   * or later. Later puts it at the back. Once all that's left was put off,
-   * it's done, and they're kept for the next run. Full Disk Access is left
-   * for last, once the extractions finish.
+   * The prepare step: each todo, Full Disk Access first, then the least
+   * work first, to do now or later. Later puts it at the back. Once all
+   * that's left was put off, it's done, and they're kept for the next run.
+   * False when Full Disk Access is being turned on, which means reopening
+   * the terminal: the run ends there, and the next carries on.
    */
-  private async todo(): Promise<void> {
-    const todos = order(await this.todos(), this.settings.later);
-    const queue = todos.filter(todo => todo.kind !== 'access');
-    this.access = todos.find(todo => todo.kind === 'access');
-    const total = todos.length;
+  private async prepare(): Promise<boolean> {
+    // Full Disk Access is only a Mac's.
+    const queue = order(await this.todos(), this.settings.later).filter(
+      todo => todo.kind !== 'access' || process.platform === 'darwin'
+    );
+    this.access = queue.find(todo => todo.kind === 'access');
+    const total = queue.length;
     if (total === 0) {
-      this.steps.set('todo', 'done', 'none');
-      return;
+      this.steps.set('prepare', 'done', 'none');
+      return true;
     }
     const { tally } = this;
     let turn = 0;
@@ -1651,14 +2035,18 @@ export default class Setup extends BaseCommand<typeof Setup> {
     while (queue.length > 0 && putOff < queue.length) {
       const todo = queue.shift()!;
       turn++;
-      this.steps.set('todo', 'asking', `${count(Math.min(turn, total))} of ${count(total)}`);
-      const result = todo.requested
-        ? (await this.askExport(todo, 0))
-          ? 'done'
-          : 'later'
-        : (await this.offerTodo(todo))
-          ? await this.runTodo(todo)
-          : 'later';
+      this.steps.set('prepare', 'asking', `${count(Math.min(turn, total))} of ${count(total)}`);
+      const result =
+        todo.kind === 'access'
+          ? await this.allowAccess(todo)
+          : todo.requested
+            ? (await this.askExport(todo, 0))
+              ? 'done'
+              : 'later'
+            : (await this.offerTodo(todo))
+              ? await this.runTodo(todo)
+              : 'later';
+      if (result === 'reopen') return false;
       if (result === 'later') {
         this.settings.later = { ...this.settings.later, [todo.key]: new Date().toISOString() };
         await this.save();
@@ -1675,11 +2063,11 @@ export default class Setup extends BaseCommand<typeof Setup> {
       }
     }
     tally.later = queue.length;
-    if (this.access) this.steps.set('todo', 'asking', 'full disk access left');
-    else this.noteTodo();
+    this.noteTodo();
+    return true;
   }
 
-  /** The todo step's note, once it's through: what was done, and what's left. */
+  /** The prepare step's note, once it's through: what was done, and what's left. */
   private noteTodo(): void {
     const { done, waiting, failed, later } = this.tally;
     const parts = [
@@ -1688,7 +2076,7 @@ export default class Setup extends BaseCommand<typeof Setup> {
       failed > 0 ? `${count(failed)} failed` : '',
       later > 0 ? `${count(later)} later` : '',
     ].filter(Boolean);
-    this.steps.set('todo', 'done', parts.join(` ${glyphs.bullet} `) || 'none');
+    this.steps.set('prepare', 'done', parts.join(` ${glyphs.bullet} `) || 'none');
   }
 
   /** A todo's title and its steps, numbered, the one at `at` picked out. */
@@ -1719,12 +2107,12 @@ export default class Setup extends BaseCommand<typeof Setup> {
 
   /**
    * Do a todo's steps in turn: open its pages, ask for what to paste, and
-   * sign in; an export's end asking where it is. What it gets ready joins
-   * the extractions. `waiting` once an export is asked for and not here
-   * yet; `later` when it's put off partway.
+   * sign in; an export's end asking where it is. What it gets ready is
+   * imported once prepare is through. `waiting` once an export is asked for
+   * and not here yet; `later` when it's put off partway.
    */
   private async runTodo(todo: Todo): Promise<'done' | 'waiting' | 'failed' | 'later'> {
-    const answers: { 'client-id'?: string; 'client-secret'?: string } = {};
+    const answers: Partial<Record<Answer, string>> = {};
     const { input } = await import('../../output/prompts.js');
     for (const [i, step] of todo.steps.entries()) {
       if ('open' in step) {
@@ -1733,7 +2121,9 @@ export default class Setup extends BaseCommand<typeof Setup> {
         await this.openPage(step.open);
       } else if ('ask' in step) {
         const { value, cancelled: stopped } = await input(step.ask.replace('-', ' '), {
-          validate: answer => answer.trim().length > 0 || `paste the ${step.ask.replace('-', ' ')}`,
+          validate: answer => answer.trim().length > 0 || stepText(step),
+          // What signs in isn't shown as it's pasted.
+          secret: ['token', 'password', 'client-secret'].includes(step.ask),
           ...this.around(() => this.todoLines(todo, i)),
         });
         if (stopped) throw cancelled();
@@ -1744,6 +2134,8 @@ export default class Setup extends BaseCommand<typeof Setup> {
       }
       // What to do there, and how long to wait, are said, not run.
     }
+    // What was asked, with no sign-in after it, is the way in's flags.
+    if (todo.kind === 'settings') await this.signedIn(todo, answers);
     if (todo.kind !== 'export') return 'done';
     if (await this.askExport(todo, todo.steps.length)) return 'done';
     await this.request(todo);
@@ -1763,13 +2155,33 @@ export default class Setup extends BaseCommand<typeof Setup> {
   /**
    * Sign in to a provider in the browser, with the client pasted, if any,
    * asking for the access the ways in need, like YouTube's from Google's
-   * sign-in, and no more: whether it worked.
+   * sign-in, and no more: whether it worked. One that doesn't sign in in
+   * the browser keeps what was pasted, as `chronicle auth set` does: a
+   * token, and a username; or a username and password, like Bluesky's
+   * handle and app password, kept as its client, where its plugin reads them.
    */
   private async signIn(
     provider: string,
-    client: { 'client-id'?: string; 'client-secret'?: string },
+    answers: Partial<Record<Answer, string>>,
     ways: Way[]
   ): Promise<boolean> {
+    if (!(await this.providers()).has(provider)) {
+      const { token = '', username, password } = answers;
+      await CredentialManager.removeCredentials(provider);
+      await CredentialManager.storeCredentials(
+        provider,
+        {
+          provider,
+          access_token: token,
+          token_type: 'static',
+          created_at: new Date().toISOString(),
+          ...(username && { username }),
+        },
+        password ? username : undefined,
+        password
+      );
+      return true;
+    }
     const { OAuthCommand } = await import('../../auth/OAuthCommand.js');
     const add = unique(ways.flatMap(way => accessFor(way.source) ?? []));
     try {
@@ -1777,8 +2189,8 @@ export default class Setup extends BaseCommand<typeof Setup> {
         port: SIGN_IN_PORT,
         timeout: 300,
         openAtOnce: true,
-        clientId: client['client-id'],
-        clientSecret: client['client-secret'],
+        clientId: answers['client-id'],
+        clientSecret: answers['client-secret'],
         ...(add.length > 0 && { add, onlyAdded: true }),
       }).execute();
     } catch (error) {
@@ -1790,10 +2202,12 @@ export default class Setup extends BaseCommand<typeof Setup> {
   }
 
   /**
-   * After a sign-in: each target it was in the way of, and each source
-   * wanted through it, a target now, joins the extractions.
+   * After a sign-in, or what a way in with no account needs was given:
+   * each target it was in the way of, and each source wanted through it, a
+   * target now, with what was given as its `flags`, is checked again, to
+   * import.
    */
-  private async signedIn(todo: Todo): Promise<void> {
+  private async signedIn(todo: Todo, flags: Record<string, string> = {}): Promise<void> {
     for (const way of todo.ways) {
       const target = (this.settings.targets ?? []).find(t => same(way, t.source, t.flags.strategy));
       if (target) {
@@ -1806,7 +2220,10 @@ export default class Setup extends BaseCommand<typeof Setup> {
         await this.install(listing.plugin);
         await this.refresh();
       }
-      const row = this.accountRow(this.listing(way.source) ?? listing, way.strategy, true);
+      const row = {
+        ...this.accountRow(this.listing(way.source) ?? listing, way.strategy, true),
+        config: flags,
+      };
       const kinds = this.rowKinds(row);
       const chosen = kinds.length > 0 ? kinds : await this.askKinds(way.source, way.strategy);
       this.settle(way.source, way.strategy);
@@ -1820,13 +2237,11 @@ export default class Setup extends BaseCommand<typeof Setup> {
   }
 
   /**
-   * Check a target again, and extract it once it's ready. A source set up
-   * alone is left for `chronicle extract`.
+   * Check a target again: once it's ready, the import step takes it. A
+   * source set up alone is left for `chronicle extract`.
    */
   private async ready(target: Target): Promise<void> {
-    const checked = await this.check(target);
-    this.states.set(target, checked);
-    if (checked.state === 'ready' && !this.alone) this.queue(target);
+    this.states.set(target, await this.check(target));
   }
 
   /** Each export a todo asked for, waited for from now, and no longer just wanted. */
@@ -1847,7 +2262,7 @@ export default class Setup extends BaseCommand<typeof Setup> {
    * Ask where a todo's export is: a path, looked in for what the todo's
    * strategy reads, or later. Nowhere is looked in unasked. A strategy that
    * can't tell its export from the inside, like an iPhone backup, takes the
-   * path as it is. True once it's found, a target, and joins the extractions.
+   * path as it is. True once it's found and a target, to import.
    */
   private async askExport(todo: Todo, at: number): Promise<boolean> {
     const { select, input } = await import('../../output/prompts.js');
@@ -1917,16 +2332,33 @@ export default class Setup extends BaseCommand<typeof Setup> {
   }
 
   /**
-   * Once the extractions are through, said live under the checklist: Ctrl-C
-   * stops them, and setup. Then what was extracted, and Full Disk Access, if
-   * it's wanted.
+   * The import step: each pick that's ready and has no finished file, the
+   * last year of it to its own file, a few at a time, said live under the
+   * checklist. Ctrl-C stops them, and setup. Then what was imported.
    */
-  private async finishExtract(): Promise<void> {
-    const runner = this.runner!;
+  private async importAll(): Promise<void> {
+    mkdirSync(this.root, { recursive: true });
+    const runner = new JobRunner(this.jobs, {
+      root: this.root,
+      bin: path.join(this.config.root, 'bin', 'run.js'),
+      since: this.since.toISOString(),
+      concurrency: Math.max(1, this.flags.jobs),
+      onEvent: (job, event) => this.events.push({ job, event }),
+      onChange: () => {
+        this.noteImport();
+        this.redraw?.();
+      },
+    });
+    this.runner = runner;
+    runner.run().catch(() => {});
+    if (!this.later) for (const target of this.importing()) this.queue(target);
+    this.noteImport();
     if (this.jobs.some(job => job.state === 'running' || job.state === 'waiting')) {
-      const live = this.live((width, frame) =>
-        liveLines(this.jobs, this.started, this.t, width, frame)
-      );
+      const live = this.live((width, frame) => {
+        // The counts go up between a job's changes, so the checklist's is said again each time.
+        this.noteImport();
+        return liveLines(this.jobs, this.started, this.t, width, frame);
+      });
       this.redraw = () => live?.redraw();
       live?.start();
       try {
@@ -1937,30 +2369,33 @@ export default class Setup extends BaseCommand<typeof Setup> {
         this.redraw = undefined;
       }
     }
-    this.noteExtract();
-    if (this.jobs.length === 0) this.steps.set('extract', 'done', 'nothing new');
-    // Asked before the report, which ends with what to do next.
-    const reopen = this.access ? await this.allowAccess(this.access) : undefined;
+    this.noteImport();
+    const targets = this.settings.targets ?? [];
+    const before = targets.some(target =>
+      existsSync(finishedFile(this.root, targetName(target, targets)))
+    );
+    if (this.later) this.steps.set('import', 'waiting', 'later');
+    // Nothing imported ever, it isn't through.
+    else if (this.jobs.length === 0) {
+      this.steps.set('import', before ? 'done' : 'waiting', before ? 'nothing new' : 'nothing yet');
+    }
     await this.report();
-    if (reopen)
-      this.hint(`Quit ${reopen} and open it again, then run \`${this.again()}\` to continue.`);
     if (this.jobs.some(job => job.state === 'failed')) throw new Errors.ExitError(1);
   }
 
   /**
-   * Full Disk Access, last, since turning it on means reopening the
-   * terminal: now, by System Settings, or later. The terminal to reopen,
-   * when it's now.
+   * Full Disk Access, first in prepare: now, by System Settings, or later.
+   * Now ends the run, since turning it on means quitting the terminal and
+   * opening it again, and the next run carries on.
    */
-  private async allowAccess(todo: Todo): Promise<string | undefined> {
-    if (process.platform !== 'darwin') return undefined;
+  private async allowAccess(todo: Todo): Promise<'reopen' | 'later'> {
     const { app } = await terminal();
     const sources = unique(todo.ways.map(way => way.source));
     const steps = [
       `  1  open system settings`,
       `  2  turn on ${app} under full disk access`,
       `  3  quit ${app} and open it again`,
-      `  4  run chronicle setup`,
+      `  4  run ${this.again()} to carry on`,
     ];
     const { select } = await import('../../output/prompts.js');
     const { value, cancelled: stopped } = await select(
@@ -1972,21 +2407,29 @@ export default class Setup extends BaseCommand<typeof Setup> {
       { inline: true, body: [this.t.accent(steps[0]), ...steps.slice(1)], ...this.around() }
     );
     if (stopped) throw cancelled();
-    if (value !== 'go') {
-      this.settings.later = { ...this.settings.later, [todo.key]: new Date().toISOString() };
-      await this.save();
-      this.tally.later++;
-      this.noteTodo();
-      return undefined;
-    }
-    this.tally.done++;
-    this.noteTodo();
+    if (value !== 'go') return 'later';
+    this.reopening = app;
     await this.config.runCommand('setup:full-disk-access', ['--open']);
-    return app;
+    return 'reopen';
   }
 
   /**
-   * The checklist as it ends, then what was extracted, this run and before,
+   * How a run ends once Full Disk Access is being turned on, before the
+   * import: the checklist, at prepare, then what's left, and to reopen the
+   * terminal before carrying on.
+   */
+  private reopen(): void {
+    const app = this.reopening!;
+    this.steps.set('prepare', 'asking', `reopen ${app}`);
+    this.print([...this.checklist(this.width(), 0), '']);
+    this.unfinished(
+      this.standing().map(pick => pick.source),
+      `Turn on ${app} under Full Disk Access, then quit ${app} and open it again.`
+    );
+  }
+
+  /**
+   * The checklist as it ends, then what was imported, this run and before,
    * with each file; where the files are; then what's still waiting, and why.
    */
   private async report(): Promise<void> {
@@ -2041,10 +2484,10 @@ export default class Setup extends BaseCommand<typeof Setup> {
     }
     const { jobs } = this;
     const records = jobs.reduce((n, job) => n + (job.state === 'done' ? job.processed : 0), 0);
-    const extracted = jobs.filter(job => job.state === 'done').length;
+    const imported = jobs.filter(job => job.state === 'done').length;
     const failed = jobs.filter(job => job.state === 'failed').length;
     if (jobs.length > 0) {
-      const title = `Extracted ${count(extracted)} ${plural('sources', extracted)}`;
+      const title = `Imported ${count(imported)} ${plural('sources', imported)}`;
       this.logger.emit({
         level: 'info',
         kind: 'summary',
@@ -2058,15 +2501,20 @@ export default class Setup extends BaseCommand<typeof Setup> {
           output: fromHome(this.root, this.home),
         },
       });
-    } else if (done.length > 0) {
-      this.logger.info('Nothing new to extract');
-    } else {
-      this.logger.info('Nothing to extract yet');
+    } else if (checklist.length === 0) {
+      // Without the checklist, which says it: later, nothing new, or nothing yet.
+      this.logger.info(
+        this.later
+          ? 'Import left for later'
+          : done.length > 0
+            ? 'Nothing new to import'
+            : 'Nothing to import yet'
+      );
     }
     if (done.length > 0) {
       // The summary says where the files went; without one, this does.
       const where = jobs.length > 0 ? '' : `The files are in ${fromHome(this.root, this.home)}. `;
-      this.hint(`${where}Delete a file, or use \`--again\`, to extract it again.`);
+      this.hint(`${where}Delete a file, or use \`--again\`, to import it again.`);
     }
     await this.waiting(
       targets.filter(
@@ -2092,29 +2540,20 @@ export default class Setup extends BaseCommand<typeof Setup> {
     const by = (state: Checked['state']) =>
       targets.filter(target => states.get(target)!.state === state).map(t => t.source);
     // A sign-in setup can't do, like gh's own login, says how it's done.
-    const signIns = by('sign-in').filter(source => providers.has(providerFor(source)));
+    const signsIn = (target: Target) =>
+      this.signsIn(target.source, this.strategy(target.source, target.flags.strategy), providers);
+    const signIns = targets
+      .filter(target => states.get(target)!.state === 'sign-in' && signsIn(target))
+      .map(target => target.source);
     for (const target of targets) {
-      if (states.get(target)!.state !== 'sign-in' || providers.has(providerFor(target.source))) {
-        continue;
-      }
+      if (states.get(target)!.state !== 'sign-in' || signsIn(target)) continue;
       const remedy = this.rows.find(row => reads(target, row))?.remedy;
       this.hint(
         remedy ??
           `${target.source} needs sign-in. Run \`chronicle auth set ${providerFor(target.source)}\` to sign in.`
       );
     }
-    if (this.asking) {
-      const left = unique([
-        ...signIns,
-        ...(this.access ? by('full-disk-access') : []),
-        ...(this.settings.wanted ?? []).map(way => way.source),
-        ...(this.settings.requested ?? []).map(asked => asked.source),
-      ]).filter(source => this.mine(source));
-      if (left.length === 1) this.hint(`Run \`chronicle setup ${left[0]}\` to finish it.`);
-      else if (left.length > 1) {
-        this.hint(`Run \`chronicle setup\` to finish ${left.join(', ')}.`);
-      }
-    } else {
+    if (!this.asking) {
       const access = by('full-disk-access');
       if (access.length > 0) {
         this.hint(
@@ -2144,11 +2583,50 @@ export default class Setup extends BaseCommand<typeof Setup> {
           : `${target.source}: ${what}.`
       );
     }
-    if (this.asking) return;
+    if (this.asking) {
+      // Last, so it's what the run ends on.
+      const picked = this.settings.targets ?? [];
+      this.unfinished([
+        ...picked
+          .filter(target => !existsSync(finishedFile(this.root, targetName(target, picked))))
+          .map(target => target.source),
+        ...signIns,
+        ...(this.access ? by('full-disk-access') : []),
+        ...(this.settings.wanted ?? []).map(way => way.source),
+        ...(this.settings.requested ?? []).map(asked => asked.source),
+      ]);
+      return;
+    }
     for (const asked of (this.settings.requested ?? []).filter(r => this.mine(r.source))) {
       this.hint(
         `Waiting for ${asked.source}'s export, asked for ${date(new Date(asked.at)).slice(0, 10)}.`
       );
     }
+  }
+
+  /**
+   * How a run ends with something of `sources` left to do, set apart so it
+   * isn't missed: where each of their picks stands, as the next run's
+   * splash will say, anything to do first, and the command that continues.
+   * Nothing when there's nothing left.
+   */
+  private unfinished(sources: string[], first?: string): void {
+    const left = new Set(sources.filter(source => this.mine(source)));
+    const picks = this.standing().filter(pick => pick.state !== 'done' && left.has(pick.source));
+    if (picks.length === 0) return;
+    const names = Math.max(...picks.map(pick => pick.name.length));
+    this.logger.emit({
+      level: 'info',
+      kind: 'guide',
+      message: this.alone ? `${this.alone} isn't ready yet` : "Setup isn't finished",
+      guide: {
+        text: [
+          ...picks.map(pick => `${MARKS[pick.state]} ${pick.name.padEnd(names)}  ${pick.text}`),
+          ...(first ? ['', first] : []),
+          '',
+          `Run \`${this.again()}\` to continue.`,
+        ],
+      },
+    });
   }
 }

@@ -82,6 +82,20 @@
                   "linux"
                 ]
               }
+            ],
+            "setup": [
+              {
+                "open": "https://github.com/settings/tokens/new"
+              },
+              {
+                "do": "generate a token: tick repo and gist to include private ones"
+              },
+              {
+                "ask": "token"
+              },
+              {
+                "sign-in": "github"
+              }
             ]
           }
         }

@@ -28,6 +28,8 @@ export interface SplashOptions {
    * start and gone once it ends. Something else waits for the answer.
    */
   prompt?: string;
+  /** The keys under the prompt, and what each does. `enter continue` and `esc cancel` unless given. */
+  keys?: string[];
 }
 
 /**
@@ -44,6 +46,7 @@ export class Splash {
   private readonly region: LiveRegion;
   private readonly intro?: Intro;
   private readonly prompt?: string;
+  private readonly keys: string[];
   private readonly color: (rgb: RGB) => Style = rgbStyles('stderr');
   private startedAt = 0;
   private text = '';
@@ -51,9 +54,15 @@ export class Splash {
 
   constructor(
     private readonly t: Tokens,
-    { style = SPLASH_STYLES.ink, intro, prompt }: SplashOptions = {}
+    {
+      style = SPLASH_STYLES.ink,
+      intro,
+      prompt,
+      keys = ['enter continue', 'esc cancel'],
+    }: SplashOptions = {}
   ) {
     this.style = style;
+    this.keys = keys;
     this.animation = new Animation(fromBraille(LOGO), style.effect, style.duration);
     this.intro = intro;
     this.prompt = prompt;
@@ -151,7 +160,7 @@ export class Splash {
       words.push('', `${this.t.accent(spinner)} ${truncate(this.text, width - 2)}`);
     }
     if (this.prompt && !this.ended) {
-      const keys = ['enter continue', 'esc cancel'].join(` ${glyphs.bullet} `);
+      const keys = this.keys.join(` ${glyphs.bullet} `);
       words.push(
         '',
         `${this.t.accent(glyphs.pointer)} ${this.t.strong(truncate(this.prompt, width - 2))}`,

@@ -358,12 +358,16 @@ export interface ScanProgress {
 }
 
 /**
- * Look for each source's material on this computer, or one source's. Only
- * opens what it finds to check it can be read, and reads none of it.
- * `onSource` hears of each source as it's looked for.
+ * Look for each source's material on this computer, or one source's, or
+ * those in `sources`. Only opens what it finds to check it can be read,
+ * and reads none of it. `onSource` hears of each source as it's looked for.
  */
 export async function scan(
-  options: { source?: string; onSource?: (progress: ScanProgress) => void } = {}
+  options: {
+    source?: string;
+    sources?: string[];
+    onSource?: (progress: ScanProgress) => void;
+  } = {}
 ): Promise<ScanResult> {
   const context: LocateContext = {
     home: os.homedir(),
@@ -371,7 +375,10 @@ export async function scan(
     env: process.env,
   };
   const scanned = (await listSources()).filter(
-    l => l.supported && (!options.source || l.source === options.source)
+    l =>
+      l.supported &&
+      (!options.source || l.source === options.source) &&
+      (!options.sources || options.sources.includes(l.source))
   );
   const locators = await PluginScanner.scanAllLocators();
   const extractors = await PluginScanner.scanAllPlugins();

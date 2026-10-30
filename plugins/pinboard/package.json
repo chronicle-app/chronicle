@@ -66,7 +66,21 @@
             "recordTypes": [
               "bookmarks"
             ],
-            "default": true
+            "default": true,
+            "setup": [
+              {
+                "open": "https://pinboard.in/settings/password"
+              },
+              {
+                "do": "copy the api token, in its username:token form"
+              },
+              {
+                "ask": "token"
+              },
+              {
+                "sign-in": "pinboard"
+              }
+            ]
           }
         }
       }

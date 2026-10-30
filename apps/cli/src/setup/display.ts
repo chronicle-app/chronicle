@@ -56,7 +56,7 @@ export function liveLines(
   const spinner = glyphs.spinner[frame % glyphs.spinner.length];
   const amounts = (job: Job) =>
     job.total === null
-      ? `${count(job.processed)} extracted`
+      ? `${count(job.processed)} imported`
       : `${count(job.processed)}/${count(job.total)}`;
   const running = jobs.filter(job => job.state === 'running');
   const amountWidth = Math.max(0, ...running.map(job => amounts(job).length));
@@ -92,7 +92,7 @@ export function liveLines(
     }
   } else {
     const all = jobs.reduce((n, job) => n + job.processed, 0);
-    tail.push([`${count(all)} extracted`]);
+    tail.push([`${count(all)} imported`]);
   }
   tail.push([`  ${clock(elapsed)}`, t.muted]);
   // The bar ends where a job's does, or sooner, so what follows it fits.
@@ -104,10 +104,10 @@ export function liveLines(
 }
 
 /**
- * A finished job's line, which stays: what it extracted and how long it
+ * A finished job's line, which stays: what it imported and how long it
  * took, or that it failed and the command to run it by hand.
  *
- *   ✓ shell     2,113 extracted in 0:02
+ *   ✓ shell     2,113 imported in 0:02
  */
 export function finishedLines(
   job: Job,
@@ -123,14 +123,14 @@ export function finishedLines(
         [
           [glyphs.success, t.success],
           [` ${job.label.padEnd(names)}  `, t.strong],
-          [`${count(job.processed)} extracted`],
+          [`${count(job.processed)} imported`],
           [` in ${took}`, t.muted],
         ],
         width
       ),
     ];
   }
-  const why = job.error?.message ?? "Couldn't extract it";
+  const why = job.error?.message ?? "Couldn't import it";
   return [
     line([[glyphs.failure, t.danger], [` ${job.label.padEnd(names)}  `, t.strong], [why]], width),
     hint(job.error?.hint ?? '', `Run \`${command}\` to extract it on its own.`, t, width),

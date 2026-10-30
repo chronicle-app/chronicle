@@ -6,7 +6,7 @@ import { test } from 'node:test';
 delete process.env.FORCE_COLOR;
 process.env.NO_COLOR = '1';
 
-const { awaitEnter, confirm, proceed, select, multiSelect, input } =
+const { awaitEnter, awaitKey, confirm, proceed, select, multiSelect, input } =
   await import('../dist/output/prompts.js');
 
 const OPTIONS = [
@@ -237,6 +237,52 @@ test('Ctrl+D cancels any question, as Esc does', async () => {
   };
   assert.equal(await awaitEnter(terminal(['x', '\r'])), true);
   assert.equal(await awaitEnter(terminal([CTRL_C])), false);
+  // Its keys answer too, by name; any other does nothing.
+  assert.equal(await awaitKey(['g'], terminal(['x', 'g'])), 'g');
+  assert.equal(await awaitKey(['g'], terminal(['\r'])), 'enter');
+  assert.equal(await awaitKey(['g'], terminal([ESC])), undefined);
+});
+
+test('proceed says its keys, and answers with one pressed instead of Enter', async () => {
+  const keyed = typing('g');
+  const answer = await proceed('Press Enter to carry on', {
+    enter: 'carry on',
+    actions: [{ key: 'g', label: 'change picks' }],
+    ...keyed,
+  });
+  assert.deepEqual(answer, { cancelled: false, key: 'g' });
+  assert.match(keyed.drawn(), /enter carry on · g change picks · esc cancel/);
+});
+
+test('multiSelect shows as many options as fit a short terminal, and follows the highlight', async () => {
+  const many = Array.from({ length: 10 }, (_, i) => ({ label: `option${i}`, value: `${i}` }));
+  const short = typing('j', 'j', 'j', 'j', 'j', 'j', '\r');
+  // Twelve rows: the question, the keys, and the lines around them leave room for seven.
+  Object.assign(short.terminal.output, { rows: 12, columns: 80 });
+  const picked = await multiSelect('Which?', many, short);
+  assert.deepEqual(picked.values, ['6']);
+  const drawn = short.drawn();
+  assert.match(drawn, /option4\n {2}↓ 5 more/);
+  assert.match(drawn, / {2}↑ 2 more\n {2}○ option2/);
+  assert.match(drawn, /option6\n {2}↓ 3 more/);
+});
+
+test('multiSelect sets groups apart under their headings, and a toggles the highlighted group', async () => {
+  const grouped = [
+    { label: 'notes', value: 'notes', heading: 'found here' },
+    { label: 'tags', value: 'tags' },
+    { label: 'links', value: 'links', heading: 'to add' },
+    { label: 'pins', value: 'pins' },
+  ];
+  const all = typing('a', '\r');
+  const first = await multiSelect('Which?', grouped, { ...all });
+  assert.deepEqual(first.values, ['notes', 'tags']);
+  assert.match(all.drawn(), / {2}found here\n❯ ◉ notes\n {2}◉ tags\n\n {2}to add\n {2}○ links/);
+  assert.match(all.drawn(), /a group · esc cancel/);
+  // In another group, a leaves the first as it was, and again clears its own.
+  const second = typing('j', 'j', 'a', 'a', 'a', '\r');
+  const kept = await multiSelect('Which?', grouped, { initial: ['notes'], none: true, ...second });
+  assert.deepEqual(kept.values, ['notes', 'links', 'pins']);
 });
 
 test('keys pressed at a list are not kept as typed text, so redraws stay in place', async () => {
@@ -271,6 +317,14 @@ test('input with back goes back on Esc, leaving nothing, and Ctrl+C still cancel
     value: '',
     cancelled: true,
   });
+});
+
+test('input in secret shows a mark for each character, and answers with what was typed', async () => {
+  const hidden = typing('a', 'b', 'c', '\r');
+  const answer = await input('token', { secret: true, ...hidden });
+  assert.deepEqual(answer, { value: 'abc', cancelled: false });
+  assert.match(hidden.drawn(), /❯ \*\*\*/);
+  assert.doesNotMatch(hidden.drawn(), /abc/);
 });
 
 test('input asks again until the answer is valid', async () => {
