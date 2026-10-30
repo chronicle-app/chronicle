@@ -1495,7 +1495,7 @@ function safariHistory(file, { older = false, visited = new Date('2025-01-01T00:
   db.close();
 }
 
-test('setup --yes imports the last year of what is ready here, a record a line, once', t => {
+test('setup --yes imports the last year of what is ready here into the store, once', t => {
   const { dir, run } = fixture(t);
   const home = join(dir, 'home');
   const day = 86_400;
@@ -1520,20 +1520,19 @@ test('setup --yes imports the last year of what is ready here, a record a line, 
   assert.match(JSON.parse(unasked.stderr.trim().split('\n').at(-1)).hint.action, /--yes/);
 
   success(setup('setup', '--yes'));
-  const extracts = join(dir, 'data', 'extracts');
-  const lines = name =>
-    readFileSync(join(extracts, `${name}.jsonl`), 'utf8')
-      .trimEnd()
+  const actions = type =>
+    success(setup('query', `type:${type}`))
+      .trim()
       .split('\n')
+      .filter(Boolean)
       .map(line => JSON.parse(line));
   // The last year only, newest first.
   assert.deepEqual(
-    lines('shell').map(record => record.object.body),
+    actions('ExecuteAction').map(action => action.object.body),
     [`echo ${now - day}`, `echo ${now - 30 * day}`]
   );
-  if (darwin) assert.equal(lines('safari').length, 1);
-  assert.ok(!readdirSync(extracts).some(file => file.endsWith('.partial')));
-  // Each pick is saved as the flags that extract it, beside its records too.
+  if (darwin) assert.equal(actions('ViewAction').length, 1);
+  // Each pick is saved as the flags that extract it, and its import is recorded.
   const { targets } = JSON.parse(readFileSync(join(dir, 'config', 'config.json'), 'utf8'));
   assert.deepEqual(
     targets.find(target => target.source === 'shell'),
@@ -1542,25 +1541,24 @@ test('setup --yes imports the last year of what is ready here, a record a line, 
       flags: { strategy: 'history', type: ['commands'] },
     }
   );
-  const beside = JSON.parse(readFileSync(join(extracts, 'shell.target.json'), 'utf8'));
-  assert.equal(beside.records, 2);
+  const recorded = () => JSON.parse(readFileSync(join(dir, 'data', 'setup', 'shell.json'), 'utf8'));
+  const record = recorded();
+  assert.equal(record.records, 2);
+  assert.equal(record.db, join(dir, 'data', 'chronicle.db'));
 
-  // A second run imports nothing it has a file for.
-  const before = readFileSync(join(extracts, 'shell.jsonl'), 'utf8');
+  // A second run imports nothing it imported already.
   const again = setup('setup', '--yes');
   assert.equal(again.status, 0, again.stderr);
   assert.match(again.stderr, /Nothing new to import/);
-  assert.equal(readFileSync(join(extracts, 'shell.jsonl'), 'utf8'), before);
+  assert.deepEqual(recorded(), record);
 
-  // Reset forgets the picks, so setup starts over, and keeps the files unless told.
+  // Reset forgets the picks, so setup starts over; what it imported stays.
   const reset = setup('setup', 'reset');
   assert.equal(reset.status, 0, reset.stderr);
-  assert.match(reset.stderr, /chronicle setup reset --files/);
+  assert.match(reset.stderr, /stays in the store/);
   const config = JSON.parse(readFileSync(join(dir, 'config', 'config.json'), 'utf8'));
   assert.equal(config.targets, undefined);
-  assert.ok(readdirSync(extracts).length > 0);
-  success(setup('setup', 'reset', '--files'));
-  assert.deepEqual(readdirSync(extracts), []);
+  assert.equal(actions('ExecuteAction').length, 2);
 
   // A Google sign-in gets a source named ready only with the access it
   // needs: one for Gmail and Calendar can't read YouTube until it's added.
