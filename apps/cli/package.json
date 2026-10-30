@@ -37,7 +37,7 @@
     "typescript": "^5.7.2"
   },
   "engines": {
-    "node": ">=22.13.0"
+    "node": ">=22.16.0"
   },
   "files": [
     "bin/run.js",
