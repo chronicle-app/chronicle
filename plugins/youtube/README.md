@@ -25,23 +25,17 @@ isn't read yet.
 
 ## Setup
 
-### 1. Create Google OAuth credentials
+### 1. Sign in with Google
 
-1. Go to the [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
-2. Create (or reuse) a project and enable the **YouTube Data API v3**
-3. Create an OAuth client ID (web application)
-4. Note your **Client ID** and **Client Secret**
-5. Add Chronicle's callback to the authorized redirect URIs
-
-### 2. Authenticate
+YouTube signs in with the Google sign-in Gmail and Google Calendar use. Add YouTube to it:
 
 ```bash
-chronicle auth login youtube --client-id YOUR_CLIENT_ID --client-secret YOUR_CLIENT_SECRET
+chronicle auth login google --add youtube
 ```
 
-This opens your browser for Google consent and stores the tokens (including the offline refresh token) in Chronicle's credential store. Access tokens expire after an hour and are refreshed automatically.
+This turns the YouTube Data API on in your Google Cloud project. The first time, it also walks you through making an OAuth client there, and asks for Gmail and Calendar too. See [`@chronicle.app/google`](../../core/google/README.md) for the steps. With several Google accounts signed in, pick one with `--account you@example.com`.
 
-### 3. Extract Data
+### 2. Extract Data
 
 ```bash
 # Liked videos (default extraction type)

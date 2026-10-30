@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { toCamelCase, toKebabCase } from '@chronicle.app/etl';
-import { CredentialManager } from '@chronicle.app/auth';
+import { CredentialManager, OAuthProviderRegistry } from '@chronicle.app/auth';
 import type { Target } from '../config/index.js';
 import type { SourceListing } from '../plugins/catalog.js';
 import type { ExtractorMetadata } from '../plugins/PluginScanner.js';
@@ -165,11 +165,48 @@ export function flagProblem(
   return undefined;
 }
 
-/** API sources that sign in with another's sign-in: Google's share one. */
-const PROVIDERS: Record<string, string> = { gmail: 'google', 'google-calendar': 'google' };
+/**
+ * API sources that sign in with another's sign-in, and the access each needs
+ * from it, as `chronicle auth login --add` names it: Google's share one.
+ */
+const SHARED: Record<string, { provider: string; access: string }> = {
+  gmail: { provider: 'google', access: 'gmail' },
+  'google-calendar': { provider: 'google', access: 'calendar' },
+  youtube: { provider: 'google', access: 'youtube' },
+};
 
 /** The provider an API source signs in with, by `chronicle auth login`. */
-export const providerFor = (source: string) => PROVIDERS[source] ?? source;
+export const providerFor = (source: string) => SHARED[source]?.provider ?? source;
+
+/** The access an API source needs from its provider's sign-in, like `youtube` from Google's. */
+export const accessFor = (source: string) => SHARED[source]?.access;
+
+/**
+ * Whether an API source's sign-in is stored, with the access it needs: a
+ * Google sign-in for Gmail alone can't read YouTube. One whose access can't
+ * be told, like a token stored with `chronicle auth set`, counts.
+ */
+export async function signedInTo(source: string): Promise<boolean> {
+  const stored = await CredentialManager.getAllCredentials(providerFor(source));
+  const access = accessFor(source);
+  const Provider = access ? await providerClass(providerFor(source)) : undefined;
+  if (!access || !Provider) return stored.length > 0;
+  return stored.some(
+    entry => entry.scope === undefined || Provider.scopeSetsIn(entry.scope).includes(access)
+  );
+}
+
+/** Loading the plugins, which register their providers: once a run. */
+let loading: Promise<unknown> | undefined;
+
+/** A sign-in provider, by its ID, once the plugins have registered theirs. */
+async function providerClass(provider: string) {
+  if (!OAuthProviderRegistry.has(provider)) {
+    const { OAuthCommand } = await import('../auth/OAuthCommand.js');
+    await (loading ??= OAuthCommand.listProviders());
+  }
+  return OAuthProviderRegistry.get(provider);
+}
 
 /** Whether a strategy reads over the network. */
 export const isOnline = (listing: SourceListing | undefined, strategy: unknown) =>
@@ -201,8 +238,7 @@ export async function checkTarget(
     }
   }
   if (isOnline(listing, target.flags.strategy)) {
-    const signedIn = await CredentialManager.hasCredentials(providerFor(target.source));
-    return { state: signedIn ? 'ready' : 'sign-in' };
+    return { state: (await signedInTo(target.source)) ? 'ready' : 'sign-in' };
   }
   return { state: 'missing' };
 }

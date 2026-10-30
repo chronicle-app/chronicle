@@ -1,5 +1,6 @@
 import { Extractor, Record } from '@chronicle.app/etl';
 import { TokenHelper } from '@chronicle.app/auth';
+import { googleAccountOptions } from '@chronicle.app/google';
 import { z } from 'zod';
 import YouTubeTransformer from './YouTubeTransformer.js';
 import YouTubeProxy, { YouTubeSelfChannel } from '../utils/YouTubeProxy.js';
@@ -14,10 +15,7 @@ export abstract class YouTubeBaseExtractor<
   static override defaultTransformer = YouTubeTransformer;
 
   static override schema = Extractor.schema.extend({
-    accessToken: z
-      .string()
-      .optional()
-      .describe('OAuth access token for the YouTube Data API (auto-retrieved if not provided)'),
+    ...googleAccountOptions,
   });
 
   protected proxy!: YouTubeProxy;
@@ -25,7 +23,7 @@ export abstract class YouTubeBaseExtractor<
 
   static async hasValidCredentials(): Promise<boolean> {
     try {
-      await TokenHelper.getValidToken('youtube');
+      await TokenHelper.getValidToken('google');
       return true;
     } catch {
       return false;
@@ -33,9 +31,10 @@ export abstract class YouTubeBaseExtractor<
   }
 
   override async setup(): Promise<void> {
-    const config = this.config as z.infer<typeof YouTubeBaseExtractor.schema>;
+    const { account, accessToken } = this.config as z.infer<typeof YouTubeBaseExtractor.schema>;
 
-    this.proxy = new YouTubeProxy(config.accessToken);
+    this.proxy = new YouTubeProxy({ account, accessToken });
+    await this.proxy.initialize();
     this.user = await this.proxy.getUser();
   }
 

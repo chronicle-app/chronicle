@@ -1,5 +1,4 @@
-import { ApiAuthError, ApiProxy } from '@chronicle.app/etl';
-import { TokenHelper } from '@chronicle.app/auth';
+import { GoogleApi } from '@chronicle.app/google';
 
 export interface YouTubeThumbnails {
   default?: { url: string; width?: number; height?: number };
@@ -92,51 +91,18 @@ export interface YouTubeSubscription {
   };
 }
 
-export default class YouTubeProxy extends ApiProxy {
-  constructor(accessToken?: string) {
+/**
+ * The YouTube Data API, through the Google sign-in: `chronicle auth login
+ * google --add youtube`, or a token outright.
+ */
+export default class YouTubeProxy extends GoogleApi {
+  constructor(options: { account?: string; accessToken?: string } = {}) {
     super({
+      service: 'youtube',
       baseURL: 'https://www.googleapis.com/youtube/v3',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       pageDelayMs: 100,
+      ...options,
     });
-
-    if (accessToken) {
-      this.setAccessToken(accessToken);
-    }
-  }
-
-  public async initialize(): Promise<void> {
-    await this.ensureAuthenticated();
-  }
-
-  // Lazily resolves a token from the keychain the first time a request needs
-  // one; a token passed to the constructor short-circuits this.
-  private async ensureAuthenticated(): Promise<void> {
-    if (this.accessToken) {
-      return;
-    }
-
-    const token = await TokenHelper.getValidToken('youtube');
-    this.setAccessToken(token);
-  }
-
-  // Keep the actionable re-auth guidance the generic 401 mapping would lose.
-  protected override mapError(error: unknown): unknown {
-    const mapped = super.mapError(error);
-    if (mapped instanceof ApiAuthError) {
-      return new ApiAuthError('YouTube rejected the stored credentials', {
-        hint: "Run `chronicle auth login youtube --client-id <id> --client-secret <secret>` with your app's credentials. Create them at https://console.cloud.google.com/apis/credentials.",
-        cause: mapped,
-      });
-    }
-    return mapped;
-  }
-
-  private async get<T = any>(path: string, params: Record<string, any>): Promise<T> {
-    await this.ensureAuthenticated();
-    return this.request<T>({ url: path, method: 'GET', params });
   }
 
   /** Self channel (drives the @me agent) plus the likes playlist id. */

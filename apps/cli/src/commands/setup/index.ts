@@ -44,7 +44,9 @@ import {
   commandLine,
   kindsFor,
   providerFor,
+  accessFor,
   reads,
+  signedInTo,
   stateText,
   targetArgs,
   targetFor,
@@ -723,7 +725,7 @@ export default class Setup extends BaseCommand<typeof Setup> {
       }
     }
     const provider = providerFor(source);
-    const signedIn = await CredentialManager.hasCredentials(provider);
+    const signedIn = await signedInTo(source);
     const ways: WayIn[] = [];
     for (const strategy of listing.strategies) {
       const here = found.find(f => f.row.strategy === strategy.name);
@@ -994,7 +996,7 @@ export default class Setup extends BaseCommand<typeof Setup> {
       const strategy = listing.strategies.find(s => s.delivery === 'api');
       if (!strategy || !listing.supported || listing.tier === 'legacy') continue;
       if (here.has(listing.source)) continue;
-      if (!(await CredentialManager.hasCredentials(providerFor(listing.source)))) continue;
+      if (!(await signedInTo(listing.source))) continue;
       rows.push(this.accountRow(listing, strategy.name, true));
     }
     return rows;
@@ -1570,7 +1572,7 @@ export default class Setup extends BaseCommand<typeof Setup> {
     const strategy = this.strategy(way.source, way.strategy);
     if (strategy?.delivery === 'api') {
       const provider = providerFor(way.source);
-      if (await CredentialManager.hasCredentials(provider)) return undefined;
+      if (await signedInTo(way.source)) return undefined;
       const client = await this.client(provider);
       return { ...way, need: 'sign-in', provider, steps: strategy.setup, client };
     }
@@ -1690,7 +1692,7 @@ export default class Setup extends BaseCommand<typeof Setup> {
         if (stopped) throw cancelled();
         answers[step.ask] = value.trim();
       } else if ('sign-in' in step) {
-        if (!(await this.signIn(step['sign-in'], answers))) return 'failed';
+        if (!(await this.signIn(step['sign-in'], answers, todo.ways))) return 'failed';
         await this.signedIn(todo);
       }
       // What to do there, and how long to wait, are said, not run.
@@ -1711,12 +1713,18 @@ export default class Setup extends BaseCommand<typeof Setup> {
     }
   }
 
-  /** Sign in to a provider in the browser, with the client pasted, if any: whether it worked. */
+  /**
+   * Sign in to a provider in the browser, with the client pasted, if any,
+   * asking for the access the ways in need, like YouTube's from Google's
+   * sign-in, and no more: whether it worked.
+   */
   private async signIn(
     provider: string,
-    client: { 'client-id'?: string; 'client-secret'?: string }
+    client: { 'client-id'?: string; 'client-secret'?: string },
+    ways: Way[]
   ): Promise<boolean> {
     const { OAuthCommand } = await import('../../auth/OAuthCommand.js');
+    const add = unique(ways.flatMap(way => accessFor(way.source) ?? []));
     try {
       await new OAuthCommand(provider, {
         port: SIGN_IN_PORT,
@@ -1724,6 +1732,7 @@ export default class Setup extends BaseCommand<typeof Setup> {
         openAtOnce: true,
         clientId: client['client-id'],
         clientSecret: client['client-secret'],
+        ...(add.length > 0 && { add, onlyAdded: true }),
       }).execute();
     } catch (error) {
       if ((error as { exitCode?: number }).exitCode === 130) throw cancelled();

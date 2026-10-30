@@ -23,6 +23,8 @@ export interface OAuthCommandOptions {
   scopes?: string[];
   /** Named scope sets to ask for on top of those already granted. */
   add?: string[];
+  /** On a first sign-in, ask for only what's added, not the provider's defaults too. */
+  onlyAdded?: boolean;
   noBrowser?: boolean;
   timeout?: number;
   /** Run the provider's setup again from the start. */
@@ -176,7 +178,8 @@ export class OAuthCommand {
 
   /**
    * The named scope sets to ask for: those an earlier sign-in was granted
-   * (or the provider's defaults on a first one), plus any added with `--add`.
+   * (or the provider's defaults on a first one, unless `onlyAdded`), plus any
+   * added with `--add`.
    */
   private async scopeSets(ProviderClass: typeof OAuthProvider): Promise<string[]> {
     const added = this.options.add ?? [];
@@ -199,9 +202,8 @@ export class OAuthCommand {
     const granted = (await CredentialManager.getAllCredentials(this.providerId)).flatMap(entry =>
       ProviderClass.scopeSetsIn(entry.scope)
     );
-    const sets = [
-      ...new Set([...(granted.length > 0 ? granted : ProviderClass.defaultScopeSets), ...added]),
-    ];
+    const first = this.options.onlyAdded && added.length > 0 ? [] : ProviderClass.defaultScopeSets;
+    const sets = [...new Set([...(granted.length > 0 ? granted : first), ...added])];
     // Checked here, before setup, so a typo doesn't cost a trip to a console.
     ProviderClass.scopesFor(sets);
     return sets;

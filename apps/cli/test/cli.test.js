@@ -1517,6 +1517,37 @@ test('setup --yes extracts the last year of what is ready here, a record a line,
   assert.ok(readdirSync(extracts).length > 0);
   success(setup('setup', 'reset', '--files'));
   assert.deepEqual(readdirSync(extracts), []);
+
+  // A Google sign-in gets a source named ready only with the access it
+  // needs: one for Gmail and Calendar can't read YouTube until it's added.
+  const signIn = (...access) =>
+    writeFileSync(
+      join(dir, 'config', 'credentials.json'),
+      JSON.stringify({
+        google: [
+          {
+            accessToken: 'synthetic-token',
+            tokenType: 'Bearer',
+            account: 'someone@example.com',
+            scope: ['openid', 'email']
+              .concat(access.map(name => `https://www.googleapis.com/auth/${name}.readonly`))
+              .join(' '),
+          },
+        ],
+      }),
+      { mode: 0o600 }
+    );
+  signIn('gmail', 'calendar');
+  const mail = setup('setup', 'gmail', '--yes');
+  assert.equal(mail.status, 0, mail.stderr);
+  assert.match(mail.stderr, /`chronicle extract gmail`/);
+  const unready = setup('setup', 'youtube', '--strategy', 'api', '--yes');
+  assert.equal(unready.status, 0, unready.stderr);
+  assert.match(unready.stderr, /`chronicle setup youtube --strategy api`/);
+  signIn('gmail', 'calendar', 'youtube');
+  const added = setup('setup', 'youtube', '--yes');
+  assert.equal(added.status, 0, added.stderr);
+  assert.match(added.stderr, /`chronicle extract youtube`/);
 });
 
 test(

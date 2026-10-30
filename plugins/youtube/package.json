@@ -40,6 +40,7 @@
   },
   "dependencies": {
     "@chronicle.app/auth": "0.5.0",
+    "@chronicle.app/google": "0.5.0",
     "axios": "^1.7.9",
     "csv-parse": "^5.6.0",
     "zod": "^3.24.1"
@@ -72,30 +73,7 @@
               "uploads"
             ],
             "summary": "likes, playlists, subscriptions",
-            "default": true,
-            "setup": [
-              {
-                "open": "https://console.cloud.google.com/apis/library/youtube.googleapis.com"
-              },
-              {
-                "do": "enable the youtube data api"
-              },
-              {
-                "open": "https://console.cloud.google.com/auth/clients/create"
-              },
-              {
-                "do": "create a web client with redirect uri http://127.0.0.1:7463/callback"
-              },
-              {
-                "ask": "client-id"
-              },
-              {
-                "ask": "client-secret"
-              },
-              {
-                "sign-in": "youtube"
-              }
-            ]
+            "default": true
           },
           "takeout": {
             "delivery": "export",

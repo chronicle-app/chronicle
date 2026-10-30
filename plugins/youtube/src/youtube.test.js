@@ -236,7 +236,7 @@ test('a rejected token fails setup with re-authentication guidance', async t => 
     error =>
       error instanceof ApiAuthError &&
       error.exitCode === 3 &&
-      error.hint.includes('chronicle auth login youtube')
+      error.hint.includes('chronicle auth login google')
   );
 });
 
