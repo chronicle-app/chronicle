@@ -18,6 +18,7 @@ const OPTIONS = [
 const DOWN = '\u001B[B';
 const CTRL_C = '\u0003';
 const CTRL_D = '\u0004';
+const ESC = '\u001b';
 
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -256,6 +257,21 @@ test(
     await assert.rejects(confirm('Go ahead?'), { code: 'no-terminal' });
   }
 );
+
+test('input with back goes back on Esc, leaving nothing, and Ctrl+C still cancels', async () => {
+  const { terminal, drawn } = typing('A', ESC);
+  assert.deepEqual(await input('Path?', { back: true, terminal }), {
+    value: '',
+    cancelled: false,
+    back: true,
+  });
+  assert.match(drawn(), /esc back/);
+  assert.doesNotMatch(drawn(), /Path\? A?\n$/);
+  assert.deepEqual(await input('Path?', { back: true, ...typing(CTRL_C) }), {
+    value: '',
+    cancelled: true,
+  });
+});
 
 test('input asks again until the answer is valid', async () => {
   const { terminal, drawn } = typing('\r', 'A', 'd', 'a', '\r');

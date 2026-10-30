@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, rmSync } from 'node:fs';
+import { rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { Flags } from '@oclif/core';
@@ -6,9 +6,7 @@ import { BaseCommand } from '../../baseCommand.js';
 import { ConfigManager } from '../../config/index.js';
 import { count, plural } from '../../output/index.js';
 import { fromHome } from '../../plugins/scan.js';
-
-/** The files setup writes: records, finished or not, and the target beside each. */
-const SETUP_FILE = /\.(jsonl|jsonl\.partial|target\.json)$/;
+import { setupFiles } from '../../setup/jobs.js';
 
 /**
  * `chronicle setup reset`: forget what `chronicle setup` saved, so its next
@@ -40,7 +38,8 @@ export default class SetupReset extends BaseCommand<typeof SetupReset> {
     const home = os.homedir();
     const manager = new ConfigManager(this.config.configDir);
     const config = structuredClone(await manager.loadConfig());
-    const picks = config.targets?.length ?? 0;
+    const targets = config.targets ?? [];
+    const picks = targets.length;
     delete config.targets;
     delete config.folders;
     delete config.skipped;
@@ -49,12 +48,14 @@ export default class SetupReset extends BaseCommand<typeof SetupReset> {
     delete config.later;
     await manager.saveConfig(config);
 
-    const root = this.flags.output
-      ? path.resolve(this.flags.output.replace(/^~(?=$|\/)/, home))
+    // Only a folder typed here: `chronicle config set output` names extract's file.
+    const output = this.flagSources?.output?.source === 'explicit' ? this.flags.output : undefined;
+    const root = output
+      ? path.resolve(output.replace(/^~(?=$|\/)/, home))
       : path.join(this.config.dataDir, 'extracts');
-    const files = existsSync(root) ? readdirSync(root).filter(name => SETUP_FILE.test(name)) : [];
+    const files = setupFiles(root, targets);
     if (this.flags.files) {
-      for (const name of files) rmSync(path.join(root, name), { force: true });
+      for (const file of files) rmSync(file, { force: true });
     }
     const deleted = this.flags.files ? files.length : 0;
     this.summary(

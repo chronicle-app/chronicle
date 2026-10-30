@@ -96,8 +96,8 @@ function useCancelOnClose(cancel: () => void) {
 
 /**
  * Run a prompt on stderr. It clears itself when done, and an answer leaves
- * `answered`'s lines in its place; a cancel leaves nothing. Ctrl+C is a
- * cancel, not an error.
+ * `answered`'s lines in its place; a cancel, or going back, leaves nothing.
+ * Ctrl+C is a cancel, not an error.
  */
 async function ask<Value extends { cancelled: boolean }>(
   terminal: Terminal = {},
@@ -126,7 +126,9 @@ async function ask<Value extends { cancelled: boolean }>(
     if (error instanceof ExitPromptError || error instanceof AbortPromptError) return cancelled;
     throw error;
   }
-  if (answered && !value.cancelled) output.write(`${answered(value)}\n`);
+  // Going back leaves nothing, as a cancel does.
+  const { back } = value as { back?: boolean };
+  if (answered && !value.cancelled && !back) output.write(`${answered(value)}\n`);
   return value;
 }
 
@@ -602,6 +604,8 @@ export function multiSelect(
 export interface InputResult {
   value: string;
   cancelled: boolean;
+  /** Answered with Esc, when Esc goes back to what came before. */
+  back?: boolean;
 }
 
 const inputPrompt = createPrompt<
@@ -612,11 +616,12 @@ const inputPrompt = createPrompt<
     validate?: (value: string) => string | boolean;
     body: string[];
     esc: string;
+    back: boolean;
     header?: () => string[];
     subscribe?: (redraw: () => void) => () => void;
     t: Tokens;
   }
->(({ message, defaultValue, validate, body, esc, header, subscribe, t }, done) => {
+>(({ message, defaultValue, validate, body, esc, back, header, subscribe, t }, done) => {
   const [value, setValue] = useState('');
   const [error, setError] = useState<string | undefined>();
   const [finished, setFinished] = useState(false);
@@ -646,7 +651,8 @@ const inputPrompt = createPrompt<
         setError(typeof valid === 'string' ? valid : 'That isn’t valid');
       }
     } else if (isEscape(key)) {
-      finish({ value: '', cancelled: true });
+      // Ctrl+C still cancels, as it ends the prompt another way.
+      finish(back ? { value: '', cancelled: false, back } : { value: '', cancelled: true });
     } else {
       setError();
       setValue(rl.line);
@@ -657,13 +663,14 @@ const inputPrompt = createPrompt<
   // The line being typed ends the question, where the terminal's cursor is.
   return [
     `${above(header)}${t.strong(message)}${body.length > 0 ? `\n${body.join('\n')}` : ''}\n\n${t.accent(glyphs.pointer)} ${value}`,
-    `${error ? `\n${t.danger(error)}` : ''}\n${keysLine(t, ['enter submit', `esc ${esc}`])}`,
+    `${error ? `\n${t.danger(error)}` : ''}\n${keysLine(t, ['enter submit', `esc ${back ? 'back' : esc}`])}`,
   ];
 });
 
 /**
  * Ask for a line of text, with any lines of `body` under the question. The
- * answer stays on screen, unless `clear`.
+ * answer stays on screen, unless `clear`. With `back`, Esc answers `back`
+ * rather than cancelling, and Ctrl+C still cancels.
  */
 export function input(
   message: string,
@@ -676,19 +683,24 @@ export function input(
     clear = false,
     signal,
     esc = 'cancel',
+    back = false,
     theme,
     terminal,
   }: {
     defaultValue?: string;
     validate?: (value: string) => string | boolean;
     body?: string[];
+    back?: boolean;
   } & Around = {}
 ): Promise<InputResult> {
   const t = tokens({ stream: 'stderr', theme });
   return ask(
     terminal,
     context =>
-      inputPrompt({ message, defaultValue, validate, body, esc, header, subscribe, t }, context),
+      inputPrompt(
+        { message, defaultValue, validate, body, esc, back, header, subscribe, t },
+        context
+      ),
     { value: '', cancelled: true },
     clear ? undefined : ({ value }) => `${t.strong(message)} ${t.muted(value)}`,
     signal

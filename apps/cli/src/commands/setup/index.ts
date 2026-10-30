@@ -231,6 +231,8 @@ export default class Setup extends BaseCommand<typeof Setup> {
   private alone?: string;
   /** The folders the scan step looked in, besides this computer. */
   private folders: string[] = [];
+  /** The folder the scan step found each row in, of those it found in one. */
+  private readonly folderOf = new Map<ScanRow, string>();
   /** The add step as ← left it, for coming back to. */
   private adding?: Adding;
   /** How many records each target's run would extract, by its key. */
@@ -252,6 +254,8 @@ export default class Setup extends BaseCommand<typeof Setup> {
   private root = '';
   /** What's in each target's way, as last checked. */
   private states = new Map<Target, Checked>();
+  /** The providers setup can sign in to, once they're loaded. */
+  private signIns?: Set<string>;
   /** This run's extractions: those started, and those that joined once a todo got them ready. */
   private readonly jobs: Job[] = [];
   private runner?: JobRunner;
@@ -326,9 +330,9 @@ export default class Setup extends BaseCommand<typeof Setup> {
         }
       );
     }
-    this.root = this.flags.output
-      ? this.resolve(this.flags.output)
-      : path.join(this.config.dataDir, 'extracts');
+    // Only a folder typed here: `chronicle config set output` names extract's file.
+    const output = this.flagSources?.output?.source === 'explicit' ? this.flags.output : undefined;
+    this.root = output ? this.resolve(output) : path.join(this.config.dataDir, 'extracts');
     process.on('SIGINT', this.onInterrupt);
     try {
       if (this.alone) await this.setupAlone(this.alone, folders);
@@ -436,7 +440,10 @@ export default class Setup extends BaseCommand<typeof Setup> {
     ]);
     loading.catch(() => {});
     // Every run says what's ahead, and asks to start, as the logo comes on.
-    const first = !this.settings.targets?.length && !this.settings.wanted?.length;
+    const first =
+      !this.settings.targets?.length &&
+      !this.settings.wanted?.length &&
+      !this.settings.requested?.length;
     const intro = first ? INTRO : resumed(this.whereLeftOff());
     const prompt = first ? 'Press Enter to start' : 'Press Enter to continue';
     const style = SPLASH_STYLES[this.flags.splash as SplashStyleName];
@@ -652,7 +659,7 @@ export default class Setup extends BaseCommand<typeof Setup> {
     if (reopen) {
       this.hint(`Quit ${reopen} and open it again, then run \`${this.again()}\` to continue.`);
     } else if (ready.length === 0) {
-      this.waiting(targets);
+      await this.waiting(targets);
     }
   }
 
@@ -695,8 +702,8 @@ export default class Setup extends BaseCommand<typeof Setup> {
   /**
    * Each way a source can come in that setup can do something with: its
    * export, picked before and still there, found in the folders saved or
-   * named, or not; its account, signed in to or not, with a provider setup
-   * can sign in to; and what it reads on this computer, when that's here.
+   * named, or not; its account, signed in to, or not yet with a provider
+   * setup can sign in to; and what it reads on this computer, when that's here.
    * Each with what's here of it.
    */
   private async waysIn(source: string, folders: string[]): Promise<WayIn[]> {
@@ -718,7 +725,12 @@ export default class Setup extends BaseCommand<typeof Setup> {
       const row = this.pathRow({ source, strategy: String(target.flags.strategy) }, input);
       if (row) found.push({ row });
     }
-    for (const folder of unique([...(this.settings.folders ?? []), ...folders])) {
+    // Only a source a folder could hold is looked for in one: by its export's layout or files, or its database.
+    const findable = listing.strategies.some(
+      s => s.layouts?.length || s.files?.length || s.databases?.length
+    );
+    const searched = findable ? unique([...(this.settings.folders ?? []), ...folders]) : [];
+    for (const folder of searched) {
       const rows = await this.search(folder, () => {});
       for (const row of rows) {
         if (row.source === source && OFFERED.has(row.status)) found.push({ row, folder });
@@ -732,10 +744,10 @@ export default class Setup extends BaseCommand<typeof Setup> {
       if (strategy.delivery === 'api') {
         // Signed in some way a scan finds, like a token or another tool's login.
         if (here) ways.push({ strategy, row: here.row });
-        else if (providers.has(provider)) {
-          const account = signedIn ? this.accountRow(listing, strategy.name, true) : undefined;
-          ways.push({ strategy, ...(account && { row: account }) });
-        }
+        // Signed in, by `chronicle auth login` or `auth set`.
+        else if (signedIn)
+          ways.push({ strategy, row: this.accountRow(listing, strategy.name, true) });
+        else if (providers.has(provider)) ways.push({ strategy });
       } else if (strategy.delivery === 'export') {
         ways.push({ strategy, ...here });
       } else if (here) {
@@ -907,15 +919,18 @@ export default class Setup extends BaseCommand<typeof Setup> {
             live?.redraw();
           })
         );
-        found.push(...more.filter(row => !known.has(rowKey(row))));
+        // What's ready, or a step away, as on this computer.
+        for (const row of more.filter(r => OFFERED.has(r.status) && !known.has(rowKey(r)))) {
+          found.push(row);
+          this.folderOf.set(row, folder);
+        }
       }
-      const here = new Set(found.map(row => row.source));
+      const here = new Set(found.map(row => `${row.source}:${row.strategy}`));
       found.push(...(await this.stopped(this.accounts(here))));
     } finally {
       live?.stop();
       this.redraw = undefined;
     }
-    this.settings.folders = unique([...(this.settings.folders ?? []), ...given]);
     this.offered = found.map(row => this.offer(row));
   }
 
@@ -940,6 +955,11 @@ export default class Setup extends BaseCommand<typeof Setup> {
           ? '  ticked: what you picked before.'
           : '  tick what to extract, or a for all.'
       ),
+    ]);
+    // A folder is looked in again next run only when something in it was picked, as the add step keeps one.
+    this.settings.folders = unique([
+      ...(this.settings.folders ?? []),
+      ...picked.flatMap(o => this.folderOf.get(o.row) ?? []),
     ]);
     await this.adopt(offers, picked);
     for (const offer of offers) offer.checked = picked.includes(offer);
@@ -989,13 +1009,17 @@ export default class Setup extends BaseCommand<typeof Setup> {
     };
   }
 
-  /** The accounts already signed in to, of sources not found here otherwise. */
+  /**
+   * The accounts already signed in to, unless a scan found them, as
+   * `source:strategy` in `here`. A source found here another way, like its
+   * export, can still be read from its account.
+   */
   private async accounts(here: Set<string>): Promise<ScanRow[]> {
     const rows: ScanRow[] = [];
     for (const listing of this.listings) {
       const strategy = listing.strategies.find(s => s.delivery === 'api');
       if (!strategy || !listing.supported || listing.tier === 'legacy') continue;
-      if (here.has(listing.source)) continue;
+      if (here.has(`${listing.source}:${strategy.name}`)) continue;
       if (!(await signedInTo(listing.source))) continue;
       rows.push(this.accountRow(listing, strategy.name, true));
     }
@@ -1005,6 +1029,7 @@ export default class Setup extends BaseCommand<typeof Setup> {
   /** After a plugin is installed: its sources, extractors, and what they find. */
   private async refresh(): Promise<void> {
     this.counter.refresh();
+    this.signIns = undefined;
     this.listings = await listSources();
     this.extractors = await PluginScanner.scanAllPlugins();
     this.rows = (await scan()).rows;
@@ -1231,7 +1256,13 @@ export default class Setup extends BaseCommand<typeof Setup> {
   private async adopt(offers: Offer[], picked: Offer[]): Promise<void> {
     const plugins = unique(picked.filter(o => !o.row.installed).map(o => o.row.plugin));
     for (const plugin of plugins) await this.install(plugin);
-    if (plugins.length > 0) await this.refresh();
+    if (plugins.length > 0) {
+      await this.refresh();
+      // Their rows say so now, so going back and on again doesn't install them again.
+      for (const offer of [...offers, ...this.offered]) {
+        offer.row.installed = this.listing(offer.row.source)?.installed ?? offer.row.installed;
+      }
+    }
     let targets = this.settings.targets ?? [];
     let skipped = this.settings.skipped ?? [];
     for (const offer of offers) {
@@ -1258,16 +1289,17 @@ export default class Setup extends BaseCommand<typeof Setup> {
     await this.save();
   }
 
-  /** A folder to look in, asked for: none when the question is cancelled, which goes back. */
+  /** A folder to look in, asked for: none when Esc goes back. Ctrl-C ends setup, as at every question. */
   private async askFolder(): Promise<string | undefined> {
     const { input } = await import('../../output/prompts.js');
     const other = await input('path', {
       validate: value => existsSync(this.resolve(value)) || 'no such file or directory',
       body: [this.t.muted('  a folder or zip of exports, to look in.')],
       ...this.around(),
-      esc: 'back',
+      back: true,
     });
-    return other.cancelled ? undefined : this.resolve(other.value);
+    if (other.cancelled) throw cancelled();
+    return other.back ? undefined : this.resolve(other.value);
   }
 
   /**
@@ -1378,7 +1410,7 @@ export default class Setup extends BaseCommand<typeof Setup> {
             looked = note;
           })
       );
-      const fresh = more.filter(row => !known.has(rowKey(row)));
+      const fresh = more.filter(row => OFFERED.has(row.status) && !known.has(rowKey(row)));
       for (const row of fresh) {
         const offer = this.offer(row);
         if (offer.checked) initial.push(`found:${found.length}`);
@@ -1432,7 +1464,8 @@ export default class Setup extends BaseCommand<typeof Setup> {
 
   /**
    * Each target's state, with a plugin it lacks installed. An export no
-   * longer where it was is asked for again.
+   * longer where it was is asked for again, unless it was extracted: one
+   * deleted once its records are out is done with.
    */
   private async prepare(): Promise<void> {
     // A fix may take a target out of the list, which this loop's copy keeps.
@@ -1443,7 +1476,10 @@ export default class Setup extends BaseCommand<typeof Setup> {
         await this.refresh();
         checked = await this.check(target);
       }
-      if (checked.state === 'missing' && this.exported(target)) {
+      const extracted = existsSync(
+        finishedFile(this.root, targetName(target, this.settings.targets ?? []))
+      );
+      if (checked.state === 'missing' && this.exported(target) && !extracted) {
         // Moved or deleted: waited for again, like an export asked for.
         this.settings.targets = (this.settings.targets ?? []).filter(t => t !== target);
         const { type: _type, ...flags } = target.flags;
@@ -1526,11 +1562,13 @@ export default class Setup extends BaseCommand<typeof Setup> {
    */
   private async todos(): Promise<Todo[]> {
     const needs: Need[] = [];
+    const providers = await this.providers();
     for (const target of this.settings.targets ?? []) {
       const state = this.states.get(target)?.state;
       const way = { source: target.source, strategy: String(target.flags.strategy) };
       if (state === 'full-disk-access') needs.push({ ...way, need: 'full-disk-access' });
-      if (state === 'sign-in') {
+      // One that signs in some other way, like gh's own login, is left for the end to say how.
+      if (state === 'sign-in' && providers.has(providerFor(target.source))) {
         const provider = providerFor(target.source);
         const steps = this.strategy(target.source, target.flags.strategy)?.setup;
         needs.push({
@@ -1552,6 +1590,15 @@ export default class Setup extends BaseCommand<typeof Setup> {
       needs.push({ ...way, need: 'export', steps: [], requested: asked.at });
     }
     return todosFor(needs);
+  }
+
+  /** The providers setup can sign in to, by `chronicle auth login`. */
+  private async providers(): Promise<Set<string>> {
+    if (!this.signIns) {
+      const { OAuthCommand } = await import('../../auth/OAuthCommand.js');
+      this.signIns = new Set(await OAuthCommand.listProviders());
+    }
+    return this.signIns;
   }
 
   /** Whether a provider signs in without the person making an app first. */
@@ -1825,9 +1872,10 @@ export default class Setup extends BaseCommand<typeof Setup> {
         validate: typed => existsSync(this.resolve(typed)) || 'no such file or directory',
         body: [this.t.muted(`  where the ${todo.name} export is: a folder, zip, or file.`)],
         ...this.around(),
-        esc: 'back',
+        back: true,
       });
-      if (answer.cancelled) continue;
+      if (answer.cancelled) throw cancelled();
+      if (answer.back) continue;
       const where = this.resolve(answer.value);
       const shown = fromHome(where, this.home);
       const rows = await this.spin(`looking in ${shown}`, () => this.search(where, () => {}));
@@ -1893,7 +1941,7 @@ export default class Setup extends BaseCommand<typeof Setup> {
     if (this.jobs.length === 0) this.steps.set('extract', 'done', 'nothing new');
     // Asked before the report, which ends with what to do next.
     const reopen = this.access ? await this.allowAccess(this.access) : undefined;
-    this.report();
+    await this.report();
     if (reopen)
       this.hint(`Quit ${reopen} and open it again, then run \`${this.again()}\` to continue.`);
     if (this.jobs.some(job => job.state === 'failed')) throw new Errors.ExitError(1);
@@ -1941,7 +1989,7 @@ export default class Setup extends BaseCommand<typeof Setup> {
    * The checklist as it ends, then what was extracted, this run and before,
    * with each file; where the files are; then what's still waiting, and why.
    */
-  private report(): void {
+  private async report(): Promise<void> {
     const targets = this.settings.targets ?? [];
     const checklist = this.checklist(this.width(), 0);
     this.print(checklist.length > 0 ? [...checklist, ''] : []);
@@ -2020,7 +2068,7 @@ export default class Setup extends BaseCommand<typeof Setup> {
       const where = jobs.length > 0 ? '' : `The files are in ${fromHome(this.root, this.home)}. `;
       this.hint(`${where}Delete a file, or use \`--again\`, to extract it again.`);
     }
-    this.waiting(
+    await this.waiting(
       targets.filter(
         target =>
           this.states.get(target) &&
@@ -2035,13 +2083,29 @@ export default class Setup extends BaseCommand<typeof Setup> {
    * terminal, the todos left, by name, to finish with another run; without
    * one, a hint for each kind of thing.
    */
-  private waiting(targets: Target[]): void {
+  private async waiting(targets: Target[]): Promise<void> {
     const { states } = this;
+    // Loading them loads every plugin: only when a sign-in is in the way.
+    const providers = targets.some(target => states.get(target)!.state === 'sign-in')
+      ? await this.providers()
+      : new Set<string>();
     const by = (state: Checked['state']) =>
       targets.filter(target => states.get(target)!.state === state).map(t => t.source);
+    // A sign-in setup can't do, like gh's own login, says how it's done.
+    const signIns = by('sign-in').filter(source => providers.has(providerFor(source)));
+    for (const target of targets) {
+      if (states.get(target)!.state !== 'sign-in' || providers.has(providerFor(target.source))) {
+        continue;
+      }
+      const remedy = this.rows.find(row => reads(target, row))?.remedy;
+      this.hint(
+        remedy ??
+          `${target.source} needs sign-in. Run \`chronicle auth set ${providerFor(target.source)}\` to sign in.`
+      );
+    }
     if (this.asking) {
       const left = unique([
-        ...by('sign-in'),
+        ...signIns,
         ...(this.access ? by('full-disk-access') : []),
         ...(this.settings.wanted ?? []).map(way => way.source),
         ...(this.settings.requested ?? []).map(asked => asked.source),
@@ -2057,7 +2121,7 @@ export default class Setup extends BaseCommand<typeof Setup> {
           `${unique(access).join(', ')} ${access.length === 1 ? 'needs' : 'need'} Full Disk Access. ${FULL_DISK_ACCESS}`
         );
       }
-      for (const source of unique(by('sign-in'))) {
+      for (const source of unique(signIns)) {
         this.hint(
           `${source} needs sign-in. Run \`chronicle auth login ${providerFor(source)}\` to sign in.`
         );

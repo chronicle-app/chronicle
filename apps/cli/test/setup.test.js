@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { test } from 'node:test';
 
 // `node --test` at a terminal sets FORCE_COLOR; these tests read plain text.
@@ -10,6 +13,7 @@ const { action, exportSteps, gets, order, stepText, todosFor } =
 const { splitArgs } = await import('../dist/setup/args.js');
 const { Steps } = await import('../dist/setup/steps.js');
 const { tokens } = await import('../dist/output/index.js');
+const { JobRunner, setupFiles } = await import('../dist/setup/jobs.js');
 
 const EXPORT = [
   { open: 'https://www.goodreads.com/review/import' },
@@ -137,4 +141,54 @@ test('the checklist says each step, where it is, and a note', () => {
   assert.equal(steps.working(), false);
   steps.set('extract', 'working', '12/40');
   assert.equal(steps.working(), true);
+});
+
+const ACCOUNT = { source: 'spotify', flags: { strategy: 'api', type: ['listens'] } };
+
+/** A folder of extracts, deleted once `body` is through. */
+function inFolder(body) {
+  const root = mkdtempSync(path.join(tmpdir(), 'chronicle-setup-test-'));
+  try {
+    body(root);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+/** Write what a finished job leaves: its records, and its target beside them. */
+function extracted(root, name, target) {
+  writeFileSync(path.join(root, `${name}.jsonl`), '{}\n');
+  writeFileSync(path.join(root, `${name}.target.json`), JSON.stringify({ ...target, records: 1 }));
+}
+
+test('setup reset deletes only the files setup wrote', () => {
+  inFolder(root => {
+    extracted(root, 'spotify', ACCOUNT);
+    writeFileSync(path.join(root, 'spotify.jsonl.partial'), '');
+    // A pick stopped partway leaves only its partial file.
+    writeFileSync(path.join(root, 'goodreads.jsonl.partial'), '');
+    // Files of the person's own, named alike.
+    writeFileSync(path.join(root, 'notes.jsonl'), '{}\n');
+    writeFileSync(path.join(root, 'other.jsonl.partial'), '');
+
+    const goodreads = { source: 'goodreads', flags: { strategy: 'csv', type: ['books'] } };
+    const files = setupFiles(root, [ACCOUNT, goodreads]).map(file => path.basename(file));
+    assert.deepEqual(files.sort(), [
+      'goodreads.jsonl.partial',
+      'spotify.jsonl',
+      'spotify.jsonl.partial',
+      'spotify.target.json',
+    ]);
+  });
+});
+
+test('a job writes its records to its stdout, whatever output is set by default', () => {
+  const args = JobRunner.prototype.args.call(
+    { options: { since: '2025-10-29T00:00:00.000Z' } },
+    { target: ACCOUNT }
+  );
+  assert.deepEqual(args.slice(args.indexOf('--output'), args.indexOf('--output') + 2), [
+    '--output',
+    'stdout',
+  ]);
 });

@@ -1,8 +1,10 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import {
   closeSync,
+  existsSync,
   mkdtempSync,
   openSync,
+  readdirSync,
   readSync,
   renameSync,
   rmSync,
@@ -11,7 +13,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createInterface } from 'node:readline';
-import { targetArgs, type Target } from './targets.js';
+import { targetArgs, targetName, type Target } from './targets.js';
 
 /**
  * A child's heap cap. Timing's extractor needed about 4 GB for a year; a cap
@@ -77,6 +79,32 @@ export interface RunOptions {
 export const partialFile = (root: string, name: string) => path.join(root, `${name}.jsonl.partial`);
 export const finishedFile = (root: string, name: string) => path.join(root, `${name}.jsonl`);
 export const targetFile = (root: string, name: string) => path.join(root, `${name}.target.json`);
+
+/**
+ * The files setup wrote in a folder: each target file, and the records
+ * beside it, finished or not; and what a run stopped partway left of the
+ * picks'. Never another file, though its name looks alike.
+ */
+export function setupFiles(root: string, targets: Target[]): string[] {
+  let extracted: string[];
+  try {
+    extracted = readdirSync(root)
+      .filter(file => file.endsWith('.target.json'))
+      .map(file => file.slice(0, -'.target.json'.length));
+  } catch {
+    // No folder there.
+    return [];
+  }
+  const files = [
+    ...extracted.flatMap(name => [
+      targetFile(root, name),
+      finishedFile(root, name),
+      partialFile(root, name),
+    ]),
+    ...targets.map(target => partialFile(root, targetName(target, targets))),
+  ];
+  return [...new Set(files)].filter(file => existsSync(file));
+}
 
 /**
  * Counts the lines a child has written so far, reading only what's new
@@ -173,6 +201,9 @@ export class JobRunner {
       '--stream',
       '--loader',
       'jsonl',
+      // Its file is its stdout, whatever `chronicle config set output` says.
+      '--output',
+      'stdout',
       '--log-format',
       'json',
     ];

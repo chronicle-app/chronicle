@@ -76,12 +76,18 @@ export class Counter {
   };
 
   private start(): ChildProcess {
-    this.folder = mkdtempSync(path.join(tmpdir(), 'chronicle-counts-'));
+    const folder = mkdtempSync(path.join(tmpdir(), 'chronicle-counts-'));
+    this.folder = folder;
+    // Once, however many counters it takes.
+    process.removeListener('exit', this.clean);
     process.once('exit', this.clean);
-    for (const signal of SIGNALS) process.once(signal, this.ended);
+    for (const signal of SIGNALS) {
+      process.removeListener(signal, this.ended);
+      process.once(signal, this.ended);
+    }
     const child = fork(fileURLToPath(new URL('countWorker.js', import.meta.url)), [], {
       // Its copies go where they're deleted with it.
-      env: { ...process.env, TMPDIR: this.folder },
+      env: { ...process.env, TMPDIR: folder },
       // What a plugin logs while it counts would print over the screen.
       stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
     });
@@ -96,6 +102,9 @@ export class Counter {
     child.on('error', error => this.fail(String(error)));
     child.on('exit', () => {
       this.fail('Counting stopped');
+      // Its copies go with it, though it ended on its own, like out of memory.
+      rmSync(folder, { recursive: true, force: true });
+      if (this.folder === folder) this.folder = undefined;
       if (this.child === child) this.child = undefined;
     });
     return child;
