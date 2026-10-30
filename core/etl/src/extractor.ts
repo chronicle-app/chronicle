@@ -137,7 +137,7 @@ export abstract class Extractor<SelfClass extends typeof Extractor = typeof Extr
 
   // Overridable method for setup tasks
   async setup(): Promise<void> {
-    this.logConnectorStep('Initializing extraction');
+    this.logVerboseStep(`Initializing ${this.connectorName()}`);
   }
 
   // Overridable method for determining the number of records to extract
@@ -171,22 +171,13 @@ export abstract class Extractor<SelfClass extends typeof Extractor = typeof Extr
 
   // Overridable method for teardown
   async teardown(): Promise<void> {
-    this.logConnectorStep('Teardown complete');
+    this.logVerboseStep(`Teardown complete for ${this.connectorName()}`);
   }
 
-  /**
-   * A verbose step that names this extractor, so a run of several kinds of
-   * one source says which each is about. A class name isn't personal, so
-   * JSON keeps it.
-   */
-  private logConnectorStep(message: string): void {
+  /** This extractor's name, so a run of several kinds of one source says which a step is about. */
+  private connectorName(): string {
     const cls = this.constructor as typeof Extractor;
-    this.logger.emit({
-      level: 'debug',
-      kind: 'diagnostic',
-      message,
-      fields: { connector: cls.name || `${cls.source}.${cls.strategy}` },
-    });
+    return cls.name || `${cls.source}.${cls.strategy}`;
   }
 
   /**
