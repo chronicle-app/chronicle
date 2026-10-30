@@ -1,5 +1,18 @@
 # @chronicle.app/youtube
 
+## 0.6.0
+
+### Minor Changes
+
+- 4566669: YouTube signs in with the Google sign-in Gmail and Google Calendar use, instead of a sign-in and OAuth client of its own. Run `chronicle auth login google --add youtube` to add it, which turns the YouTube Data API on in your Google Cloud project. A YouTube sign-in made before is no longer read. A YouTube run takes `--account` to pick one of several Google accounts, and Google's refusals say what to run, as Gmail's do.
+
+### Patch Changes
+
+- 0341b5d: A search's `Query` has its text as `body` only, as the vocabulary says, and no longer repeats it as `name`. Its key, by `body`, is unchanged.
+- Updated dependencies [4566669]
+  - @chronicle.app/google@0.6.0
+  - @chronicle.app/auth@0.6.0
+
 ## 0.5.0
 
 ### Minor Changes

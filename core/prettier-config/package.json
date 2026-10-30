@@ -1,6 +1,6 @@
 {
   "name": "@chronicle.app/prettier-config",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Shared Prettier configuration for Chronicle packages",
   "main": "index.js",
   "files": [

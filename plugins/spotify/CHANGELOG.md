@@ -1,5 +1,15 @@
 # @chronicle.app/spotify
 
+## 0.6.0
+
+### Minor Changes
+
+- b0b8e32: Read Spotify's data download with the `archive` strategy, as `chronicle extract spotify --input <path>`, which reads `listens` unless other record types are named. It takes either zip Spotify sends, its folder, or a folder that holds both, and `chronicle scan` finds each. The extended streaming history's streams, every song and episode since the account began, are `listens`: a `ListenAction` at the second the stream stopped; streams of local files and streams that didn't play are left out, and so are the IP address and user agent Spotify logs with each. The account data's library becomes `saved-tracks` and `saved-albums` (`LikeAction`), `saved-episodes` (`BookmarkAction`), and `follows` (`FollowAction`) of artists and podcasts, as of the download, since it doesn't say when anything was added; its playlists become `playlist-tracks`, an `AddAction` to the playlist, a `Collection` keyed by its name in the account, on the day each item was added; and its searches become `searches`, a `FindAction`. A track, album, episode, artist, or podcast with a Spotify URI is keyed by its ID and has the API's URL, so it's the API's node; an artist, album, or podcast the download names without one is keyed by name. When you're signed in to Spotify, a run looks each listened, saved, or playlist track up in the API, 50 at a time, so its artists and album have their IDs too; `--no-lookup` turns that off, and `--lookup` requires it. The plugin now keeps a SHAPES.md. A listen from the API is now at the second it stopped too, and both are keyed by what played and that second, without the account, which newer downloads don't name, so a play read both ways is one listen. From the API, a playlist is now a `Collection` too, and each item added to it is by whoever added it, so an item in a playlist the account follows, or another person's addition to a shared one, is no longer the account's.
+
+### Patch Changes
+
+- @chronicle.app/auth@0.6.0
+
 ## 0.5.0
 
 ### Patch Changes
