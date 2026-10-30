@@ -1889,3 +1889,83 @@ test('a plugin fails with a typed error and exit code, and hints under the summa
     /✓ typed · rows.*\n.*1 row\n[\s\S]*attachments skipped[\s\S]*grant access/
   );
 });
+
+test('import puts records in the store, from a file, a pipe or a source, and query reads them', t => {
+  const { dir, env, input, run } = fixture(t);
+  const key = ['source', 'sourceId'];
+  const person = (sourceId, name) => ({
+    '@type': 'Person',
+    source: 'test',
+    sourceId,
+    '@key': key,
+    name,
+  });
+  const message = {
+    '@type': 'MessageAction',
+    source: 'test',
+    sourceId: 'm1',
+    '@key': key,
+    timestamp: '2024-01-05T10:00:00Z',
+    agent: person('ada', 'Ada'),
+    object: {
+      '@type': 'Message',
+      source: 'test',
+      sourceId: 'msg1',
+      '@key': key,
+      body: 'lunch?',
+      recipient: [person('bo', 'Bo')],
+    },
+  };
+  const records = join(dir, 'records.json');
+  writeFileSync(records, JSON.stringify([message]));
+
+  // The store goes in the data folder unless --db names another.
+  const imported = run('import', records);
+  assert.equal(imported.status, 0, imported.stderr);
+  assert.match(imported.stderr, /Imported 1 record into .*: 1 new/);
+  assert.ok(existsSync(join(dir, 'data', 'chronicle.db')));
+  const rows = success(run('q', 'type:MessageAction')).trim().split('\n').map(JSON.parse);
+  assert.deepEqual(rows, [
+    {
+      '@type': 'MessageAction',
+      timestamp: '2024-01-05T10:00:00.000Z',
+      source: 'test',
+      agent: { '@type': 'Person', name: 'Ada' },
+      object: { '@type': 'Message', body: 'lunch?', recipient: { '@type': 'Person', name: 'Bo' } },
+    },
+  ]);
+  assert.equal(success(run('query', 'type:Person', '--count')).trim(), '2');
+
+  // Piped records, and a record the store rejects.
+  const piped = spawnSync(process.execPath, [bin, 'i', '--db', join(dir, 'piped.db')], {
+    cwd: dir,
+    env,
+    input: JSON.stringify([message, { '@type': 'MessageAction' }]),
+    encoding: 'utf8',
+  });
+  assert.equal(piped.status, 4, piped.stderr);
+  assert.match(
+    piped.stderr,
+    /Record 2: .*\n.*Imported 2 records .*: 1 new, 0 already there, 1 rejected/
+  );
+
+  // A source runs as extract does, into the store.
+  success(run('import', 'shell', '--input', input, '--db', join(dir, 'shell.db')));
+  assert.equal(
+    success(run('q', 'type:Action', '--count', '--db', join(dir, 'shell.db'))).trim(),
+    '2'
+  );
+  assert.match(success(run('import', 'shell', '--help')), /^ {2}chronicle import shell /m);
+  assert.equal(run('import', 'shell', '--output', 'out.json').status, 2);
+
+  // A file that isn't there is missing, not a source to install.
+  assert.match(run('import', 'missing.json').stderr, /No file at missing.json/);
+
+  // A query that doesn't parse, or a store that isn't there, fails before anything prints.
+  assert.match(run('q', 'type:(').stderr, /Couldn't parse the query/);
+  assert.match(run('q', 'type:Book', '--db', join(dir, 'none.db')).stderr, /No store at/);
+
+  // Neither command is listed yet.
+  assert.doesNotMatch(success(run('--help')), /import|query/);
+  assert.doesNotMatch(success(run('commands')), /import|query/);
+});

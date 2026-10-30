@@ -124,6 +124,8 @@ export type { ProcessOptions } from './process.js';
 export { serializeSnapshot } from './serialize/snapshot.js';
 export { serializeProjection } from './serialize/json.js';
 export type { EntityProjection, PropertyFact, ProjectionOptions } from './serialize/json.js';
+export { serializeRows } from './serialize/rows.js';
+export type { SerializedRow } from './serialize/rows.js';
 export type { ActionImageRef } from './serialize/imageRefs.js';
 
 // Query (CQL evaluation against the cache columns)
