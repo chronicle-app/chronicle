@@ -4,7 +4,7 @@ Read Safari's `History.db` with `SafariExtractor`, then emit one `ViewAction` pe
 
 Records are visits, newest first, with redirect hops left out. `since`/`until` are exclusive visit-time bounds, and `limit: 0` means unlimited.
 
-Each `ViewAction` is keyed by its timestamp. The visited page is an `Entity` keyed by its URL and named after the page title, or the URL when there is none. The agent is the iCloud account owner from `@chronicle.app/apple`, omitted when no account can be read. An explicit `account` object (or null) describes exported data without a host account lookup.
+Each `ViewAction` is keyed by its timestamp. The visited page is an `Entity` keyed by its URL and named after the page title. A page without a title has no name. The agent is the iCloud account owner from `@chronicle.app/apple`, omitted when no account can be read. An explicit `account` object (or null) describes exported data without a host account lookup.
 
 ## Bookmarks
 

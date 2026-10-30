@@ -269,10 +269,10 @@ test('a bookmark is a BookmarkAction whose target is its folder', async t => {
     '@asserts': ['*'],
   });
 
-  // Without a folder, there's no target; without a title, the URL names the page.
+  // Without a folder, there's no target; without a title, the page has no name.
   const [loose] = await transformer.performTransform(rows.find(r => r.data.id === 'B-3'));
   assert.equal(loose.data.target, undefined);
-  assert.equal(loose.data.object.name, 'https://example.com/three');
+  assert.equal(loose.data.object.name, undefined);
 
   // Without an account, there's no one to act or to hold the folder.
   const [anyone] = await transformer.performTransform(

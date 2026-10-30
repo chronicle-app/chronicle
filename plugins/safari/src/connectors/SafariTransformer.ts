@@ -81,7 +81,7 @@ export default class SafariTransformer extends ChronicleTransformer {
       '@type': 'Entity',
       '@key': ['url'],
       url: record.data.url,
-      name: record.data.title || record.data.url,
+      ...(record.data.title && { name: record.data.title }),
     };
   }
 }

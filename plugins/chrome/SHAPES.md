@@ -19,7 +19,7 @@ ViewAction key(@type, source, object.url, timestamp) {
     handle, name
     sameAs[]: Agent key(@type, source, handle) { handle }
   }
-  object: Entity key(url) { url, name }
+  object: Entity key(url) { url, name? }
 }
 // Some records also become:
 NavigateAction key(@type, source, target.url, timestamp) {
