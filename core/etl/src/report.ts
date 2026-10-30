@@ -1,5 +1,5 @@
-import type { Logger, ProgressFields, SummaryFields } from '@chronicle.app/logging';
-import { nodeLabel } from './connectors/loaders/columns.js';
+import type { Logger, ProgressFields, RecordLabel, SummaryFields } from '@chronicle.app/logging';
+import { recordLabel } from './label.js';
 import type { Record, RunLog } from './types.js';
 
 /** A run's totals so far. */
@@ -15,14 +15,12 @@ export interface RunStats {
   failed: number;
 }
 
-/** A record's one-line label: its name, else the first text it carries. */
-function label(data: unknown): string {
-  if (typeof data !== 'object' || data === null) return '';
-  const node = data as { [key: string]: unknown };
-  const text =
-    nodeLabel(node) ?? Object.values(node).find((v): v is string => typeof v === 'string') ?? '';
-  return text.replaceAll(/\s+/g, ' ').trim();
-}
+/** A label as an event's fields, in the order a person reads them: what, when, which. */
+const labelFields = ({ type, date, title }: RecordLabel) => ({
+  type,
+  ...(date && { date }),
+  ...(title && { title }),
+});
 
 const number = (n: number) => n.toLocaleString('en-US');
 
@@ -39,7 +37,7 @@ export class RunReport {
   private read = 0;
   private readCounts: { [type: string]: number } = {};
   private skippedCounts: { [type: string]: number } = {};
-  private current = '';
+  private current?: RecordLabel;
   private target?: string;
 
   constructor(
@@ -53,7 +51,7 @@ export class RunReport {
     this.read++;
     const type = record.extraction.recordType ?? 'records';
     this.readCounts[type] = (this.readCounts[type] ?? 0) + 1;
-    this.current = label(record.data) || this.current;
+    this.current = recordLabel(record);
     this.progress();
   }
 
@@ -61,7 +59,7 @@ export class RunReport {
   loading(total: number): void {
     this.phase = 'loading';
     this.total = total;
-    this.current = '';
+    this.current = undefined;
     this.progress();
   }
 
@@ -69,7 +67,7 @@ export class RunReport {
   writing(): void {
     this.phase = 'writing';
     this.target = this.output ?? 'output';
-    this.current = '';
+    this.current = undefined;
     this.progress();
   }
 
@@ -83,11 +81,9 @@ export class RunReport {
     stats.processed++;
     const type = log.record.extraction.recordType ?? 'records';
     stats.counts[type] = (stats.counts[type] ?? 0) + 1;
-    // The record for a person: what it loaded as, else what was extracted,
-    // as when a transformer makes another system's payload, with no label.
-    const loaded = log.results.at(-1)?.record?.data;
-    const name = label(loaded) || label(log.record.data);
-    const about = { type, ...(name && { record: name }) };
+    // What it loaded as, else what was extracted, as when a transformer threw.
+    const label = recordLabel(log.results.at(-1)?.record ?? log.record);
+    const about = labelFields(label);
     const failures: [key: string, message: string | undefined][] = [
       ...(log.error ? [['record.transform', log.error] as [string, string]] : []),
       ...(log.validationErrors ?? []).map(
@@ -105,7 +101,7 @@ export class RunReport {
         message: message ?? "Couldn't load the record",
         key,
         fields: about,
-        sensitive: ['record'],
+        sensitive: ['date', 'title'],
       });
     }
     stats.written += log.results.filter(result => result.success).length;
@@ -118,10 +114,10 @@ export class RunReport {
         message: 'Skipped a record',
         key: 'record.skip',
         fields: about,
-        sensitive: ['record'],
+        sensitive: ['date', 'title'],
       });
     }
-    this.current = name || this.current;
+    this.current = label;
     this.progress();
   }
 

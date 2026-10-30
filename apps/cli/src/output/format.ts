@@ -1,4 +1,6 @@
 import path from 'node:path';
+import type { RecordLabel } from '@chronicle.app/logging';
+import { glyphs } from './glyphs.js';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
@@ -44,6 +46,19 @@ export function plural(noun: string, n: number): string {
 /** A date in local time to the minute: what a person scanning rows needs. */
 export const date = (d: Date) =>
   `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+
+/** A record label's date: an instant as `date` shows it, a partial date (`1987?`) as written. */
+function labelDate(text: string): string {
+  const at = new Date(text);
+  return /^\d{4}-\d\d-\d\dT/.test(text) && !Number.isNaN(at.getTime()) ? date(at) : text;
+}
+
+/**
+ * A record label on one line, its parts set apart, the title last so a long
+ * one is what a width cuts: `ViewAction · 2025-03-04 18:22 · A page title`.
+ */
+export const labelText = ({ type, date, title }: RecordLabel) =>
+  [type, date && labelDate(date), title].filter(Boolean).join(` ${glyphs.bullet} `);
 
 /** At most `width` characters, an ellipsis marking the cut. */
 export const truncate = (text: string, width: number) =>

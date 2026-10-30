@@ -12,7 +12,6 @@ function record(data) {
     extraction: { source: 'fixture', delivery: 'export' },
     transformations: [],
     schema: 'raw',
-    toString: 'fixture',
   };
 }
 

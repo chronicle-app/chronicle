@@ -19,7 +19,10 @@ Chronicle extracts personal history into a shared vocabulary.
   option can only be read by some kinds, `static kindsFor(config)` says which,
   and a run that names no kinds reads those. Give extractors
   `occurredAt(record)` so several kinds merge newest first; without it they
-  run one after another.
+  run one after another. When a raw record's name isn't its first `name`,
+  `title`, … `url`, or first text, give `titleOf(record)` too, such as an
+  email's subject: with `occurredAt`, it labels the record until a transformer
+  relabels it.
 - A `body` or `description` is plain text or Markdown, never HTML: convert
   markup with `htmlToMarkdown` and clean it with `tidyText` (both in
   `@chronicle.app/etl`). The SHAPES test fails on HTML in either.

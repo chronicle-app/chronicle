@@ -66,6 +66,20 @@ export interface LoggerContext {
   [key: string]: any;
 }
 
+/**
+ * A record as a person scans it: what kind it is, what it's called, and when.
+ * Each record carries one, so a run can name what it has in hand or what
+ * failed, however far the transformers have reshaped it.
+ */
+export type RecordLabel = {
+  /** The payload's `@type`, else its record type: `ViewAction`, `views`. */
+  type: string;
+  /** The first property that names it: a page's title, else its URL. */
+  title?: string;
+  /** When it happened: an ISO 8601 instant, or a partial date as given (`1987?`). */
+  date?: string;
+};
+
 /** What a `progress` event carries in its fields: a run as it goes. */
 export type ProgressFields = {
   /** `shell · history`: what the run reads. */
@@ -81,8 +95,8 @@ export type ProgressFields = {
   total: number;
   /** Records by type so far. */
   counts: Record<string, number>;
-  /** The record in hand, as a one-line label. Personal. */
-  current?: string;
+  /** The record in hand. Personal. */
+  current?: RecordLabel;
   /** Where a `writing` run's output goes. */
   target?: string;
   elapsedMs: number;

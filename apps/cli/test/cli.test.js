@@ -336,7 +336,7 @@ test('the http loader posts each record as JSON, and a response that is not OK f
   assert.equal(errors.length, 2);
   for (const { message, fields } of errors) {
     assert.match(message, /HTTP 500/);
-    assert.deepEqual(fields, { type: 'commands', record: '[redacted]' });
+    assert.deepEqual(fields, { type: 'commands', title: '[redacted]' });
   }
 });
 
@@ -375,8 +375,8 @@ test('transformation flags pick fields, sample records and truncate base64', t =
   assert.deepEqual(
     skips.map(e => e.fields),
     [
-      { type: 'commands', record: '[redacted]' },
-      { type: 'commands', record: '[redacted]' },
+      { type: 'commands', title: '[redacted]' },
+      { type: 'commands', title: '[redacted]' },
     ]
   );
   assert.equal(success(run(...args, '--sample', '1')).split('\n').length, 4);

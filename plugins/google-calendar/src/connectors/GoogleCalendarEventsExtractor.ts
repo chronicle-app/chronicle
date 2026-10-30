@@ -171,8 +171,8 @@ export class GoogleCalendarEventsExtractor extends Extractor<typeof GoogleCalend
     };
   }
 
-  override recordToString(data?: EventRecord): string {
-    return data?.event?.summary ?? 'google-calendar.events';
+  override titleOf(record: Record): string | undefined {
+    return (record.data as EventRecord).event?.summary;
   }
 }
 

@@ -1,5 +1,11 @@
 import { Record, Transformation } from './types.js';
-import { Logger, createLogger, type RunContext, type Sink } from '@chronicle.app/logging';
+import {
+  Logger,
+  createLogger,
+  type RecordLabel,
+  type RunContext,
+  type Sink,
+} from '@chronicle.app/logging';
 
 export abstract class Transformer {
   static source: string;
@@ -63,8 +69,12 @@ export abstract class Transformer {
     // extraction metadata). May mutate `_result` in place before it is wrapped.
   }
 
-  protected recordToString(_record: Record): string | null {
-    return null;
+  /**
+   * The label of a payload this made, when it can say better than the record
+   * it came from. Without one, the payload keeps that record's label.
+   */
+  protected labelOf(_record: Record): RecordLabel | undefined {
+    return undefined;
   }
 
   public async performTransform(record: Record): Promise<Record[]> {
@@ -79,9 +89,9 @@ export abstract class Transformer {
         transformations: [...record.transformations, this.createTransformation()],
       };
 
-      const toString = this.recordToString(newRecord);
-      if (toString !== null) {
-        newRecord.toString = toString;
+      const label = this.labelOf(newRecord);
+      if (label) {
+        newRecord.label = label;
       }
 
       return newRecord;

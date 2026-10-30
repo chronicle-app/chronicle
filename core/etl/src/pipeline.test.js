@@ -130,7 +130,6 @@ test('extracts, transforms, validates and serializes with the minimal schema and
         transformations: [],
         extraction: { source: 'fixture', delivery: 'export', ...extraction },
         context: {},
-        toString: 'fixture',
       });
       return data['@assertedAt'];
     };
@@ -143,18 +142,21 @@ test('extracts, transforms, validates and serializes with the minimal schema and
     );
 
     // A snapshot re-reads current state, so every node asserts its set is complete.
-    const [{ data: snapshot, toString: label }] = await transformer.performTransform({
+    const [{ data: snapshot, label }] = await transformer.performTransform({
       data: { id: 'fixture-4', url: 'https://example.com/4', timestamp: '2026-01-01T00:00:00Z' },
       schema: 'raw',
       transformations: [],
       extraction: { source: 'fixture', delivery: 'export', temporality: 'snapshot' },
       context: {},
-      toString: 'fixture',
     });
     assert.deepEqual(snapshot['@asserts'], ['*']);
     assert.deepEqual(snapshot.object['@asserts'], ['*']);
-    // Payloads are labelled by source, type, and time.
-    assert.equal(label, 'Action.2026-01-01T00:00:00.000Z');
+    // A payload is labelled by its type, what names it, and when it happened.
+    assert.deepEqual(label, {
+      type: 'Action',
+      title: 'https://example.com/4',
+      date: '2026-01-01T00:00:00.000Z',
+    });
 
     // An extractor that knows when the source observed a record beats either default.
     const loader = new MemoryLoader();
@@ -243,6 +245,80 @@ test('chained transformers preserve fan-out, filtering, and raw presentation out
   );
   assert.equal(loader.records[0].transformations.length, 3);
   assert.equal(loader.records[0].schema, 'raw');
+});
+
+test('a record is labelled as extracted, relabelled as it becomes Chronicle, and named when it fails', async () => {
+  class Dated extends FixtureExtractor {
+    occurredAt(record) {
+      return new Date(record.data.at);
+    }
+
+    titleOf(record) {
+      return record.data.subject;
+    }
+  }
+  // Another system's payload, with nothing a label could use.
+  class Elsewhere extends Transformer {
+    static outputSchema = 'elsewhere';
+    async transform({ data }) {
+      return [{ data: { attributes: { link: data.object.url } } }];
+    }
+  }
+  class Refused extends MemoryLoader {
+    async load(record) {
+      this.records.push(record);
+      return { success: false, record, error: 'refused' };
+    }
+  }
+  const item = {
+    id: 'fixture-1',
+    url: 'https://example.com/1',
+    title: 'Fixture\n page',
+    subject: 'Synthetic subject',
+    at: '2026-01-02T03:04:05Z',
+    timestamp: '2026-01-01T00:00:00Z',
+  };
+  const raw = new MemoryLoader();
+  await collect(new Runner({ quiet: true }).addExtractor(new Dated([item])).addLoader(raw));
+  assert.deepEqual(raw.records[0].label, {
+    type: 'items',
+    title: 'Synthetic subject',
+    date: '2026-01-02T03:04:05.000Z',
+  });
+  // Without the hooks, the first naming property, and no date.
+  const plain = new MemoryLoader();
+  await collect(
+    new Runner({ quiet: true }).addExtractor(new FixtureExtractor([item])).addLoader(plain)
+  );
+  assert.deepEqual(plain.records[0].label, { type: 'items', title: 'Fixture page' });
+
+  const refused = new Refused();
+  const { sink, events } = memorySink();
+  await collect(
+    new Runner({ quiet: true, sink })
+      .addExtractor(new Dated([item]))
+      .addTransformer(new FixtureTransformer())
+      .addTransformer(new Elsewhere())
+      .addLoader(refused)
+  );
+  assert.deepEqual(refused.records[0].label, {
+    type: 'Action',
+    title: 'Fixture page',
+    date: '2026-01-01T00:00:00.000Z',
+  });
+  // Its title and date are personal, and left out of JSON.
+  const failure = events.find(e => e.key === 'record.load');
+  assert.deepEqual(failure.fields, { type: 'Action', date: '[redacted]', title: '[redacted]' });
+
+  // A partly known date is kept as written.
+  const [{ label }] = await new FixtureTransformer({ quiet: true }).performTransform({
+    data: { id: 'fixture-2', url: 'https://example.com/2', timestamp: '1987?' },
+    schema: 'raw',
+    transformations: [],
+    extraction: { source: 'fixture', delivery: 'export' },
+    context: {},
+  });
+  assert.equal(label.date, '1987?');
 });
 
 test('invalid Chronicle output is reported and never loaded', async () => {
@@ -452,7 +528,6 @@ test('attachment downloads embed the bytes and leave other fields alone', async 
     transformations: [],
     extraction: { source: 'fixture', delivery: 'export' },
     context: {},
-    toString: 'fixture',
   });
   assert.equal(output.data.timestamp, timestamp);
   assert.equal(output.data.image.contentData, 'data:text/plain;base64,Zml4dHVyZQ==');

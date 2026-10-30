@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { Delivery, Record } from './types.js';
 import { Transformer } from './transformer.js';
+import { extractedLabel } from './label.js';
 import type { Survey, SurveyOptions } from './survey.js';
 import { Logger, createLogger, type RunContext, type Sink } from '@chronicle.app/logging';
 
@@ -85,6 +86,14 @@ export abstract class Extractor<SelfClass extends typeof Extractor = typeof Extr
    * after another.
    */
   occurredAt?(record: Record): Date | undefined;
+
+  /**
+   * What names this raw record, when its data's first naming property (a
+   * `name`, a `title`, … a `url`) or first text isn't it, such as an email's
+   * subject. With `occurredAt`, it labels the record until a transformer
+   * labels what the record becomes.
+   */
+  titleOf?(record: Record): string | undefined;
 
   constructor(config: ExtractorConfigObjectInput<SelfClass>) {
     const cls = this.constructor as typeof Extractor;
@@ -186,10 +195,6 @@ export abstract class Extractor<SelfClass extends typeof Extractor = typeof Extr
     return new TransformerClass();
   }
 
-  recordToString(_data?: any): string {
-    return `${(this.constructor as typeof Extractor).source}.${(this.constructor as typeof Extractor).recordTypes?.[0]}`;
-  }
-
   /**
    * Get the effective limit for extraction, handling the "0 means no limit" convention
    * @returns The limit number, or null for no limit
@@ -234,7 +239,7 @@ export abstract class Extractor<SelfClass extends typeof Extractor = typeof Extr
     { assertedAt }: { assertedAt?: Date } = {}
   ): Record {
     const cls = this.constructor as typeof Extractor;
-    return {
+    const record: Record = {
       data,
       context,
       extraction: {
@@ -247,7 +252,21 @@ export abstract class Extractor<SelfClass extends typeof Extractor = typeof Extr
       },
       transformations: [],
       schema: 'raw',
-      toString: this.recordToString(data),
     };
+    record.label = extractedLabel(
+      record,
+      shown(() => this.titleOf?.(record)),
+      shown(() => this.occurredAt?.(record))
+    );
+    return record;
+  }
+}
+
+/** A hook's answer for a label, which is only for show: a record never fails over one. */
+function shown<T>(hook: () => T): T | undefined {
+  try {
+    return hook();
+  } catch {
+    return undefined;
   }
 }

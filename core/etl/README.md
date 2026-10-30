@@ -58,8 +58,17 @@ try {
 For TypeScript, override inherited concrete members with `override`; use
 `Extractor<typeof YourExtractor>` / `Loader<typeof YourLoader>` when extending the
 static Zod config schema. Record envelopes preserve extraction metadata, raw
-context, schema marker, display text, and transformation history. Data written by
+context, schema marker, label, and transformation history. Data written by
 the serializers is the payload (`record.data`), not the whole envelope.
+
+A record's `label` is its type, title, and date: what a run shows for the record
+in hand, and names in each failure. An extractor labels each record with its
+record type, `titleOf(record)` (else its data's first `name`, `title`, … `url`,
+else its first text), and `occurredAt(record)`. A `ChronicleTransformer`
+relabels each payload with its `@type`, what names it, and its `timestamp`,
+`startTime`, or `endTime`, keeping the record's for whatever the payload
+doesn't say. Any other transformer's payloads keep the label they came with,
+unless it overrides `labelOf(record)`.
 
 ## Execution and errors
 

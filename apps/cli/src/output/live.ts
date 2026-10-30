@@ -1,6 +1,6 @@
 import type { ProgressFields } from '@chronicle.app/logging';
 import { line, type Segment } from './blocks.js';
-import { clock, count, plural } from './format.js';
+import { clock, count, labelText, plural } from './format.js';
 import { glyphs } from './glyphs.js';
 import type { Tokens } from './tokens.js';
 
@@ -61,7 +61,7 @@ export function progress(fields: ProgressFields, t: Tokens, width: number, frame
       line(
         [
           [`  ${glyphs.child} `, t.muted],
-          [fields.current, t.muted],
+          [labelText(fields.current), t.muted],
         ],
         width
       )
