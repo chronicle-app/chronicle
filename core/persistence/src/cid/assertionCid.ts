@@ -27,11 +27,10 @@ export function generateAssertionBodyCID(body: unknown): {
 /**
  * The **claim CID**: the hash of an assertion's body with its ROOT `@assertedAt`
  * removed — the claim CID is to an Assertion what a git *tree* hash is to a
- * commit (see `spec/ledger.md` §Assertions). Two Assertions with the same claim
- * CID say the same thing at different times: the original `assert` and every
- * later `confirm` of it share a claim CID, which is how the store recognizes
- * "same claim, new sighting" and turns an unchanged re-crawl into cheap
- * confirmations instead of re-minted copies.
+ * commit. Two Assertions with the same claim CID say the same thing at different
+ * times: the original `assert` and every later `confirm` of it share a claim CID,
+ * which is how the store recognizes "same claim, new sighting" and turns an
+ * unchanged re-crawl into cheap confirmations instead of re-minted copies.
  *
  * Only the ROOT stamp is stripped — nested scoped `@assertedAt` are part of what
  * the claim says (a mixed-vintage payload's inner vintages are content), so they

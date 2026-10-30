@@ -175,7 +175,7 @@ describe('sameAs — properties on the target', () => {
     const { db, sqlite, close } = makeTestDb();
     try {
       // goodreads' shape: the ISBN edge carries the title so the edge still
-      // names the book when it is what mints it (docs/plugins.md).
+      // names the book when it is what mints it.
       await processEvent(
         db,
         read('r1', {

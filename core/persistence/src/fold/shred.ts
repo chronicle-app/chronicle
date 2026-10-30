@@ -365,8 +365,8 @@ export function shredAssertion(tx: Tx, ctx: FoldContext, cid: string): void {
     // else the stamp inherited from its enclosing node (ultimately the root).
     // Every row this node writes — and every child it recurses into — observes
     // at this value, so a mixed-vintage payload places each fact at the moment
-    // it was actually witnessed. `no node may carry facts at a time they weren't
-    // observed` (spec §Two dimensions).
+    // it was actually witnessed: no node may carry facts at a time they weren't
+    // observed.
     const observedAt = parseInstant(entityData['@assertedAt']) ?? inheritedObservedAt;
     const source = String(entityData.source ?? body.source ?? '');
     // Pass the action body as context so @key entries like

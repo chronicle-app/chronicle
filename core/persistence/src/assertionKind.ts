@@ -1,7 +1,7 @@
 /**
- * Assertion kinds — which speech-act an Assertion is (`spec/ledger.md`
- * §Assertions). The kind is a **body-level marker inside the hashed bytes** (the
- * same pattern as `@synthetic`), so the CID pins it and sync carries it for free.
+ * Assertion kinds — which speech-act an Assertion is. The kind is a **body-level
+ * marker inside the hashed bytes** (the same pattern as `@synthetic`), so the CID
+ * pins it and sync carries it for free.
  * If kind rode outside the hash, one CID could circulate under two kinds and
  * folding would depend on arrival order.
  *
@@ -20,7 +20,7 @@ export const ASSERTION_KINDS: readonly AssertionKind[] = ['assert', 'restated', 
  * The kind rank in the fold's total order `(effective time, kind rank, content
  * hash)`: `assert` outranks `restated`, so when a restated Assertion honestly
  * ties its original at the same true time, the original wins deterministically —
- * a re-import never repoints founding or anchors (`spec/ledger.md` §The Fold).
+ * a re-import never repoints founding or anchors.
  * `confirm` never competes in an election (it mints no observation rows), but is
  * ranked last for completeness. Lower rank wins.
  */

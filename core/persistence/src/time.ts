@@ -142,8 +142,8 @@ export function intersectRanges(a: DateRange, b: DateRange): DateRange | null {
 /**
  * Fold a set of asserted date ranges into one resolved range by successive
  * intersection. Order-independent. Returns `{ range }` on agreement (possibly
- * narrowed), or `{ conflict: [a, b] }` naming the first incompatible pair — the
- * empty-intersection case §4 of the design requires be surfaced, not coerced.
+ * narrowed), or `{ conflict: [a, b] }` naming the first incompatible pair: an
+ * empty intersection is surfaced, not coerced.
  */
 export function resolveDateRanges(
   ranges: DateRange[]
