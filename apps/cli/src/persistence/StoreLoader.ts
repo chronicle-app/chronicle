@@ -10,8 +10,8 @@ import { openStore, type OpenStore } from './store.js';
  * `chronicle import <source>`.
  *
  * Each record is ingested as it arrives, so a record the store rejects fails
- * on its own with the reason, and the ingested ones fold in batches of
- * `fold-batch` (one transaction each). Teardown folds the last batch.
+ * on its own with the reason, and the ingested ones fold in batches (one
+ * transaction each). Teardown folds the last batch.
  * Idempotent: re-loading the same record is a duplicate (content-addressed).
  */
 export class StoreLoader extends Loader<typeof StoreLoader> {
@@ -19,7 +19,6 @@ export class StoreLoader extends Loader<typeof StoreLoader> {
   static override printsRecords = false;
   static override schema = z.object({
     db: z.string().optional().describe('Store path'),
-    'fold-batch': z.number().int().positive().optional().describe('Records per fold'),
   });
 
   private store?: OpenStore;
@@ -32,7 +31,7 @@ export class StoreLoader extends Loader<typeof StoreLoader> {
 
   public override async setup(): Promise<void> {
     this.store = openStore(this.config.db);
-    this.batcher = new FoldBatcher(this.store.db, { batchSize: this.config['fold-batch'] });
+    this.batcher = new FoldBatcher(this.store.db);
   }
 
   async load(record: Record): Promise<LoadResult> {

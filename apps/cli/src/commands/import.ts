@@ -123,7 +123,6 @@ export default class Import extends SourceDispatchCommand<typeof Import> {
       result = await processEventBatch(store.db, payloads, {
         blobs: store.blobs,
         readFile: path => readFile(path),
-        batchSize: this.flags['fold-batch'],
         onOutcome(outcome, index) {
           if (!outcome.ok) rejected.push(`Record ${index + 1}: ${outcome.error.message}`);
         },

@@ -5,19 +5,12 @@ import type { VerbHelp } from './sourceHelp.js';
 
 const base = FlagManager.getBaseFlags(BaseCommand.baseFlags);
 
-/** Where an import's records go, and how many fold at once. */
+/** Where an import's records go. */
 export const STORE_FLAGS = {
   db: Flags.string({
     helpGroup: 'LOADING',
     helpValue: '<path>',
     summary: 'The store to import into. The default is in your Chronicle data folder.',
-  }),
-  'fold-batch': Flags.integer({
-    env: 'CHRONICLE_FOLD_BATCH',
-    helpGroup: 'LOADING',
-    helpValue: '<n>',
-    min: 1,
-    summary: 'Records folded into the store per transaction',
   }),
 };
 

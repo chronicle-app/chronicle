@@ -120,7 +120,6 @@ export class FlagManager {
       'trace-format',
       'theme',
       'quiet',
-      'fold-batch',
     ]);
 
     // Add flags for each loader type, but skip ones we've already defined
