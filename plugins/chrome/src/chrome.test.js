@@ -72,8 +72,8 @@ test('visits become schema-valid ViewActions, newest first', async t => {
 
   // Sub-millisecond Chrome times truncate to the millisecond.
   assert.deepEqual(redirected.timestamp, new Date('2025-01-01T00:00:02Z'));
-  // An untitled page is named by its URL.
-  assert.equal(synced.object.name, 'https://example.com/b');
+  // An untitled page has no name.
+  assert.equal(synced.object.name, undefined);
 
   // since/until are converted to Chrome's visit times.
   const since = new Date(JAN_1 + 2500);

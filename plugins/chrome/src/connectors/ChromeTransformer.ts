@@ -86,7 +86,7 @@ export default class ChromeTransformer extends ChronicleTransformer {
   private buildWebPage(record: Record): Entity {
     return {
       ...this.pageByUrl(record.data.url),
-      name: record.data.title || record.data.url,
+      ...(record.data.title && { name: record.data.title }),
     };
   }
 
