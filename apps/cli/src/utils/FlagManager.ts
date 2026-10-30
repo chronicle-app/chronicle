@@ -174,6 +174,11 @@ export class FlagManager {
         summary: 'Download linked media and embed it in the record',
         default: false,
       }),
+      transformer: Flags.string({
+        helpGroup: 'TRANSFORMATION',
+        helpValue: '<name>',
+        summary: "Reshape each record with a plugin's transformer",
+      }),
       input: Flags.string({
         char: 'i',
         helpGroup: 'EXTRACTION',

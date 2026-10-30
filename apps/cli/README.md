@@ -56,3 +56,11 @@ To run a plugin you're writing without installing it, use
 It runs from where it is, so edits apply on the next run, and it takes over any
 source it provides, including an official one. `chronicle plugins remove` stops it.
 Plugins can be TypeScript; they run without a build.
+
+A plugin can also export a transformer that reshapes Chronicle records, such as
+into another system's format. It extends `Transformer` and sets `static source`,
+its name, and `static inputSchema = 'chronicle'`.
+`chronicle extract <source> --transformer <name>` runs it after the source's own
+transformer. When what it makes isn't Chronicle records, give it another
+`outputSchema`, or the run checks them against Chronicle's schema and fails each
+one.

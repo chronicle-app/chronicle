@@ -686,7 +686,7 @@ export class MyShell extends Extractor {
   assert.match(success(run('plugins', 'add', './my-shell.js')), /chronicle extract shell/);
   const refused = run('plugins', 'add', './empty.js');
   assert.notEqual(refused.status, 0);
-  assert.match(refused.stderr, /No extractor found/);
+  assert.match(refused.stderr, /No extractor or transformer found/);
   mkdirSync(join(dir, 'copy'));
   writeFileSync(join(dir, 'copy', 'my-shell.js'), readFileSync(join(dir, 'my-shell.js')));
   const sameName = run('plugins', 'add', './copy/my-shell.js');
@@ -744,6 +744,44 @@ export class OtherShell extends Extractor {
   assert.match(pruned.stderr, /Removed a local plugin that no longer exists {2}path=.*gone-second/);
   assert.deepEqual(localList(), []);
   assert.doesNotMatch(run('sources', '--format', 'json').stderr, /gone-second/);
+});
+
+test("--transformer reshapes each Chronicle record with a plugin's transformer", t => {
+  const { dir, input, run } = fixture(t);
+  writeFileSync(
+    join(dir, 'kinds.js'),
+    `import { Transformer } from '@chronicle.app/etl';
+export class Kinds extends Transformer {
+  static source = 'kinds'; static inputSchema = 'chronicle'; static outputSchema = 'kinds';
+  async transform(record) { return [{ kind: record.data['@type'], from: record.schema }]; }
+}`
+  );
+  // A plugin with only a transformer is a plugin, and says how to use it.
+  assert.match(
+    success(run('plugins', 'add', './kinds.js')),
+    /chronicle extract <source> --transformer kinds/
+  );
+  const args = ['extract', 'shell', '--input', input, '--limit', '1'];
+  assert.deepEqual(JSON.parse(success(run(...args, '--transformer', 'kinds'))), {
+    kind: 'ExecuteAction',
+    from: 'chronicle',
+  });
+
+  // A name no plugin's transformer has, or a source's own transformer, which
+  // takes the source's raw records, is a usage error; so is `--raw`, which
+  // leaves no Chronicle records to reshape.
+  for (const [extra, code, hint] of [
+    [['--transformer', 'nope'], 'unknown-transformer', /chronicle plugins add/],
+    [['--transformer', 'imessage'], 'unknown-transformer', /chronicle plugins add/],
+    [['--transformer', 'kinds', '--raw'], 'conflicting-flags', /--raw/],
+  ]) {
+    const result = run(...args, ...extra, '--log-format', 'json');
+    assert.equal(result.status, 2, extra.join(' '));
+    assert.equal(result.stdout, '');
+    const error = JSON.parse(result.stderr.split('\n').find(line => line.includes('"error"')));
+    assert.equal(error.error.code, code, extra.join(' '));
+    assert.match(error.hint.action, hint, extra.join(' '));
+  }
 });
 
 test('a run that names no kinds reads those its options ask for', t => {
