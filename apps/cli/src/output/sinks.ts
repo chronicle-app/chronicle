@@ -34,6 +34,12 @@ const isSummary = (fields: unknown): fields is SummaryFields =>
 /** Space between a line and the time at its right edge. */
 const TIME_GAP = 2;
 
+/**
+ * How often `json` says how far a run has got: often enough for another
+ * program to draw it live, as `chronicle setup` does its imports.
+ */
+const HEARTBEAT_MS = 1000;
+
 /** A roll-up's fields: how many it held back, and how often each value came up. */
 type Rollup = {
   suppressed: number;
@@ -256,7 +262,11 @@ export interface OutputOptions extends SinkOptions {
 export function createSink(options: OutputOptions): Sink {
   switch (options.format ?? defaultLogFormat()) {
     case 'json':
-      return new JsonSink({ level: options.level, write: options.write });
+      return new JsonSink({
+        level: options.level,
+        write: options.write,
+        heartbeatMs: HEARTBEAT_MS,
+      });
     case 'plain':
       return new PlainSink(options);
     default:

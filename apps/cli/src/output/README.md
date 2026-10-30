@@ -80,7 +80,7 @@ Every line on stderr is the rendering of an `OutputEvent` from
 | -------- | --------------------------------------------------------- | --------------------------- | --------------- |
 | `pretty` | right-aligned, muted, on notices and errors when they fit | live line, redrawn in place | shown           |
 | `plain`  | `HH:MM:SS` prefix                                         | not shown                   | shown           |
-| `json`   | ISO                                                       | heartbeat every 10 seconds  | redacted        |
+| `json`   | ISO                                                       | heartbeat every second      | redacted        |
 
 `pretty` is the default on a terminal, `plain` otherwise. Sinks filter by
 level (`--verbose` shows debug, `--quiet` only errors), and in `json` redact
