@@ -7,6 +7,7 @@ import {
   DownloadAttachmentsTransformer,
   FilterFieldsTransformer,
   FlattenTransformer,
+  HttpLoader,
   JsonLoader,
   NullTransformer,
   Runner,
@@ -21,6 +22,7 @@ import { TableLoader } from '../loaders/TableLoader.js';
 // Loader registry mapping loader names to classes
 const loaderRegistry = {
   csv: CsvLoader,
+  http: HttpLoader,
   json: JsonLoader,
   preview: PreviewLoader,
   table: TableLoader,

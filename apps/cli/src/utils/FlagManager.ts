@@ -1,4 +1,4 @@
-import { CsvLoader, JsonLoader, YamlLoader, toKebabCase } from '@chronicle.app/etl';
+import { CsvLoader, HttpLoader, JsonLoader, YamlLoader, toKebabCase } from '@chronicle.app/etl';
 import { Flags } from '@oclif/core';
 import { parseDuration } from './date.js';
 import { PreviewLoader } from '../loaders/PreviewLoader.js';
@@ -16,6 +16,7 @@ export const dateFlag = Flags.custom<Date>({
 // Loader registry mapping loader names to classes
 const loaderRegistry = {
   csv: CsvLoader,
+  http: HttpLoader,
   json: JsonLoader,
   preview: PreviewLoader,
   table: TableLoader,

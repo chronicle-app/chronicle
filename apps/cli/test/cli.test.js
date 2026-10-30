@@ -12,6 +12,7 @@ import {
   chmodSync,
   symlinkSync,
 } from 'node:fs';
+import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -266,6 +267,57 @@ test('raw extraction, four output loaders, file output and stream mode', t => {
   );
   assert.match(success(schema), /^@type,.*agent\.handle.*object\.body/);
   assert.doesNotMatch(schema.stderr, /--columns/);
+});
+
+test('the http loader posts each record as JSON, and a response that is not OK fails the run', async t => {
+  const { env, input } = fixture(t);
+  const received = [];
+  let status = 200;
+  const server = createServer((request, response) => {
+    let body = '';
+    request.on('data', chunk => (body += chunk));
+    request.on('end', () => {
+      const { method, url, headers } = request;
+      received.push({ method, url, headers, body: JSON.parse(body) });
+      response.writeHead(status).end();
+    });
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => server.close());
+  const endpoint = `http://127.0.0.1:${server.address().port}/nodes`;
+  // Spawned, not spawnSync: that would block this process, and the server with it.
+  const extract = (...args) =>
+    new Promise(resolve => {
+      const child = spawn(
+        process.execPath,
+        [bin, 'extract', 'shell', '--input', input, '--raw', '--limit', '0', '--quiet', ...args],
+        { env, stdio: 'pipe' }
+      );
+      let stderr = '';
+      child.stderr.on('data', chunk => (stderr += chunk));
+      child.on('close', code => resolve({ status: code, stderr }));
+    });
+
+  const sent = await extract('--loader', 'http', '--endpoint', endpoint, '--token', 'synthetic');
+  assert.equal(sent.status, 0, sent.stderr);
+  assert.deepEqual(
+    received.map(({ body }) => body.command),
+    ['printf fixture', 'echo synthetic']
+  );
+  for (const { method, url, headers } of received) {
+    assert.equal(method, 'POST');
+    assert.equal(url, '/nodes');
+    assert.equal(headers['content-type'], 'application/json');
+    assert.equal(headers.authorization, 'Bearer synthetic');
+  }
+
+  // Without a token there's no Authorization header, and a record the
+  // endpoint turns down is a failure.
+  status = 500;
+  const refused = await extract('--loader', 'http', '--endpoint', endpoint, '--method', 'PUT');
+  assert.equal(refused.status, 1);
+  assert.equal(received.at(-1).method, 'PUT');
+  assert.equal(received.at(-1).headers.authorization, undefined);
 });
 
 test('CSV static command accepts piped input and file input', t => {
