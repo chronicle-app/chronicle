@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { Args, Errors, Flags } from '@oclif/core';
@@ -1285,14 +1285,54 @@ export default class Setup extends BaseCommand<typeof Setup> {
       const offers = this.offered;
       steps.set('gather', 'asking', `${count(offers.length)} found`);
       this.countRows(offers.map(o => o.row));
-      const where = this.folders.map(folder => fromHome(folder, this.home));
-      const found = this.options(offers, {
-        key: offer => foundKey(offer),
+      // What was found, a section for this computer and the accounts, then one for each folder looked in.
+      const sections = new Map<string, Offer[]>([['', []]]);
+      for (const folder of this.folders) sections.set(folder, []);
+      for (const offer of offers) {
+        const folder = this.folderOf.get(offer.row) ?? '';
+        sections.set(folder, [...(sections.get(folder) ?? []), offer]);
+      }
+      const found: SelectOption[] = [];
+      // Sections with nothing in them are said in a line each, above the next with something.
+      let empty: string[] = [];
+      for (const [folder, group] of sections) {
+        const heading = folder
+          ? `found in ${fromHome(folder, this.home)}`
+          : [
+              'found on this computer',
+              // An account isn't on this computer, though it's here to pick.
+              ...(group.some(o => this.accounted.has(o.row)) ? ['and your accounts'] : []),
+            ].join(', ');
+        if (group.length === 0) {
+          empty.push(`${heading}: nothing`, '');
+          continue;
+        }
+        found.push(
+          ...this.options(group, {
+            key: offer => foundKey(offer),
+            heading: [...empty, heading].join('\n'),
+            // In a folder's section, where in it.
+            ...(folder && {
+              label: (offer: Offer) =>
+                offer.row.root
+                  ? path.relative(folder, offer.row.root) || path.basename(offer.row.root)
+                  : offer.label,
+            }),
+          })
+        );
+        empty = [];
+      }
+      // Scanning a folder is a section of its own, between what was found and the rest.
+      found.push({
+        label: '+ choose a folder to scan',
+        value: ANOTHER,
+        action: true,
+        ...(searched && { description: searched }),
         heading: [
-          `found on this computer${where.length > 0 ? ` and in ${where.join(', ')}` : ''}`,
-          // An account isn't on this computer, though it's here to pick.
-          ...(offers.some(o => this.accounted.has(o.row)) ? ['and your accounts'] : []),
-        ].join(', '),
+          ...empty,
+          'scan a folder for exports',
+          'point setup at a folder, like ~/Downloads, and it finds the exports it knows how to read.',
+        ].join('\n'),
       });
       // A table: each service, what getting it ready takes, and what it gets, under headings that line up.
       const takes = (s: Service) => {
@@ -1320,12 +1360,8 @@ export default class Setup extends BaseCommand<typeof Setup> {
         enter: 'next',
         body: [
           this.t.muted(before ? '  selected: what you picked before.' : '  select what to import.'),
-          ...(offers.length === 0
-            ? [this.t.muted('  nothing found on this computer. f looks in a folder of exports.')]
-            : []),
-          ...(searched ? [this.t.muted(`  ${searched}`)] : []),
         ],
-        actions: [{ key: 'f', label: 'look in a folder', value: ANOTHER }],
+        actions: [{ key: 'f', label: 'scan a folder', value: ANOTHER }],
         onward: true,
         ...this.around(),
       });
@@ -1347,15 +1383,14 @@ export default class Setup extends BaseCommand<typeof Setup> {
       const fresh = more.filter(row => OFFERED.has(row.status) && !known.has(rowKey(row)));
       for (const row of fresh) {
         const offer = this.offer(row);
-        // Selected when it was picked before, or its way in was just selected: it's how that comes in now.
-        if (offer.checked || initial.includes(`service:${row.source}:${row.strategy}`)) {
-          initial.push(foundKey(offer));
-        }
+        // Selected when it was picked before, or it's the export asked for.
+        if (offer.checked) initial.push(foundKey(offer));
         offers.push(offer);
         this.folderOf.set(row, folder);
       }
       offers.sort(bySource);
-      searched = `${fromHome(folder, this.home)}: ${fresh.length > 0 ? `${count(fresh.length)} found` : 'nothing found'}`;
+      // What it found is a section of its own, above.
+      searched = `${fromHome(folder, this.home)}: ${fresh.length > 0 ? `${count(fresh.length)} found, above` : 'nothing found'}`;
       services = await this.services();
     }
     const picks = new Set(values);
@@ -1381,10 +1416,12 @@ export default class Setup extends BaseCommand<typeof Setup> {
   /**
    * A run that carries on, without gathering again: the picks as they
    * were, and what's here of just them looked for again, for what's in
-   * each one's way.
+   * each one's way. The folders saved are looked in again too, and an
+   * export asked for that's come to one since is taken, as gather takes it.
    */
   private async keepPicks(): Promise<void> {
     const { targets = [], wanted = [], requested = [] } = this.settings;
+    const picks = targets.length + wanted.length + requested.length;
     const sources = unique([...targets, ...wanted, ...requested].map(pick => pick.source));
     this.steps.set('gather', 'working', '');
     this.rows = await this.spin('checking your picks', async () => {
@@ -1394,8 +1431,30 @@ export default class Setup extends BaseCommand<typeof Setup> {
       ]);
       return (await scan({ sources })).rows;
     });
-    const picks = targets.length + wanted.length + requested.length;
-    this.steps.set('gather', 'done', `${count(picks)} ${plural('picks', picks)} kept`);
+    const come: Offer[] = [];
+    for (const folder of requested.length > 0 ? (this.settings.folders ?? []) : []) {
+      let looked = fromHome(folder, this.home);
+      const rows = await this.spin(
+        () => `looking in ${looked}`,
+        () =>
+          this.search(folder, note => {
+            looked = note;
+          })
+      );
+      for (const row of rows) {
+        const known = come.some(offer => rowKey(offer.row) === rowKey(row));
+        if (row.status !== 'ready' || known) continue;
+        if (this.arrived(row)) come.push(this.offer(row));
+      }
+    }
+    if (come.length > 0) await this.adopt(come, come);
+    const found = unique(come.map(offer => offer.row.source));
+    this.steps.set(
+      'gather',
+      'done',
+      `${count(picks)} ${plural('picks', picks)} kept` +
+        (found.length > 0 ? ` ${glyphs.bullet} ${inWords(found)} found` : '')
+    );
   }
 
   /**
@@ -1563,19 +1622,29 @@ export default class Setup extends BaseCommand<typeof Setup> {
    */
   private offer(row: ScanRow): Offer {
     const targeted = (this.settings.targets ?? []).some(target => reads(target, row));
-    const awaited = [
-      ...(this.settings.wanted ?? []),
-      ...(this.settings.requested ?? []).map(r => ({
-        source: r.source,
-        strategy: r.flags.strategy,
-      })),
-    ].some(way => same(way, row.source, row.strategy));
     return {
       row,
       label: this.labelOf(row),
       note: () => this.note(row),
-      checked: targeted || awaited,
+      checked: targeted || this.arrived(row),
     };
+  }
+
+  /**
+   * Whether a row is an export that was asked for, come since it was: one
+   * older, like an export from years ago in ~/Downloads, isn't the one
+   * waited for, so the request stands.
+   */
+  private arrived(row: ScanRow): boolean {
+    const asked = (this.settings.requested ?? []).find(
+      r => r.source === row.source && r.flags.strategy === row.strategy
+    );
+    if (!asked || !row.root) return false;
+    try {
+      return statSync(row.root).mtimeMs >= Date.parse(asked.at);
+    } catch {
+      return false;
+    }
   }
 
   /** What's in a row's way, or how much it holds: `2,113 commands`. */
@@ -1628,17 +1697,21 @@ export default class Setup extends BaseCommand<typeof Setup> {
 
   /**
    * Offers as a picker's options, their sources and labels lined up, each
-   * valued by `key`, the first under `heading`.
+   * valued by `key` and labeled by `label`, the first under `heading`.
    */
   private options(
     offers: Offer[],
-    { key, heading }: { key: (offer: Offer) => string; heading?: string }
+    {
+      key,
+      heading,
+      label = offer => offer.label,
+    }: { key: (offer: Offer) => string; heading?: string; label?: (offer: Offer) => string }
   ): SelectOption[] {
     const sources = Math.max(0, ...offers.map(o => o.row.source.length));
-    const labels = Math.min(48, Math.max(0, ...offers.map(o => o.label.length)));
+    const labels = Math.min(48, Math.max(0, ...offers.map(o => label(o).length)));
     return offers.map((o, i) => ({
       value: key(o),
-      label: `${o.row.source.padEnd(sources)}  ${truncatePath(o.label, labels).padEnd(labels)}`,
+      label: `${o.row.source.padEnd(sources)}  ${truncatePath(label(o), labels).padEnd(labels)}`,
       // Read each time it's drawn, so a count fills in.
       get description() {
         return o.note();
@@ -1784,9 +1857,10 @@ export default class Setup extends BaseCommand<typeof Setup> {
   }
 
   /**
-   * The services gather offers to add, a way in each: each way setup can
-   * get ready that isn't here already, by a sign-in with a provider setup
-   * knows, or an export, with what that takes and what it gets.
+   * The services gather offers to add, a way in each, with what that takes
+   * and what it gets: each export setup can walk through, even of a source
+   * found here, since what's found may be small or old; and each sign-in it
+   * can do, or need for a source with no account, unless it's here already.
    */
   private async services(): Promise<Service[]> {
     const providers = await this.providers();
@@ -1794,7 +1868,8 @@ export default class Setup extends BaseCommand<typeof Setup> {
     const services: Service[] = [];
     for (const listing of this.listings.filter(l => l.supported && l.tier !== 'legacy')) {
       for (const way of this.ways(listing, providers)) {
-        if (here.has(`${listing.source}:${way.name}`)) continue;
+        // An export can always be asked for again: one found may be small, or old.
+        if (way.delivery !== 'export' && here.has(`${listing.source}:${way.name}`)) continue;
         const takes = await this.takes(listing.source, way);
         services.push({ source: listing.source, way, takes, gets: gets(way) });
       }
