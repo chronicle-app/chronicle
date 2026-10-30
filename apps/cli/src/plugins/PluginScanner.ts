@@ -4,7 +4,7 @@ import * as nodeModule from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Config } from '@oclif/core';
 import { glob } from 'glob';
-import { Delivery, Extractor, type Locator } from '@chronicle.app/etl';
+import { Delivery, Extractor, type Locator, type Transformer } from '@chronicle.app/etl';
 import { createLogger } from '@chronicle.app/logging';
 import { isShared } from './sharedModules.js';
 
@@ -419,6 +419,45 @@ export class PluginScanner {
       }
     }
     return locators;
+  }
+
+  /**
+   * The transformers a plugin module exports for `--transformer`: ones that
+   * take Chronicle records (`static inputSchema = 'chronicle'`), named by
+   * their `static source`. A source's own transformer, which takes the
+   * source's raw records, isn't one.
+   */
+  static transformersOf(pluginModule: any): Array<typeof Transformer> {
+    return Object.values(pluginModule).filter(
+      (value: any): value is typeof Transformer =>
+        typeof value === 'function' &&
+        typeof value.source === 'string' &&
+        value.inputSchema === 'chronicle' &&
+        typeof value.prototype?.performTransform === 'function'
+    );
+  }
+
+  /**
+   * Every installed plugin's transformers for `--transformer`, keyed by name.
+   * The first plugin found for a name wins, as a local plugin wins over an
+   * installed one.
+   */
+  static async scanAllTransformers(): Promise<Map<string, typeof Transformer>> {
+    const transformers = new Map<string, typeof Transformer>();
+    for (const plugin of await this.findChroniclePlugins()) {
+      let pluginModule: any;
+      try {
+        pluginModule = await this.importPlugin(plugin);
+      } catch (error) {
+        logger.warn(`Failed to scan plugin ${plugin.name}`, { error: String(error) });
+        continue;
+      }
+      for (const transformer of this.transformersOf(pluginModule)) {
+        if (!transformers.has(transformer.source))
+          transformers.set(transformer.source, transformer);
+      }
+    }
+    return transformers;
   }
 
   /**

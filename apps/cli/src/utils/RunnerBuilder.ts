@@ -12,12 +12,15 @@ import {
   NullTransformer,
   Runner,
   SamplingTransformer,
+  type Transformer,
   YamlLoader,
   toCamelCase,
 } from '@chronicle.app/etl';
+import { EXIT_CODES, ExtractorError } from '@chronicle.app/logging';
 import { jsonColors } from '../output/index.js';
 import { PreviewLoader } from '../loaders/PreviewLoader.js';
 import { TableLoader } from '../loaders/TableLoader.js';
+import { PluginScanner } from '../plugins/PluginScanner.js';
 
 // Loader registry mapping loader names to classes
 const loaderRegistry = {
@@ -192,6 +195,32 @@ export class RunnerBuilder {
   }
 
   /**
+   * The plugin transformer `--transformer` names. It reshapes the Chronicle
+   * records the source's transformer makes, so `--raw` leaves it none.
+   */
+  async initializePluginTransformer(): Promise<Transformer | undefined> {
+    const name = this.flags.transformer;
+    if (!name) return undefined;
+    if (this.flags.raw) {
+      throw new ExtractorError("Can't use --transformer with --raw", {
+        code: 'conflicting-flags',
+        exitCode: EXIT_CODES.usage,
+        hint: "A plugin's transformer takes Chronicle records, so drop `--raw`.",
+      });
+    }
+    const TransformerClass = (await PluginScanner.scanAllTransformers()).get(name);
+    if (!TransformerClass) {
+      throw new ExtractorError(`Unknown transformer ${name}`, {
+        code: 'unknown-transformer',
+        exitCode: EXIT_CODES.usage,
+        hint: 'Run `chronicle plugins add <path>` to add the plugin that has it.',
+      });
+    }
+    const PluginTransformer = TransformerClass as unknown as new (config: any) => Transformer;
+    return new PluginTransformer({ quiet: this.flags.quiet, verbose: this.flags.verbose });
+  }
+
+  /**
    * Build and configure the complete runner
    */
   async buildRunner(
@@ -203,6 +232,7 @@ export class RunnerBuilder {
       output?: string;
     } = {}
   ): Promise<Runner> {
+    const pluginTransformer = await this.initializePluginTransformer();
     const extractor = await this.initializeExtractor(selectedExtractor);
     const loader = await this.initializeLoader();
     this.loader = loader;
@@ -231,7 +261,7 @@ export class RunnerBuilder {
       .addLoader(loader);
 
     // Add optional transformers based on flags
-    this.addOptionalTransformers(runner);
+    this.addOptionalTransformers(runner, pluginTransformer);
 
     return runner;
   }
@@ -239,7 +269,7 @@ export class RunnerBuilder {
   /**
    * Add optional transformers based on flags
    */
-  private addOptionalTransformers(runner: Runner): void {
+  private addOptionalTransformers(runner: Runner, pluginTransformer?: Transformer): void {
     // Runs first so it sees the clean Chronicle JSON-LD (media nodes intact),
     // before flatten/fields restructure it or truncate-base64 mangles the bytes.
     if (this.flags['download-attachments']) {
@@ -247,6 +277,10 @@ export class RunnerBuilder {
         new DownloadAttachmentsTransformer({ quiet: this.flags.quiet, verbose: this.flags.verbose })
       );
     }
+
+    // A plugin's transformer takes Chronicle records, with any media embedded,
+    // and what it makes is what the presentation flags below work on.
+    if (pluginTransformer) runner.addTransformer(pluginTransformer);
 
     if (this.flags.fields) {
       runner.addTransformer(new FilterFieldsTransformer({ fields: this.flags.fields }));

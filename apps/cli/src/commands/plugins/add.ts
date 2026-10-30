@@ -37,5 +37,11 @@ export default class PluginsAdd extends BaseCommand<typeof PluginsAdd> {
       );
       this.log(`  ${t.command(`chronicle extract ${source}`)}  ${t.muted(strategies.join(', '))}`);
     }
+    for (const transformer of added.transformers) {
+      const command = t.command(`chronicle extract <source> --transformer ${transformer.source}`);
+      this.log(
+        `  ${command}${transformer.description ? `  ${t.muted(transformer.description)}` : ''}`
+      );
+    }
   }
 }
