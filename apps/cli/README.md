@@ -33,8 +33,10 @@ counts what each source found holds and over which years, and
 `claude-code`; `chronicle plugins install <name>` adds any other catalog source.
 
 JSON is the default; use `--loader csv`, `yaml`, or `table`, and `--output <file>`
-to write a file. The default limit is 100; `--limit 0` reads all records. Each run
-reads the requested scope again without an archive or saved cursor.
+to write a file. `--loader http --endpoint <url>` posts each record as JSON
+instead, with `--token <token>` as a bearer token. The default limit is 100;
+`--limit 0` reads all records. Each run reads the requested scope again without an
+archive or saved cursor.
 
 Manage credentials with `chronicle auth`, settings with `chronicle config`, and
 plugins with `chronicle plugins`, `plugins install`, and `plugins uninstall`.

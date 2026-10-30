@@ -29,6 +29,7 @@ export { Runner, type RunnerConfig } from './runner.js';
 export { RunReport, type RunStats } from './report.js';
 export { JsonLoader, colorizeJson, formatJson, type JsonColorTheme } from './json-loader.js';
 export { CsvLoader } from './connectors/loaders/CsvLoader.js';
+export { HttpLoader } from './connectors/loaders/HttpLoader.js';
 export { YamlLoader } from './connectors/loaders/YamlLoader.js';
 export {
   LABELS,

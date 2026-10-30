@@ -27,6 +27,7 @@ chronicle extract claude-code --loader yaml --output sessions.yaml
 ```
 
 - Output is JSON by default. Use `--loader csv`, `yaml`, or `table` to change it.
+- `--loader http --endpoint <url>` posts each record as JSON instead, with `--token <token>` as a bearer token.
 - `--output <file>` writes to a file instead of stdout.
 - `--limit` defaults to 100. `--limit 0` reads everything.
 
