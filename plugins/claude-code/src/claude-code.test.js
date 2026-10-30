@@ -142,7 +142,14 @@ test('inclusive windows filter before limits and invalid dates/malformed lines a
   assert.equal(records[0].data.body, 'Thinking\n\nMore');
   assert.equal((await extract(input, { limit: 0 })).length, 3);
 });
-test('tool results, meta prompts and synthetic assistant messages are excluded', async t => {
+test('tool results, meta prompts, harness lines and synthetic assistant messages are excluded', async t => {
+  // Older transcripts carry no origin: a line is a prompt unless the harness wrote it.
+  const older = (uuid, content, fields = {}) => ({
+    ...prompt(uuid),
+    origin: undefined,
+    message: { content },
+    ...fields,
+  });
   const { input } = fixture(t, [
     { ...prompt('meta'), isMeta: true },
     {
@@ -151,15 +158,31 @@ test('tool results, meta prompts and synthetic assistant messages are excluded',
       message: { content: [{ type: 'tool_result', content: 'output' }] },
     },
     prompt(),
+    { ...prompt('notification'), origin: { kind: 'task-notification' } },
+    older('older', 'Fix the\u2028build'),
+    older('older-blocks', [{ type: 'text', text: 'Look at this' }, { type: 'image' }]),
+    older('command', '<command-name>/clear</command-name>'),
+    older('command-output', '<local-command-stdout>Done</local-command-stdout>'),
+    older('shell', '<bash-input>ls</bash-input>'),
+    older('interrupted', [{ type: 'text', text: '[Request interrupted by user]' }]),
+    older('plan', 'Implement the following plan:\n\n# Plan'),
+    older('bare-command', '/compact'),
+    older('summary', 'This session is being continued', { isCompactSummary: true }),
+    older('tool-output', 'output', { toolUseResult: {} }),
+    older('subagent', 'Search the repo', { isSidechain: true }),
+    older('system', 'Background work finished', { promptSource: 'system' }),
     {
       ...reply('synthetic', 'x', [{ type: 'text', text: 'ignore' }]),
       message: { model: '<synthetic>', content: [] },
     },
   ]);
+  const records = await extract(input);
   assert.deepEqual(
-    (await extract(input)).map(r => r.data.uuid),
-    ['prompt-1']
+    records.map(r => r.data.uuid),
+    ['older-blocks', 'older', 'prompt-1']
   );
+  // A line holding U+2028 is still one line.
+  assert.equal(records[1].data.body, 'Fix the\u2028build');
 });
 test('project root scans sessions but excludes nested subagent transcripts', async t => {
   const { root } = fixture(t, []);

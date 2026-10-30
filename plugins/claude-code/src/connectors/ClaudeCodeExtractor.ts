@@ -1,7 +1,6 @@
 import { createReadStream, promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import readline from 'node:readline';
 import { Extractor, Record, countMonth, type Survey, type SurveyOptions } from '@chronicle.app/etl';
 import { z } from 'zod';
 import ClaudeCodeTransformer from './ClaudeCodeTransformer.js';
@@ -74,6 +73,29 @@ interface Session {
 
 /** Tools whose input is best summarised by the path they touch. */
 const PATH_INPUTS = ['file_path', 'path', 'notebook_path', 'pattern'];
+
+/**
+ * How a `user` line Claude Code wrote itself begins, when it has no `origin`
+ * to say so: a slash command's echo or output, shell-mode input or output, a
+ * reminder or notification, an interruption, the plan a cleared session
+ * starts from, or a bare slash command.
+ */
+const HARNESS_TEXT =
+  /^(?:<(?:command-name|command-message|command-args|local-command-stdout|local-command-stderr|local-command-caveat|bash-input|bash-stdout|bash-stderr|bash-notification|system-reminder|task-notification|user-prompt-submit-hook)>|\[Request interrupted by user|Implement the following plan:|\/[\w:-]+\/?$)/;
+
+/**
+ * A file's lines, split on `\n` alone. JSON strings may hold U+2028 and
+ * U+2029, which `readline` would also split a line on.
+ */
+async function* linesOf(file: string): AsyncGenerator<string> {
+  let rest = '';
+  for await (const chunk of createReadStream(file, { encoding: 'utf8' })) {
+    const lines = (rest + chunk).split('\n');
+    rest = lines.pop() ?? '';
+    yield* lines;
+  }
+  if (rest) yield rest;
+}
 
 export class ClaudeCodeExtractor extends Extractor<typeof ClaudeCodeExtractor> {
   static override source = 'claude-code';
@@ -303,11 +325,7 @@ export class ClaudeCodeExtractor extends Extractor<typeof ClaudeCodeExtractor> {
     let responses: Response[] = [];
     let lineNumber = 0;
 
-    const lines = readline.createInterface({
-      input: createReadStream(file, { encoding: 'utf8' }),
-      crlfDelay: Number.POSITIVE_INFINITY,
-    });
-    for await (const raw of lines) {
+    for await (const raw of linesOf(file)) {
       lineNumber++;
       if (!raw.trim()) continue;
       let line: any;
@@ -384,10 +402,12 @@ export class ClaudeCodeExtractor extends Extractor<typeof ClaudeCodeExtractor> {
   /**
    * A prompt the person typed or queued. Tool results, compaction summaries,
    * interruptions, slash-command echoes and other harness-injected lines are
-   * `user` lines too, but carry no human origin or are marked meta.
+   * `user` lines too, but carry no human origin or are marked meta. Older
+   * transcripts carry no origin at all, so a line without one is a prompt
+   * unless it's the harness's own.
    */
   private humanPrompt(line: any): TranscriptMessage | null {
-    if (line.isMeta === true || line.origin?.kind !== 'human') return null;
+    if (line.isMeta === true) return null;
     if (typeof line.uuid !== 'string' || typeof line.timestamp !== 'string') return null;
     const content = line.message?.content;
     const body =
@@ -400,7 +420,26 @@ export class ClaudeCodeExtractor extends Extractor<typeof ClaudeCodeExtractor> {
               .join('\n')
           : '';
     if (!body.trim()) return null;
+    const human =
+      line.origin === undefined ? !this.fromHarness(line, body) : line.origin?.kind === 'human';
+    if (!human) return null;
     return { uuid: line.uuid, timestamp: line.timestamp, role: 'human', body };
+  }
+
+  /**
+   * Whether a `user` line without an origin is one Claude Code wrote: marked
+   * as a compaction summary, a subagent's, a tool result or a system prompt,
+   * or reading as one of the harness's own lines.
+   */
+  private fromHarness(line: any, body: string): boolean {
+    return (
+      line.isCompactSummary === true ||
+      line.isVisibleInTranscriptOnly === true ||
+      line.isSidechain === true ||
+      line.toolUseResult !== undefined ||
+      line.promptSource === 'system' ||
+      HARNESS_TEXT.test(body.trim())
+    );
   }
 
   /** Add an assistant line's blocks to the response they belong to. */
