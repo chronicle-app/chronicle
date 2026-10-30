@@ -70,10 +70,20 @@ export function progress(fields: ProgressFields, t: Tokens, width: number, frame
   return lines;
 }
 
+// A terminal that supports them shows what's written between these at once;
+// others ignore them.
+const SYNC_START = '\u001B[?2026h';
+const SYNC_END = '\u001B[?2026l';
+// Clear to the end of the line, and from the cursor to the end of the screen.
+const CLEAR_LINE = '\u001B[K';
+const CLEAR_BELOW = '\u001B[J';
+
 /**
  * Lines on stderr, redrawn in place as a spinner ticks. Anything else written
  * to stderr meanwhile prints above them, and they redraw beneath. `render`
  * draws them for a width and a spinner frame, each line within the width.
+ * Each redraw is one write over the lines in place, so the terminal never
+ * shows them cleared between frames.
  */
 export class LiveRegion {
   private frame = 0;
@@ -92,25 +102,27 @@ export class LiveRegion {
     this.write('\u001B[?25l');
     process.once('exit', this.restoreCursor);
     process.stderr.write = ((chunk: any, ...rest: any[]) => {
-      this.erase();
       const text = typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString();
-      const written = this.write(text.endsWith('\n') ? text : `${text}\n`, ...rest);
-      this.draw();
-      return written;
+      const above = text.endsWith('\n') ? text : `${text}\n`;
+      // The text where the lines were, and the lines beneath it.
+      const home = this.home();
+      const lines = this.frameText();
+      return this.write(`${SYNC_START}${home}${CLEAR_BELOW}${above}${lines}${SYNC_END}`, ...rest);
     }) as typeof process.stderr.write;
     this.timer = setInterval(() => {
       this.frame++;
       this.redraw();
     }, TICK);
     this.timer.unref();
-    this.draw();
+    this.write(this.frameText());
   }
 
   /** Draw what changed now, not on the next tick. */
   redraw(): void {
     if (!this.timer) return;
-    this.erase();
-    this.draw();
+    const home = this.home();
+    const lines = this.frameText();
+    this.write(`${SYNC_START}${home}${lines}${CLEAR_BELOW}${SYNC_END}`);
   }
 
   /** Take the lines off the screen, leaving stderr as it was. */
@@ -118,7 +130,8 @@ export class LiveRegion {
     if (!this.timer) return;
     clearInterval(this.timer);
     this.timer = undefined;
-    this.erase();
+    this.write(`${this.home()}${CLEAR_BELOW}`);
+    this.drawn = 0;
     process.stderr.write = this.write as typeof process.stderr.write;
     this.restoreCursor();
     process.removeListener('exit', this.restoreCursor);
@@ -128,17 +141,18 @@ export class LiveRegion {
     this.write('\u001B[?25h');
   };
 
-  private draw(): void {
-    const width = (process.stderr.columns || 80) - 1;
-    const lines = this.render(width, this.frame);
-    this.write(lines.join('\n'));
-    this.drawn = lines.length;
+  /** From the end of the lines drawn back to the start of the first. */
+  private home(): string {
+    if (this.drawn === 0) return '';
+    return `\r${this.drawn > 1 ? `\u001B[${this.drawn - 1}A` : ''}`;
   }
 
-  private erase(): void {
-    if (this.drawn === 0) return;
-    this.write(`\r\u001B[2K${'\u001B[1A\u001B[2K'.repeat(this.drawn - 1)}`);
-    this.drawn = 0;
+  /** The lines for now, each clearing what a longer line before it left. */
+  private frameText(): string {
+    const width = (process.stderr.columns || 80) - 1;
+    const lines = this.render(width, this.frame);
+    this.drawn = lines.length;
+    return lines.map(line => `${line}${CLEAR_LINE}`).join('\n');
   }
 }
 
