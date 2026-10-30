@@ -211,6 +211,17 @@ test('preserves streaming and buffered extraction, post-filter limits, and itera
     assert.equal(summary.fields.records, 1);
     assert.equal(summary.fields.title, 'fixture · items');
     assert.ok(events.every(e => e.run.id === 'run-1'));
+    // Setup and teardown name the extractor, which isn't personal.
+    const steps = events.filter(e =>
+      ['Initializing extraction', 'Teardown complete'].includes(e.message)
+    );
+    assert.deepEqual(
+      steps.map(e => [e.message, e.fields]),
+      [
+        ['Initializing extraction', { connector: 'FixtureExtractor' }],
+        ['Teardown complete', { connector: 'FixtureExtractor' }],
+      ]
+    );
     assert.deepEqual(runner.stats, {
       counts: { keep: 1 },
       processed: 1,
