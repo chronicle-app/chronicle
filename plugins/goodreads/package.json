@@ -92,6 +92,18 @@
                   }
                 ]
               }
+            ],
+            "setup": [
+              {
+                "open": "https://www.goodreads.com/review/import"
+              },
+              {
+                "do": "click export library"
+              },
+              {
+                "wait": "a few minutes",
+                "via": "download"
+              }
             ]
           }
         }

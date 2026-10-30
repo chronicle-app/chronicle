@@ -70,6 +70,7 @@
             "recordTypes": [
               "messages"
             ],
+            "summary": "mail, read live, with its account",
             "default": true
           },
           "takeout": {
@@ -77,6 +78,7 @@
             "recordTypes": [
               "messages"
             ],
+            "summary": "mail as of the export, with no account",
             "files": [
               {
                 "names": [
@@ -90,6 +92,18 @@
                     ]
                   }
                 ]
+              }
+            ],
+            "setup": [
+              {
+                "open": "https://takeout.google.com/settings/takeout/custom/gmail"
+              },
+              {
+                "do": "keep mbox format, then create export"
+              },
+              {
+                "wait": "a few hours",
+                "via": "email"
               }
             ]
           }

@@ -1,6 +1,6 @@
 # @chronicle.app/google
 
-Google sign-in for Chronicle's Google sources: Gmail (`chronicle extract gmail`) and Google Calendar (`chronicle extract google-calendar`). Chronicle ships no Google OAuth client. You make one in your own Google Cloud project, once, and `chronicle auth login google` walks you through it.
+Google sign-in for Chronicle's Google sources: Gmail (`chronicle extract gmail`), Google Calendar (`chronicle extract google-calendar`), and YouTube (`chronicle extract youtube`). Chronicle ships no Google OAuth client. You make one in your own Google Cloud project, once, and `chronicle auth login google` walks you through it.
 
 ## Signing in
 
@@ -35,8 +35,10 @@ A Workspace admin can block apps their organization hasn't approved from Gmail a
 The first sign-in asks for Gmail and Calendar. `--add` asks for more, keeping what you have, and turns the API on in your project:
 
 ```sh
-chronicle auth login google --add drive
+chronicle auth login google --add youtube
 ```
+
+You can add `contacts`, `drive`, or `youtube`.
 
 ### Without the walkthrough
 

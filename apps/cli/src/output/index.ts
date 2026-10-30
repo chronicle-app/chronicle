@@ -11,6 +11,8 @@ export {
   THEMES,
   type Tokens,
   type Style,
+  type RGB,
+  rgbStyles,
   type JsonColors,
 } from './tokens.js';
 export { glyphs } from './glyphs.js';
@@ -29,6 +31,7 @@ export {
   line,
   summary,
   hint,
+  guide,
   heading,
   paragraph,
   definitions,
@@ -43,6 +46,24 @@ export {
   type TableInput,
 } from './blocks.js';
 export { progress, LiveRegion, LiveView, type ProgressFields } from './live.js';
+export {
+  LOGO,
+  WORDMARK,
+  Animation,
+  EFFECTS,
+  SPLASH_STYLES,
+  Splash,
+  beside,
+  fromBraille,
+  paint,
+  toBraille,
+  type Dots,
+  type Effect,
+  type Intro,
+  type SplashStyle,
+  type SplashStyleName,
+  type Step,
+} from './logo/index.js';
 // The prompts (`./prompts.js`) are imported on their own, only where a
 // question is asked, so other commands don't load what draws them.
 export {

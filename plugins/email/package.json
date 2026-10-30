@@ -78,6 +78,11 @@
                   }
                 ]
               }
+            ],
+            "setup": [
+              {
+                "do": "export a mailbox as mbox from your mail app"
+              }
             ]
           }
         }

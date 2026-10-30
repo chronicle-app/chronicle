@@ -69,7 +69,7 @@ export async function surveyRow(
  * Null when it isn't in a zip, or the zip doesn't hold it. A zip that won't
  * open fails as a run's would, saying why and what to do.
  */
-async function checkInZip(input: string): Promise<{ status: 'ready' } | null> {
+export async function checkInZip(input: string): Promise<{ status: 'ready' } | null> {
   let files;
   try {
     files = await openExport(input);

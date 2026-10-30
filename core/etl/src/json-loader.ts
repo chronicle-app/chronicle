@@ -162,22 +162,29 @@ export class JsonLoader extends Loader<typeof JsonLoader> {
   private jsonTheme?: JsonColorTheme;
   private isFirstWrite = true;
   private isStdoutMode: boolean;
+  /** JSON Lines: each record on a line of its own, uncolored, for another program to read. */
+  private lines: boolean;
 
   constructor(
     config: z.input<typeof JsonLoader.schema> = {},
     jsonTheme?: JsonColorTheme,
-    isStdoutMode?: boolean
+    isStdoutMode?: boolean,
+    { lines = false }: { lines?: boolean } = {}
   ) {
     super(config);
     this.stream = process.stdout; // Always use stdout for non-file output
     this.jsonTheme = jsonTheme;
     this.isStdoutMode = isStdoutMode || false;
+    this.lines = lines;
   }
 
   async load(record: Record): Promise<LoadResult> {
-    const jsonText = formatJson(record.data) + '\n';
+    const jsonText =
+      (this.lines ? inline(record.data, plainTheme) : formatJson(record.data)) + '\n';
 
-    if (this.config.output) {
+    if (this.lines && !this.config.output) {
+      this.stream.write(jsonText);
+    } else if (this.config.output) {
       // Write to file - overwrite on first write, append afterwards
       if (this.isFirstWrite) {
         writeFileSync(this.config.output, jsonText);

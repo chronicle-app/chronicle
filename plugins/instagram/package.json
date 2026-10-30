@@ -79,7 +79,22 @@
               "searches",
               "stories"
             ],
-            "default": true
+            "default": true,
+            "setup": [
+              {
+                "open": "https://accountscenter.instagram.com/info_and_permissions/dyi/"
+              },
+              {
+                "do": "pick download or transfer information, then your account"
+              },
+              {
+                "do": "pick all available information, download to device, format json"
+              },
+              {
+                "wait": "up to a few days",
+                "via": "email"
+              }
+            ]
           }
         }
       }

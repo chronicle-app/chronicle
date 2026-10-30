@@ -70,7 +70,21 @@
               "comments",
               "follows"
             ],
-            "default": true
+            "default": true,
+            "setup": [
+              {
+                "open": "https://www.are.na/developers/personal-access-tokens"
+              },
+              {
+                "do": "create a token with read-only access, then copy it"
+              },
+              {
+                "ask": "token"
+              },
+              {
+                "sign-in": "arena"
+              }
+            ]
           }
         }
       }

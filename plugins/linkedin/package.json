@@ -80,7 +80,19 @@
               "positions",
               "profile"
             ],
-            "default": true
+            "default": true,
+            "setup": [
+              {
+                "open": "https://www.linkedin.com/mypreferences/d/download-my-data"
+              },
+              {
+                "do": "pick the larger data archive, then request archive"
+              },
+              {
+                "wait": "about a day",
+                "via": "email"
+              }
+            ]
           }
         }
       }

@@ -23,10 +23,14 @@ export interface OAuthCommandOptions {
   scopes?: string[];
   /** Named scope sets to ask for on top of those already granted. */
   add?: string[];
+  /** On a first sign-in, ask for only what's added, not the provider's defaults too. */
+  onlyAdded?: boolean;
   noBrowser?: boolean;
   timeout?: number;
   /** Run the provider's setup again from the start. */
   fresh?: boolean;
+  /** Open the sign-in page without asking first, for a person who just asked to sign in. */
+  openAtOnce?: boolean;
 }
 
 export class OAuthCommand {
@@ -102,7 +106,7 @@ export class OAuthCommand {
       const authUrl = provider.buildAuthUrl();
 
       // The URL is the one thing a person must act on, so it isn't cut to fit.
-      await this.open(authUrl, this.server.waitForCallback());
+      await this.open(authUrl, this.server.waitForCallback(), this.options.openAtOnce);
 
       logger.info('Waiting for authorization…');
 
@@ -174,7 +178,8 @@ export class OAuthCommand {
 
   /**
    * The named scope sets to ask for: those an earlier sign-in was granted
-   * (or the provider's defaults on a first one), plus any added with `--add`.
+   * (or the provider's defaults on a first one, unless `onlyAdded`), plus any
+   * added with `--add`.
    */
   private async scopeSets(ProviderClass: typeof OAuthProvider): Promise<string[]> {
     const added = this.options.add ?? [];
@@ -197,9 +202,8 @@ export class OAuthCommand {
     const granted = (await CredentialManager.getAllCredentials(this.providerId)).flatMap(entry =>
       ProviderClass.scopeSetsIn(entry.scope)
     );
-    const sets = [
-      ...new Set([...(granted.length > 0 ? granted : ProviderClass.defaultScopeSets), ...added]),
-    ];
+    const first = this.options.onlyAdded && added.length > 0 ? [] : ProviderClass.defaultScopeSets;
+    const sets = [...new Set([...(granted.length > 0 ? granted : first), ...added])];
     // Checked here, before setup, so a typo doesn't cost a trip to a console.
     ProviderClass.scopesFor(sets);
     return sets;
@@ -283,9 +287,9 @@ export class OAuthCommand {
 
   /**
    * Show a page's URL, and open it in the browser once the person presses
-   * Enter. Without a terminal to ask at, or a browser, the URL is all.
+   * Enter, or `atOnce`. Without a terminal to ask at, or a browser, the URL is all.
    */
-  private async open(url: string, settled?: Promise<unknown>): Promise<void> {
+  private async open(url: string, settled?: Promise<unknown>, atOnce = false): Promise<void> {
     // Keyed by the URL, so a run that opens several pages never rolls one
     // up as a repeat: each is a link the person needs.
     logger.emit({
@@ -296,6 +300,12 @@ export class OAuthCommand {
       key: url,
     });
     if (this.options.noBrowser || !interactive() || !(await BrowserLauncher.canOpenBrowser())) {
+      return;
+    }
+    if (atOnce) {
+      await BrowserLauncher.openUrl(url).catch(error => {
+        logger.warn("Couldn't open a browser", { error: String(error) });
+      });
       return;
     }
     // The person may open the URL themselves: once `settled` (the sign-in

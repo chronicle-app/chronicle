@@ -55,6 +55,21 @@ export function appBundle(listing: string, pid: number): string | undefined {
   return undefined;
 }
 
+/**
+ * The terminal this runs in, by name, and the app bundle it runs from when
+ * that's known.
+ */
+export async function terminal(): Promise<{ app: string; bundle?: string }> {
+  let bundle: string | undefined;
+  try {
+    bundle = appBundle((await run('ps', ['-A', '-o', 'pid=,ppid=,comm='])).stdout, process.pid);
+  } catch {
+    // Without it, the steps say to pick the app with +.
+  }
+  const app = terminalApp() ?? (bundle && path.basename(bundle, '.app')) ?? 'your terminal app';
+  return { app, bundle };
+}
+
 export default class FullDiskAccess extends BaseCommand<typeof FullDiskAccess> {
   static override summary = 'Give your terminal Full Disk Access for macOS sources';
 
@@ -79,13 +94,7 @@ export default class FullDiskAccess extends BaseCommand<typeof FullDiskAccess> {
       this.logger.info('Only macOS asks for Full Disk Access');
       return;
     }
-    let bundle: string | undefined;
-    try {
-      bundle = appBundle((await run('ps', ['-A', '-o', 'pid=,ppid=,comm='])).stdout, process.pid);
-    } catch {
-      // Without it, the steps say to pick the app with +.
-    }
-    const app = terminalApp() ?? (bundle && path.basename(bundle, '.app')) ?? 'your terminal app';
+    const { app, bundle } = await terminal();
     if (hasFullDiskAccess(os.homedir())) {
       this.summary(`Full Disk Access is on for ${app}`);
       return;

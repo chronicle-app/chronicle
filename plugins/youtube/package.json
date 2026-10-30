@@ -40,6 +40,7 @@
   },
   "dependencies": {
     "@chronicle.app/auth": "0.5.0",
+    "@chronicle.app/google": "0.5.0",
     "axios": "^1.7.9",
     "csv-parse": "^5.6.0",
     "zod": "^3.24.1"
@@ -71,6 +72,7 @@
               "subscriptions",
               "uploads"
             ],
+            "summary": "likes, playlists, subscriptions",
             "default": true
           },
           "takeout": {
@@ -97,6 +99,19 @@
               "playlist-items",
               "uploads",
               "comments"
+            ],
+            "summary": "watch and search history, and more",
+            "setup": [
+              {
+                "open": "https://takeout.google.com/settings/takeout/custom/youtube"
+              },
+              {
+                "do": "keep history as html, then create export"
+              },
+              {
+                "wait": "a few hours",
+                "via": "email"
+              }
             ]
           }
         }

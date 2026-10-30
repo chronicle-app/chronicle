@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { existsSync, promises as fs, realpathSync } from 'node:fs';
 import { findEntry, loadCatalog, type CatalogEntry } from './catalog.js';
 import { pluginDataDir } from './PluginScanner.js';
@@ -47,10 +47,12 @@ function realpathOrSelf(file: string): string {
 
 /**
  * Run the user's npm against the data directory. Its output goes to stderr,
- * so `extract` can install and still keep stdout for records.
+ * so `extract` can install and still keep stdout for records, and through
+ * stderr's own write, so lines drawn in place there stay clear of it. It
+ * runs alongside, so a spinner keeps turning and Ctrl-C is heard.
  */
-function npm(dataDir: string, args: string[]): void {
-  const result = spawnSync(
+async function npm(dataDir: string, args: string[]): Promise<void> {
+  const child = spawn(
     'npm',
     [
       ...args,
@@ -62,10 +64,15 @@ function npm(dataDir: string, args: string[]): void {
       '--no-fund',
       '--loglevel=error',
     ],
-    { stdio: ['ignore', 2, 2], shell: process.platform === 'win32' }
+    { stdio: ['ignore', 'pipe', 'pipe'], shell: process.platform === 'win32' }
   );
-  if (result.error) throw new Error(`Couldn't run npm: ${result.error.message}`);
-  if (result.status !== 0) throw new Error(`npm ${args[0]} failed (exit ${result.status}).`);
+  child.stdout!.on('data', chunk => process.stderr.write(chunk));
+  child.stderr!.on('data', chunk => process.stderr.write(chunk));
+  const status = await new Promise<number | null>((resolve, reject) => {
+    child.once('error', error => reject(new Error(`Couldn't run npm: ${error.message}`)));
+    child.once('close', resolve);
+  });
+  if (status !== 0) throw new Error(`npm ${args[0]} failed (exit ${status}).`);
 }
 
 /**
@@ -80,7 +87,7 @@ export async function installPlugin(target: InstallTarget): Promise<string> {
   }
 
   const before = await installedIn(dataDir);
-  npm(dataDir, ['install', target.spec]);
+  await npm(dataDir, ['install', target.spec]);
   const after = await installedIn(dataDir);
   const realSpec = existsSync(target.spec) ? realpathSync(target.spec) : undefined;
   const name =
@@ -101,7 +108,7 @@ export async function installPlugin(target: InstallTarget): Promise<string> {
     await fs.readFile(path.join(dataDir, 'node_modules', name, 'package.json'), 'utf8')
   );
   if (pkg.chronicle?.plugin !== true) {
-    npm(dataDir, ['uninstall', name]);
+    await npm(dataDir, ['uninstall', name]);
     throw new Error(`${name} isn't a Chronicle plugin (no "chronicle": { "plugin": true }).`);
   }
   return name;
@@ -112,6 +119,6 @@ export async function uninstallPlugin(name: string): Promise<boolean> {
   const dataDir = await pluginDataDir();
   const packageName = findEntry(await loadCatalog(), name)?.package ?? name;
   if (!(packageName in (await installedIn(dataDir)))) return false;
-  npm(dataDir, ['uninstall', packageName]);
+  await npm(dataDir, ['uninstall', packageName]);
   return true;
 }

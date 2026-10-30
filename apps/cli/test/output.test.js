@@ -122,6 +122,39 @@ test('a card wraps its values when asked, cutting no word', async () => {
   assert.equal(wrapped.map(line => line.slice('types  '.length)).join(' '), types);
 });
 
+test('the logo comes on by each effect, ending as the logo, and sits beside what follows', async () => {
+  const { LOGO, WORDMARK, Animation, EFFECTS, beside, fromBraille, paint, toBraille } =
+    await import('../dist/output/index.js');
+  const { spool, unroll, sequence, unrolledAt } = await import('../dist/output/logo/index.js');
+  const art = fromBraille(LOGO);
+  assert.deepEqual(toBraille(art), LOGO);
+  const effects = {
+    ...EFFECTS,
+    spool: spool(unrolledAt),
+    unroll: unroll(unrolledAt),
+    sequence: sequence([EFFECTS.rise, 1], [EFFECTS.shimmer, 1]),
+  };
+  for (const [name, effect] of Object.entries(effects)) {
+    const animation = new Animation(art, effect, 900);
+    assert.deepEqual(paint(animation.frame(900)), LOGO, name);
+    assert.ok(
+      paint(animation.frame(450)).every(line => [...line].length === 22),
+      `${name} keeps the logo's width`
+    );
+  }
+  // Resolving starts as static, lighting cells the logo leaves blank.
+  const start = paint(new Animation(art, EFFECTS.resolve, 900).frame(0));
+  const blank = (lines, y, x) => [...lines[y]][x] === ' ';
+  assert.ok(
+    LOGO.some((line, y) => [...line].some((_, x) => blank(LOGO, y, x) && !blank(start, y, x)))
+  );
+  // The wordmark starts four columns after the logo, in its middle.
+  const both = beside(LOGO, WORDMARK, { gap: 4, top: 4 });
+  assert.equal(both.length, LOGO.length);
+  assert.equal(both[4], `${LOGO[4]}    ${WORDMARK[0]}`);
+  assert.equal(both[0], LOGO[0]);
+});
+
 test('root help lines up summaries across groups, and stacks only a name too long', async () => {
   const { rootHelp } = await import('../dist/help/render.js');
   const { plainTokens } = await import('../dist/output/index.js');

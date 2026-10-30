@@ -349,18 +349,36 @@ async function scanStrategy(
   return rows;
 }
 
+/** A source a scan has looked for: what it found, and how many sources it has looked for of all. */
+export interface ScanProgress {
+  source: string;
+  rows: ScanRow[];
+  done: number;
+  total: number;
+}
+
 /**
- * Look for each source's material on this computer, or one source's. Only
- * opens what it finds to check it can be read, and reads none of it.
+ * Look for each source's material on this computer, or one source's, or
+ * those in `sources`. Only opens what it finds to check it can be read,
+ * and reads none of it. `onSource` hears of each source as it's looked for.
  */
-export async function scan(options: { source?: string } = {}): Promise<ScanResult> {
+export async function scan(
+  options: {
+    source?: string;
+    sources?: string[];
+    onSource?: (progress: ScanProgress) => void;
+  } = {}
+): Promise<ScanResult> {
   const context: LocateContext = {
     home: os.homedir(),
     platform: process.platform,
     env: process.env,
   };
   const scanned = (await listSources()).filter(
-    l => l.supported && (!options.source || l.source === options.source)
+    l =>
+      l.supported &&
+      (!options.source || l.source === options.source) &&
+      (!options.sources || options.sources.includes(l.source))
   );
   const locators = await PluginScanner.scanAllLocators();
   const extractors = await PluginScanner.scanAllPlugins();
@@ -374,19 +392,31 @@ export async function scan(options: { source?: string } = {}): Promise<ScanResul
         .map(l => l.path)
     );
   }
+  let done = 0;
   const rows = (
     await Promise.all(
-      scanned.flatMap(listing =>
-        listing.strategies.map(strategy =>
-          scanStrategy(
-            listing,
-            strategy,
-            locators,
-            (extractors.get(listing.source) ?? []).filter(e => e.strategy === strategy.name),
-            context
+      scanned.map(async listing => {
+        const found = (
+          await Promise.all(
+            listing.strategies.map(strategy =>
+              scanStrategy(
+                listing,
+                strategy,
+                locators,
+                (extractors.get(listing.source) ?? []).filter(e => e.strategy === strategy.name),
+                context
+              )
+            )
           )
-        )
-      )
+        ).flat();
+        options.onSource?.({
+          source: listing.source,
+          rows: found,
+          done: ++done,
+          total: scanned.length,
+        });
+        return found;
+      })
     )
   ).flat();
   rows.sort(byRank);

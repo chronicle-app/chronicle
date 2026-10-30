@@ -86,6 +86,17 @@
                 ],
                 "name": "HealthKit {version}"
               }
+            ],
+            "setup": [
+              {
+                "do": "on your iphone, open health and tap your picture"
+              },
+              {
+                "do": "tap export all health data, then airdrop it to this mac"
+              },
+              {
+                "wait": "a few minutes"
+              }
             ]
           }
         }

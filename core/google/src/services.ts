@@ -24,6 +24,11 @@ export const GOOGLE_SERVICES = {
     scopes: ['https://www.googleapis.com/auth/drive.readonly'],
     api: 'drive.googleapis.com',
   },
+  youtube: {
+    label: 'YouTube',
+    scopes: ['https://www.googleapis.com/auth/youtube.readonly'],
+    api: 'youtube.googleapis.com',
+  },
 } as const;
 
 export type GoogleService = keyof typeof GOOGLE_SERVICES;

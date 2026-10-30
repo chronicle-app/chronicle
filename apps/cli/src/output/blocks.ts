@@ -93,12 +93,12 @@ export function summary(
 }
 
 /**
- * What to do next, under the line it follows: a `↳` line per line of the
+ * What to do next, under the line it follows: a `✦` line per line of the
  * message and action, in plain sentences with commands inline. Wrapping never
  * splits a command. A line that ends in a command (`To pick others:
  * \`chronicle extract hackernews comments\``) puts it on a line of its own.
  *
- *   ↳ Run `chronicle extract github --list-types` to see what it has.
+ *   ✦ Run `chronicle extract github --list-types` to see what it has.
  */
 export function hint(message: string, action: string | undefined, t: Tokens, width: number) {
   const steps = [message, ...(action ?? '').split('\n')].filter(step => step.trim() !== '');
@@ -114,7 +114,7 @@ export function hint(message: string, action: string | undefined, t: Tokens, wid
       );
       for (const [i, part] of wrap(held, width - 4).entries()) {
         const text = codeSpans(part.replaceAll(HELD_SPACE, ' '), t);
-        lines.push(t.muted(i === 0 ? `  ${glyphs.child} ` : '    ') + text);
+        lines.push(t.muted(i === 0 ? `  ${glyphs.hint} ` : '    ') + text);
       }
     }
     if (command) {
@@ -122,7 +122,7 @@ export function hint(message: string, action: string | undefined, t: Tokens, wid
       lines.push(
         prose
           ? `      ${t.command(command)}`
-          : `${t.muted(`  ${glyphs.child} `)}${t.command(command)}`
+          : `${t.muted(`  ${glyphs.hint} `)}${t.command(command)}`
       );
     }
   }
