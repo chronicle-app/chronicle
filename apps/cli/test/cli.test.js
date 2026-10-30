@@ -312,12 +312,32 @@ test('the http loader posts each record as JSON, and a response that is not OK f
   }
 
   // Without a token there's no Authorization header, and a record the
-  // endpoint turns down is a failure.
+  // endpoint turns down is a failure that gives the status and names the
+  // record, a personal value its JSON leaves out.
   status = 500;
-  const refused = await extract('--loader', 'http', '--endpoint', endpoint, '--method', 'PUT');
+  const refused = await extract(
+    '--loader',
+    'http',
+    '--endpoint',
+    endpoint,
+    '--method',
+    'PUT',
+    '--log-format',
+    'json'
+  );
   assert.equal(refused.status, 1);
   assert.equal(received.at(-1).method, 'PUT');
   assert.equal(received.at(-1).headers.authorization, undefined);
+  const errors = refused.stderr
+    .split('\n')
+    .filter(line => line.startsWith('{'))
+    .map(line => JSON.parse(line))
+    .filter(event => event.key === 'record.load');
+  assert.equal(errors.length, 2);
+  for (const { message, fields } of errors) {
+    assert.match(message, /HTTP 500/);
+    assert.deepEqual(fields, { type: 'commands', title: '[redacted]' });
+  }
 });
 
 test('CSV static command accepts piped input and file input', t => {
@@ -342,7 +362,23 @@ test('transformation flags pick fields, sample records and truncate base64', t =
     success(run(...args, '--fields', 'command')),
     'command\nprintf fixture\necho synthetic\n'
   );
-  assert.equal(success(run(...args, '--sample', '0')), '');
+  const none = run(...args, '--sample', '0');
+  assert.equal(success(none), '');
+  // Skipped records are counted by kind, and with --verbose, each is named.
+  assert.match(none.stderr, /2 commands skipped/);
+  const events = run(...args, '--sample', '0', '--verbose', '--log-format', 'json')
+    .stderr.split('\n')
+    .filter(line => line.startsWith('{'))
+    .map(line => JSON.parse(line));
+  assert.deepEqual(events.find(e => e.kind === 'summary').fields.skippedCounts, { commands: 2 });
+  const skips = events.filter(e => e.key === 'record.skip');
+  assert.deepEqual(
+    skips.map(e => e.fields),
+    [
+      { type: 'commands', title: '[redacted]' },
+      { type: 'commands', title: '[redacted]' },
+    ]
+  );
   assert.equal(success(run(...args, '--sample', '1')).split('\n').length, 4);
   assert.notEqual(run(...args, '--sample', '2').status, 0);
 

@@ -7,10 +7,11 @@ import {
   timeOfDay,
   type LogLevel,
   type OutputEvent,
+  type RecordLabel,
   type Sink,
 } from '@chronicle.app/logging';
 import { guide, hint, line, summary, type Segment, type SummaryFields } from './blocks.js';
-import { count } from './format.js';
+import { count, labelText } from './format.js';
 import { glyphs } from './glyphs.js';
 import { LiveView, type ProgressFields } from './live.js';
 import { plainTokens, tokens, type Tokens } from './tokens.js';
@@ -55,8 +56,18 @@ function tally({ values, personal }: Rollup): string {
     .join('  ');
 }
 
-/** An event's fields as `key=value`, less a URL, which gets a line of its own. */
+const LABEL_KEYS = new Set(['type', 'date', 'title']);
+
+/** Fields that are a record's label and nothing else, as a run's record events carry. */
+const isLabel = (fields: OutputEvent['fields']): fields is RecordLabel =>
+  typeof fields?.type === 'string' && Object.keys(fields).every(key => LABEL_KEYS.has(key));
+
+/**
+ * An event's fields as `key=value`, less a URL, which gets a line of its own.
+ * A record's label reads as one: `ViewAction · 2025-03-04 18:22 · A page title`.
+ */
 function fieldText(event: OutputEvent): string {
+  if (isLabel(event.fields)) return labelText(event.fields);
   const { url, ...others } = event.fields ?? {};
   return formatFields(typeof url === 'string' ? others : event.fields);
 }

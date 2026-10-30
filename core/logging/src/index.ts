@@ -33,6 +33,7 @@ export type {
   LogLevel,
   OutputEvent,
   ProgressFields,
+  RecordLabel,
   RunContext,
   SummaryFields,
   Sink,

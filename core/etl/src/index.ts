@@ -55,6 +55,7 @@ export {
   type LoggerContext,
   type OutputEvent,
   type ProgressFields,
+  type RecordLabel,
   type RunContext,
   type SummaryFields,
   type Sink,

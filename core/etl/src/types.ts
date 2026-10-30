@@ -1,3 +1,5 @@
+import type { RecordLabel } from '@chronicle.app/logging';
+
 /**
  * How a source's history reaches the archive. `export` and `api` are the two
  * pulls, `local` reads a file in place, and `direct` is the one value where
@@ -41,7 +43,11 @@ export interface Record {
   data: any;
   schema: string;
   context: any;
-  toString: string;
+  /**
+   * What a run calls the record: set from the extractor's hooks, and kept
+   * through each transformer that can't say better.
+   */
+  label?: RecordLabel;
 }
 
 export interface LoadResult {

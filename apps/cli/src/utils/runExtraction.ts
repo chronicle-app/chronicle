@@ -24,10 +24,11 @@ function destination(output: unknown): string | undefined {
  * The live view goes on stderr when that's a terminal. When records print to
  * the same terminal it shows only until they do: while the run starts and
  * reads, or for the table, which prints as the run is torn down, until then.
+ * A loader that prints none, such as `http`, leaves it there throughout.
  */
-function wantsLiveView(flags: any): Live {
+function wantsLiveView(flags: any, printsRecords: boolean): Live {
   if (flags.quiet || !process.stderr.isTTY) return false;
-  const toTerminal = !destination(flags.output) && process.stdout.isTTY;
+  const toTerminal = printsRecords && !destination(flags.output) && process.stdout.isTTY;
   if (!toTerminal) return true;
   return flags.loader === 'table' ? 'until-writing' : 'until-loading';
 }
@@ -72,16 +73,17 @@ export async function runExtraction(
 ) {
   const { source, strategy } = extractor;
   const output = destination(flags.output);
+  const builder = new RunnerBuilder(flags, flagSources);
+  const printsRecords = builder.printsRecords();
   const sink = createSink({
     format: flags['log-format'] ?? defaultLogFormat(),
     level: thresholdFor(flags),
     theme: flags.theme,
-    live: wantsLiveView(flags),
-    air: !output && process.stdout.isTTY && process.stderr.isTTY,
+    live: wantsLiveView(flags, printsRecords),
+    air: printsRecords && !output && process.stdout.isTTY && process.stderr.isTTY,
   });
   const run = { id: randomUUID(), source: String(source), strategy: String(strategy ?? '') };
   const logger = createLogger({ scope: 'runner', sink, run });
-  const builder = new RunnerBuilder(flags, flagSources);
   // The runner reports the run itself: progress, record errors, the summary.
   let runner: Runner;
   try {

@@ -17,6 +17,12 @@ test('the gallery renders every block and event within its width, in every sink 
       // Personal fields are redacted, a keyed flood aggregates, progress is a heartbeat.
       const warning = events.find(e => e.message === 'unparseable line skipped');
       assert.equal(warning.fields.file, '[redacted]');
+      const failure = events.find(e => e.key === 'record.load');
+      assert.deepEqual(failure.fields, {
+        type: 'ExecuteAction',
+        date: '[redacted]',
+        title: '[redacted]',
+      });
       assert.ok(
         events.some(e => e.message === '…and 2 more like this' && e.fields.suppressed === 2)
       );
@@ -43,6 +49,26 @@ test('the gallery renders every block and event within its width, in every sink 
       if (width === 120) assert.ok(warning.endsWith(' 09:30:05') && warning.length === width);
       if (width === 40) assert.doesNotMatch(warning, /09:30:05/);
       assert.ok(lines.every(line => !/✓.*09:30:05/.test(line.replaceAll(ANSI, ''))));
+      // A failed record is named by its label: type, date in local time, then title.
+      const failure = lines
+        .map(line => line.replaceAll(ANSI, ''))
+        .find(line => line.includes('HTTP 500'));
+      if (width === 120) {
+        assert.match(
+          failure,
+          /HTTP 500 Internal Server Error {2}ExecuteAction · 2026-01-02 09:29 · git status --short/
+        );
+      }
+    }
+    // The record in hand reads the same way, and the width cuts its title first.
+    if (title.startsWith('blocks') && width === 120) {
+      const current = lines
+        .map(line => line.replaceAll(ANSI, ''))
+        .filter(line => line.startsWith('  ↳ commands'));
+      assert.deepEqual(
+        new Set(current),
+        new Set(['  ↳ commands · 2026-01-02 09:29 · git status --short'])
+      );
     }
     // However narrow, a failed run's summary keeps its failure count, on a
     // line of its own under the outcome.

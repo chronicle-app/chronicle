@@ -52,7 +52,11 @@ const running: ProgressFields = {
   processed: 420,
   total: 1240,
   counts: { commands: 420 },
-  current: 'git status --short',
+  current: {
+    type: 'commands',
+    date: new Date(2026, 0, 2, 9, 29, 51).toISOString(),
+    title: 'git status --short',
+  },
   elapsedMs: 4200,
 };
 
@@ -106,10 +110,19 @@ export const EVENTS: OutputEvent[] = [
       level: 'error',
       kind: 'error',
       scope: 'runner',
-      message: `Extraction error: Schema validation error: record ${i + 1} is missing a timestamp`,
+      message: `Schema validation error: record ${i + 1} is missing a timestamp`,
       key: 'record.validation',
     })
   ),
+  event({
+    level: 'error',
+    kind: 'error',
+    scope: 'runner',
+    message: 'HTTP 500 Internal Server Error',
+    key: 'record.load',
+    fields: { ...running.current, type: 'ExecuteAction' },
+    sensitive: ['date', 'title'],
+  }),
   event({
     level: 'error',
     kind: 'error',

@@ -1,3 +1,5 @@
+import type { RecordLabel } from '@chronicle.app/logging';
+import { chronicleLabel } from './label.js';
 import { Transformer } from './transformer.js';
 import { Record } from './types.js';
 import { BaseAndChildren, BaseAndChildrenSchema, isInstant } from '@chronicle.app/schema';
@@ -32,23 +34,8 @@ export abstract class ChronicleTransformer extends Transformer {
 
   protected abstract override transform(record: Record): Promise<BaseAndChildren[]>;
 
-  protected override recordToString(record: Record): string {
-    const obj = record.data as BaseAndChildren;
-    const objWithTimestamp = obj as any;
-    const timestampValue =
-      objWithTimestamp?.endTime ?? objWithTimestamp?.startTime ?? objWithTimestamp?.timestamp;
-    let timestampString = '';
-
-    if (timestampValue) {
-      try {
-        timestampString = new Date(timestampValue).toISOString();
-      } catch {
-        timestampString = new Date().toISOString();
-      }
-    }
-
-    const parts = [obj.source, obj['@type'], timestampString];
-    return parts.filter(Boolean).join('.');
+  protected override labelOf(record: Record): RecordLabel {
+    return chronicleLabel(record.data, record.label);
   }
 
   protected override postTransform(result: BaseAndChildren, record: Record): void {

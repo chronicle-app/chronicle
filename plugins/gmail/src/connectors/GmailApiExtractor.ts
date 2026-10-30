@@ -220,7 +220,7 @@ export class GmailApiExtractor extends Extractor<typeof GmailApiExtractor> {
     };
   }
 
-  override recordToString(data?: GmailRecord): string {
-    return data?.mail?.subject || 'gmail.messages';
+  override titleOf(record: Record): string | undefined {
+    return (record.data as GmailRecord).mail?.subject;
   }
 }
