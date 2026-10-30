@@ -1,6 +1,6 @@
 {
   "name": "@chronicle.app/apple-wallet",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
@@ -25,9 +25,9 @@
   "type": "module",
   "description": "Chronicle plugin for the card transactions in Apple Wallet on a Mac",
   "devDependencies": {
-    "@chronicle.app/etl": "0.5.0",
-    "@chronicle.app/schema": "0.5.0",
-    "@chronicle.app/tsconfig": "0.5.0",
+    "@chronicle.app/etl": "0.6.0",
+    "@chronicle.app/schema": "0.6.0",
+    "@chronicle.app/tsconfig": "0.6.0",
     "@types/node": "^22.10.1",
     "typescript": "^5.7.2"
   },
@@ -42,8 +42,8 @@
     "registry": "https://registry.npmjs.org/"
   },
   "dependencies": {
-    "@chronicle.app/etl-sqlite": "0.5.0",
-    "@chronicle.app/apple": "0.5.0",
+    "@chronicle.app/etl-sqlite": "0.6.0",
+    "@chronicle.app/apple": "0.6.0",
     "zod": "^3.24.1"
   },
   "peerDependencies": {

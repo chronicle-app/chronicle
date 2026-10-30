@@ -1,5 +1,12 @@
 # @chronicle.app/google-reader
 
+## 0.6.0
+
+### Patch Changes
+
+- Updated dependencies [4566669]
+  - @chronicle.app/google@0.6.0
+
 ## 0.5.0
 
 ### Minor Changes

@@ -1,6 +1,6 @@
 {
   "name": "@chronicle.app/schema",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Minimal Chronicle extraction vocabulary and generated TypeScript/Zod schemas",
   "type": "module",
   "main": "./dist/index.js",
@@ -35,8 +35,8 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@chronicle.app/prettier-config": "0.5.0",
-    "@chronicle.app/tsconfig": "0.5.0",
+    "@chronicle.app/prettier-config": "0.6.0",
+    "@chronicle.app/tsconfig": "0.6.0",
     "@types/node": "^22.10.1",
     "n3": "^1.23.1",
     "prettier": "^3.6.2",

@@ -1,5 +1,39 @@
 # @chronicle.app/cli
 
+## 0.6.0
+
+### Minor Changes
+
+- e2a8022: `HttpLoader` sends each record as JSON to an endpoint, by `POST` unless `method` says otherwise, with `token` as a bearer token when one is given. A response that isn't OK fails the record. In the CLI, `--loader http --endpoint <url>` uses it, with `--method` and `--token`.
+- ca654e6: `--transformer <name>` reshapes each record with a plugin's transformer, after the source's own, such as into another system's format. A plugin's transformer extends `Transformer` and sets `static source`, its name, and `static inputSchema = 'chronicle'`. `chronicle plugins add` takes a plugin that has only a transformer, and says how to run it. An unknown name, or `--raw` with `--transformer`, is a usage error.
+
+### Patch Changes
+
+- 010725b: A source's export strategy can declare default record types of its own, which a run with `--input` reads, beside the default a bare run takes. A run without `--input` takes the default strategy that reads without a file, whatever order the strategies are declared in, and `chronicle sources info` and a source's help call that one the default.
+- 5e01fe1: Hints are marked `✦` instead of `↳`, which now only marks a live line's current item.
+- 82a318e: A run with `--loader http` shows its progress until it ends. The CLI hides progress once records start loading, so it doesn't mix with records printed to the terminal, but the `http` loader prints none. A loader says whether it prints records with `static printsRecords`, which is `true` unless it sets otherwise.
+- 525ba94: Live progress no longer flashes as it redraws. Each frame is written over the last in one write, instead of clearing the lines and then drawing them again, and it's marked as one update for terminals that support synchronized output.
+- aaa7f9f: A failed record is named in its error, by its label, and the error no longer starts with "Extraction error:". A failed `--loader http` post gives its HTTP status, with the response body on the line below. With `--verbose`, each skipped record is named too, and the summary counts skips by type, such as "12 bookmarks skipped".
+- 057d92d: Each record carries a label, its type, title, and date, and a run shows it for the record in hand and in each failed or skipped record, set apart with `·`: `ViewAction · 2025-03-04 18:22 · A page title`. The date is in local time to the minute, and `--log-format json` leaves out the title and date. An extractor labels its records from the record type, the new `titleOf(record)` hook (else the data's first `name`, `title`, … `url`), and `occurredAt(record)`. A `ChronicleTransformer` relabels each payload with its `@type`, what names it, and its `timestamp`, `startTime`, or `endTime`, and a transformer after it, such as one making another system's payload, keeps that label. This replaces a record's `toString` text, and the `recordToString` hooks with `titleOf` on extractors and `labelOf` on transformers.
+- e27cdc0: `chronicle scan` no longer suggests surveying an account read online, which a survey can't count, and `chronicle survey` of a source read only online says so and how to extract it, instead of "Nothing of foursquare's to survey".
+- Updated dependencies [3a2adbe]
+- Updated dependencies [7109300]
+- Updated dependencies [e2a8022]
+- Updated dependencies [82a318e]
+- Updated dependencies [aaa7f9f]
+- Updated dependencies [057d92d]
+- Updated dependencies [b9ba3ed]
+  - @chronicle.app/claude-code@0.6.0
+  - @chronicle.app/etl@0.6.0
+  - @chronicle.app/logging@0.6.0
+  - @chronicle.app/safari@0.6.0
+  - @chronicle.app/etl-sqlite@0.6.0
+  - @chronicle.app/imessage@0.6.0
+  - @chronicle.app/shell@0.6.0
+  - @chronicle.app/things-todo@0.6.0
+  - @chronicle.app/auth@0.6.0
+  - @chronicle.app/schema@0.6.0
+
 ## 0.5.0
 
 ### Minor Changes
