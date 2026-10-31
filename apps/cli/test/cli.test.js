@@ -1519,7 +1519,10 @@ test('setup --yes imports the last year of what is ready here into the store, on
   assert.equal(unasked.status, 2);
   assert.match(JSON.parse(unasked.stderr.trim().split('\n').at(-1)).hint.action, /--yes/);
 
-  success(setup('setup', '--yes'));
+  const first = setup('setup', '--yes');
+  assert.equal(first.status, 0, first.stderr);
+  // It ends with how to see what came in from the biggest.
+  assert.match(first.stderr, /Run `chronicle query "type:Action source:shell"`/);
   const actions = type =>
     success(setup('query', `type:${type}`))
       .trim()
@@ -1532,7 +1535,8 @@ test('setup --yes imports the last year of what is ready here into the store, on
     [`echo ${now - day}`, `echo ${now - 30 * day}`]
   );
   if (darwin) assert.equal(actions('ViewAction').length, 1);
-  // Each pick is saved as the flags that extract it, and its import is recorded.
+  // Each pick is saved as the flags that extract it, in the config, and its
+  // import is recorded beside the store, without them.
   const { targets } = JSON.parse(readFileSync(join(dir, 'config', 'config.json'), 'utf8'));
   assert.deepEqual(
     targets.find(target => target.source === 'shell'),
@@ -1543,6 +1547,7 @@ test('setup --yes imports the last year of what is ready here into the store, on
   );
   const recorded = () => JSON.parse(readFileSync(join(dir, 'data', 'setup', 'shell.json'), 'utf8'));
   const record = recorded();
+  assert.deepEqual(Object.keys(record).sort(), ['db', 'importedAt', 'records', 'since']);
   assert.equal(record.records, 2);
   assert.equal(record.db, join(dir, 'data', 'chronicle.db'));
 

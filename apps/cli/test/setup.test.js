@@ -222,7 +222,7 @@ test('an import counts only for the store it went into', () => {
   inFolder(root => {
     writeFileSync(
       path.join(root, 'spotify.json'),
-      JSON.stringify({ ...ACCOUNT, records: 1, db: '/stores/chronicle.db' })
+      JSON.stringify({ records: 1, db: '/stores/chronicle.db' })
     );
     assert.equal(imported(root, 'spotify', '/stores/chronicle.db').records, 1);
     assert.equal(imported(root, 'spotify', '/stores/other.db'), undefined);

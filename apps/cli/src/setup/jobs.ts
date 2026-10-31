@@ -62,8 +62,11 @@ export interface RunOptions {
   onChange(job: Job): void;
 }
 
-/** What a finished import leaves: its target, and how it went. */
-export interface Imported extends Target {
+/**
+ * What a finished import leaves: how it went, and never the pick itself,
+ * which the config keeps. Its file is named after the pick.
+ */
+export interface Imported {
   since: string;
   records: number;
   /** The store it went into. */
@@ -266,7 +269,6 @@ export class JobRunner {
         } else if (code === 0) {
           job.state = 'done';
           const record: Imported = {
-            ...job.target,
             since: this.options.since,
             records: job.processed,
             db: this.options.db,

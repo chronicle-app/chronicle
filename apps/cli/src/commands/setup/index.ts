@@ -2570,7 +2570,14 @@ export default class Setup extends BaseCommand<typeof Setup> {
     if (done.length > 0) {
       // The summary says where the store is; without one, this does.
       const where = jobs.length > 0 ? '' : `They're in ${fromHome(this.db, this.home)}. `;
-      this.hint(`${where}Use \`--again\` to import them again.`);
+      // What came in from the biggest, which has the most to show.
+      const { source } = done.reduce((a, b) => (b.records > a.records ? b : a)).target;
+      const query = commandLine(
+        ['query', `type:Action source:${source}`, ...(this.flags.db ? ['--db', this.db] : [])],
+        this.home
+      );
+      this.hint(`${where}Run \`${query}\` to see what came in from ${source}.`);
+      this.hint('Use `--again` to import them again.');
     }
     await this.waiting(
       targets.filter(
