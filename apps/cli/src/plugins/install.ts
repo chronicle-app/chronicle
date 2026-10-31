@@ -2,7 +2,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { existsSync, promises as fs, realpathSync } from 'node:fs';
 import { findEntry, loadCatalog, type CatalogEntry } from './catalog.js';
-import { pluginDataDir } from './PluginScanner.js';
+import { legacyPluginDataDir, pluginDataDir } from './PluginScanner.js';
 
 export interface InstallTarget {
   /** What npm installs: a pinned package, a package spec, or an absolute path. */
@@ -114,11 +114,16 @@ export async function installPlugin(target: InstallTarget): Promise<string> {
   return name;
 }
 
-/** Remove a plugin from the data directory. Returns false if it wasn't installed there. */
+/**
+ * Remove a plugin from the data directory, or from where installs went before
+ * they moved there. Returns false if it wasn't installed in either.
+ */
 export async function uninstallPlugin(name: string): Promise<boolean> {
-  const dataDir = await pluginDataDir();
   const packageName = findEntry(await loadCatalog(), name)?.package ?? name;
-  if (!(packageName in (await installedIn(dataDir)))) return false;
-  await npm(dataDir, ['uninstall', packageName]);
-  return true;
+  for (const dataDir of [await pluginDataDir(), await legacyPluginDataDir()]) {
+    if (!(packageName in (await installedIn(dataDir)))) continue;
+    await npm(dataDir, ['uninstall', packageName]);
+    return true;
+  }
+  return false;
 }

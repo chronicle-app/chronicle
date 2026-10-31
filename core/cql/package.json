@@ -1,0 +1,54 @@
+{
+  "name": "@chronicle.app/cql",
+  "version": "0.5.0",
+  "description": "Chronicle Query Language: parser, AST types, and target inference (storage-agnostic)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.lib.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint src --ext .ts",
+    "test": "vitest run"
+  },
+  "author": "Andrew Louis",
+  "license": "MIT",
+  "homepage": "https://chronicle.app",
+  "bugs": {
+    "url": "https://github.com/chronicle-app/chronicle/issues/new?labels=core:cql&title=[cql]%20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chronicle-app/chronicle.git",
+    "directory": "core/cql"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "devDependencies": {
+    "@chronicle.app/prettier-config": "0.5.0",
+    "@chronicle.app/schema": "0.5.0",
+    "@chronicle.app/tsconfig": "0.5.0",
+    "@types/node": "^22.10.1",
+    "prettier": "^3.6.2",
+    "typescript": "^5.7.2",
+    "vitest": "^3.2.4"
+  },
+  "peerDependencies": {
+    "@chronicle.app/schema": ">=0.1.0 <1.0.0"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  }
+}

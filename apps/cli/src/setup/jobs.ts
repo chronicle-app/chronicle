@@ -1,28 +1,12 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import {
-  closeSync,
-  existsSync,
-  mkdtempSync,
-  openSync,
-  readdirSync,
-  readSync,
-  renameSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createInterface } from 'node:readline';
-import { targetArgs, targetName, type Target } from './targets.js';
+import { targetArgs, type Target } from './targets.js';
 
-/**
- * A child's heap cap. Timing's extractor needed about 4 GB for a year; a cap
- * isn't a reservation, so two jobs at a time can each have this much.
- */
+/** A child's heap cap. Timing's extractor needed about 4 GB for a year. */
 const HEAP_MB = 8192;
-
-/** How often a running job's file is counted. */
-const COUNT_EVERY_MS = 250;
 
 /**
  * How long a child has to end on Ctrl-C before it's killed. One reading a
@@ -33,17 +17,17 @@ const STOP_MS = 2000;
 /** What ends setup without its exit running: closing the terminal, or `kill`. */
 const SIGNALS: NodeJS.Signals[] = ['SIGTERM', 'SIGHUP'];
 
-/** One target's extraction, run as a child `chronicle extract`. */
+/** One target's import, run as a child `chronicle import`. */
 export interface Job {
   target: Target;
-  /** Its file's name, without `.jsonl`. */
+  /** Its record's name, without `.json`. */
   name: string;
   /** Its name in the list. */
   label: string;
   /** How many records its survey counted, when it could. */
   total: number | null;
   state: 'waiting' | 'running' | 'done' | 'failed' | 'stopped';
-  /** Records written so far: lines in its file. */
+  /** Records imported so far, as the child's progress says. */
   processed: number;
   startedAt?: number;
   endedAt?: number;
@@ -62,8 +46,10 @@ export interface ChildEvent {
 }
 
 export interface RunOptions {
-  /** The folder the files go in. */
+  /** The folder each finished import's record goes in. */
   root: string;
+  /** The store the children import into. */
+  db: string;
   /** The CLI's `bin/run.js`, which the children run. */
   bin: string;
   /** The start of the year extracted, as `--since` takes it. */
@@ -76,82 +62,46 @@ export interface RunOptions {
   onChange(job: Job): void;
 }
 
-export const partialFile = (root: string, name: string) => path.join(root, `${name}.jsonl.partial`);
-export const finishedFile = (root: string, name: string) => path.join(root, `${name}.jsonl`);
-export const targetFile = (root: string, name: string) => path.join(root, `${name}.target.json`);
-
 /**
- * The files setup wrote in a folder: each target file, and the records
- * beside it, finished or not; and what a run stopped partway left of the
- * picks'. Never another file, though its name looks alike.
+ * What a finished import leaves: how it went, and never the pick itself,
+ * which the config keeps. Its file is named after the pick.
  */
-export function setupFiles(root: string, targets: Target[]): string[] {
-  let extracted: string[];
+export interface Imported {
+  since: string;
+  records: number;
+  /** The store it went into. */
+  db: string;
+  importedAt: string;
+}
+
+export const importedFile = (root: string, name: string) => path.join(root, `${name}.json`);
+
+/** What a target's import left in `root`, when it went into the store at `db`. */
+export function imported(root: string, name: string, db: string): Imported | undefined {
   try {
-    extracted = readdirSync(root)
-      .filter(file => file.endsWith('.target.json'))
-      .map(file => file.slice(0, -'.target.json'.length));
+    const record = JSON.parse(readFileSync(importedFile(root, name), 'utf8')) as Imported;
+    return record.db === db ? record : undefined;
   } catch {
-    // No folder there.
-    return [];
-  }
-  const files = [
-    ...extracted.flatMap(name => [
-      targetFile(root, name),
-      finishedFile(root, name),
-      partialFile(root, name),
-    ]),
-    ...targets.map(target => partialFile(root, targetName(target, targets))),
-  ];
-  return [...new Set(files)].filter(file => existsSync(file));
-}
-
-/**
- * Counts the lines a child has written so far, reading only what's new
- * since it last looked.
- */
-class LineCounter {
-  private offset = 0;
-  private readonly buffer = Buffer.alloc(1_048_576);
-  lines = 0;
-
-  constructor(private readonly file: string) {}
-
-  update(): number {
-    let fd: number;
-    try {
-      fd = openSync(this.file, 'r');
-    } catch {
-      return this.lines;
-    }
-    try {
-      let read: number;
-      while ((read = readSync(fd, this.buffer, 0, this.buffer.length, this.offset)) > 0) {
-        for (let i = 0; i < read; i++) if (this.buffer[i] === 10) this.lines++;
-        this.offset += read;
-      }
-    } finally {
-      closeSync(fd);
-    }
-    return this.lines;
+    // Not imported yet.
+    return undefined;
   }
 }
 
 /**
- * Runs jobs a few at a time, biggest first by their surveys' counts. Each
- * child writes its records to a `.partial` file, given to it as stdout, so
- * its writes never wait on this process; the file is renamed when the child
- * exits cleanly, with the target beside it. A job can join while others run,
- * with `add()`. `stop()` ends the children and deletes their partial files.
+ * Runs jobs `concurrency` at a time, biggest first by their surveys' counts. Each
+ * child imports its records into the store, saying how far it's got as it
+ * goes; a record of the import goes in `root` when the child exits cleanly.
+ * A job can join while others run, with `add()`. `stop()` ends the
+ * children; what they imported stays, and the next run imports it again.
  * Each child has a temporary folder of its own, for its copies of the
  * databases it reads, deleted when it ends however it ends, killed too.
- * Should this process end while they run, they end with it, and leave
- * neither a partial file nor a copy.
+ * Should this process end while they run, they end with it, and leave no
+ * copy.
  */
 export class JobRunner {
   private readonly children = new Map<Job, ChildProcess>();
-  /** Each running child's partial file and temporary folder. */
-  private readonly files = new Map<Job, { partial: string; scratch: string }>();
+  /** Each running child's temporary folder. */
+  private readonly scratches = new Map<Job, string>();
   private stopping = false;
   /** The jobs not started, biggest first. */
   private readonly queue: Job[] = [];
@@ -168,17 +118,14 @@ export class JobRunner {
     for (const signal of SIGNALS) process.once(signal, this.ended);
   }
 
-  /** End every child still running, and delete its partial file and its folder. */
+  /** End every child still running, and delete its folder. */
   private clean = () => {
     for (const [job, child] of this.children) {
       child.kill('SIGKILL');
-      const files = this.files.get(job);
-      if (files) {
-        rmSync(files.partial, { force: true });
-        rmSync(files.scratch, { recursive: true, force: true });
-      }
+      const scratch = this.scratches.get(job);
+      if (scratch) rmSync(scratch, { recursive: true, force: true });
     }
-    this.files.clear();
+    this.scratches.clear();
   };
 
   /** Ended by a signal: clean up, then end as the signal would have. */
@@ -191,19 +138,16 @@ export class JobRunner {
   /** The command a job runs, after `chronicle`. */
   args(job: Job): string[] {
     return [
-      'extract',
+      'import',
       ...targetArgs(job.target),
       '--since',
       this.options.since,
       '--limit',
       '0',
-      // Each record written as it's read: not held until the end, and counted as it comes.
+      // Each record imported as it's read: not held until the end, and counted as it comes.
       '--stream',
-      '--loader',
-      'jsonl',
-      // Its file is its stdout, whatever `chronicle config set output` says.
-      '--output',
-      'stdout',
+      '--db',
+      this.options.db,
       '--log-format',
       'json',
     ];
@@ -247,7 +191,7 @@ export class JobRunner {
     }
   }
 
-  /** End every running child, delete its partial file, and start no more. */
+  /** End every running child, and start no more. */
   async stop(): Promise<void> {
     this.stopping = true;
     const exits = [...this.children.values()].map(
@@ -271,28 +215,21 @@ export class JobRunner {
 
   private runOne(job: Job): Promise<void> {
     const { root, bin, onEvent, onChange } = this.options;
-    const partial = partialFile(root, job.name);
-    const out = openSync(partial, 'w');
-    const counter = new LineCounter(partial);
     const scratch = mkdtempSync(path.join(tmpdir(), 'chronicle-job-'));
-    this.files.set(job, { partial, scratch });
+    this.scratches.set(job, scratch);
     const child = spawn(
       process.execPath,
       [`--max-old-space-size=${HEAP_MB}`, bin, ...this.args(job)],
       {
-        stdio: ['ignore', out, 'pipe'],
+        stdio: ['ignore', 'ignore', 'pipe'],
         // Its copies go in its own folder, deleted with it.
         env: { ...process.env, CHRONICLE_SKIP_NEW_VERSION_CHECK: '1', TMPDIR: scratch },
       }
     );
-    closeSync(out);
     this.children.set(job, child);
     job.state = 'running';
     job.startedAt = Date.now();
     onChange(job);
-    const ticker = setInterval(() => {
-      job.processed = counter.update();
-    }, COUNT_EVERY_MS);
 
     createInterface({ input: child.stderr! }).on('line', line => {
       let event: ChildEvent;
@@ -302,9 +239,15 @@ export class JobRunner {
         // Not an event, like a warning from Node itself.
         return;
       }
+      // How far it's got, as it goes, and in all once it's through.
+      if (event.kind === 'progress' && typeof event.fields?.processed === 'number') {
+        job.processed = event.fields.processed;
+      } else if (event.kind === 'summary' && typeof event.fields?.records === 'number') {
+        job.processed = event.fields.records;
+      }
       // Its error is why it failed, said once it has; anything else worth a
       // look shows as it comes.
-      if (event.kind === 'error') {
+      else if (event.kind === 'error') {
         job.error = { message: event.message, ...(event.hint && { hint: event.hint.action }) };
       } else if (event.level === 'warn' || event.level === 'error') {
         onEvent(job, event);
@@ -316,36 +259,25 @@ export class JobRunner {
       const finish = (code: number | null) => {
         if (finished) return;
         finished = true;
-        clearInterval(ticker);
         this.children.delete(job);
         rmSync(scratch, { recursive: true, force: true });
-        this.files.delete(job);
-        job.processed = counter.update();
+        this.scratches.delete(job);
         job.endedAt = Date.now();
         // A child stopped by Ctrl-C exits 130, maybe before this process hears it.
         if (this.stopping || code === 130) {
           job.state = 'stopped';
-          rmSync(partial, { force: true });
         } else if (code === 0) {
           job.state = 'done';
-          renameSync(partial, finishedFile(root, job.name));
-          writeFileSync(
-            targetFile(root, job.name),
-            `${JSON.stringify(
-              {
-                ...job.target,
-                since: this.options.since,
-                records: job.processed,
-                extractedAt: new Date(job.endedAt).toISOString(),
-              },
-              null,
-              2
-            )}\n`
-          );
+          const record: Imported = {
+            since: this.options.since,
+            records: job.processed,
+            db: this.options.db,
+            importedAt: new Date(job.endedAt).toISOString(),
+          };
+          writeFileSync(importedFile(root, job.name), `${JSON.stringify(record, null, 2)}\n`);
         } else {
           job.state = 'failed';
           job.error ??= { message: `Exited with code ${code}` };
-          rmSync(partial, { force: true });
         }
         onChange(job);
         resolve();

@@ -622,6 +622,8 @@ export class Fixture extends Extractor {
 }`
   );
   success(run('plugins', 'install', './fixture-plugin'));
+  // Installs go in the plugins folder of the Chronicle data directory.
+  assert.ok(existsSync(join(dir, 'data', 'plugins', 'node_modules', 'fixture-plugin')));
   // Reinstalling from the same path leaves its dependency entry unchanged.
   success(run('plugins', 'install', './fixture-plugin'));
   assert.match(success(run('plugins')), /fixture-plugin +1\.0\.0 +installed/);
@@ -639,6 +641,48 @@ export class Fixture extends Extractor {
   success(run('plugins', 'uninstall', 'fixture-plugin'));
   assert.equal(
     JSON.parse(success(run('sources', '--source', 'fixture', '--format', 'json'))).length,
+    0
+  );
+});
+
+test('a plugin installed before installs moved to the plugins folder still loads and uninstalls', t => {
+  const { dir, run } = fixture(t);
+  // Where an older CLI installed it: oclif's data directory, which
+  // CHRONICLE_DATA_DIR names here as well.
+  const legacy = join(dir, 'data');
+  const plugin = join(legacy, 'node_modules', 'legacy-plugin');
+  mkdirSync(plugin, { recursive: true });
+  writeFileSync(
+    join(legacy, 'package.json'),
+    JSON.stringify({ private: true, dependencies: { 'legacy-plugin': '1.0.0' } })
+  );
+  writeFileSync(
+    join(plugin, 'package.json'),
+    JSON.stringify({
+      name: 'legacy-plugin',
+      version: '1.0.0',
+      type: 'module',
+      exports: './index.js',
+      chronicle: { plugin: true },
+    })
+  );
+  writeFileSync(
+    join(plugin, 'index.js'),
+    `import { Extractor } from '@chronicle.app/etl';
+export class Legacy extends Extractor {
+  static source = 'legacy'; static strategy = 'file'; static delivery = 'export';
+  static recordTypes = ['rows']; static default = true;
+  async *extract() { yield this.createRecord({ name: 'legacy fixture' }); }
+}`
+  );
+  const [listing] = JSON.parse(success(run('sources', '--source', 'legacy', '--format', 'json')));
+  assert.equal(listing.origin, 'installed');
+  assert.equal(JSON.parse(success(run('extract', 'legacy', '--raw'))).name, 'legacy fixture');
+
+  success(run('plugins', 'uninstall', 'legacy-plugin'));
+  assert.ok(!existsSync(plugin));
+  assert.equal(
+    JSON.parse(success(run('sources', '--source', 'legacy', '--format', 'json'))).length,
     0
   );
 });
@@ -1451,7 +1495,7 @@ function safariHistory(file, { older = false, visited = new Date('2025-01-01T00:
   db.close();
 }
 
-test('setup --yes imports the last year of what is ready here, a record a line, once', t => {
+test('setup --yes imports the last year of what is ready here into the store, once', t => {
   const { dir, run } = fixture(t);
   const home = join(dir, 'home');
   const day = 86_400;
@@ -1475,21 +1519,24 @@ test('setup --yes imports the last year of what is ready here, a record a line, 
   assert.equal(unasked.status, 2);
   assert.match(JSON.parse(unasked.stderr.trim().split('\n').at(-1)).hint.action, /--yes/);
 
-  success(setup('setup', '--yes'));
-  const extracts = join(dir, 'data', 'extracts');
-  const lines = name =>
-    readFileSync(join(extracts, `${name}.jsonl`), 'utf8')
-      .trimEnd()
+  const first = setup('setup', '--yes');
+  assert.equal(first.status, 0, first.stderr);
+  // It ends with how to see what came in from the biggest.
+  assert.match(first.stderr, /Run `chronicle query "type:Action source:shell"`/);
+  const actions = type =>
+    success(setup('query', `type:${type}`))
+      .trim()
       .split('\n')
+      .filter(Boolean)
       .map(line => JSON.parse(line));
   // The last year only, newest first.
   assert.deepEqual(
-    lines('shell').map(record => record.object.body),
+    actions('ExecuteAction').map(action => action.object.body),
     [`echo ${now - day}`, `echo ${now - 30 * day}`]
   );
-  if (darwin) assert.equal(lines('safari').length, 1);
-  assert.ok(!readdirSync(extracts).some(file => file.endsWith('.partial')));
-  // Each pick is saved as the flags that extract it, beside its records too.
+  if (darwin) assert.equal(actions('ViewAction').length, 1);
+  // Each pick is saved as the flags that extract it, in the config, and its
+  // import is recorded beside the store, without them.
   const { targets } = JSON.parse(readFileSync(join(dir, 'config', 'config.json'), 'utf8'));
   assert.deepEqual(
     targets.find(target => target.source === 'shell'),
@@ -1498,25 +1545,25 @@ test('setup --yes imports the last year of what is ready here, a record a line, 
       flags: { strategy: 'history', type: ['commands'] },
     }
   );
-  const beside = JSON.parse(readFileSync(join(extracts, 'shell.target.json'), 'utf8'));
-  assert.equal(beside.records, 2);
+  const recorded = () => JSON.parse(readFileSync(join(dir, 'data', 'setup', 'shell.json'), 'utf8'));
+  const record = recorded();
+  assert.deepEqual(Object.keys(record).sort(), ['db', 'importedAt', 'records', 'since']);
+  assert.equal(record.records, 2);
+  assert.equal(record.db, join(dir, 'data', 'chronicle.db'));
 
-  // A second run imports nothing it has a file for.
-  const before = readFileSync(join(extracts, 'shell.jsonl'), 'utf8');
+  // A second run imports nothing it imported already.
   const again = setup('setup', '--yes');
   assert.equal(again.status, 0, again.stderr);
   assert.match(again.stderr, /Nothing new to import/);
-  assert.equal(readFileSync(join(extracts, 'shell.jsonl'), 'utf8'), before);
+  assert.deepEqual(recorded(), record);
 
-  // Reset forgets the picks, so setup starts over, and keeps the files unless told.
+  // Reset forgets the picks, so setup starts over; what it imported stays.
   const reset = setup('setup', 'reset');
   assert.equal(reset.status, 0, reset.stderr);
-  assert.match(reset.stderr, /chronicle setup reset --files/);
+  assert.match(reset.stderr, /stays in the store/);
   const config = JSON.parse(readFileSync(join(dir, 'config', 'config.json'), 'utf8'));
   assert.equal(config.targets, undefined);
-  assert.ok(readdirSync(extracts).length > 0);
-  success(setup('setup', 'reset', '--files'));
-  assert.deepEqual(readdirSync(extracts), []);
+  assert.equal(actions('ExecuteAction').length, 2);
 
   // A Google sign-in gets a source named ready only with the access it
   // needs: one for Gmail and Calendar can't read YouTube until it's added.
@@ -1888,4 +1935,84 @@ test('a plugin fails with a typed error and exit code, and hints under the summa
     hinted.stderr,
     /✓ typed · rows.*\n.*1 row\n[\s\S]*attachments skipped[\s\S]*grant access/
   );
+});
+
+test('import puts records in the store, from a file, a pipe or a source, and query reads them', t => {
+  const { dir, env, input, run } = fixture(t);
+  const key = ['source', 'sourceId'];
+  const person = (sourceId, name) => ({
+    '@type': 'Person',
+    source: 'test',
+    sourceId,
+    '@key': key,
+    name,
+  });
+  const message = {
+    '@type': 'MessageAction',
+    source: 'test',
+    sourceId: 'm1',
+    '@key': key,
+    timestamp: '2024-01-05T10:00:00Z',
+    agent: person('ada', 'Ada'),
+    object: {
+      '@type': 'Message',
+      source: 'test',
+      sourceId: 'msg1',
+      '@key': key,
+      body: 'lunch?',
+      recipient: [person('bo', 'Bo')],
+    },
+  };
+  const records = join(dir, 'records.json');
+  writeFileSync(records, JSON.stringify([message]));
+
+  // The store goes in the data folder unless --db names another.
+  const imported = run('import', records);
+  assert.equal(imported.status, 0, imported.stderr);
+  assert.match(imported.stderr, /Imported 1 record into .*: 1 new/);
+  assert.ok(existsSync(join(dir, 'data', 'chronicle.db')));
+  const rows = success(run('q', 'type:MessageAction')).trim().split('\n').map(JSON.parse);
+  assert.deepEqual(rows, [
+    {
+      '@type': 'MessageAction',
+      timestamp: '2024-01-05T10:00:00.000Z',
+      source: 'test',
+      agent: { '@type': 'Person', name: 'Ada' },
+      object: { '@type': 'Message', body: 'lunch?', recipient: { '@type': 'Person', name: 'Bo' } },
+    },
+  ]);
+  assert.equal(success(run('query', 'type:Person', '--count')).trim(), '2');
+
+  // Piped records, and a record the store rejects.
+  const piped = spawnSync(process.execPath, [bin, 'i', '--db', join(dir, 'piped.db')], {
+    cwd: dir,
+    env,
+    input: JSON.stringify([message, { '@type': 'MessageAction' }]),
+    encoding: 'utf8',
+  });
+  assert.equal(piped.status, 4, piped.stderr);
+  assert.match(
+    piped.stderr,
+    /Record 2: .*\n.*Imported 2 records .*: 1 new, 0 already there, 1 rejected/
+  );
+
+  // A source runs as extract does, into the store.
+  success(run('import', 'shell', '--input', input, '--db', join(dir, 'shell.db')));
+  assert.equal(
+    success(run('q', 'type:Action', '--count', '--db', join(dir, 'shell.db'))).trim(),
+    '2'
+  );
+  assert.match(success(run('import', 'shell', '--help')), /^ {2}chronicle import shell /m);
+  assert.equal(run('import', 'shell', '--output', 'out.json').status, 2);
+
+  // A file that isn't there is missing, not a source to install.
+  assert.match(run('import', 'missing.json').stderr, /No file at missing.json/);
+
+  // A query that doesn't parse, or a store that isn't there, fails before anything prints.
+  assert.match(run('q', 'type:(').stderr, /Couldn't parse the query/);
+  assert.match(run('q', 'type:Book', '--db', join(dir, 'none.db')).stderr, /No store at/);
+
+  // Neither command is listed yet.
+  assert.doesNotMatch(success(run('--help')), /import|query/);
+  assert.doesNotMatch(success(run('commands')), /import|query/);
 });

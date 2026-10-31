@@ -14,7 +14,7 @@ const { splitArgs } = await import('../dist/setup/args.js');
 const { Steps } = await import('../dist/setup/steps.js');
 const { INTRO, resumed } = await import('../dist/setup/intro.js');
 const { SPLASH_STYLES, tokens } = await import('../dist/output/index.js');
-const { JobRunner, setupFiles } = await import('../dist/setup/jobs.js');
+const { JobRunner, imported } = await import('../dist/setup/jobs.js');
 
 const EXPORT = [
   { open: 'https://www.goodreads.com/review/import' },
@@ -208,7 +208,7 @@ test('the splash says the steps of setup, and where each pick stands on a resume
 
 const ACCOUNT = { source: 'spotify', flags: { strategy: 'api', type: ['listens'] } };
 
-/** A folder of extracts, deleted once `body` is through. */
+/** A folder of import records, deleted once `body` is through. */
 function inFolder(body) {
   const root = mkdtempSync(path.join(tmpdir(), 'chronicle-setup-test-'));
   try {
@@ -218,40 +218,26 @@ function inFolder(body) {
   }
 }
 
-/** Write what a finished job leaves: its records, and its target beside them. */
-function extracted(root, name, target) {
-  writeFileSync(path.join(root, `${name}.jsonl`), '{}\n');
-  writeFileSync(path.join(root, `${name}.target.json`), JSON.stringify({ ...target, records: 1 }));
-}
-
-test('setup reset deletes only the files setup wrote', () => {
+test('an import counts only for the store it went into', () => {
   inFolder(root => {
-    extracted(root, 'spotify', ACCOUNT);
-    writeFileSync(path.join(root, 'spotify.jsonl.partial'), '');
-    // A pick stopped partway leaves only its partial file.
-    writeFileSync(path.join(root, 'goodreads.jsonl.partial'), '');
-    // Files of the person's own, named alike.
-    writeFileSync(path.join(root, 'notes.jsonl'), '{}\n');
-    writeFileSync(path.join(root, 'other.jsonl.partial'), '');
-
-    const goodreads = { source: 'goodreads', flags: { strategy: 'csv', type: ['books'] } };
-    const files = setupFiles(root, [ACCOUNT, goodreads]).map(file => path.basename(file));
-    assert.deepEqual(files.sort(), [
-      'goodreads.jsonl.partial',
-      'spotify.jsonl',
-      'spotify.jsonl.partial',
-      'spotify.target.json',
-    ]);
+    writeFileSync(
+      path.join(root, 'spotify.json'),
+      JSON.stringify({ records: 1, db: '/stores/chronicle.db' })
+    );
+    assert.equal(imported(root, 'spotify', '/stores/chronicle.db').records, 1);
+    assert.equal(imported(root, 'spotify', '/stores/other.db'), undefined);
+    assert.equal(imported(root, 'goodreads', '/stores/chronicle.db'), undefined);
   });
 });
 
-test('a job writes its records to its stdout, whatever output is set by default', () => {
+test('a job imports into the store setup names', () => {
   const args = JobRunner.prototype.args.call(
-    { options: { since: '2025-10-29T00:00:00.000Z' } },
+    { options: { since: '2025-10-29T00:00:00.000Z', db: '/stores/chronicle.db' } },
     { target: ACCOUNT }
   );
-  assert.deepEqual(args.slice(args.indexOf('--output'), args.indexOf('--output') + 2), [
-    '--output',
-    'stdout',
+  assert.equal(args[0], 'import');
+  assert.deepEqual(args.slice(args.indexOf('--db'), args.indexOf('--db') + 2), [
+    '--db',
+    '/stores/chronicle.db',
   ]);
 });

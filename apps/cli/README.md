@@ -1,6 +1,6 @@
 # Chronicle CLI
 
-Extract personal history into Chronicle JSON-LD. Requires Node.js 22.13 or newer.
+Extract personal history into Chronicle JSON-LD. Requires Node.js 22.16 or newer.
 
 ## Getting started
 
