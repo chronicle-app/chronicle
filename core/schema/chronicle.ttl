@@ -21,6 +21,8 @@
 # name, and a store keeps only the forward property. :assertedBy and
 # :retractedBy on a standing relation name the actions that start and end it,
 # and :runPredicate names the relation as those actions' history.
+# :identityEffect "merge" on a property says its subject and its value are
+# one thing, so a store joins their records into one entity.
 #
 # :metric on a number property says what form its values take, and so how
 # its values over a time combine. A "gauge" is a level or a rate, such as a
@@ -38,6 +40,7 @@
 :assertedBy a owl:AnnotationProperty .
 :retractedBy a owl:AnnotationProperty .
 :runPredicate a owl:AnnotationProperty .
+:identityEffect a owl:AnnotationProperty .
 
 # Derived query vocabulary. These are not rdf:Property payload fields.
 :DerivedProperty a rdfs:Class .
@@ -154,6 +157,7 @@
 # datatype property.
 :sameAs a rdf:Property;
   rdfs:comment "Another reference to the same entity, either an entity or a text reference such as `@me`. It states that both refer to one thing, not that they are similar or related.";
+  :identityEffect "merge";
   rdfs:domain :Entity;
   rdfs:range [ owl:unionOf ( :Entity :Text ) ];
   skos:closeMatch schemaorg:sameAs .

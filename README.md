@@ -142,7 +142,7 @@ under `@chronicle.app`.
 
 ## Development
 
-Requires Node.js 22.13.0 or newer.
+Requires Node.js 22.16.0 or newer.
 
 ```sh
 nvm install

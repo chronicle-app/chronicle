@@ -1,0 +1,71 @@
+{
+  "name": "@chronicle.app/persistence",
+  "version": "0.5.0",
+  "description": "The Chronicle store: the assertion log, and the tables folded from it",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts"
+  ],
+  "scripts": {
+    "generate": "node scripts/generate-annotations.js",
+    "generate:check": "node scripts/check-generated.js",
+    "build": "tsc -b tsconfig.lib.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint src scripts --ext .ts,.js",
+    "test": "node scripts/check-generated.js && vitest run"
+  },
+  "author": "Andrew Louis",
+  "license": "MIT",
+  "homepage": "https://chronicle.app",
+  "bugs": {
+    "url": "https://github.com/chronicle-app/chronicle/issues/new?labels=core:persistence&title=[persistence]%20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chronicle-app/chronicle.git",
+    "directory": "core/persistence"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "dependencies": {
+    "@chronicle.app/cql": "0.5.0",
+    "@noble/hashes": "^2.2.0",
+    "multiformats": "^13.3.7"
+  },
+  "devDependencies": {
+    "@chronicle.app/prettier-config": "0.5.0",
+    "@chronicle.app/schema": "0.5.0",
+    "@chronicle.app/tsconfig": "0.5.0",
+    "@types/n3": "^1.26.0",
+    "@types/node": "^22.10.1",
+    "n3": "^1.23.1",
+    "prettier": "^3.6.2",
+    "typescript": "^5.7.2",
+    "vitest": "^3.2.4"
+  },
+  "peerDependencies": {
+    "@chronicle.app/schema": ">=0.1.0 <1.0.0"
+  },
+  "engines": {
+    "node": ">=22.16.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/testDb.d.ts",
+      "import": "./dist/testing/testDb.js"
+    }
+  }
+}

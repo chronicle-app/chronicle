@@ -15,7 +15,7 @@
     "url": "https://github.com/chronicle-app/chronicle/issues"
   },
   "engines": {
-    "node": ">=22.13.0"
+    "node": ">=22.16.0"
   },
   "workspaces": [
     "core/*",

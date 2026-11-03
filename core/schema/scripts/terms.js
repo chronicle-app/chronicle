@@ -30,6 +30,13 @@ export const parentsOf = (store, id) =>
     .filter(term => term.termType === 'NamedNode' && term.value.startsWith(NAMESPACE))
     .map(term => term.value);
 
+/** A property's parents in the vocabulary, from rdfs:subPropertyOf. */
+export const superPropertiesOf = (store, id) =>
+  store
+    .getObjects(id, RDFS + 'subPropertyOf', null)
+    .filter(term => term.termType === 'NamedNode' && term.value.startsWith(NAMESPACE))
+    .map(term => term.value);
+
 function listItems(store, head) {
   const items = [];
   for (let node = head; node.value !== RDF + 'nil';) {

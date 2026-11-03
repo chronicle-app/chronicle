@@ -9,6 +9,7 @@ import {
   domainOf,
   parentsOf,
   rangeOf,
+  superPropertiesOf,
 } from './terms.js';
 
 import { dirname } from 'node:path';
@@ -122,6 +123,7 @@ const extractSchemaInfo = store => {
         isMany: max !== 1,
         inverseName: getInverseName(store, propertyId),
         metric: getMetric(store, propertyId, range),
+        parents: superPropertiesOf(store, propertyId),
       };
     })
     .filter(p => p.range.length > 0);
@@ -222,6 +224,24 @@ const writeSchemaFile = (classes, properties, inverses, version) =>
     for (const property of properties.filter(p => p.metric)) {
       schemaFile.write(
         `  ${JSON.stringify(property.shortName)}: ${JSON.stringify(property.metric)},\n`
+      );
+    }
+    schemaFile.write('};\n\n');
+
+    // Each class's and property's parents, so a reader can widen a type or a
+    // property to every term below it (hierarchy.ts).
+    const shortNames = ids => JSON.stringify(ids.map(id => id.split('/').pop()).sort());
+    schemaFile.write('/** Class name → the classes it is declared a subclass of. */\n');
+    schemaFile.write('export const CLASS_PARENTS: Record<string, string[]> = {\n');
+    for (const c of [...classes].sort((a, b) => a.shortName.localeCompare(b.shortName))) {
+      schemaFile.write(`  ${JSON.stringify(c.shortName)}: ${shortNames(c.parents)},\n`);
+    }
+    schemaFile.write('};\n\n');
+    schemaFile.write('/** Property name → the properties it is declared a subproperty of. */\n');
+    schemaFile.write('export const PROPERTY_PARENTS: Record<string, string[]> = {\n');
+    for (const property of properties) {
+      schemaFile.write(
+        `  ${JSON.stringify(property.shortName)}: ${shortNames(property.parents)},\n`
       );
     }
     schemaFile.write('};\n\n');

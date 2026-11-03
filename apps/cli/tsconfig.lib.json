@@ -21,6 +21,12 @@
     },
     {
       "path": "../../core/auth/tsconfig.lib.json"
+    },
+    {
+      "path": "../../core/cql/tsconfig.lib.json"
+    },
+    {
+      "path": "../../core/persistence/tsconfig.lib.json"
     }
   ]
 }

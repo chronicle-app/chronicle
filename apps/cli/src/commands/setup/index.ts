@@ -35,13 +35,7 @@ import { PluginScanner, type ExtractorMetadata } from '../../plugins/PluginScann
 import { commandFor, fromHome, scan, scanPath, type ScanRow } from '../../plugins/scan.js';
 import { splitArgs } from '../../setup/args.js';
 import { finishedLines, foundLines, liveLines } from '../../setup/display.js';
-import {
-  JobRunner,
-  finishedFile,
-  targetFile,
-  type ChildEvent,
-  type Job,
-} from '../../setup/jobs.js';
+import { JobRunner, imported, type ChildEvent, type Imported, type Job } from '../../setup/jobs.js';
 import { Counter } from '../../setup/counter.js';
 import { Steps } from '../../setup/steps.js';
 import {
@@ -77,6 +71,8 @@ import {
 } from '../../setup/todo.js';
 import { INTRO, resumed, type Standing } from '../../setup/intro.js';
 import { allKinds } from '../../utils/recordKinds.js';
+import { STORE_FLAGS } from '../../utils/importFlags.js';
+import { chronicleDataDir } from '../../config/dataDir.js';
 import { closest } from '../../utils/closest.js';
 import { PLATFORM_NAMES } from '../../utils/sourcesTable.js';
 import { blockerHints, statusText } from '../scan.js';
@@ -186,11 +182,11 @@ const same = (way: Way, source: string, strategy: unknown) =>
  * what this computer and the folders of exports hold, and asks what to
  * import, with the services that need a sign-in or an export. Prepare
  * offers those sign-ins and exports one at a time, each to do now or later,
- * and Full Disk Access first, when a pick needs it. Import writes the last
- * year of each pick to a JSON Lines file. A checklist of the steps stays
- * above it all. Only the picks are saved. A run that carries on starts at
- * what's left, works out again what stands in each pick's way, and skips a
- * pick with a finished file.
+ * and Full Disk Access first, when a pick needs it. Import puts the last
+ * year of each pick in the store. A checklist of the steps stays above it
+ * all. Only the picks are saved, and a record of each import. A run that
+ * carries on starts at what's left, works out again what stands in each
+ * pick's way, and skips a pick imported already.
  *
  * `chronicle setup <source>` is that source alone, without the steps: how
  * it can come in, one way picked, then that way's steps, if any, until
@@ -204,7 +200,7 @@ export default class Setup extends BaseCommand<typeof Setup> {
   static override description =
     'Sets up Chronicle in three steps: gathers what this computer and any folders you name hold, and asks ' +
     'which to import and which services to add; prepares what is left, like a sign-in or an ' +
-    'export to ask for, now or later; then imports each to a JSON Lines file. Run it again ' +
+    'export to ask for, now or later; then imports each into the store. Run it again ' +
     'to carry on where it left off. ' +
     'Name a source to get only that one ready to extract: how it can come in, then that way, ' +
     'by --strategy or asked, and the `chronicle extract` command for it.';
@@ -233,17 +229,12 @@ export default class Setup extends BaseCommand<typeof Setup> {
       char: 'y',
       summary: 'Pick what is ready without asking, and skip anything that needs a step',
     }),
-    output: Flags.string({
-      char: 'o',
-      summary: 'The folder for the files. The default is the extracts folder in the data folder.',
-      helpValue: '<folder>',
-    }),
-    again: Flags.boolean({ summary: 'Import each pick again, even one with a finished file' }),
+    ...STORE_FLAGS,
+    again: Flags.boolean({ summary: 'Import each pick again, even one imported already' }),
     strategy: Flags.string({
       summary: 'How the source named comes in, when it can come in more than one way',
       helpValue: '<strategy>',
     }),
-    jobs: Flags.integer({ hidden: true, default: 2, summary: 'How many to import at once' }),
     splash: Flags.string({
       hidden: true,
       summary: 'How the splash looks',
@@ -288,8 +279,10 @@ export default class Setup extends BaseCommand<typeof Setup> {
   private readonly steps = new Steps();
   /** The spinner's frame, for a question drawn with the checklist. */
   private frame = 0;
-  /** Where the files go. */
+  /** Where a record of each import goes. */
   private root = '';
+  /** The store the picks go into. */
+  private db = '';
   /** What's in each target's way, as last checked. */
   private states = new Map<Target, Checked>();
   /** The providers setup can sign in to, once they're loaded. */
@@ -368,9 +361,9 @@ export default class Setup extends BaseCommand<typeof Setup> {
         }
       );
     }
-    // Only a folder typed here: `chronicle config set output` names extract's file.
-    const output = this.flagSources?.output?.source === 'explicit' ? this.flags.output : undefined;
-    this.root = output ? this.resolve(output) : path.join(this.config.dataDir, 'extracts');
+    this.root = path.join(chronicleDataDir(), 'setup');
+    const { resolveDbPath } = await import('../../persistence/store.js');
+    this.db = resolveDbPath(this.flags.db && this.resolve(this.flags.db));
     process.on('SIGINT', this.onInterrupt);
     try {
       if (this.alone) await this.setupAlone(this.alone, folders);
@@ -434,13 +427,11 @@ export default class Setup extends BaseCommand<typeof Setup> {
     await this.importAll();
   }
 
-  /** The picks the import takes: each that's ready, without a finished file unless `--again`. */
+  /** The picks the import takes: each that's ready, and not imported already unless `--again`. */
   private importing(): Target[] {
-    const targets = this.settings.targets ?? [];
-    return targets.filter(
+    return (this.settings.targets ?? []).filter(
       target =>
-        this.states.get(target)?.state === 'ready' &&
-        (this.flags.again || !existsSync(finishedFile(this.root, targetName(target, targets))))
+        this.states.get(target)?.state === 'ready' && (this.flags.again || !this.imported(target))
     );
   }
 
@@ -555,8 +546,8 @@ export default class Setup extends BaseCommand<typeof Setup> {
       ways.filter(way => way.source === source).length > 1 ? `${source} ${strategy}` : source;
     const picks: Standing[] = targets.map(target => {
       const { source } = target;
-      const file = targetName(target, targets);
-      if (!existsSync(finishedFile(this.root, file))) {
+      const record = this.imported(target);
+      if (!record) {
         // Checked this run, it says what's in its way.
         const state = this.states.get(target)?.state;
         const text =
@@ -567,15 +558,12 @@ export default class Setup extends BaseCommand<typeof Setup> {
               : 'to import';
         return { source, name: targetLabel(target, targets), state: 'left', text };
       }
-      const records = this.extracted(file);
+      const { records } = record;
       return {
         source,
         name: targetLabel(target, targets),
         state: 'done',
-        text:
-          records === undefined
-            ? 'imported'
-            : `imported, ${count(records)} ${plural('records', records)}`,
+        text: `imported, ${count(records)} ${plural('records', records)}`,
       };
     });
     for (const asked of requested) {
@@ -743,14 +731,12 @@ export default class Setup extends BaseCommand<typeof Setup> {
    */
   private async abort(): Promise<void> {
     const targets = this.settings.targets ?? [];
-    const imported = (target: Target) =>
-      existsSync(finishedFile(this.root, targetName(target, targets)));
-    const kept = targets.filter(target => imported(target));
+    const kept = targets.filter(target => this.imported(target));
     this.settings.targets = kept;
     this.settings.skipped = [
       ...(this.settings.skipped ?? []),
       ...targets
-        .filter(target => !imported(target))
+        .filter(target => !this.imported(target))
         .map(({ source, flags: { type: _type, ...flags } }) => ({ source, flags })),
     ];
     delete this.settings.wanted;
@@ -1571,13 +1557,9 @@ export default class Setup extends BaseCommand<typeof Setup> {
     return this.strategy(target.source, target.flags.strategy)?.delivery === 'export';
   }
 
-  /** What a target extracted last time, from the file beside its records. */
-  private extracted(name: string): number | undefined {
-    try {
-      return JSON.parse(readFileSync(targetFile(this.root, name), 'utf8')).records;
-    } catch {
-      return undefined;
-    }
+  /** A target's import into this store, as its record says, if it was imported. */
+  private imported(target: Target): Imported | undefined {
+    return imported(this.root, targetName(target, this.settings.targets ?? []), this.db);
   }
 
   /**
@@ -1944,10 +1926,7 @@ export default class Setup extends BaseCommand<typeof Setup> {
         await this.refresh();
         checked = await this.check(target);
       }
-      const extracted = existsSync(
-        finishedFile(this.root, targetName(target, this.settings.targets ?? []))
-      );
-      if (checked.state === 'missing' && this.exported(target) && !extracted) {
+      if (checked.state === 'missing' && this.exported(target) && !this.imported(target)) {
         // Moved or deleted: waited for again, like an export asked for.
         this.settings.targets = (this.settings.targets ?? []).filter(t => t !== target);
         const { type: _type, ...flags } = target.flags;
@@ -1962,13 +1941,13 @@ export default class Setup extends BaseCommand<typeof Setup> {
   }
 
   /**
-   * A job for a target that's ready, without a finished file, and not
-   * already running: added to the run, counted meanwhile.
+   * A job for a target that's ready, not imported already, and not already
+   * running: added to the run, counted meanwhile.
    */
   private queue(target: Target, again = this.flags.again): void {
     const targets = this.settings.targets ?? [];
     const name = targetName(target, targets);
-    if (existsSync(finishedFile(this.root, name)) && !again) return;
+    if (this.imported(target) && !again) return;
     if (this.jobs.some(job => targetKey(job.target) === targetKey(target))) return;
     const label = targetLabel(target, targets);
     const job: Job = { target, name, label, total: null, state: 'waiting', processed: 0 };
@@ -2407,17 +2386,22 @@ export default class Setup extends BaseCommand<typeof Setup> {
   }
 
   /**
-   * The import step: each pick that's ready and has no finished file, the
-   * last year of it to its own file, a few at a time, said live under the
+   * The import step: each pick that's ready and not imported already, the
+   * last year of it into the store, one at a time, said live under the
    * checklist. Ctrl-C stops them, and setup. Then what was imported.
    */
   private async importAll(): Promise<void> {
     mkdirSync(this.root, { recursive: true });
+    // Made here, once, so the imports open a store that's there already.
+    const { openStore } = await import('../../persistence/store.js');
+    openStore(this.db).close();
     const runner = new JobRunner(this.jobs, {
       root: this.root,
+      db: this.db,
       bin: path.join(this.config.root, 'bin', 'run.js'),
       since: this.since.toISOString(),
-      concurrency: Math.max(1, this.flags.jobs),
+      // One at a time: two imports writing to one store fight over its lock.
+      concurrency: 1,
       onEvent: (job, event) => this.events.push({ job, event }),
       onChange: () => {
         this.noteImport();
@@ -2445,10 +2429,7 @@ export default class Setup extends BaseCommand<typeof Setup> {
       }
     }
     this.noteImport();
-    const targets = this.settings.targets ?? [];
-    const before = targets.some(target =>
-      existsSync(finishedFile(this.root, targetName(target, targets)))
-    );
+    const before = (this.settings.targets ?? []).some(target => this.imported(target));
     if (this.later) this.steps.set('import', 'waiting', 'later');
     // Nothing imported ever, it isn't through.
     else if (this.jobs.length === 0) {
@@ -2504,8 +2485,8 @@ export default class Setup extends BaseCommand<typeof Setup> {
   }
 
   /**
-   * The checklist as it ends, then what was imported, this run and before,
-   * with each file; where the files are; then what's still waiting, and why.
+   * The checklist as it ends, then what was imported, this run and before;
+   * where the store is; then what's still waiting, and why.
    */
   private async report(): Promise<void> {
     const targets = this.settings.targets ?? [];
@@ -2522,35 +2503,35 @@ export default class Setup extends BaseCommand<typeof Setup> {
     const names = Math.max(0, ...this.jobs.map(job => job.label.length));
     for (const job of this.jobs.filter(job => job.state === 'failed')) {
       const command = commandLine(
-        ['extract', ...targetArgs(job.target), '--since', this.since.toISOString(), '--limit', '0'],
+        [
+          'import',
+          ...targetArgs(job.target),
+          '--since',
+          this.since.toISOString(),
+          ...(this.flags.db ? ['--db', this.db] : []),
+        ],
         this.home
       );
       this.print(finishedLines(job, names, command, this.t, this.width()));
     }
     const ran = new Set(this.jobs.map(job => targetKey(job.target)));
-    const before = targets
-      .map(target => ({ target, name: targetName(target, targets) }))
-      .filter(
-        ({ target, name }) =>
-          !ran.has(targetKey(target)) && existsSync(finishedFile(this.root, name))
-      );
     const done = [
-      ...before.map(({ target, name }) => ({ target, name, records: this.extracted(name) })),
+      ...targets
+        .filter(target => !ran.has(targetKey(target)))
+        .flatMap(target => {
+          const record = this.imported(target);
+          return record ? [{ target, records: record.records }] : [];
+        }),
       ...this.jobs
         .filter(job => job.state === 'done')
-        .map(job => ({ target: job.target, name: job.name, records: job.processed })),
+        .map(job => ({ target: job.target, records: job.processed })),
     ];
     if (done.length > 0) {
       const { lines } = table(
         {
-          headings: ['source', 'records', 'file'],
-          cells: done.map(({ target, name, records }) => [
-            targetLabel(target, targets),
-            records === undefined ? '' : count(records),
-            `${name}.jsonl`,
-          ]),
-          numeric: [false, true, false],
-          muted: [false, false, true],
+          headings: ['source', 'records'],
+          cells: done.map(({ target, records }) => [targetLabel(target, targets), count(records)]),
+          numeric: [false, true],
         },
         tokens({ stream: 'stdout', theme: this.flags.theme }),
         stdoutWidth()
@@ -2573,7 +2554,7 @@ export default class Setup extends BaseCommand<typeof Setup> {
           records,
           ...(failed > 0 && { failed }),
           durationMs: Date.now() - this.started,
-          output: fromHome(this.root, this.home),
+          output: fromHome(this.db, this.home),
         },
       });
     } else if (checklist.length === 0) {
@@ -2587,9 +2568,16 @@ export default class Setup extends BaseCommand<typeof Setup> {
       );
     }
     if (done.length > 0) {
-      // The summary says where the files went; without one, this does.
-      const where = jobs.length > 0 ? '' : `The files are in ${fromHome(this.root, this.home)}. `;
-      this.hint(`${where}Delete a file, or use \`--again\`, to import it again.`);
+      // The summary says where the store is; without one, this does.
+      const where = jobs.length > 0 ? '' : `They're in ${fromHome(this.db, this.home)}. `;
+      // What came in from the biggest, which has the most to show.
+      const { source } = done.reduce((a, b) => (b.records > a.records ? b : a)).target;
+      const query = commandLine(
+        ['query', `type:Action source:${source}`, ...(this.flags.db ? ['--db', this.db] : [])],
+        this.home
+      );
+      this.hint(`${where}Run \`${query}\` to see what came in from ${source}.`);
+      this.hint('Use `--again` to import them again.');
     }
     await this.waiting(
       targets.filter(
@@ -2662,9 +2650,7 @@ export default class Setup extends BaseCommand<typeof Setup> {
       // Last, so it's what the run ends on.
       const picked = this.settings.targets ?? [];
       this.unfinished([
-        ...picked
-          .filter(target => !existsSync(finishedFile(this.root, targetName(target, picked))))
-          .map(target => target.source),
+        ...picked.filter(target => !this.imported(target)).map(target => target.source),
         ...signIns,
         ...(this.access ? by('full-disk-access') : []),
         ...(this.settings.wanted ?? []).map(way => way.source),

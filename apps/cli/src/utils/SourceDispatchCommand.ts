@@ -110,7 +110,6 @@ export abstract class SourceDispatchCommand<T extends typeof Command> extends Ba
       '--sample',
       '--fields',
       '--delay',
-      '--fold-batch',
       '--format',
     ]);
     const found: number[] = [];

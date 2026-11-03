@@ -3,6 +3,7 @@ import { getHelpFlagAdditions, standardizeIDFromArgv } from '@oclif/core/help';
 import { unknownCommand } from '../hooks/commandNotFound.js';
 import { outputFlagsIn, paragraph, tokens, type Tokens } from '../output/index.js';
 import { renderSourceHelp } from '../utils/sourceHelp.js';
+import { IMPORT_HELP } from '../utils/importFlags.js';
 import { SURVEY_HELP } from '../utils/surveyFlags.js';
 import {
   PLUGIN_SUMMARIES,
@@ -48,6 +49,8 @@ const GET_STARTED = [
 const SOURCE_VERBS = new Map<string, string>([
   ['extract', 'extract'],
   ['e', 'extract'],
+  ['import', 'import'],
+  ['i', 'import'],
   ['survey', 'survey'],
 ]);
 
@@ -79,7 +82,7 @@ export default class ChronicleHelp extends Help {
       const { PluginScanner } = await import('../plugins/PluginScanner.js');
       const candidates = (await PluginScanner.scanAllPlugins()).get(source) ?? [];
       if (candidates.length > 0) {
-        const help = verb === 'survey' ? SURVEY_HELP : undefined;
+        const help = verb === 'survey' ? SURVEY_HELP : verb === 'import' ? IMPORT_HELP : undefined;
         this.log(renderSourceHelp(source, candidates, { verb, theme, help }));
         return;
       }

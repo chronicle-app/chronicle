@@ -82,6 +82,8 @@ export class RunnerBuilder {
    * they share a terminal with the live view. Known before the loader is built.
    */
   printsRecords(): boolean {
+    // The store's loader is imported only for a run into the store, and prints nothing.
+    if (this.flags.loader === 'store') return false;
     const LoaderClass = loaderRegistry[this.flags.loader as keyof typeof loaderRegistry];
     return LoaderClass?.printsRecords ?? true;
   }
@@ -128,16 +130,25 @@ export class RunnerBuilder {
   }
 
   /**
-   * Build loader configuration from flags
+   * The loader class `--loader` names. The store's is imported only for a run
+   * into the store (`chronicle import`), so other runs don't load the store.
    */
-  buildLoaderConfig(): any {
-    const loaderType = this.flags.loader as keyof typeof loaderRegistry;
-    const LoaderClass = loaderRegistry[loaderType];
-
+  private async loaderClass(): Promise<any> {
+    if (this.flags.loader === 'store') {
+      const { StoreLoader } = await import('../persistence/StoreLoader.js');
+      return StoreLoader;
+    }
+    const LoaderClass = loaderRegistry[this.flags.loader as keyof typeof loaderRegistry];
     if (!LoaderClass) {
       throw new Error(`Unknown loader type: ${this.flags.loader}`);
     }
+    return LoaderClass;
+  }
 
+  /**
+   * Build loader configuration from flags
+   */
+  buildLoaderConfig(LoaderClass: any): any {
     // Get the loader's schema to know which flags are relevant
     const loaderSchema = LoaderClass.schema;
     const loaderFields = Object.keys(loaderSchema.shape || {});
@@ -171,20 +182,14 @@ export class RunnerBuilder {
    * Initialize loader instance
    */
   async initializeLoader(): Promise<any> {
-    const loaderType = this.flags.loader as keyof typeof loaderRegistry;
-    const LoaderClass = loaderRegistry[loaderType];
-
-    if (!LoaderClass) {
-      throw new Error(`Unknown loader type: ${this.flags.loader}`);
-    }
-
-    const config = this.buildLoaderConfig();
+    const LoaderClass = await this.loaderClass();
+    const config = this.buildLoaderConfig(LoaderClass);
 
     // Special handling for JsonLoader to include theme and stdout mode
     if (LoaderClass === JsonLoader) {
       const isStdoutMode = this.determineStdoutMode();
       const loader = new LoaderClass(config, jsonColors(this.flags.theme), isStdoutMode, {
-        lines: loaderType === 'jsonl',
+        lines: this.flags.loader === 'jsonl',
       });
       return loader;
     }
