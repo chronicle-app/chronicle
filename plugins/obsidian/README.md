@@ -30,9 +30,11 @@ Hidden files/directories, symlinks, and non-Markdown attachments are skipped.
 - References: resolved wikilinks and inline Markdown links to other notes;
   external HTTP(S) Markdown links reference URL entities.
 - Period: `dateCovered`, for a note named for the period it's about, which can be
-  long before the file was last edited. A file named exactly `2019-03-14` covers
-  that day, `2026-05` that month, and `2026-W19` that ISO week, Monday through
-  Sunday (`2026-05-04/2026-05-10`). When the vault's Daily Notes settings give a
+  long before the file was last edited. A day anywhere in the file name counts, so
+  `2019-03-14` and `Garden tour (2026-11-06)` each cover their day, and a name with
+  several days covers each of them, not the span between. A file named exactly
+  `2026-05` covers that month, and `2026-W19` that ISO week, Monday through Sunday
+  (`2026-05-04/2026-05-10`). When the vault's Daily Notes settings give a
   folder and format, a note in that folder named by that format covers its day
   too. Month and weekday names are read in English. A file named only for a year
   covers nothing, since `1984` is as likely to be about the book. Dates in custom

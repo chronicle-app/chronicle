@@ -97,18 +97,29 @@ function isoWeek(year: number, week: number): string | undefined {
   return `${dayOf(at(0))}/${dayOf(at(6))}`;
 }
 
-/** The period a file name is exactly: a day, a month, or an ISO week. */
-function periodOfName(name: string): string | undefined {
-  if (/^\d{4}-\d{2}(-\d{2})?$/.test(name)) return isDateRange(name) ? name : undefined;
+/** A day anywhere in a name, unless it's part of a longer number, as in `1234-2026-11-06`. */
+const DAY_IN_NAME = /(?<!\d)(?<!\d-)\d{4}-\d{2}-\d{2}(?!\d)/g;
+
+/**
+ * The periods a file name gives: a month or an ISO week when it's exactly that,
+ * and otherwise each day in it, as in `Garden tour (2026-11-06)`.
+ */
+function periodsOfName(name: string): string[] {
   const week = /^(\d{4})-W(\d{2})$/.exec(name);
-  return week ? isoWeek(Number(week[1]), Number(week[2])) : undefined;
+  if (week) {
+    const range = isoWeek(Number(week[1]), Number(week[2]));
+    return range ? [range] : [];
+  }
+  const periods = /^\d{4}-\d{2}$/.test(name) ? [name] : (name.match(DAY_IN_NAME) ?? []);
+  return [...new Set(periods)].filter(period => isDateRange(period));
 }
 
 /**
- * The period a note is named for. A bare year isn't one: a note named `1984` is
+ * The periods a note is named for. A bare year isn't one: a note named `1984` is
  * as likely to be about the book.
  */
-export function periodCovered(handle: string, dailyNotes?: DailyNotes): string | undefined {
+export function periodsCovered(handle: string, dailyNotes?: DailyNotes): string[] {
   const name = handle.replace(/\.md$/i, '');
-  return (dailyNotes && dailyNoteDay(name, dailyNotes)) ?? periodOfName(path.posix.basename(name));
+  const day = dailyNotes && dailyNoteDay(name, dailyNotes);
+  return day ? [day] : periodsOfName(path.posix.basename(name));
 }

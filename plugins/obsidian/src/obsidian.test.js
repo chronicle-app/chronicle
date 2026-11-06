@@ -221,7 +221,7 @@ test('strips only a complete leading frontmatter block', async t => {
   assert.deepEqual(byPath.get('Note 5.md').tags, ['a', 'b', 'c']);
 });
 
-test('a note named for a day, month, or week covers it', async t => {
+test('a note covers the days in its name, or the month or week it is named', async t => {
   const root = vault(t, {
     'Journal/2019-03-14.md': 'A day.',
     '2026-05.md': 'A monthly recap.',
@@ -232,6 +232,15 @@ test('a note named for a day, month, or week covers it', async t => {
     '2026-13.md': 'A month no year has.',
     '1984.md': 'The book, not the year.',
     'Links.md': '[[2019-03-14]]',
+    'Garden tour (2026-11-06).md': 'A day in a title.',
+    'seed-swap-2026-11-07.md': 'A day in a slug.',
+    '2026-11-08 harvest.md': 'A day to start with.',
+    'From 2026-11-09 to 2026-11-11, then 2026-11-09 again.md': 'Two days, one repeated.',
+    'Tour (2026-13-40).md': 'A day no year has.',
+    'Ticket 12026-11-06.md': 'A longer number.',
+    'Ticket 1234-2026-11-06.md': 'A longer number, with a hyphen.',
+    'Recap 2026-05.md': 'A month counts only as the whole name.',
+    '2026-11-12/Notes.md': 'A folder is not the name.',
   });
   const out = await transform((await extract(root)).records);
   const covered = Object.fromEntries(out.map(a => [a.object.handle, a.object.dateCovered]));
@@ -245,6 +254,15 @@ test('a note named for a day, month, or week covers it', async t => {
     '2026-13.md': undefined,
     '1984.md': undefined,
     'Links.md': undefined,
+    'Garden tour (2026-11-06).md': ['2026-11-06'],
+    'seed-swap-2026-11-07.md': ['2026-11-07'],
+    '2026-11-08 harvest.md': ['2026-11-08'],
+    'From 2026-11-09 to 2026-11-11, then 2026-11-09 again.md': ['2026-11-09', '2026-11-11'],
+    'Tour (2026-13-40).md': undefined,
+    'Ticket 12026-11-06.md': undefined,
+    'Ticket 1234-2026-11-06.md': undefined,
+    'Recap 2026-05.md': undefined,
+    '2026-11-12/Notes.md': undefined,
   });
   // A link to a dated note says the same as the note does.
   const links = out.find(a => a.object.handle === 'Links.md').object;
