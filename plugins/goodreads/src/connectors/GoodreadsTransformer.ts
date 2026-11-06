@@ -246,19 +246,13 @@ export default class GoodreadsTransformer extends ChronicleTransformer {
     return raw ? raw.split('-')[0] : undefined;
   }
 
-  private parseDate(dateString: string): Date {
-    if (!dateString) return new Date();
-
-    // Handle Goodreads date format: YYYY/MM/DD
-    const parts = dateString.split('/');
-    if (parts.length === 3) {
-      return new Date(
-        Number.parseInt(parts[0]),
-        Number.parseInt(parts[1]) - 1,
-        Number.parseInt(parts[2])
-      );
-    }
-
-    return new Date(dateString);
+  /**
+   * Goodreads writes a day, `YYYY/MM/DD`, with no time or zone. It stays that
+   * civil date, since an instant would depend on the machine's time zone.
+   */
+  private parseDate(dateString: string): Date | string {
+    const day = /^(\d{4})\/(\d{1,2})\/(\d{1,2})$/.exec(dateString.trim());
+    if (!day) return new Date(dateString);
+    return `${day[1]}-${day[2].padStart(2, '0')}-${day[3].padStart(2, '0')}`;
   }
 }

@@ -30,9 +30,6 @@ async function actions(config) {
   }
 }
 
-// Goodreads dates are YYYY/MM/DD and are read as local midnight.
-const localDay = (y, m, d) => new Date(y, m - 1, d);
-
 // A snapshot stamps every payload with the run's read time; check it and drop it
 // so the rest of the payload can be compared exactly.
 function withoutAssertedAt(action, before, after) {
@@ -136,7 +133,7 @@ test('library rows become schema-valid bookmark, finish, and in-progress actions
     source: 'goodreads',
     agent: me,
     object: lighthouse,
-    timestamp: localDay(2025, 1, 20),
+    timestamp: '2025-01-20',
     '@asserts': ['*'],
   });
   assert.deepEqual(withoutAssertedAt(out[1], before, after), {
@@ -145,7 +142,7 @@ test('library rows become schema-valid bookmark, finish, and in-progress actions
     source: 'goodreads',
     agent: me,
     object: lighthouse,
-    timestamp: localDay(2025, 3, 14),
+    timestamp: '2025-03-14',
     '@asserts': ['*'],
   });
 
@@ -175,7 +172,7 @@ test('library rows become schema-valid bookmark, finish, and in-progress actions
       ],
       '@asserts': ['*'],
     },
-    timestamp: localDay(2025, 6, 2),
+    timestamp: '2025-06-02',
     '@asserts': ['*'],
   });
 
