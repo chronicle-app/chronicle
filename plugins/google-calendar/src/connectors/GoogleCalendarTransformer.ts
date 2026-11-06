@@ -76,7 +76,6 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
       .filter((agent): agent is Agent => agent !== null);
     // Google keeps a description as the HTML its editor wrote; Markdown here.
     const description = tidyText(htmlToMarkdown(event.description) ?? '');
-    const { startTime, endTime } = scheduleOf(event);
     // The event by its iCalendar UID, the same on every calendar and for
     // every guest, `sameAs` this calendar's copy by Google's own ID for it
     // (the `eid` its links carry).
@@ -95,10 +94,9 @@ export default class GoogleCalendarTransformer extends ChronicleTransformer {
       ],
       ...(event.summary && { name: event.summary }),
       ...(description && { description }),
-      // When it's planned for: facts about the plan, not something that
+      // When it's planned for: a fact about the plan, not something that
       // happened. Times that happen belong to actions.
-      scheduledStart: startTime,
-      scheduledEnd: endTime,
+      scheduledFor: scheduleOf(event),
       ...(event.location && { location: { '@type': 'Location', address: event.location } }),
       isPartOf: [calendarCollection(calendar)],
       ...(attendees.length > 0 && { attendee: attendees }),
@@ -171,23 +169,25 @@ export function plannedAt(event: CalendarEvent): Date {
   return new Date(event.created ?? event.updated ?? startOf(event.start)!);
 }
 
+/** An instant in UTC, to the second when that's all it has. */
+const instantOf = (time: string) => new Date(time).toISOString().replace('.000Z', 'Z');
+
 /**
- * When an event is planned for, both bounds always: instants for a timed
- * event, civil dates for an all-day one. Google (like iCalendar) writes an
- * all-day event's end as the day after its last; a `Date` end bound is the
- * last day included, so a one-day event is that day to that day. With no end,
- * iCalendar's rule: an all-day event lasts its one day, a timed one ends as it
- * starts.
+ * When an event is planned for: two instants for a timed event, civil dates
+ * for an all-day one. Google (like iCalendar) writes an all-day event's end as
+ * the day after its last; a date range includes its last day, so a one-day
+ * event is just that day. With no end, iCalendar's rule: an all-day event lasts
+ * its one day, a timed one ends as it starts.
  */
-function scheduleOf(event: CalendarEvent): { startTime: Date | string; endTime: Date | string } {
+function scheduleOf(event: CalendarEvent): string {
   if (event.start?.dateTime) {
-    const startTime = new Date(event.start.dateTime);
-    const endTime = event.end?.dateTime ? new Date(event.end.dateTime) : startTime;
-    return { startTime, endTime };
+    const start = instantOf(event.start.dateTime);
+    const end = event.end?.dateTime ? instantOf(event.end.dateTime) : start;
+    return `${start}/${Date.parse(end) < Date.parse(start) ? start : end}`;
   }
-  const startTime = event.start!.date!;
-  const lastDay = event.end?.date ? dayBefore(event.end.date) : startTime;
-  return { startTime, endTime: lastDay < startTime ? startTime : lastDay };
+  const start = event.start!.date!;
+  const lastDay = event.end?.date ? dayBefore(event.end.date) : start;
+  return lastDay > start ? `${start}/${lastDay}` : start;
 }
 
 /** The civil date before `date` (YYYY-MM-DD), by the calendar, not a clock. */

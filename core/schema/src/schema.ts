@@ -1,7 +1,7 @@
 export const SCHEMA_VERSION = '0.4.0' as const;
 // Generated from chronicle.ttl. Do not edit; run npm run schema:generate.
 import { z } from 'zod';
-import { isDateTime, isInstant } from './datetime.js';
+import { isDateRange, isDateTime, isInstant } from './datetime.js';
 
 // Record identity key field: a property path, or a computed {key, value} entry
 export type KeyField = string | { key: string; value: string };
@@ -15,6 +15,13 @@ const DateTimeSchema = z.union([
       'Not a date or time. Use EDTF, such as 2026-03-14T09:26:00Z, 2026-03-14, or 1987.'
     ),
 ]);
+
+const DateRangeSchema = z
+  .string()
+  .refine(
+    isDateRange,
+    'Not a date range. Use a date or two joined by a slash, such as 2026-03-14 or 2026-05-04/2026-05-10.'
+  );
 
 /** Inverse property name → the forward property it reverses. */
 export const INVERSE_PROPERTIES: Record<string, string> = {
@@ -195,6 +202,7 @@ export const PROPERTY_PARENTS: Record<string, string[]> = {
   contentSize: [],
   creator: ['attribution'],
   currency: [],
+  dateCovered: [],
   datePublished: [],
   degree: [],
   depicts: ['relation'],
@@ -248,8 +256,7 @@ export const PROPERTY_PARENTS: Record<string, string[]> = {
   result: [],
   role: [],
   sameAs: [],
-  scheduledEnd: [],
-  scheduledStart: [],
+  scheduledFor: [],
   selector: [],
   selectorLabel: [],
   selectorValue: [],
@@ -405,6 +412,7 @@ export interface CreativeWork extends Omit<Entity, '@type'> {
   '@type': 'CreativeWork';
   author?: AgentAndChildren[];
   creator?: AgentAndChildren[];
+  dateCovered?: string[];
   datePublished?: Date | string;
   genre?: string[];
   isBasedOn?: CreativeWorkAndChildren[];
@@ -446,6 +454,7 @@ const CreativeWorkProperties = {
   ...EntityProperties,
   author: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
   creator: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
+  dateCovered: z.lazy(() => z.array(DateRangeSchema)).optional(),
   datePublished: z.lazy(() => DateTimeSchema).optional(),
   genre: z.lazy(() => z.array(z.string())).optional(),
   isBasedOn: z.lazy(() => z.array(CreativeWorkAndChildrenSchema)).optional(),
@@ -930,8 +939,7 @@ export interface Session extends Omit<Entity, '@type'> {
   '@type': 'Session';
   isStageOf?: SessionAndChildren;
   references?: EntityAndChildren[];
-  scheduledEnd?: Date | string;
-  scheduledStart?: Date | string;
+  scheduledFor?: string;
   subject?: EntityAndChildren[];
   workingDirectory?: DirectoryAndChildren;
   hasStage?: SessionAndChildren[];
@@ -953,8 +961,7 @@ const SessionProperties = {
   ...EntityProperties,
   isStageOf: z.lazy(() => SessionAndChildrenSchema).optional(),
   references: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
-  scheduledEnd: z.lazy(() => DateTimeSchema).optional(),
-  scheduledStart: z.lazy(() => DateTimeSchema).optional(),
+  scheduledFor: z.lazy(() => DateRangeSchema).optional(),
   subject: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
   workingDirectory: z.lazy(() => DirectoryAndChildrenSchema).optional(),
   hasStage: z.lazy(() => z.array(SessionAndChildrenSchema)).optional(),
@@ -1436,8 +1443,7 @@ export interface Event extends Omit<Entity, '@type'> {
   '@type': 'Event';
   attendee?: AgentAndChildren[];
   location?: LocationAndChildren | PlaceAndChildren;
-  scheduledEnd?: Date | string;
-  scheduledStart?: Date | string;
+  scheduledFor?: string;
 }
 
 export type EventAndChildren = Event;
@@ -1446,8 +1452,7 @@ const EventProperties = {
   ...EntityProperties,
   attendee: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
   location: z.lazy(() => z.union([LocationAndChildrenSchema, PlaceAndChildrenSchema])).optional(),
-  scheduledEnd: z.lazy(() => DateTimeSchema).optional(),
-  scheduledStart: z.lazy(() => DateTimeSchema).optional(),
+  scheduledFor: z.lazy(() => DateRangeSchema).optional(),
 };
 
 export const EventSchema: z.ZodType<Event> = z

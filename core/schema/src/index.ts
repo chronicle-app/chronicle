@@ -1,5 +1,5 @@
 export * from './schema.js';
-export { isDateTime, isInstant } from './datetime.js';
+export { isDateRange, isDateTime, isInstant } from './datetime.js';
 export { getAllSubproperties, getAllSubtypes } from './hierarchy.js';
 export {
   type KeyedNode,

@@ -54,6 +54,7 @@ schemaorg: rdfs:label "schema.org";
 :contentPath doc:note "A filesystem path. schemaorg:contentUrl is a URL." .
 :contentSize doc:note "A number of bytes. schemaorg:contentSize is text with a unit, such as `2.8 MB`." .
 :currency doc:note "An ISO 4217 code. schemaorg:currency also takes a cryptocurrency ticker, and the currency of a schemaorg:PayAction is its schemaorg:priceCurrency." .
+:dateCovered doc:note "A date or an interval. schemaorg:temporalCoverage can also be text that names a period, or a URL." .
 :distance doc:note "A number of meters, on the :Journey. schemaorg:distance is on the schemaorg:TravelAction and includes a unit, such as `5 km`." .
 :exifData doc:note "An object of EXIF tag names and values. schemaorg:exifData is a list of schemaorg:PropertyValue name and value pairs, or text." .
 :height doc:note "A number of pixels. schemaorg:height can also be a distance with a unit, such as `5 cm`." .

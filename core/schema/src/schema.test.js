@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { ActionSchema, BaseAndChildrenSchema, EntitySchema } from '../dist/index.js';
+import { ActionSchema, BaseAndChildrenSchema, EntitySchema, isDateRange } from '../dist/index.js';
 
 // The schema site test checks that every documented example is valid; this
 // covers the records the schema must reject.
@@ -41,6 +41,48 @@ test('rejects missing identity, invalid values, and types outside the vocabulary
     [ActionSchema, { ...action, '@assertedAt': '1987' }],
   ]) {
     assert.equal(schema.safeParse(record).success, false, JSON.stringify(record));
+  }
+});
+
+test('a date range is a date or an interval that does not end before it starts', () => {
+  for (const value of [
+    '2026',
+    '2026-05',
+    '2026-05-14',
+    '1987-06-12?',
+    '192X',
+    '2026-05-04/2026-05-10',
+    '2026-05-14/2026-05-14',
+    '2019-03/2019-05',
+    '2019/2019-03',
+    '2019-03-05?/2019-03-08',
+    '198X/1985',
+    '1987-XX/1987-03',
+    '2026-05-14T16:00:00Z/2026-05-14T17:00:00Z',
+    '2026-05-14T16:00:00Z/2026-05-14T16:00:00.250Z',
+    '2026-05-14T16:00:00Z/2026-05-14T16:00:00Z',
+  ]) {
+    assert.equal(isDateRange(value), true, value);
+  }
+  for (const value of [
+    '',
+    '/',
+    '2026-05-14T16:00:00Z',
+    '2026-05-14/2026-05-14T17:00:00Z',
+    '2026-05-14T16:00:00Z/2026-05-14',
+    '2026-05-10/2026-05-04',
+    '2026-05-14T17:00:00Z/2026-05-14T16:00:00Z',
+    '2026-05-14T16:00:00.250Z/2026-05-14T16:00:00Z',
+    '2019/..',
+    '../2019',
+    '2019/',
+    '/2019',
+    '2019/2020/2021',
+    '1987-13',
+    '2026-02-30/2026-03-01',
+    'March 2026',
+  ]) {
+    assert.equal(isDateRange(value), false, value);
   }
 });
 

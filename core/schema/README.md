@@ -62,9 +62,11 @@ visits, trips, places, and journeys; WhatsApp adds group channels, members, and
 quoted replies. Shared properties cover source identity,
 event time, agents, membership, authors, and recipients.
 
-`Text`, `URL`, `DateTime`, and `Number` are datatypes. A
-`DateTime` is a `Date` or an EDTF string at the source's precision, such as `1987` or
-`XXXX-03-12`; `isDateTime` checks a string. A property takes a list of values
+`Text`, `URL`, `DateTime`, `DateRange`, and `Number` are datatypes. A
+`DateTime` is one moment: a `Date` or an EDTF string at the source's precision, such as `1987` or
+`XXXX-03-12`; `isDateTime` checks a string. A `DateRange` is a stretch of time, all of it
+included: a date, such as `2026-05`, or an interval, such as `2026-05-04/2026-05-10`;
+`isDateRange` checks one. A property takes a list of values
 unless its SHACL shape sets `sh:maxCount 1`. Records carry `@type` and at least one of `@key` (a nonempty list of
 identity fields or computed key entries) or `@id` (an existing identity). A
 record can also carry `@assertedAt`, the instant its source observed it, and

@@ -101,6 +101,8 @@
   owl:equivalentClass [ a rdfs:Datatype; owl:unionOf ( xsd:dateTime
     [ a rdfs:Datatype; owl:onDatatype xsd:string; owl:withRestrictions ( [ xsd:pattern "[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}([.][0-9]+)?Z|[0-9X]{4}(-[0-9X]{2}(-[0-9X]{2})?)?[?~%]?" ] ) ] ) ];
   skos:closeMatch schemaorg:DateTime .
+:DateRange a rdfs:Datatype;
+  rdfs:comment "A stretch of time, all of it included. A :DateTime is one moment somewhere in its period. A :DateRange takes one of two forms. A :DateTime date stands for all of its year, month, or day: `2026-05` is the whole of May 2026, and `1987-06-12?` is probably the whole of that day. An interval is two :DateTime values joined by `/`, both dates or both instants, that does not end before it starts: `2026-05-04/2026-05-10`, `2019-03/2019-05`, `2026-05-14T16:00:00Z/2026-05-14T17:00:00Z`. A date at either end includes its whole period, so `2026-05-04/2026-05-10` includes all of May 10. An interval of dates is written in EDTF (ISO 8601-2), and an interval of instants in ISO 8601-1. Not allowed: an instant alone (`2026-05-14T16:00:00Z`), a date and an instant in one interval (`2026-05-14/2026-05-14T17:00:00Z`), an interval that ends before it starts (`2026-05-10/2026-05-04`), or an interval with an open or unknown end (`2019/..`, `2019/`)." .
 :Agent a owl:Class;
   rdfs:subClassOf :Entity;
   rdfs:comment "An entity that can act, such as a person, an organization, or a piece of software." .
@@ -474,7 +476,7 @@
   rdfs:range :Message .
 
 :Event a owl:Class;
-  rdfs:comment "A named happening with a planned start and end, such as a calendar entry, a concert, or a picnic. Its :scheduledStart and :scheduledEnd give the plan. The actions that record it give when it actually happened.";
+  rdfs:comment "A named happening with a planned start and end, such as a calendar entry, a concert, or a picnic. Its :scheduledFor gives the plan. The actions that record it give when it actually happened.";
   rdfs:subClassOf :Entity;
   skos:broadMatch schemaorg:Event .
 :Calendar a owl:Class;
@@ -486,18 +488,11 @@
   rdfs:domain :Event;
   rdfs:range :Agent;
   skos:closeMatch schemaorg:attendee .
-:scheduledStart a owl:DatatypeProperty;
-  rdfs:comment "When the event or session is planned to start. When something actually started is an action's :startTime. A timed plan starts at an instant. An all-day plan starts on a date.";
+:scheduledFor a owl:DatatypeProperty;
+  rdfs:comment "When the event or session is planned to happen. When it actually happened is an action's :startTime and :endTime. A timed plan runs between two instants. An all-day plan is a date, or two dates when it lasts several days, and includes the last day.";
   rdfs:domain [ a owl:Class; owl:unionOf ( :Event :Session ) ];
-  rdfs:range :DateTime;
-  skos:closeMatch schemaorg:startDate .
-[] a sh:PropertyShape; sh:path :scheduledStart; sh:targetSubjectsOf :scheduledStart; sh:maxCount 1 .
-:scheduledEnd a owl:DatatypeProperty;
-  rdfs:comment "When the event or session is planned to end. It is the same kind of value as its :scheduledStart and is not before it. A date is the last whole day included, so a one-day event ends on the day it starts.";
-  rdfs:domain [ a owl:Class; owl:unionOf ( :Event :Session ) ];
-  rdfs:range :DateTime;
-  skos:closeMatch schemaorg:endDate .
-[] a sh:PropertyShape; sh:path :scheduledEnd; sh:targetSubjectsOf :scheduledEnd; sh:maxCount 1 .
+  rdfs:range :DateRange .
+[] a sh:PropertyShape; sh:path :scheduledFor; sh:targetSubjectsOf :scheduledFor; sh:maxCount 1 .
 :relation a owl:ObjectProperty;
   rdfs:comment "Another entity that this entity is linked to.";
   :abstract true;
@@ -524,7 +519,7 @@
   rdfs:subClassOf :CommunicateAction;
   skos:exactMatch schemaorg:ShareAction .
 :Session a owl:Class;
-  rdfs:comment "A period of one person's activity or experience, such as a night's sleep, a logged block of work, a trip across town, or their time on a call. The action that records it gives when it actually happened. Others who took part have sessions of their own. Something they shared, such as a concert or a meeting, is an :Event that each session :isPartOf. Its :scheduledStart and :scheduledEnd give a planned period.";
+  rdfs:comment "A period of one person's activity or experience, such as a night's sleep, a logged block of work, a trip across town, or their time on a call. The action that records it gives when it actually happened. Others who took part have sessions of their own. Something they shared, such as a concert or a meeting, is an :Event that each session :isPartOf. Its :scheduledFor gives a planned period.";
   rdfs:subClassOf :Entity .
 :CallSession a owl:Class;
   rdfs:comment "One person's time on a phone or video call. It is the :result of a :CallAction. Its :recipient is who received the call. A group call's session :isPartOf a :Channel whose :member values are the participants. A missed call has zero length.";
@@ -843,6 +838,11 @@
   rdfs:domain [ a owl:Class; owl:unionOf ( :CreativeWork :AudioObject ) ];
   rdfs:range :Text;
   skos:exactMatch schemaorg:genre .
+:dateCovered a owl:DatatypeProperty;
+  rdfs:comment "A period the work is about, such as the day a journal entry describes, the month a recap covers, or the years a novel is set in. A work about several separate periods has one value for each. The action that created the work gives when it was written.";
+  rdfs:domain :CreativeWork;
+  rdfs:range :DateRange;
+  skos:closeMatch schemaorg:temporalCoverage .
 :datePublished a owl:DatatypeProperty;
   rdfs:comment "When the work was published or released. It is when the work's :PublishAction occurred.";
   skos:exactMatch schemaorg:datePublished;
