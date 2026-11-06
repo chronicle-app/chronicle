@@ -2865,7 +2865,7 @@ example:note-edited
   rdfs:label "Editing a note";
   rdfs:comment """
 An :UpdateAction for a Markdown note in an Obsidian vault, at the file's
-modification time. The :DocumentObject is keyed by its path in the vault, its
+modification time. The :Note is keyed by its path in the vault, its
 :handle, within a :Realm for the vault. It keeps the note's :body, its
 :tags, and the :references its links resolve to: another note in the vault,
 and a web page keyed by its :url.
@@ -2882,12 +2882,11 @@ and a web page keyed by its :url.
       :sameAs "@me"
     ];
     :object [
-      a :DocumentObject;
+      a :Note;
       doc:key ("source" "handle" "inRealm.handle");
       :source "obsidian";
       :handle "Garden/Seeds.md";
       :name "Seeds";
-      :mimeType "text/markdown";
       :body "Order tomato seeds before [[Planting schedule]]. See [the catalog](https://seeds.example.com/).\n";
       :tags "garden", "todo/spring";
       :inRealm [
@@ -2897,12 +2896,11 @@ and a web page keyed by its :url.
         :handle "Notebook"
       ];
       :references [
-        a :DocumentObject;
+        a :Note;
         doc:key ("source" "handle" "inRealm.handle");
         :source "obsidian";
         :handle "Garden/Planting schedule.md";
         :name "Planting schedule";
-        :mimeType "text/markdown";
         :inRealm [
           a :Realm;
           doc:key ("@type" "source" "handle");
@@ -2914,6 +2912,41 @@ and a web page keyed by its :url.
         doc:key ("url");
         :source "url";
         :url "https://seeds.example.com/"
+      ]
+    ]
+  ] .
+
+example:journal-entry
+  rdfs:label "A journal entry about a past day";
+  rdfs:comment """
+A :Note in an Obsidian vault, named for the day it's about. Its :dateCovered
+gives that day. The :UpdateAction's :timestamp gives when the file was last
+edited, which is two years later.
+""";
+  rdf:value [
+    a :UpdateAction;
+    doc:key ("@type" "source" "object.handle" "object.inRealm.handle" "timestamp");
+    :source "obsidian";
+    :timestamp "2021-06-02T21:10:00.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source");
+      :source "obsidian";
+      :sameAs "@me"
+    ];
+    :object [
+      a :Note;
+      doc:key ("source" "handle" "inRealm.handle");
+      :source "obsidian";
+      :handle "Journal/2019-03-14.md";
+      :name "2019-03-14";
+      :dateCovered "2019-03-14";
+      :body "Walked the ridge trail before the rain came in.\n";
+      :inRealm [
+        a :Realm;
+        doc:key ("@type" "source" "handle");
+        :source "obsidian";
+        :handle "Notebook"
       ]
     ]
   ] .
@@ -3945,7 +3978,9 @@ a sentence of prose, so the action has no :object.
 # obsidian
 :tags skos:example example:note-edited .
 :references skos:example example:note-edited .
-:DocumentObject skos:example example:note-edited .
+:Note skos:example example:note-edited, example:journal-entry .
+:dateCovered skos:example example:journal-entry .
+:DateRange skos:example example:journal-entry .
 :UpdateAction skos:example example:note-edited .
 
 :ReadAction skos:example example:reader-item-read .

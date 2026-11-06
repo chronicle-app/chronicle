@@ -4,6 +4,7 @@ import { Extractor, Record, countMonth, type Survey, type SurveyOptions } from '
 import { load, CORE_SCHEMA } from 'js-yaml';
 import { z } from 'zod';
 import ObsidianTransformer from './ObsidianTransformer.js';
+import type { DailyNotes } from './period.js';
 
 export interface VaultNote {
   /** Path relative to the enclosing vault, including .md. */
@@ -23,6 +24,7 @@ export interface VaultContext {
   vault: string;
   /** All Markdown paths in the vault, including notes outside the input folder. */
   paths: string[];
+  dailyNotes?: DailyNotes;
 }
 
 const FRONTMATTER = /^(?:\uFEFF)?---\r?\n((?:[^\n]*\n)*?)---(?:\r?\n|$)/;
@@ -63,10 +65,12 @@ export class ObsidianExtractor extends Extractor<typeof ObsidianExtractor> {
     const input = path.resolve(String(this.config.input));
     const root = await this.vaultRoot(input);
     const files = await this.findMarkdownFiles(root);
+    const dailyNotes = await this.dailyNotes(root);
     this.context = {
       recordType: 'notes',
       vault: path.basename(root),
       paths: files.map(file => path.relative(root, file).split(path.sep).join('/')),
+      ...(dailyNotes && { dailyNotes }),
     };
 
     for (const file of files) {
@@ -105,6 +109,27 @@ export class ObsidianExtractor extends Extractor<typeof ObsidianExtractor> {
       dir = parent;
     } while (dir !== path.dirname(dir));
     return input;
+  }
+
+  /** The vault's Daily Notes settings, if it has any. */
+  private async dailyNotes(root: string): Promise<DailyNotes | undefined> {
+    let settings: string;
+    try {
+      settings = await fs.readFile(path.join(root, '.obsidian', 'daily-notes.json'), 'utf8');
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+      throw error;
+    }
+    try {
+      const { folder, format } = JSON.parse(settings);
+      if (typeof format !== 'string' || !format) return undefined;
+      return { folder: typeof folder === 'string' ? folder : '', format };
+    } catch (error) {
+      this.logger.warn(
+        `Unparseable Daily Notes settings: ${error instanceof Error ? error.message : String(error)}`
+      );
+      return undefined;
+    }
   }
 
   /** Re-reading unchanged files produces the same snapshot time. */

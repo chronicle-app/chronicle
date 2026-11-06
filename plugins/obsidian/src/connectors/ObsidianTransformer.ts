@@ -1,28 +1,23 @@
 import path from 'node:path';
 import { ChronicleTransformer, Record, selfAgent } from '@chronicle.app/etl';
-import {
-  DocumentObject,
-  EntityAndChildren,
-  Person,
-  Realm,
-  UpdateAction,
-} from '@chronicle.app/schema';
+import { EntityAndChildren, Note, Person, Realm, UpdateAction } from '@chronicle.app/schema';
 import type { VaultContext, VaultNote } from './ObsidianExtractor.js';
+import { periodCovered } from './period.js';
 
 const SOURCE = 'obsidian';
 const NOTE_KEY = ['source', 'handle', 'inRealm.handle'];
 const withExtension = (value: string) => (/\.md$/i.test(value) ? value : `${value}.md`);
 
-/** Every note is a document; custom properties never infer a real-world subject. */
+/** Every file is a :Note; custom properties never infer a real-world subject. */
 export default class ObsidianTransformer extends ChronicleTransformer {
   async transform(record: Record): Promise<UpdateAction[]> {
     if (record.extraction.recordType !== 'notes') return [];
     const note = record.data as VaultNote;
     const ctx = record.context as VaultContext;
-    const document = this.document(note.path, ctx);
-    document.body = note.body;
-    document.tags = note.tags;
-    document.references = this.references(note, ctx);
+    const work = this.noteWork(note.path, ctx);
+    work.body = note.body;
+    work.tags = note.tags;
+    work.references = this.references(note, ctx);
     return [
       {
         '@type': 'UpdateAction',
@@ -30,12 +25,13 @@ export default class ObsidianTransformer extends ChronicleTransformer {
         source: SOURCE,
         timestamp: note.mtime as unknown as Date,
         agent: selfAgent({ source: SOURCE }) as Person,
-        object: document,
+        object: work,
       },
     ];
   }
 
-  private document(handle: string, ctx: VaultContext): DocumentObject {
+  private noteWork(handle: string, ctx: VaultContext): Note {
+    const period = periodCovered(handle, ctx.dailyNotes);
     const realm: Realm = {
       '@type': 'Realm',
       '@key': ['@type', 'source', 'handle'],
@@ -43,20 +39,20 @@ export default class ObsidianTransformer extends ChronicleTransformer {
       handle: ctx.vault,
     };
     return {
-      '@type': 'DocumentObject',
+      '@type': 'Note',
       '@key': NOTE_KEY,
       source: SOURCE,
       handle,
       name: path.posix.basename(handle, path.posix.extname(handle)),
       inRealm: realm,
-      mimeType: 'text/markdown',
+      ...(period && { dateCovered: [period] }),
     };
   }
 
   private references(note: VaultNote, ctx: VaultContext): EntityAndChildren[] {
     const references = new Map<string, EntityAndChildren>();
     // Ignore code examples and comments when recognizing links. The original
-    // Markdown is preserved verbatim on the document.
+    // Markdown is preserved verbatim on the note.
     const text = note.body
       .replaceAll(/^(`{3,}|~{3,})[^\n]*\n[\s\S]*?^\1[^\n]*(?:\n|$)/gm, '')
       .replaceAll(/(`+)[^\n]*?\1/g, '')
@@ -87,7 +83,7 @@ export default class ObsidianTransformer extends ChronicleTransformer {
       if (!target) return;
       const resolved = this.resolve(target, note.path, ctx.paths, wiki);
       if (resolved && resolved !== note.path)
-        references.set(resolved, this.document(resolved, ctx));
+        references.set(resolved, this.noteWork(resolved, ctx));
     };
     for (const match of text.matchAll(/(?<!\\)\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g))
       add(match[1], true);

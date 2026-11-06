@@ -12,14 +12,14 @@ const realm = {
   handle: 'Notebook',
   '@asserts': ['*'],
 };
-const document = (handle, name) => ({
-  '@type': 'DocumentObject',
+const noteWork = (handle, name, more = {}) => ({
+  '@type': 'Note',
   '@key': ['source', 'handle', 'inRealm.handle'],
   source: 'obsidian',
   handle,
   name,
   inRealm: realm,
-  mimeType: 'text/markdown',
+  ...more,
   '@asserts': ['*'],
 });
 
@@ -35,7 +35,7 @@ const body = [
   '',
 ].join('\n');
 
-test('a vault becomes schema-valid document updates with tags and resolved links', async t => {
+test('a vault becomes schema-valid note updates with tags and resolved links', async t => {
   const root = vault(t, {
     'Garden/Seeds.md': [
       [
@@ -120,14 +120,14 @@ test('a vault becomes schema-valid document updates with tags and resolved links
       '@asserts': ['*'],
     },
     object: {
-      ...document('Garden/Seeds.md', 'Seeds'),
+      ...noteWork('Garden/Seeds.md', 'Seeds'),
       body,
       tags: ['garden', 'todo/spring'],
       // First-seen order: wikilinks and embeds, then Markdown links.
       references: [
-        document('Garden/Planting schedule.md', 'Planting schedule'),
-        document('Photo.md', 'Photo'),
-        document('People/Sam.md', 'Sam'),
+        noteWork('Garden/Planting schedule.md', 'Planting schedule'),
+        noteWork('Photo.md', 'Photo'),
+        noteWork('People/Sam.md', 'Sam'),
         {
           '@type': 'Entity',
           '@key': ['url'],
@@ -135,7 +135,7 @@ test('a vault becomes schema-valid document updates with tags and resolved links
           url: 'https://seeds.example.com/',
           '@asserts': ['*'],
         },
-        document('Welcome.md', 'Welcome'),
+        noteWork('Welcome.md', 'Welcome'),
       ],
       '@asserts': ['*'],
     },
@@ -159,7 +159,7 @@ test('a limited subfolder import keeps the enclosing vault identity', async t =>
   const [fromAll] = await transform(all.records.slice(0, 1));
   const [fromSubset] = await transform(subset.records);
   assert.deepEqual(fromSubset, fromAll);
-  assert.deepEqual(fromSubset.object.references, [document('Welcome.md', 'Welcome')]);
+  assert.deepEqual(fromSubset.object.references, [noteWork('Welcome.md', 'Welcome')]);
 });
 
 test('a survey counts the notes a run reads, whatever its limit, and when they were last edited', async t => {
@@ -219,4 +219,77 @@ test('strips only a complete leading frontmatter block', async t => {
     assert.deepEqual(note.frontmatter, frontmatter, `case ${index}`);
   }
   assert.deepEqual(byPath.get('Note 5.md').tags, ['a', 'b', 'c']);
+});
+
+test('a note named for a day, month, or week covers it', async t => {
+  const root = vault(t, {
+    'Journal/2019-03-14.md': 'A day.',
+    '2026-05.md': 'A monthly recap.',
+    '2026-W19.md': 'A weekly note.',
+    '2026-W53.md': 'The last week of a long year.',
+    '2025-W53.md': 'A week 2025 does not have.',
+    '2019-02-30.md': 'A day no year has.',
+    '2026-13.md': 'A month no year has.',
+    '1984.md': 'The book, not the year.',
+    'Links.md': '[[2019-03-14]]',
+  });
+  const out = await transform((await extract(root)).records);
+  const covered = Object.fromEntries(out.map(a => [a.object.handle, a.object.dateCovered]));
+  assert.deepEqual(covered, {
+    'Journal/2019-03-14.md': ['2019-03-14'],
+    '2026-05.md': ['2026-05'],
+    '2026-W19.md': ['2026-05-04/2026-05-10'],
+    '2026-W53.md': ['2026-12-28/2027-01-03'],
+    '2025-W53.md': undefined,
+    '2019-02-30.md': undefined,
+    '2026-13.md': undefined,
+    '1984.md': undefined,
+    'Links.md': undefined,
+  });
+  // A link to a dated note says the same as the note does.
+  const links = out.find(a => a.object.handle === 'Links.md').object;
+  assert.deepEqual(links.references[0].dateCovered, ['2019-03-14']);
+});
+
+test("a vault's Daily Notes settings say how its days are named", async t => {
+  const covered = async (settings, files) => {
+    const root = vault(t, {
+      '.obsidian/daily-notes.json': settings,
+      ...Object.fromEntries(files.map(file => [file, 'A day.'])),
+    });
+    const out = await transform((await extract(root)).records);
+    return Object.fromEntries(out.map(a => [a.object.handle, a.object.dateCovered?.[0]]));
+  };
+
+  assert.deepEqual(
+    await covered(JSON.stringify({ folder: 'Journal/', format: 'MMMM Do, YYYY' }), [
+      'Journal/March 14th, 2019.md',
+      'Journal/Marchtober 14th, 2019.md',
+      'Elsewhere/March 14th, 2019.md',
+      // A name that is exactly a date still is one, wherever it is.
+      'Elsewhere/2019-03-15.md',
+    ]),
+    {
+      'Journal/March 14th, 2019.md': '2019-03-14',
+      'Journal/Marchtober 14th, 2019.md': undefined,
+      'Elsewhere/March 14th, 2019.md': undefined,
+      'Elsewhere/2019-03-15.md': '2019-03-15',
+    }
+  );
+  // A field written twice has to agree, and literal text in brackets is literal.
+  assert.deepEqual(
+    await covered(JSON.stringify({ format: 'YYYY/[Day] DD-MM-YYYY, ddd' }), [
+      '2019/Day 14-03-2019, Thu.md',
+      '2018/Day 14-03-2019, Thu.md',
+    ]),
+    { '2019/Day 14-03-2019, Thu.md': '2019-03-14', '2018/Day 14-03-2019, Thu.md': undefined }
+  );
+  // A format with a token this can't read, or settings it can't parse, name no days.
+  assert.deepEqual(await covered(JSON.stringify({ format: 'gggg-DD-MM' }), ['2019-14-03.md']), {
+    '2019-14-03.md': undefined,
+  });
+  assert.deepEqual(await covered('{ not json', ['14-03-2019.md', '2019-03-14.md']), {
+    '14-03-2019.md': undefined,
+    '2019-03-14.md': '2019-03-14',
+  });
 });
