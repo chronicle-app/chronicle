@@ -64,6 +64,9 @@ Each row maps to a `Book` (keyed on the Goodreads `Book Id`) authored by a
 | `Exclusive Shelf` = `read`        | `CompleteAction` | Finish, placed at `Date Read` (falls back to add) |
 | `currently-reading` / `to-finish` | `ConsumeAction`  | In-progress status, undated (no session start)    |
 
+Goodreads gives days, not times, so a `timestamp` is a civil date such as
+`2025-03-14`.
+
 On the persistence side these fold into the derived `encountered` (every
 bookmarked book), `completed` (finished books), and `consuming` (in-progress)
 runs. The in-progress shelf is a status, not a reading session: Goodreads has no

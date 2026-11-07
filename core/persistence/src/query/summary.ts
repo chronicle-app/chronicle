@@ -533,7 +533,7 @@ const NON_FACET_PREDICATES = new Set([
   'attachmentCid',
   'identifier',
 ]);
-const NON_FACET_RANGES = new Set(['DateTime', 'URL', 'Number', 'Selector']);
+const NON_FACET_RANGES = new Set(['DateTime', 'DateRange', 'URL', 'Number', 'Selector']);
 
 /** A breakdown grouped by `key`: the top pairs plus `@other`, and how many
  *  distinct keys there were — so a candidate that does not group is dropped. */

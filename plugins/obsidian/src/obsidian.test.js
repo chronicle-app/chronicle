@@ -12,14 +12,14 @@ const realm = {
   handle: 'Notebook',
   '@asserts': ['*'],
 };
-const document = (handle, name) => ({
-  '@type': 'DocumentObject',
+const noteWork = (handle, name, more = {}) => ({
+  '@type': 'Note',
   '@key': ['source', 'handle', 'inRealm.handle'],
   source: 'obsidian',
   handle,
   name,
   inRealm: realm,
-  mimeType: 'text/markdown',
+  ...more,
   '@asserts': ['*'],
 });
 
@@ -35,7 +35,7 @@ const body = [
   '',
 ].join('\n');
 
-test('a vault becomes schema-valid document updates with tags and resolved links', async t => {
+test('a vault becomes schema-valid note updates with tags and resolved links', async t => {
   const root = vault(t, {
     'Garden/Seeds.md': [
       [
@@ -120,14 +120,14 @@ test('a vault becomes schema-valid document updates with tags and resolved links
       '@asserts': ['*'],
     },
     object: {
-      ...document('Garden/Seeds.md', 'Seeds'),
+      ...noteWork('Garden/Seeds.md', 'Seeds'),
       body,
       tags: ['garden', 'todo/spring'],
       // First-seen order: wikilinks and embeds, then Markdown links.
       references: [
-        document('Garden/Planting schedule.md', 'Planting schedule'),
-        document('Photo.md', 'Photo'),
-        document('People/Sam.md', 'Sam'),
+        noteWork('Garden/Planting schedule.md', 'Planting schedule'),
+        noteWork('Photo.md', 'Photo'),
+        noteWork('People/Sam.md', 'Sam'),
         {
           '@type': 'Entity',
           '@key': ['url'],
@@ -135,7 +135,7 @@ test('a vault becomes schema-valid document updates with tags and resolved links
           url: 'https://seeds.example.com/',
           '@asserts': ['*'],
         },
-        document('Welcome.md', 'Welcome'),
+        noteWork('Welcome.md', 'Welcome'),
       ],
       '@asserts': ['*'],
     },
@@ -159,7 +159,7 @@ test('a limited subfolder import keeps the enclosing vault identity', async t =>
   const [fromAll] = await transform(all.records.slice(0, 1));
   const [fromSubset] = await transform(subset.records);
   assert.deepEqual(fromSubset, fromAll);
-  assert.deepEqual(fromSubset.object.references, [document('Welcome.md', 'Welcome')]);
+  assert.deepEqual(fromSubset.object.references, [noteWork('Welcome.md', 'Welcome')]);
 });
 
 test('a survey counts the notes a run reads, whatever its limit, and when they were last edited', async t => {
@@ -219,4 +219,44 @@ test('strips only a complete leading frontmatter block', async t => {
     assert.deepEqual(note.frontmatter, frontmatter, `case ${index}`);
   }
   assert.deepEqual(byPath.get('Note 5.md').tags, ['a', 'b', 'c']);
+});
+
+test('a note covers the one ISO day in its name', async t => {
+  const root = vault(t, {
+    'Journal/2019-03-14.md': 'A day.',
+    'Garden tour (2026-11-06).md': 'A day in a title.',
+    'seed-swap-2026-11-07.md': 'A day in a slug.',
+    '2026-11-08 harvest.md': 'A day to start with.',
+    'From 2026-11-09 to 2026-11-11.md': 'Two days name no one day.',
+    '2019-02-30.md': 'A day no year has.',
+    'Ticket 12026-11-06.md': 'A longer number.',
+    'Ticket 1234-2026-11-06.md': 'A longer number, with a hyphen.',
+    '2026-05.md': 'A month is not a day.',
+    '2026-W19.md': 'A week is not a day.',
+    'March 14th, 2019.md': 'Only ISO days count.',
+    '1984.md': 'The book, not the year.',
+    '2026-11-12/Notes.md': 'A folder is not the name.',
+    'Links.md': '[[2019-03-14]]',
+  });
+  const out = await transform((await extract(root)).records);
+  const covered = Object.fromEntries(out.map(a => [a.object.handle, a.object.dateCovered]));
+  assert.deepEqual(covered, {
+    'Journal/2019-03-14.md': '2019-03-14',
+    'Garden tour (2026-11-06).md': '2026-11-06',
+    'seed-swap-2026-11-07.md': '2026-11-07',
+    '2026-11-08 harvest.md': '2026-11-08',
+    'From 2026-11-09 to 2026-11-11.md': undefined,
+    '2019-02-30.md': undefined,
+    'Ticket 12026-11-06.md': undefined,
+    'Ticket 1234-2026-11-06.md': undefined,
+    '2026-05.md': undefined,
+    '2026-W19.md': undefined,
+    'March 14th, 2019.md': undefined,
+    '1984.md': undefined,
+    '2026-11-12/Notes.md': undefined,
+    'Links.md': undefined,
+  });
+  // A link to a dated note says the same as the note does.
+  const links = out.find(a => a.object.handle === 'Links.md').object;
+  assert.equal(links.references[0].dateCovered, '2019-03-14');
 });

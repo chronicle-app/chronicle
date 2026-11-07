@@ -135,6 +135,13 @@ export const PREDICATE_ANNOTATIONS: Record<string, PredicateAnnotation> = {
     isEntityRange: false,
     metric: false,
   },
+  dateCovered: {
+    predicate: 'dateCovered',
+    cardinality: 'one',
+    range: 'DateRange',
+    isEntityRange: false,
+    metric: false,
+  },
   datePublished: {
     predicate: 'datePublished',
     cardinality: 'one',
@@ -493,17 +500,10 @@ export const PREDICATE_ANNOTATIONS: Record<string, PredicateAnnotation> = {
     metric: false,
     identityEffect: 'merge',
   },
-  scheduledEnd: {
-    predicate: 'scheduledEnd',
+  scheduledFor: {
+    predicate: 'scheduledFor',
     cardinality: 'one',
-    range: 'DateTime',
-    isEntityRange: false,
-    metric: false,
-  },
-  scheduledStart: {
-    predicate: 'scheduledStart',
-    cardinality: 'one',
-    range: 'DateTime',
+    range: 'DateRange',
     isEntityRange: false,
     metric: false,
   },

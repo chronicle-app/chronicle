@@ -105,8 +105,6 @@ as: rdfs:label "Activity Streams 2.0";
 :recipient skos:closeMatch as:to;
   doc:note "Activity Streams separates the primary audience, as:to, from copies in as:cc, as:bto, and as:bcc." .
 :result skos:exactMatch as:result .
-:scheduledEnd skos:broadMatch as:endTime .
-:scheduledStart skos:broadMatch as:startTime .
 :startTime skos:broadMatch as:startTime .
 :subject doc:unlike as:subject;
   doc:note "as:subject is one of the two individuals in an as:Relationship." .

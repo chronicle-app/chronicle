@@ -192,7 +192,7 @@ const writeSchemaFile = (classes, properties, inverses, version) =>
     schemaFile.write(`export const SCHEMA_VERSION = ${JSON.stringify(version)} as const;\n`);
 
     schemaFile.write(
-      "// Generated from chronicle.ttl. Do not edit; run npm run schema:generate.\nimport { z } from 'zod';\nimport { isDateTime, isInstant } from './datetime.js';\n\n// Record identity key field: a property path, or a computed {key, value} entry\nexport type KeyField = string | { key: string; value: string };\n\n"
+      "// Generated from chronicle.ttl. Do not edit; run npm run schema:generate.\nimport { z } from 'zod';\nimport { isDateRange, isDateTime, isInstant } from './datetime.js';\n\n// Record identity key field: a property path, or a computed {key, value} entry\nexport type KeyField = string | { key: string; value: string };\n\n"
     );
 
     // A Date is an instant; a string is kept verbatim, never coerced, so a
@@ -202,6 +202,13 @@ const writeSchemaFile = (classes, properties, inverses, version) =>
         '  z.date(),\n' +
         "  z.string().refine(isDateTime, 'Not a date or time. Use EDTF, such as 2026-03-14T09:26:00Z, 2026-03-14, or 1987.'),\n" +
         ']);\n\n'
+    );
+
+    // Always a string: a Date is an instant, and an instant alone is no range.
+    schemaFile.write(
+      'const DateRangeSchema = z\n' +
+        '  .string()\n' +
+        "  .refine(isDateRange, 'Not a date range. Use a date or two joined by a slash, such as 2026-03-14 or 2026-05-04/2026-05-10.');\n\n"
     );
 
     // The forward edge a store keeps for each inverse name a record can use.
@@ -300,6 +307,7 @@ const writeSchemaFile = (classes, properties, inverses, version) =>
               Text: 'string',
               Integer: 'bigint',
               DateTime: 'Date | string',
+              DateRange: 'string',
               Float: 'number',
               Number: 'number',
               Boolean: 'boolean',
@@ -362,6 +370,9 @@ ${shortName === 'Base' ? '"@key"?: KeyField[];\n"@id"?: string;\n"@asserts"?: st
             }
             if (rangeShortName === 'DateTime') {
               return 'DateTimeSchema';
+            }
+            if (rangeShortName === 'DateRange') {
+              return 'DateRangeSchema';
             }
             if (rangeShortName === 'JSONObject') {
               return 'z.record(z.string(), z.union([z.string(), z.number()]))';
