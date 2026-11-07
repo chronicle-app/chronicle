@@ -1,5 +1,11 @@
 # @chronicle.app/things-todo
 
+## 0.6.0
+
+### Patch Changes
+
+- @chronicle.app/etl-sqlite@0.6.0
+
 ## 0.5.0
 
 ### Minor Changes

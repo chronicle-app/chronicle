@@ -1,5 +1,11 @@
 # @chronicle.app/facebook
 
+## 0.6.0
+
+### Patch Changes
+
+- 0341b5d: A search's `Query` has its text as `body` only, as the vocabulary says, and no longer repeats it as `name`. Its key, by `body`, is unchanged.
+
 ## 0.5.0
 
 ### Minor Changes

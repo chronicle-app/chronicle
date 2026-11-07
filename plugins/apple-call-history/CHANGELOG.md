@@ -1,5 +1,12 @@
 # @chronicle.app/apple-call-history
 
+## 0.6.0
+
+### Patch Changes
+
+- @chronicle.app/apple@0.6.0
+  - @chronicle.app/etl-sqlite@0.6.0
+
 ## 0.5.0
 
 ### Minor Changes

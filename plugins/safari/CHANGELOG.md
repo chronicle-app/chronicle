@@ -1,5 +1,13 @@
 # @chronicle.app/safari
 
+## 0.6.0
+
+### Patch Changes
+
+- b9ba3ed: A page without a title has no `name`, instead of its URL as one. Its key, by `url`, is unchanged.
+- @chronicle.app/apple@0.6.0
+  - @chronicle.app/etl-sqlite@0.6.0
+
 ## 0.5.0
 
 ### Minor Changes

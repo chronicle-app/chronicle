@@ -1,5 +1,14 @@
 # @chronicle.app/apple-health
 
+## 0.6.0
+
+### Patch Changes
+
+- Updated dependencies [aaa7f9f]
+- Updated dependencies [057d92d]
+  - @chronicle.app/logging@0.6.0
+  - @chronicle.app/apple@0.6.0
+
 ## 0.5.0
 
 ### Minor Changes
