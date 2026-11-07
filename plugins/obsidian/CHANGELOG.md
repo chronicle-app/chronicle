@@ -1,5 +1,11 @@
 # @chronicle.app/obsidian
 
+## 0.6.0
+
+### Minor Changes
+
+- bf380c6: Each file in a vault is now a `Note` instead of a `DocumentObject`, with the same identity. A note with one ISO 8601 day in its file name, as in `2019-03-14` or `Garden tour (2026-11-06)`, gets a `dateCovered` for that day.
+
 ## 0.5.0
 
 ### Minor Changes

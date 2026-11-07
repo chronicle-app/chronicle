@@ -1,5 +1,11 @@
 # @chronicle.app/github
 
+## 0.6.0
+
+### Patch Changes
+
+- @chronicle.app/auth@0.6.0
+
 ## 0.5.0
 
 ### Minor Changes

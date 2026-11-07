@@ -1,5 +1,11 @@
 # @chronicle.app/arc-timeline
 
+## 0.6.0
+
+### Patch Changes
+
+- @chronicle.app/apple@0.6.0
+
 ## 0.5.0
 
 ### Minor Changes

@@ -1,6 +1,6 @@
 {
   "name": "@chronicle.app/apple-health",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
@@ -24,9 +24,9 @@
   "type": "module",
   "description": "Chronicle plugin for your heart, respiratory, and body readings, your steps and active energy, and your sleep, from the export the Health app makes",
   "devDependencies": {
-    "@chronicle.app/etl": "0.5.0",
-    "@chronicle.app/schema": "0.5.0",
-    "@chronicle.app/tsconfig": "0.5.0",
+    "@chronicle.app/etl": "0.6.0",
+    "@chronicle.app/schema": "0.6.0",
+    "@chronicle.app/tsconfig": "0.6.0",
     "@types/node": "^22.10.1",
     "typescript": "^5.7.2"
   },
@@ -41,8 +41,8 @@
     "registry": "https://registry.npmjs.org/"
   },
   "dependencies": {
-    "@chronicle.app/apple": "0.5.0",
-    "@chronicle.app/logging": "0.5.0",
+    "@chronicle.app/apple": "0.6.0",
+    "@chronicle.app/logging": "0.6.0",
     "saxes": "^6.0.0",
     "zod": "^3.24.1"
   },
