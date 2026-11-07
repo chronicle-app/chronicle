@@ -15,16 +15,13 @@ const NOTE_KEY = ['source', 'handle', 'inRealm.handle'];
 const withExtension = (value: string) => (/\.md$/i.test(value) ? value : `${value}.md`);
 
 /**
- * The period a file name gives: the ISO 8601 day in it, as in
- * `Garden tour (2026-11-06)`, or the span from the earliest day to the latest when
- * it has several. A day that's part of a longer number, as in `1234-2026-11-06`,
- * doesn't count.
+ * The day a file name gives: the one ISO 8601 day in it, as in
+ * `Garden tour (2026-11-06)`. A name with several gives none, and a day that's
+ * part of a longer number, as in `1234-2026-11-06`, doesn't count.
  */
-function periodCovered(handle: string): string | undefined {
-  const named = path.posix.basename(handle).match(/(?<!\d)(?<!\d-)\d{4}-\d{2}-\d{2}(?!\d)/g) ?? [];
-  const days = named.filter(day => isDateRange(day)).sort();
-  const [first, last] = [days[0], days.at(-1)];
-  return first === last ? first : `${first}/${last}`;
+function dayCovered(handle: string): string | undefined {
+  const days = path.posix.basename(handle).match(/(?<!\d)(?<!\d-)\d{4}-\d{2}-\d{2}(?!\d)/g) ?? [];
+  return days.length === 1 && isDateRange(days[0]) ? days[0] : undefined;
 }
 
 /** Every file is a :Note; custom properties never infer a real-world subject. */
@@ -50,7 +47,7 @@ export default class ObsidianTransformer extends ChronicleTransformer {
   }
 
   private noteWork(handle: string, ctx: VaultContext): Note {
-    const period = periodCovered(handle);
+    const day = dayCovered(handle);
     const realm: Realm = {
       '@type': 'Realm',
       '@key': ['@type', 'source', 'handle'],
@@ -64,7 +61,7 @@ export default class ObsidianTransformer extends ChronicleTransformer {
       handle,
       name: path.posix.basename(handle, path.posix.extname(handle)),
       inRealm: realm,
-      ...(period && { dateCovered: period }),
+      ...(day && { dateCovered: day }),
     };
   }
 

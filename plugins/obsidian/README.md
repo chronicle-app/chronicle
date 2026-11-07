@@ -29,11 +29,11 @@ Hidden files/directories, symlinks, and non-Markdown attachments are skipped.
 - Tags: the standard frontmatter `tags` property, preserving case and nested tags.
 - References: resolved wikilinks and inline Markdown links to other notes;
   external HTTP(S) Markdown links reference URL entities.
-- Period: `dateCovered`, for a note with an ISO 8601 day in its file name, which can
-  be long before the file was last edited. `2019-03-14` and `Garden tour (2026-11-06)`
-  each cover their day, and a name with several days covers the span from the earliest
-  to the latest. Other forms, such as `2026-05` or `March 14th, 2019`, aren't read, and
-  neither are dates in custom properties.
+- Day: `dateCovered`, for a note with one ISO 8601 day in its file name, which can be
+  long before the file was last edited. `2019-03-14` and `Garden tour (2026-11-06)`
+  each cover their day. A name with several days covers nothing. Other forms, such as
+  `2026-05` or `March 14th, 2019`, aren't read, and neither are dates in custom
+  properties.
 - Modification: one `UpdateAction` at the file's modification time, attributed to
   the Chronicle owner through `@me`. No owner note is needed.
 

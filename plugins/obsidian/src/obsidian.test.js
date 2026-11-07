@@ -221,16 +221,13 @@ test('strips only a complete leading frontmatter block', async t => {
   assert.deepEqual(byPath.get('Note 5.md').tags, ['a', 'b', 'c']);
 });
 
-test('a note covers the ISO days in its name', async t => {
+test('a note covers the one ISO day in its name', async t => {
   const root = vault(t, {
     'Journal/2019-03-14.md': 'A day.',
     'Garden tour (2026-11-06).md': 'A day in a title.',
     'seed-swap-2026-11-07.md': 'A day in a slug.',
     '2026-11-08 harvest.md': 'A day to start with.',
-    'From 2026-11-09 to 2026-11-11.md': 'Two days, a span.',
-    'Back on 2026-11-20, out on 2026-11-18.md': 'Two days, out of order.',
-    'Review 2026-11-13 (2026-11-13).md': 'One day, repeated.',
-    'Moved from 2026-13-40 to 2026-11-14.md': 'One real day and one that is not.',
+    'From 2026-11-09 to 2026-11-11.md': 'Two days name no one day.',
     '2019-02-30.md': 'A day no year has.',
     'Ticket 12026-11-06.md': 'A longer number.',
     'Ticket 1234-2026-11-06.md': 'A longer number, with a hyphen.',
@@ -248,10 +245,7 @@ test('a note covers the ISO days in its name', async t => {
     'Garden tour (2026-11-06).md': '2026-11-06',
     'seed-swap-2026-11-07.md': '2026-11-07',
     '2026-11-08 harvest.md': '2026-11-08',
-    'From 2026-11-09 to 2026-11-11.md': '2026-11-09/2026-11-11',
-    'Back on 2026-11-20, out on 2026-11-18.md': '2026-11-18/2026-11-20',
-    'Review 2026-11-13 (2026-11-13).md': '2026-11-13',
-    'Moved from 2026-13-40 to 2026-11-14.md': '2026-11-14',
+    'From 2026-11-09 to 2026-11-11.md': undefined,
     '2019-02-30.md': undefined,
     'Ticket 12026-11-06.md': undefined,
     'Ticket 1234-2026-11-06.md': undefined,
