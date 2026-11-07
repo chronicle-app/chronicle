@@ -1,12 +1,31 @@
 import path from 'node:path';
 import { ChronicleTransformer, Record, selfAgent } from '@chronicle.app/etl';
-import { EntityAndChildren, Note, Person, Realm, UpdateAction } from '@chronicle.app/schema';
+import {
+  EntityAndChildren,
+  Note,
+  Person,
+  Realm,
+  UpdateAction,
+  isDateRange,
+} from '@chronicle.app/schema';
 import type { VaultContext, VaultNote } from './ObsidianExtractor.js';
-import { periodCovered } from './period.js';
 
 const SOURCE = 'obsidian';
 const NOTE_KEY = ['source', 'handle', 'inRealm.handle'];
 const withExtension = (value: string) => (/\.md$/i.test(value) ? value : `${value}.md`);
+
+/**
+ * The period a file name gives: the ISO 8601 day in it, as in
+ * `Garden tour (2026-11-06)`, or the span from the earliest day to the latest when
+ * it has several. A day that's part of a longer number, as in `1234-2026-11-06`,
+ * doesn't count.
+ */
+function periodCovered(handle: string): string | undefined {
+  const named = path.posix.basename(handle).match(/(?<!\d)(?<!\d-)\d{4}-\d{2}-\d{2}(?!\d)/g) ?? [];
+  const days = named.filter(day => isDateRange(day)).sort();
+  const [first, last] = [days[0], days.at(-1)];
+  return first === last ? first : `${first}/${last}`;
+}
 
 /** Every file is a :Note; custom properties never infer a real-world subject. */
 export default class ObsidianTransformer extends ChronicleTransformer {
@@ -31,7 +50,7 @@ export default class ObsidianTransformer extends ChronicleTransformer {
   }
 
   private noteWork(handle: string, ctx: VaultContext): Note {
-    const period = periodCovered(handle, ctx.dailyNotes);
+    const period = periodCovered(handle);
     const realm: Realm = {
       '@type': 'Realm',
       '@key': ['@type', 'source', 'handle'],

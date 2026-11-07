@@ -221,17 +221,9 @@ test('strips only a complete leading frontmatter block', async t => {
   assert.deepEqual(byPath.get('Note 5.md').tags, ['a', 'b', 'c']);
 });
 
-test('a note covers the days in its name, or the month or week it is named', async t => {
+test('a note covers the ISO days in its name', async t => {
   const root = vault(t, {
     'Journal/2019-03-14.md': 'A day.',
-    '2026-05.md': 'A monthly recap.',
-    '2026-W19.md': 'A weekly note.',
-    '2026-W53.md': 'The last week of a long year.',
-    '2025-W53.md': 'A week 2025 does not have.',
-    '2019-02-30.md': 'A day no year has.',
-    '2026-13.md': 'A month no year has.',
-    '1984.md': 'The book, not the year.',
-    'Links.md': '[[2019-03-14]]',
     'Garden tour (2026-11-06).md': 'A day in a title.',
     'seed-swap-2026-11-07.md': 'A day in a slug.',
     '2026-11-08 harvest.md': 'A day to start with.',
@@ -239,24 +231,20 @@ test('a note covers the days in its name, or the month or week it is named', asy
     'Back on 2026-11-20, out on 2026-11-18.md': 'Two days, out of order.',
     'Review 2026-11-13 (2026-11-13).md': 'One day, repeated.',
     'Moved from 2026-13-40 to 2026-11-14.md': 'One real day and one that is not.',
-    'Tour (2026-13-40).md': 'A day no year has.',
+    '2019-02-30.md': 'A day no year has.',
     'Ticket 12026-11-06.md': 'A longer number.',
     'Ticket 1234-2026-11-06.md': 'A longer number, with a hyphen.',
-    'Recap 2026-05.md': 'A month counts only as the whole name.',
+    '2026-05.md': 'A month is not a day.',
+    '2026-W19.md': 'A week is not a day.',
+    'March 14th, 2019.md': 'Only ISO days count.',
+    '1984.md': 'The book, not the year.',
     '2026-11-12/Notes.md': 'A folder is not the name.',
+    'Links.md': '[[2019-03-14]]',
   });
   const out = await transform((await extract(root)).records);
   const covered = Object.fromEntries(out.map(a => [a.object.handle, a.object.dateCovered]));
   assert.deepEqual(covered, {
     'Journal/2019-03-14.md': '2019-03-14',
-    '2026-05.md': '2026-05',
-    '2026-W19.md': '2026-05-04/2026-05-10',
-    '2026-W53.md': '2026-12-28/2027-01-03',
-    '2025-W53.md': undefined,
-    '2019-02-30.md': undefined,
-    '2026-13.md': undefined,
-    '1984.md': undefined,
-    'Links.md': undefined,
     'Garden tour (2026-11-06).md': '2026-11-06',
     'seed-swap-2026-11-07.md': '2026-11-07',
     '2026-11-08 harvest.md': '2026-11-08',
@@ -264,56 +252,17 @@ test('a note covers the days in its name, or the month or week it is named', asy
     'Back on 2026-11-20, out on 2026-11-18.md': '2026-11-18/2026-11-20',
     'Review 2026-11-13 (2026-11-13).md': '2026-11-13',
     'Moved from 2026-13-40 to 2026-11-14.md': '2026-11-14',
-    'Tour (2026-13-40).md': undefined,
+    '2019-02-30.md': undefined,
     'Ticket 12026-11-06.md': undefined,
     'Ticket 1234-2026-11-06.md': undefined,
-    'Recap 2026-05.md': undefined,
+    '2026-05.md': undefined,
+    '2026-W19.md': undefined,
+    'March 14th, 2019.md': undefined,
+    '1984.md': undefined,
     '2026-11-12/Notes.md': undefined,
+    'Links.md': undefined,
   });
   // A link to a dated note says the same as the note does.
   const links = out.find(a => a.object.handle === 'Links.md').object;
   assert.equal(links.references[0].dateCovered, '2019-03-14');
-});
-
-test("a vault's Daily Notes settings say how its days are named", async t => {
-  const covered = async (settings, files) => {
-    const root = vault(t, {
-      '.obsidian/daily-notes.json': settings,
-      ...Object.fromEntries(files.map(file => [file, 'A day.'])),
-    });
-    const out = await transform((await extract(root)).records);
-    return Object.fromEntries(out.map(a => [a.object.handle, a.object.dateCovered]));
-  };
-
-  assert.deepEqual(
-    await covered(JSON.stringify({ folder: 'Journal/', format: 'MMMM Do, YYYY' }), [
-      'Journal/March 14th, 2019.md',
-      'Journal/Marchtober 14th, 2019.md',
-      'Elsewhere/March 14th, 2019.md',
-      // A name that is exactly a date still is one, wherever it is.
-      'Elsewhere/2019-03-15.md',
-    ]),
-    {
-      'Journal/March 14th, 2019.md': '2019-03-14',
-      'Journal/Marchtober 14th, 2019.md': undefined,
-      'Elsewhere/March 14th, 2019.md': undefined,
-      'Elsewhere/2019-03-15.md': '2019-03-15',
-    }
-  );
-  // A field written twice has to agree, and literal text in brackets is literal.
-  assert.deepEqual(
-    await covered(JSON.stringify({ format: 'YYYY/[Day] DD-MM-YYYY, ddd' }), [
-      '2019/Day 14-03-2019, Thu.md',
-      '2018/Day 14-03-2019, Thu.md',
-    ]),
-    { '2019/Day 14-03-2019, Thu.md': '2019-03-14', '2018/Day 14-03-2019, Thu.md': undefined }
-  );
-  // A format with a token this can't read, or settings it can't parse, name no days.
-  assert.deepEqual(await covered(JSON.stringify({ format: 'gggg-DD-MM' }), ['2019-14-03.md']), {
-    '2019-14-03.md': undefined,
-  });
-  assert.deepEqual(await covered('{ not json', ['14-03-2019.md', '2019-03-14.md']), {
-    '14-03-2019.md': undefined,
-    '2019-03-14.md': '2019-03-14',
-  });
 });
