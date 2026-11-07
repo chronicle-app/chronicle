@@ -489,8 +489,8 @@
   rdfs:range :Agent;
   skos:closeMatch schemaorg:attendee .
 :scheduledFor a owl:DatatypeProperty;
-  rdfs:comment "When the event or session is planned to happen. When it actually happened is an action's :startTime and :endTime. A timed plan runs between two instants. An all-day plan is a date, or two dates when it lasts several days, and includes the last day.";
-  rdfs:domain [ a owl:Class; owl:unionOf ( :Event :Session ) ];
+  rdfs:comment "When the event is planned to happen. When it actually happened is an action's :startTime and :endTime. A timed plan runs between two instants. An all-day plan is a date, or two dates when it lasts several days, and includes the last day.";
+  rdfs:domain :Event;
   rdfs:range :DateRange .
 [] a sh:PropertyShape; sh:path :scheduledFor; sh:targetSubjectsOf :scheduledFor; sh:maxCount 1 .
 :relation a owl:ObjectProperty;
@@ -519,7 +519,7 @@
   rdfs:subClassOf :CommunicateAction;
   skos:exactMatch schemaorg:ShareAction .
 :Session a owl:Class;
-  rdfs:comment "A period of one person's activity or experience, such as a night's sleep, a logged block of work, a trip across town, or their time on a call. The action that records it gives when it actually happened. Others who took part have sessions of their own. Something they shared, such as a concert or a meeting, is an :Event that each session :isPartOf. Its :scheduledFor gives a planned period.";
+  rdfs:comment "A period of one person's activity or experience, such as a night's sleep, a logged block of work, a trip across town, or their time on a call. The action that records it gives when it actually happened. Others who took part have sessions of their own. Something they shared, such as a concert or a meeting, is an :Event that each session :isPartOf.";
   rdfs:subClassOf :Entity .
 :CallSession a owl:Class;
   rdfs:comment "One person's time on a phone or video call. It is the :result of a :CallAction. Its :recipient is who received the call. A group call's session :isPartOf a :Channel whose :member values are the participants. A missed call has zero length.";

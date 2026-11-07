@@ -939,7 +939,6 @@ export interface Session extends Omit<Entity, '@type'> {
   '@type': 'Session';
   isStageOf?: SessionAndChildren;
   references?: EntityAndChildren[];
-  scheduledFor?: string;
   subject?: EntityAndChildren[];
   workingDirectory?: DirectoryAndChildren;
   hasStage?: SessionAndChildren[];
@@ -961,7 +960,6 @@ const SessionProperties = {
   ...EntityProperties,
   isStageOf: z.lazy(() => SessionAndChildrenSchema).optional(),
   references: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
-  scheduledFor: z.lazy(() => DateRangeSchema).optional(),
   subject: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
   workingDirectory: z.lazy(() => DirectoryAndChildrenSchema).optional(),
   hasStage: z.lazy(() => z.array(SessionAndChildrenSchema)).optional(),

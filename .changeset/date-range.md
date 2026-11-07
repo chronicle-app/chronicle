@@ -8,4 +8,4 @@ The vocabulary adds `DateRange`, a datatype for a stretch of time, all of it inc
 
 A `CreativeWork` can have a `dateCovered`, the period it's about, such as the day a journal entry describes or the years a novel is set in.
 
-`scheduledFor` takes the place of `scheduledStart` and `scheduledEnd` on an `Event` or `Session`, so a plan changes as one value. Google Calendar writes it: two instants for a timed event, and a date or two for an all-day one. Import your calendars again to give events already in a store a `scheduledFor`.
+`scheduledFor` takes the place of `scheduledStart` and `scheduledEnd` on an `Event`, so a plan changes as one value. A `Session` no longer has a planned period: it's what a person actually did, and a plan for it is an `Event` it can be part of. Google Calendar writes it: two instants for a timed event, and a date or two for an all-day one. Import your calendars again to give events already in a store a `scheduledFor`.
