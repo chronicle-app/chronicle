@@ -235,7 +235,10 @@ test('a note covers the days in its name, or the month or week it is named', asy
     'Garden tour (2026-11-06).md': 'A day in a title.',
     'seed-swap-2026-11-07.md': 'A day in a slug.',
     '2026-11-08 harvest.md': 'A day to start with.',
-    'From 2026-11-09 to 2026-11-11, then 2026-11-09 again.md': 'Two days, one repeated.',
+    'From 2026-11-09 to 2026-11-11.md': 'Two days, a span.',
+    'Back on 2026-11-20, out on 2026-11-18.md': 'Two days, out of order.',
+    'Review 2026-11-13 (2026-11-13).md': 'One day, repeated.',
+    'Moved from 2026-13-40 to 2026-11-14.md': 'One real day and one that is not.',
     'Tour (2026-13-40).md': 'A day no year has.',
     'Ticket 12026-11-06.md': 'A longer number.',
     'Ticket 1234-2026-11-06.md': 'A longer number, with a hyphen.',
@@ -245,19 +248,22 @@ test('a note covers the days in its name, or the month or week it is named', asy
   const out = await transform((await extract(root)).records);
   const covered = Object.fromEntries(out.map(a => [a.object.handle, a.object.dateCovered]));
   assert.deepEqual(covered, {
-    'Journal/2019-03-14.md': ['2019-03-14'],
-    '2026-05.md': ['2026-05'],
-    '2026-W19.md': ['2026-05-04/2026-05-10'],
-    '2026-W53.md': ['2026-12-28/2027-01-03'],
+    'Journal/2019-03-14.md': '2019-03-14',
+    '2026-05.md': '2026-05',
+    '2026-W19.md': '2026-05-04/2026-05-10',
+    '2026-W53.md': '2026-12-28/2027-01-03',
     '2025-W53.md': undefined,
     '2019-02-30.md': undefined,
     '2026-13.md': undefined,
     '1984.md': undefined,
     'Links.md': undefined,
-    'Garden tour (2026-11-06).md': ['2026-11-06'],
-    'seed-swap-2026-11-07.md': ['2026-11-07'],
-    '2026-11-08 harvest.md': ['2026-11-08'],
-    'From 2026-11-09 to 2026-11-11, then 2026-11-09 again.md': ['2026-11-09', '2026-11-11'],
+    'Garden tour (2026-11-06).md': '2026-11-06',
+    'seed-swap-2026-11-07.md': '2026-11-07',
+    '2026-11-08 harvest.md': '2026-11-08',
+    'From 2026-11-09 to 2026-11-11.md': '2026-11-09/2026-11-11',
+    'Back on 2026-11-20, out on 2026-11-18.md': '2026-11-18/2026-11-20',
+    'Review 2026-11-13 (2026-11-13).md': '2026-11-13',
+    'Moved from 2026-13-40 to 2026-11-14.md': '2026-11-14',
     'Tour (2026-13-40).md': undefined,
     'Ticket 12026-11-06.md': undefined,
     'Ticket 1234-2026-11-06.md': undefined,
@@ -266,7 +272,7 @@ test('a note covers the days in its name, or the month or week it is named', asy
   });
   // A link to a dated note says the same as the note does.
   const links = out.find(a => a.object.handle === 'Links.md').object;
-  assert.deepEqual(links.references[0].dateCovered, ['2019-03-14']);
+  assert.equal(links.references[0].dateCovered, '2019-03-14');
 });
 
 test("a vault's Daily Notes settings say how its days are named", async t => {
@@ -276,7 +282,7 @@ test("a vault's Daily Notes settings say how its days are named", async t => {
       ...Object.fromEntries(files.map(file => [file, 'A day.'])),
     });
     const out = await transform((await extract(root)).records);
-    return Object.fromEntries(out.map(a => [a.object.handle, a.object.dateCovered?.[0]]));
+    return Object.fromEntries(out.map(a => [a.object.handle, a.object.dateCovered]));
   };
 
   assert.deepEqual(

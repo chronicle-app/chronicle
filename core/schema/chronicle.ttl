@@ -839,10 +839,11 @@
   rdfs:range :Text;
   skos:exactMatch schemaorg:genre .
 :dateCovered a owl:DatatypeProperty;
-  rdfs:comment "A period the work is about, such as the day a journal entry describes, the month a recap covers, or the years a novel is set in. A work about several separate periods has one value for each. The action that created the work gives when it was written.";
+  rdfs:comment "A period the work is about, such as the day a journal entry describes, the month a recap covers, or the years a novel is set in. The action that created the work gives when it was written.";
   rdfs:domain :CreativeWork;
   rdfs:range :DateRange;
   skos:closeMatch schemaorg:temporalCoverage .
+[] a sh:PropertyShape; sh:path :dateCovered; sh:targetSubjectsOf :dateCovered; sh:maxCount 1 .
 :datePublished a owl:DatatypeProperty;
   rdfs:comment "When the work was published or released. It is when the work's :PublishAction occurred.";
   skos:exactMatch schemaorg:datePublished;

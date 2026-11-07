@@ -412,7 +412,7 @@ export interface CreativeWork extends Omit<Entity, '@type'> {
   '@type': 'CreativeWork';
   author?: AgentAndChildren[];
   creator?: AgentAndChildren[];
-  dateCovered?: string[];
+  dateCovered?: string;
   datePublished?: Date | string;
   genre?: string[];
   isBasedOn?: CreativeWorkAndChildren[];
@@ -454,7 +454,7 @@ const CreativeWorkProperties = {
   ...EntityProperties,
   author: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
   creator: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
-  dateCovered: z.lazy(() => z.array(DateRangeSchema)).optional(),
+  dateCovered: z.lazy(() => DateRangeSchema).optional(),
   datePublished: z.lazy(() => DateTimeSchema).optional(),
   genre: z.lazy(() => z.array(z.string())).optional(),
   isBasedOn: z.lazy(() => z.array(CreativeWorkAndChildrenSchema)).optional(),

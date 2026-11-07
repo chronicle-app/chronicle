@@ -2,7 +2,7 @@ import path from 'node:path';
 import { ChronicleTransformer, Record, selfAgent } from '@chronicle.app/etl';
 import { EntityAndChildren, Note, Person, Realm, UpdateAction } from '@chronicle.app/schema';
 import type { VaultContext, VaultNote } from './ObsidianExtractor.js';
-import { periodsCovered } from './period.js';
+import { periodCovered } from './period.js';
 
 const SOURCE = 'obsidian';
 const NOTE_KEY = ['source', 'handle', 'inRealm.handle'];
@@ -31,7 +31,7 @@ export default class ObsidianTransformer extends ChronicleTransformer {
   }
 
   private noteWork(handle: string, ctx: VaultContext): Note {
-    const periods = periodsCovered(handle, ctx.dailyNotes);
+    const period = periodCovered(handle, ctx.dailyNotes);
     const realm: Realm = {
       '@type': 'Realm',
       '@key': ['@type', 'source', 'handle'],
@@ -45,7 +45,7 @@ export default class ObsidianTransformer extends ChronicleTransformer {
       handle,
       name: path.posix.basename(handle, path.posix.extname(handle)),
       inRealm: realm,
-      ...(periods.length > 0 && { dateCovered: periods }),
+      ...(period && { dateCovered: period }),
     };
   }
 

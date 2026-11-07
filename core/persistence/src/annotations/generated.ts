@@ -137,7 +137,7 @@ export const PREDICATE_ANNOTATIONS: Record<string, PredicateAnnotation> = {
   },
   dateCovered: {
     predicate: 'dateCovered',
-    cardinality: 'many',
+    cardinality: 'one',
     range: 'DateRange',
     isEntityRange: false,
     metric: false,

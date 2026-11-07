@@ -101,25 +101,24 @@ function isoWeek(year: number, week: number): string | undefined {
 const DAY_IN_NAME = /(?<!\d)(?<!\d-)\d{4}-\d{2}-\d{2}(?!\d)/g;
 
 /**
- * The periods a file name gives: a month or an ISO week when it's exactly that,
- * and otherwise each day in it, as in `Garden tour (2026-11-06)`.
+ * The period a file name gives: a month or an ISO week when it's exactly that,
+ * and otherwise the days in it, as in `Garden tour (2026-11-06)`. A name with
+ * several days gives the span from the earliest to the latest.
  */
-function periodsOfName(name: string): string[] {
+function periodOfName(name: string): string | undefined {
   const week = /^(\d{4})-W(\d{2})$/.exec(name);
-  if (week) {
-    const range = isoWeek(Number(week[1]), Number(week[2]));
-    return range ? [range] : [];
-  }
-  const periods = /^\d{4}-\d{2}$/.test(name) ? [name] : (name.match(DAY_IN_NAME) ?? []);
-  return [...new Set(periods)].filter(period => isDateRange(period));
+  if (week) return isoWeek(Number(week[1]), Number(week[2]));
+  if (/^\d{4}-\d{2}$/.test(name)) return isDateRange(name) ? name : undefined;
+  const days = (name.match(DAY_IN_NAME) ?? []).filter(day => isDateRange(day)).sort();
+  const [first, last] = [days[0], days.at(-1)];
+  return first === last ? first : `${first}/${last}`;
 }
 
 /**
- * The periods a note is named for. A bare year isn't one: a note named `1984` is
+ * The period a note is named for. A bare year isn't one: a note named `1984` is
  * as likely to be about the book.
  */
-export function periodsCovered(handle: string, dailyNotes?: DailyNotes): string[] {
+export function periodCovered(handle: string, dailyNotes?: DailyNotes): string | undefined {
   const name = handle.replace(/\.md$/i, '');
-  const day = dailyNotes && dailyNoteDay(name, dailyNotes);
-  return day ? [day] : periodsOfName(path.posix.basename(name));
+  return (dailyNotes && dailyNoteDay(name, dailyNotes)) ?? periodOfName(path.posix.basename(name));
 }
