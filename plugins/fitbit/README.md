@@ -53,7 +53,7 @@ A tracker worn for years takes a heart rate reading every few seconds, which is 
 
 **The archive mixes clocks.** Exercises, heart rate, and steps are in UTC. Sleep and weight are local times without an offset. Each day's heart rate file holds that local day's readings, so its first and last readings bound the day's offset. Where the profile's time zone fits those bounds, its rules give the instant. Where it doesn't, such as on a trip, the day's offset is the one that fits nearest the zone's. A day without heart rate readings follows the profile's zone. Each day's resting heart rate is over its local day, found the same way.
 
-**A night is in one offset.** Fitbit writes all of a night's times in one offset, so on a night the clocks change, its span on the clock is how long it lasted. A night's offset is the one it started in. Going by the heart rate, Fitbit wrote some such nights in the offset after the change, so on two nights a year a night can be an hour off.
+**A night is in one offset.** Fitbit writes all of a night's times in one offset, so on a night the clocks change, its span on the clock is how long it lasted. A night's offset is the one it started in. A night's brief wakes show as a rise in heart rate, and on the nights the clocks changed in a real archive, the stages lined up with the heart rate readings in that offset.
 
 **Each night is read once.** The archive splits sleep into 30-day files, and a night near the edge of one is in the next as well, with different 30-day averages. It's read once, by its ID. A weight logged twice is read once too.
 
