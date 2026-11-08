@@ -87,11 +87,12 @@ other source by name, for example `chronicle plugins install lastfm`, or let
 
 For services that no longer exist, shown by `chronicle sources --all`:
 
-| Source                                 | Package                                          | Strategies            |
-| -------------------------------------- | ------------------------------------------------ | --------------------- |
-| Google Reader archive actions          | [google-reader](plugins/google-reader/README.md) | takeout (export)      |
-| Marvin reading sessions and highlights | [marvin](plugins/marvin/README.md)               | csv (export)          |
-| Moves export places and moves          | [moves-app](plugins/moves-app/README.md)         | moves-export (export) |
+| Source                                                                 | Package                                          | Strategies            |
+| ---------------------------------------------------------------------- | ------------------------------------------------ | --------------------- |
+| Fitbit account archive exercises, sleep, heart rate, steps, and weight | [fitbit](plugins/fitbit/README.md)               | archive (export)      |
+| Google Reader archive actions                                          | [google-reader](plugins/google-reader/README.md) | takeout (export)      |
+| Marvin reading sessions and highlights                                 | [marvin](plugins/marvin/README.md)               | csv (export)          |
+| Moves export places and moves                                          | [moves-app](plugins/moves-app/README.md)         | moves-export (export) |
 
 <!-- sources:end -->
 

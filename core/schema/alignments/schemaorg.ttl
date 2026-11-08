@@ -30,6 +30,7 @@ schemaorg: rdfs:label "schema.org";
 
 :DateTime doc:note "A :DateTime can also be a date at year, month, or day precision, a date with unspecified digits, or an uncertain date. An instant is always in UTC. A schemaorg:DateTime is a date and a time, and a schemaorg:Date is a date." .
 :DeleteAction doc:note "The agent removed the entity itself, such as by moving it to the trash. A schemaorg:DeleteAction edits something by removing one of its objects, such as an item from a list." .
+:ExerciseAction doc:note "The kind of exercise and how far it covered are on the :ExerciseSession that is its :result. A schemaorg:ExerciseAction carries them itself, as its schemaorg:exerciseType and schemaorg:distance." .
 :FindAction doc:unlike schemaorg:FindAction;
   doc:note "A schemaorg:FindAction is finding something, which a search can lead to. Searching is a schemaorg:SearchAction." .
 :MoveAction doc:note "A :MoveAction can be a step through an information space, such as following a link from one web page to another. A schemaorg:MoveAction is relocating to a place, from its schemaorg:fromLocation to its schemaorg:toLocation." .
@@ -55,7 +56,7 @@ schemaorg: rdfs:label "schema.org";
 :contentSize doc:note "A number of bytes. schemaorg:contentSize is text with a unit, such as `2.8 MB`." .
 :currency doc:note "An ISO 4217 code. schemaorg:currency also takes a cryptocurrency ticker, and the currency of a schemaorg:PayAction is its schemaorg:priceCurrency." .
 :dateCovered doc:note "A date or an interval. schemaorg:temporalCoverage can also be text that names a period, or a URL." .
-:distance doc:note "A number of meters, on the :Journey. schemaorg:distance is on the schemaorg:TravelAction and includes a unit, such as `5 km`." .
+:distance doc:note "A number of meters, on the :Journey or the :ExerciseSession. schemaorg:distance is on the schemaorg:TravelAction or the schemaorg:ExerciseAction and includes a unit, such as `5 km`." .
 :exifData doc:note "An object of EXIF tag names and values. schemaorg:exifData is a list of schemaorg:PropertyValue name and value pairs, or text." .
 :height doc:note "A number of pixels. schemaorg:height can also be a distance with a unit, such as `5 cm`." .
 :isPartOf doc:note "A record can also give the parts of a whole under the inverse name `hasPart`, which schema.org has as schemaorg:hasPart." .
