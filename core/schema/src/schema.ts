@@ -91,6 +91,8 @@ export const CLASS_PARENTS: Record<string, string[]> = {
   EpubCfiSelector: ['Selector'],
   Event: ['Entity'],
   ExecuteAction: ['Action'],
+  ExerciseAction: ['ExperienceAction'],
+  ExerciseSession: ['Session'],
   ExperienceAction: ['Action'],
   FinancialAccount: ['Intangible'],
   FinancialPosting: ['Intangible'],
@@ -949,6 +951,7 @@ export type SessionAndChildren =
   | CallSessionAndChildren
   | DeviceSessionAndChildren
   | EnrollmentAndChildren
+  | ExerciseSessionAndChildren
   | JourneyAndChildren
   | MembershipAndChildren
   | RelationshipAndChildren
@@ -1484,7 +1487,11 @@ export interface ExperienceAction extends Omit<Action, '@type'> {
 }
 
 export type ExperienceActionAndChildren =
-  ExperienceAction | JoinActionAndChildren | LeaveActionAndChildren | SleepActionAndChildren;
+  | ExperienceAction
+  | ExerciseActionAndChildren
+  | JoinActionAndChildren
+  | LeaveActionAndChildren
+  | SleepActionAndChildren;
 
 const ExperienceActionProperties = {
   ...ActionProperties,
@@ -1494,6 +1501,44 @@ export const ExperienceActionSchema: z.ZodType<ExperienceAction> = z
   .object({
     '@type': z.literal('ExperienceAction'),
     ...ExperienceActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// ExerciseAction, child of https://schema.chronicle.app/ExperienceAction
+export interface ExerciseAction extends Omit<ExperienceAction, '@type'> {
+  '@type': 'ExerciseAction';
+}
+
+export type ExerciseActionAndChildren = ExerciseAction;
+
+const ExerciseActionProperties = {
+  ...ExperienceActionProperties,
+};
+
+export const ExerciseActionSchema: z.ZodType<ExerciseAction> = z
+  .object({
+    '@type': z.literal('ExerciseAction'),
+    ...ExerciseActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// ExerciseSession, child of https://schema.chronicle.app/Session
+export interface ExerciseSession extends Omit<Session, '@type'> {
+  '@type': 'ExerciseSession';
+  distance?: number;
+}
+
+export type ExerciseSessionAndChildren = ExerciseSession;
+
+const ExerciseSessionProperties = {
+  ...SessionProperties,
+  distance: z.lazy(() => z.number()).optional(),
+};
+
+export const ExerciseSessionSchema: z.ZodType<ExerciseSession> = z
+  .object({
+    '@type': z.literal('ExerciseSession'),
+    ...ExerciseSessionProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -3193,6 +3238,10 @@ export const FinancialPostingAndChildrenSchema = FinancialPostingSchema;
 
 export const FinancialAccountAndChildrenSchema = FinancialAccountSchema;
 
+export const ExerciseSessionAndChildrenSchema = ExerciseSessionSchema;
+
+export const ExerciseActionAndChildrenSchema = ExerciseActionSchema;
+
 export const ExperienceActionAndChildrenSchema: z.ZodType<ExperienceActionAndChildren> = z
   .discriminatedUnion('@type', [
     z.object({
@@ -3213,6 +3262,11 @@ export const ExperienceActionAndChildrenSchema: z.ZodType<ExperienceActionAndChi
     z.object({
       '@type': z.literal('JoinAction'),
       ...JoinActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ExerciseAction'),
+      ...ExerciseActionProperties,
     }),
   ])
   .superRefine(requireNodeIdentity);
@@ -3439,6 +3493,11 @@ export const SessionAndChildrenSchema: z.ZodType<SessionAndChildren> = z
     z.object({
       '@type': z.literal('Journey'),
       ...JourneyProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ExerciseSession'),
+      ...ExerciseSessionProperties,
     }),
 
     z.object({
@@ -3792,6 +3851,11 @@ export const ActionAndChildrenSchema: z.ZodType<ActionAndChildren> = z
     z.object({
       '@type': z.literal('JoinAction'),
       ...JoinActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ExerciseAction'),
+      ...ExerciseActionProperties,
     }),
 
     z.object({
@@ -4316,6 +4380,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     }),
 
     z.object({
+      '@type': z.literal('ExerciseSession'),
+      ...ExerciseSessionProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Enrollment'),
       ...EnrollmentProperties,
     }),
@@ -4621,6 +4690,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('JoinAction'),
       ...JoinActionProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ExerciseAction'),
+      ...ExerciseActionProperties,
     }),
 
     z.object({
@@ -4936,6 +5010,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('Journey'),
       ...JourneyProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('ExerciseSession'),
+      ...ExerciseSessionProperties,
     }),
 
     z.object({

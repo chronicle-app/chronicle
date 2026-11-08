@@ -4223,6 +4223,50 @@ Its key then reads the night's times, as it does in the night's own record.
 
 :ExperienceAction skos:example example:sleep-stage .
 :SleepStage skos:example example:sleep-stage .
+
+example:bike-ride
+  rdfs:label "A bike ride";
+  rdfs:comment """
+Your tracker recorded a bike ride. The :ExerciseAction spans the ride from
+:startTime to :endTime, and its :result is the :ExerciseSession, with the kind
+of exercise as its :category and how far it went as its :distance in meters.
+The :instrument is the tracker.
+
+The session is keyed by the ID the source gave the ride, and the action by
+the session it made.
+""";
+  rdf:value [
+    a :ExerciseAction;
+    doc:key ("@type" "source" "result.sourceId");
+    :source "fitbit";
+    :startTime "2026-05-09T14:39:05.000Z"^^xsd:dateTime;
+    :endTime "2026-05-09T15:21:05.000Z"^^xsd:dateTime;
+    :agent [
+      a :Person;
+      doc:key ("@type" "source" "sourceId");
+      :source "fitbit";
+      :sourceId "2ABCDE";
+      :sameAs "@me"
+    ];
+    :instrument [
+      a :Device;
+      doc:key ("@type" "source" "sourceId");
+      :source "fitbit";
+      :sourceId "12345678";
+      :name "Charge 2"
+    ];
+    :result [
+      a :ExerciseSession;
+      doc:key ("@type" "source" "sourceId");
+      :source "fitbit";
+      :sourceId "5005882813";
+      :category "Outdoor Bike";
+      :distance 12400
+    ]
+  ] .
+
+:ExerciseAction skos:example example:bike-ride .
+:ExerciseSession skos:example example:bike-ride .
 :isStageOf skos:example example:sleep-stage .
 
 example:card-purchase

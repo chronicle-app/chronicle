@@ -441,8 +441,8 @@
   rdfs:range :Text .
 [] a sh:PropertyShape; sh:path :travelMode; sh:targetSubjectsOf :travelMode; sh:maxCount 1 .
 :distance a owl:DatatypeProperty;
-  rdfs:comment "The distance the journey covered, in meters.";
-  rdfs:domain :Journey;
+  rdfs:comment "The distance covered, in meters.";
+  rdfs:domain [ a owl:Class; owl:unionOf ( :Journey :ExerciseSession ) ];
   rdfs:range :Number;
   skos:closeMatch schemaorg:distance .
 [] a sh:PropertyShape; sh:path :distance; sh:targetSubjectsOf :distance; sh:maxCount 1 .
@@ -532,6 +532,13 @@
   rdfs:subClassOf :Session .
 :SleepStage a owl:Class;
   rdfs:comment "A stretch of one stage of sleep, such as deep sleep, that :isStageOf a :SleepSession. It is the :result of an :ExperienceAction, which gives its start and end. Its :category is the stage: `awake`, `light`, `deep`, `REM`, or `asleep` when the stage is not known. Not allowed: another name for one of these, such as `core` for light sleep.";
+  rdfs:subClassOf :Session .
+:ExerciseAction a owl:Class;
+  rdfs:comment "The agent exercised from :startTime to :endTime, such as on a walk, a run, a ride, or a workout. Its :result is the :ExerciseSession.";
+  rdfs:subClassOf :ExperienceAction;
+  skos:closeMatch schemaorg:ExerciseAction .
+:ExerciseSession a owl:Class;
+  rdfs:comment "A period of exercise, such as a walk, a run, or a workout. It is the :result of an :ExerciseAction, which gives its start and end. Its :category is the kind of exercise, such as `Walk` or `Outdoor Bike`, and its :distance is how far it covered.";
   rdfs:subClassOf :Session .
 :EatAction a owl:Class;
   rdfs:comment "The agent ate the :object, a :Meal. Where they ate is the action's :location.";
