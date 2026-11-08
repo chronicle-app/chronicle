@@ -85,6 +85,12 @@
       "summary": "Facebook export"
     },
     {
+      "name": "fitbit",
+      "package": "@chronicle.app/fitbit",
+      "tier": "legacy",
+      "summary": "Fitbit account archive exercises, sleep, heart rate, steps, and weight"
+    },
+    {
       "name": "foodnoms",
       "package": "@chronicle.app/foodnoms",
       "tier": "official",
