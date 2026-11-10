@@ -18,6 +18,7 @@ import {
   Tag,
 } from '@chronicle.app/schema';
 import { type TweetMedia, mimeTypeOf } from '../utils/media.js';
+import { unescapeText } from '../utils/text.js';
 
 export default class TwitterTransformer extends ChronicleTransformer {
   async transform(record: Record): Promise<ActionAndChildren[]> {
@@ -103,7 +104,7 @@ export default class TwitterTransformer extends ChronicleTransformer {
       source: 'twitter',
       sourceId: data.id,
       ...(author?.handle && { url: postUrl(author.handle, data.id) }),
-      body: data.text, // Keep original text with t.co URLs
+      body: unescapeText(data.text), // Keep original text with t.co URLs
       ...(author && { author: [author] }),
       ...(references.length > 0 && { references }),
       ...(tags.length > 0 && { about: tags }),
@@ -219,7 +220,7 @@ export default class TwitterTransformer extends ChronicleTransformer {
       source: 'twitter',
       sourceId: record.data.tweetId,
       ...(author?.handle && { url: postUrl(author.handle, record.data.tweetId) }),
-      body: fullText,
+      body: unescapeText(fullText),
       ...(author && { author: [author] }),
       ...(references.length > 0 && { references }),
       ...(tags.length > 0 && { about: tags }),
@@ -256,7 +257,7 @@ export default class TwitterTransformer extends ChronicleTransformer {
       '@key': ['@type', 'source', 'sourceId'],
       source: 'twitter',
       sourceId: record.data.id,
-      body: record.data.text,
+      body: unescapeText(record.data.text),
       recipient: [recipient],
       author: [sender],
       ...this.containing(record.data.media),
@@ -406,7 +407,7 @@ export default class TwitterTransformer extends ChronicleTransformer {
       '@key': ['@type', 'source', 'sourceId'],
       source: 'twitter',
       sourceId: record.data.id,
-      body: record.data.text,
+      body: unescapeText(record.data.text),
       recipient: recipients,
       author: [sender],
       ...this.containing(record.data.media),

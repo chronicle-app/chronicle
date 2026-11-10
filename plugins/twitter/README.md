@@ -127,12 +127,13 @@ The input is a Twitter/X data archive, zipped or unzipped. The plugin
 reads these files from its `data/` folder, each a `window.YTD.<name>.part0 = [...]`
 script wrapping a JSON array:
 
+- `manifest.js`: when X generated the archive
 - `account.js`: the archive owner's account ID, username, and display name
 - `tweets.js`: your tweets
 - `like.js`: the tweets you liked
 - `direct-messages.js`: one-to-one direct messages
-- `direct-messages-group.js` and `direct-message-group-headers.js`: group direct
-  messages and their participants
+- `direct-messages-group.js`: group direct messages, with when each member
+  joined or left
 
 ## Schema
 
@@ -158,11 +159,22 @@ script wrapping a JSON array:
   two accounts is two likes. From the API, it has the time you liked or bookmarked the
   post, when known, and the post has its author and their handle.
 - Each direct message is a `MessageAction` whose `result` is a `Message`, keyed by it, sent to
-  the other participants of the conversation. It `contains` its photos and
-  videos, from the archive's copies, keyed by their URLs.
+  everyone else in the conversation when it was sent. In a group you joined,
+  that's who was in it then, with later joins and leaves; in one you started,
+  which says nothing of its start, it's you and everyone who wrote in it. It
+  `contains` its photos and videos, from the archive's copies, keyed by their
+  URLs.
+- A tweet's or message's `body` is its text as written: X escapes it as HTML
+  (`&amp;`, `&lt;`), and the escapes are undone.
 
 The archive owner is an `Agent` linked to `@me`; other accounts are `Agent`s
 keyed by their Twitter user ID.
+
+Everything from an archive is asserted (`@assertedAt`) when X generated it,
+from `data/manifest.js`: it's what X had then, an old tweet's author's handle
+as much as a like. Each tweet and message keeps its place on the timeline by
+its own time. A second import of the same archive restates what the first
+did.
 
 Tests build a small synthetic archive in a temporary directory, and serve a
 synthetic X API locally. They never read the host's data or accounts.

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -16,7 +16,16 @@ import {
   TwitterArchiveTweetsExtractor,
   TwitterTransformer,
 } from '../dist/index.js';
-import { TOKEN, acted, archive, archiveFiles, me, serveX } from './fixture.test-helper.js';
+import {
+  GENERATED,
+  TOKEN,
+  acted,
+  archive,
+  archiveFiles,
+  me,
+  serveX,
+  ytd,
+} from './fixture.test-helper.js';
 
 async function records(Extractor, input, config = {}) {
   const extractor = new Extractor({ input, limit: 0, ...config });
@@ -109,7 +118,8 @@ test('tweets become PublishActions of Posts with their mentions, links, and hash
       '@key': ['@type', 'source', 'result.sourceId'],
       source: 'twitter',
       timestamp: '2025-01-11T17:10:28.000Z',
-      '@assertedAt': '2025-01-11T17:10:28.000Z',
+      // What the archive says is as of when X generated it, an old tweet's too.
+      '@assertedAt': GENERATED,
       agent: owner,
       result: {
         '@type': 'Post',
@@ -183,6 +193,8 @@ test('likes become LikeActions on the liked Post', async t => {
       '@type': 'LikeAction',
       '@key': ['@type', 'source', 'object.sourceId', 'agent.sourceId'],
       source: 'twitter',
+      // The archive doesn't say when you liked it, but it says you had by the time X generated it.
+      '@assertedAt': GENERATED,
       agent: owner,
       object: {
         '@type': 'Post',
@@ -195,6 +207,19 @@ test('likes become LikeActions on the liked Post', async t => {
   ]);
 });
 
+test('an archive without a manifest is asserted when X wrote its account file', async t => {
+  const files = archiveFiles();
+  delete files['data/manifest.js'];
+  const input = archive(t, files);
+  const written = new Date('2025-02-14T08:00:00.000Z');
+  utimesSync(join(input, 'data/account.js'), written, written);
+  const [tweet] = await records(TwitterArchiveTweetsExtractor, input);
+  const [published] = await transform(tweet);
+  assert.equal(published['@assertedAt'], written.toISOString());
+  // Its place on the timeline is still when it was posted.
+  assert.equal(published.timestamp, '2025-01-11T17:10:28.000Z');
+});
+
 test('1:1 and group DMs become MessageActions, newest first', async t => {
   const input = archive(t);
   const rows = await records(TwitterArchiveDirectMessagesExtractor, input);
@@ -204,14 +229,14 @@ test('1:1 and group DMs become MessageActions, newest first', async t => {
   );
   assert.equal(await count(TwitterArchiveDirectMessagesExtractor, input), 2);
 
-  // A group message is addressed to every other participant from the header.
+  // A group message is addressed to everyone else in the group when it was sent.
   assert.deepEqual(await transform(rows[0]), [
     {
       '@type': 'MessageAction',
       '@key': ['@type', 'source', 'result.sourceId'],
       source: 'twitter',
       timestamp: '2025-01-12T09:00:00.000Z',
-      '@assertedAt': '2025-01-12T09:00:00.000Z',
+      '@assertedAt': GENERATED,
       agent: user('222'),
       result: {
         '@type': 'Message',
@@ -231,7 +256,7 @@ test('1:1 and group DMs become MessageActions, newest first', async t => {
       '@key': ['@type', 'source', 'result.sourceId'],
       source: 'twitter',
       timestamp: '2025-01-11T17:10:28.000Z',
-      '@assertedAt': '2025-01-11T17:10:28.000Z',
+      '@assertedAt': GENERATED,
       agent: user('111'),
       result: {
         '@type': 'Message',
@@ -263,6 +288,93 @@ test('1:1 and group DMs become MessageActions, newest first', async t => {
     oneOnOne.map(r => r.data.id),
     ['1300000000000000001']
   );
+});
+
+/** A group message event, as the archive has it. */
+const sent = (id, senderId, createdAt) => ({
+  messageCreate: { id, senderId, text: 'Hi all', createdAt, mediaUrls: [], urls: [] },
+});
+
+test('a group message goes to whoever was in the group when it was sent', async t => {
+  const input = archive(t, {
+    ...archiveFiles(),
+    // Newest first, as X lists them.
+    'data/direct-messages-group.js': ytd('direct_messages_group', [
+      {
+        dmConversation: {
+          conversationId: '1400000000000000002',
+          messages: [
+            sent('1300000000000000004', '111', '2025-02-01T10:00:00.000Z'),
+            { participantsLeave: { userIds: ['333'], createdAt: '2025-02-01T09:30:00.000Z' } },
+            {
+              participantsJoin: {
+                initiatingUserId: '222',
+                userIds: ['444'],
+                createdAt: '2025-02-01T09:20:00.000Z',
+              },
+            },
+            sent('1300000000000000003', '333', '2025-02-01T09:10:00.000Z'),
+            // You joined it: who was in it then.
+            {
+              joinConversation: {
+                initiatingUserId: '222',
+                participantsSnapshot: ['111', '222', '333'],
+                createdAt: '2025-02-01T09:00:00.000Z',
+              },
+            },
+          ],
+        },
+      },
+      {
+        // A group you started has no snapshot: everyone who wrote in it was
+        // in it, unless X records them joining.
+        dmConversation: {
+          conversationId: '1400000000000000003',
+          messages: [
+            sent('1300000000000000006', '555', '2025-02-02T11:10:00.000Z'),
+            {
+              participantsJoin: {
+                initiatingUserId: '111',
+                userIds: ['666'],
+                createdAt: '2025-02-02T11:05:00.000Z',
+              },
+            },
+            sent('1300000000000000005', '111', '2025-02-02T11:00:00.000Z'),
+          ],
+        },
+      },
+    ]),
+  });
+  const rows = await records(TwitterArchiveDirectMessagesExtractor, input);
+  const recipients = {};
+  for (const row of rows.filter(r => r.data.type === 'group-direct-message')) {
+    const [action] = await transform(row);
+    recipients[row.data.id] = action.result.recipient.map(agent => agent.sourceId);
+  }
+  assert.deepEqual(recipients, {
+    // 444 joined and 333 left before this one.
+    '1300000000000000004': ['222', '444'],
+    '1300000000000000003': ['111', '222'],
+    // 666 joined between these two.
+    '1300000000000000006': ['111', '666'],
+    '1300000000000000005': ['555'],
+  });
+});
+
+test('text has X’s HTML escapes undone', async t => {
+  const input = archive(t);
+  const escaped = 'Fish &amp; chips &lt;3 &quot;now&quot; &#8730;2, and &amp;lt; as typed';
+  const written = 'Fish & chips <3 "now" √2, and &lt; as typed';
+  const [tweet] = await records(TwitterArchiveTweetsExtractor, input);
+  const [published] = await transform({ ...tweet, data: { ...tweet.data, text: escaped } });
+  assert.equal(published.result.body, written);
+  const [like] = await records(TwitterArchiveLikesExtractor, input);
+  const [liked] = await transform({ ...like, data: { ...like.data, fullText: escaped } });
+  assert.equal(liked.object.body, written);
+  for (const message of await records(TwitterArchiveDirectMessagesExtractor, input)) {
+    const [sent] = await transform({ ...message, data: { ...message.data, text: escaped } });
+    assert.equal(sent.result.body, written);
+  }
 });
 
 /** Where each record's media files are on disk. */

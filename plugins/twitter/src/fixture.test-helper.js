@@ -7,15 +7,26 @@ import { TwitterApi } from '../dist/utils/TwitterApi.js';
 /**
  * The files of a small synthetic Twitter/X data archive, by their paths in
  * it: the account, two tweets (one with entity mentions, links, and a hashtag, one
- * relying on the text fallback), a like, a 1:1 DM, and a group DM with its
- * header.
+ * relying on the text fallback), a like, a 1:1 DM, and a group DM.
  */
+/** When X generated the synthetic archive, by its manifest. */
+export const GENERATED = '2025-03-01T00:00:00.000Z';
+
 export function archiveFiles() {
   const files = {};
-  /** One `data/<file>.js` in the archive's `window.YTD.<name>.part0 = [...]` form. */
   const writeYtd = (file, name, items) => {
-    files[`data/${file}.js`] = `window.YTD.${name}.part0 = ${JSON.stringify(items, null, 2)}`;
+    files[`data/${file}.js`] = ytd(name, items);
   };
+
+  // When X generated it, which every record is asserted at.
+  files['data/manifest.js'] = `window.__THAR_CONFIG = ${JSON.stringify(
+    {
+      userInfo: { accountId: '111', userName: 'owner_example', displayName: 'Owner Example' },
+      archiveInfo: { generationDate: GENERATED, isPartialArchive: false },
+    },
+    null,
+    2
+  )}`;
 
   writeYtd('account', 'account', [
     {
@@ -117,29 +128,12 @@ export function archiveFiles() {
     },
   ]);
 
-  writeYtd('direct-message-group-headers', 'direct_message_group_headers', [
-    {
-      dmConversation: {
-        conversationId: '1400000000000000001',
-        messages: [
-          {
-            joinConversation: {
-              initiatingUserId: '111',
-              participantsSnapshot: ['111', '222', '333'],
-              createdAt: '2025-01-12T08:59:00.000Z',
-            },
-          },
-        ],
-      },
-    },
-  ]);
-
+  // Newest first, as X lists a conversation's events.
   writeYtd('direct-messages-group', 'direct_messages_group', [
     {
       dmConversation: {
         conversationId: '1400000000000000001',
         messages: [
-          { participantsJoin: { userIds: ['333'], createdAt: '2025-01-12T08:59:30.000Z' } },
           {
             messageCreate: {
               id: '1300000000000000002',
@@ -148,6 +142,20 @@ export function archiveFiles() {
               createdAt: '2025-01-12T09:00:00.000Z',
               mediaUrls: [],
               urls: [],
+            },
+          },
+          {
+            participantsJoin: {
+              initiatingUserId: '222',
+              userIds: ['333'],
+              createdAt: '2025-01-12T08:59:30.000Z',
+            },
+          },
+          {
+            joinConversation: {
+              initiatingUserId: '222',
+              participantsSnapshot: ['111', '222'],
+              createdAt: '2025-01-12T08:59:00.000Z',
             },
           },
         ],
@@ -162,11 +170,16 @@ export function archiveFiles() {
   return files;
 }
 
-/** The synthetic archive, written to a temp dir. */
-export function archive(t) {
+/** An archive file's content: `window.YTD.<name>.part0 = [...]`. */
+export function ytd(name, items) {
+  return `window.YTD.${name}.part0 = ${JSON.stringify(items, null, 2)}`;
+}
+
+/** The synthetic archive, or these files of one, written to a temp dir. */
+export function archive(t, files = archiveFiles()) {
   const dir = mkdtempSync(join(tmpdir(), 'twitter-fixture-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
-  for (const [file, content] of Object.entries(archiveFiles())) {
+  for (const [file, content] of Object.entries(files)) {
     mkdirSync(dirname(join(dir, file)), { recursive: true });
     writeFileSync(join(dir, file), content);
   }

@@ -15,4 +15,10 @@ A tweet is `about` a `Tag` for each of its hashtags, keyed by the hashtag in low
 
 A like is now keyed by the account that liked it as well as the tweet, so a tweet liked from two accounts is two likes. Importing an archive into a store that already holds its likes adds new ones beside the old.
 
+A group direct message from the archive is sent to whoever was in the group when it was sent, following joins and leaves, rather than to the members in its header. A group you started, which has no header, has you and everyone who wrote in it.
+
+Everything from an archive is asserted when X generated it, from its `manifest.js`, rather than at each tweet's or message's own time, or, for a like, the time of import. A second import of the same archive restates the first, and a newer archive's values win over an older one's.
+
+A tweet's or message's text has X's HTML escapes, such as `&amp;` and `&lt;`, undone.
+
 A run of an export that also has an API, such as Twitter's archive, no longer needs `--input` to read the API. Run without one, the export says `--input` is how to give it.
