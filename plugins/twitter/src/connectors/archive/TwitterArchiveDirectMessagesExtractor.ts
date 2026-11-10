@@ -1,5 +1,6 @@
 import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
 import { z } from 'zod';
+import { type TweetMedia, fileName } from '../../utils/media.js';
 import TwitterTransformer from '../TwitterTransformer.js';
 import { TwitterArchiveExtractor } from './TwitterArchiveExtractor.js';
 
@@ -37,12 +38,31 @@ export class TwitterArchiveDirectMessagesExtractor extends TwitterArchiveExtract
       let count = 0;
       for (const message of allMessages) {
         if (this.shouldStopExtracting(count)) break;
-        yield this.createRecordWithArchiveContext(message.data, message.metadata);
+        const media = await this.mediaOf(message.data);
+        yield this.createRecordWithArchiveContext(
+          { ...message.data, ...(media.length > 0 && { media }) },
+          message.metadata
+        );
         count++;
       }
     } catch (error) {
       throw new Error(`Failed to process Twitter direct messages: ${error}`);
     }
+  }
+
+  /** A message's photos and videos, with the archive's copies of their files. */
+  private async mediaOf(data: any): Promise<TweetMedia[]> {
+    const folder =
+      data.type === 'group-direct-message'
+        ? 'direct_messages_group_media'
+        : 'direct_messages_media';
+    return Promise.all(
+      (data.mediaUrls ?? []).map(async (url: string): Promise<TweetMedia> => {
+        const path = await this.mediaPath(folder, data.id, url);
+        const type = fileName(url).toLowerCase().endsWith('.mp4') ? 'video' : 'photo';
+        return { type, url, ...(path && { path }) };
+      })
+    );
   }
 
   /** The 1:1 messages, and group messages if enabled, within since and until. */

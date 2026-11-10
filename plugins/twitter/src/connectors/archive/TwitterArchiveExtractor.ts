@@ -6,6 +6,7 @@ import {
   type SurveyOptions,
 } from '@chronicle.app/etl';
 import { z } from 'zod';
+import { fileName } from '../../utils/media.js';
 
 export abstract class TwitterArchiveExtractor<
   T extends typeof TwitterArchiveExtractor,
@@ -14,7 +15,8 @@ export abstract class TwitterArchiveExtractor<
   static override strategy = 'archive';
 
   static override schema = Extractor.schema.extend({
-    input: z.string().describe('The Twitter archive, as a zip or its unpacked folder'),
+    // Optional so a run through the API needn't give one (see ArchiveExtractor).
+    input: z.string().optional().describe('The Twitter archive, as a zip or its unpacked folder'),
     'include-group-dms': z
       .boolean()
       .optional()
@@ -34,6 +36,21 @@ export abstract class TwitterArchiveExtractor<
       this.logger.warn('Could not load account info', { error: String(error) });
       return null;
     }
+  }
+
+  /**
+   * The archive's copy of a tweet's or message's media file, on disk: X
+   * names it after the tweet or message and the file it serves.
+   */
+  protected async mediaPath(
+    folder: string,
+    owner: string,
+    url: string | undefined
+  ): Promise<string | undefined> {
+    if (!url) return undefined;
+    const path = `data/${folder}/${owner}-${fileName(url)}`;
+    if (!(await this.files.has(path))) return undefined;
+    return (await this.files.localPath(path)) ?? undefined;
   }
 
   protected parseTwitterJS(content: string, dataType: string): any[] {

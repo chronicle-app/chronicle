@@ -80,7 +80,7 @@ other source by name, for example `chronicle plugins install lastfm`, or let
 | Slack messages from a slackdump export                                                 | [slack](plugins/slack/README.md)                           | archive (export)                |
 | Spotify listens, library, playlists, and searches, from the API or a data download     | [spotify](plugins/spotify/README.md)                       | api, archive (export)           |
 | Timing app usage, time entries, and calls                                              | [timing-app](plugins/timing-app/README.md)                 | app-db (local)                  |
-| Twitter/X archive tweets, likes, and DMs                                               | [twitter](plugins/twitter/README.md)                       | archive (export)                |
+| Twitter/X tweets, likes, bookmarks, and DMs, from the API or an archive                | [twitter](plugins/twitter/README.md)                       | archive (export), api           |
 | WhatsApp messages                                                                      | [whatsapp](plugins/whatsapp/README.md)                     | app-db (local), backup (export) |
 | YouTube likes, subscriptions, playlists, uploads, and Takeout history                  | [youtube](plugins/youtube/README.md)                       | api, takeout (export)           |
 | Zotero works, highlights, notes, and reading activity                                  | [zotero](plugins/zotero/README.md)                         | app-db (local)                  |
