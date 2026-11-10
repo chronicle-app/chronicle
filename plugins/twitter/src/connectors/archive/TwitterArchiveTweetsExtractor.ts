@@ -1,4 +1,5 @@
 import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
+import { type TweetMedia, bestVideo } from '../../utils/media.js';
 import TwitterTransformer from '../TwitterTransformer.js';
 import { TwitterArchiveExtractor } from './TwitterArchiveExtractor.js';
 
@@ -46,6 +47,7 @@ export class TwitterArchiveTweetsExtractor extends TwitterArchiveExtractor<
             entities: tweet.entities,
             source: tweet.source,
             retweeted: tweet.retweeted,
+            ...(await this.mediaOf(tweet)),
           },
           { originalData: tweet }
         );
@@ -54,6 +56,20 @@ export class TwitterArchiveTweetsExtractor extends TwitterArchiveExtractor<
     } catch (error) {
       this.logger.warn('Could not process tweets', { error: String(error) });
     }
+  }
+
+  /** A tweet's photos and videos, with the archive's copies of their files. */
+  private async mediaOf(tweet: any): Promise<{ media?: TweetMedia[] }> {
+    const items: any[] = tweet.extended_entities?.media ?? [];
+    const media = await Promise.all(
+      items.map(async (item): Promise<TweetMedia> => {
+        const url =
+          item.type === 'photo' ? item.media_url_https : bestVideo(item.video_info?.variants ?? []);
+        const path = await this.mediaPath('tweets_media', tweet.id_str, url);
+        return { id: item.id_str, type: item.type, ...(url && { url }), ...(path && { path }) };
+      })
+    );
+    return media.length > 0 ? { media } : {};
   }
 
   /** The archive's tweets within since and until, as it writes them. */

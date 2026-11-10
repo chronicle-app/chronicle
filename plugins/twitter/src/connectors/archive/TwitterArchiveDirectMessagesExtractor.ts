@@ -1,5 +1,6 @@
 import { Record, type Survey, type SurveyOptions } from '@chronicle.app/etl';
 import { z } from 'zod';
+import { type TweetMedia, fileName } from '../../utils/media.js';
 import TwitterTransformer from '../TwitterTransformer.js';
 import { TwitterArchiveExtractor } from './TwitterArchiveExtractor.js';
 
@@ -37,12 +38,31 @@ export class TwitterArchiveDirectMessagesExtractor extends TwitterArchiveExtract
       let count = 0;
       for (const message of allMessages) {
         if (this.shouldStopExtracting(count)) break;
-        yield this.createRecordWithArchiveContext(message.data, message.metadata);
+        const media = await this.mediaOf(message.data);
+        yield this.createRecordWithArchiveContext(
+          { ...message.data, ...(media.length > 0 && { media }) },
+          message.metadata
+        );
         count++;
       }
     } catch (error) {
       throw new Error(`Failed to process Twitter direct messages: ${error}`);
     }
+  }
+
+  /** A message's photos and videos, with the archive's copies of their files. */
+  private async mediaOf(data: any): Promise<TweetMedia[]> {
+    const folder =
+      data.type === 'group-direct-message'
+        ? 'direct_messages_group_media'
+        : 'direct_messages_media';
+    return Promise.all(
+      (data.mediaUrls ?? []).map(async (url: string): Promise<TweetMedia> => {
+        const path = await this.mediaPath(folder, data.id, url);
+        const type = fileName(url).toLowerCase().endsWith('.mp4') ? 'video' : 'photo';
+        return { type, url, ...(path && { path }) };
+      })
+    );
   }
 
   /** The 1:1 messages, and group messages if enabled, within since and until. */
@@ -99,77 +119,52 @@ export class TwitterArchiveDirectMessagesExtractor extends TwitterArchiveExtract
     return messages;
   }
 
-  private async loadGroupHeaders(filePath: string): Promise<Map<string, any>> {
-    const groupHeaders = new Map<string, any>();
-
-    try {
-      const content = await this.files.readText(filePath);
-      const jsData = this.parseTwitterJS(content, 'direct_message_group_headers');
-
-      for (const item of jsData) {
-        const conversation = item.dmConversation;
-        if (conversation) {
-          // Find the joinConversation event to get participants
-          const joinEvent = conversation.messages?.find((msg: any) => msg.joinConversation);
-          if (joinEvent) {
-            groupHeaders.set(conversation.conversationId, {
-              conversationId: conversation.conversationId,
-              participants: joinEvent.joinConversation.participantsSnapshot || [],
-              initiator: joinEvent.joinConversation.initiatingUserId,
-            });
-          }
-        }
-      }
-    } catch (error) {
-      this.logger.warn('Could not load group headers', { error: String(error) });
-    }
-
-    return groupHeaders;
-  }
-
+  /**
+   * Group messages, each with who was in the group when it was sent. X lists
+   * a conversation's events newest first; played oldest first, your joining
+   * the group gives who was in it then, and later joins and leaves change
+   * that.
+   */
   private async loadGroupDirectMessages(filePath: string): Promise<any[]> {
     const messages: any[] = [];
 
     try {
-      // First load group headers to get participant info
-      const groupHeaders = await this.loadGroupHeaders(
-        `${filePath.replace('direct-messages-group.js', 'direct-message-group-headers.js')}`
-      );
-
       const content = await this.files.readText(filePath);
       const jsData = this.parseTwitterJS(content, 'direct_messages_group');
 
       for (const item of jsData) {
         const conversation = item.dmConversation;
-        if (conversation && conversation.messages) {
-          const groupInfo = groupHeaders.get(conversation.conversationId);
-
-          for (const message of conversation.messages) {
-            // Only process messageCreate events (actual messages), skip other events
-            if (message.messageCreate) {
-              const msg = message.messageCreate;
-
-              messages.push({
-                created_at: msg.createdAt,
-                data: {
-                  type: 'group-direct-message',
-                  id: msg.id,
-                  conversationId: conversation.conversationId,
-                  senderId: msg.senderId,
-                  participants: groupInfo?.participants || [],
-                  text: msg.text || '',
-                  created_at: msg.createdAt,
-                  mediaUrls: msg.mediaUrls || [],
-                  urls: msg.urls || [],
-                },
-                metadata: {
-                  recordType: 'group-direct-messages',
-                  originalData: msg,
-                  groupInfo,
-                },
-              });
-            }
+        if (!conversation?.messages) continue;
+        const events = [...conversation.messages].reverse();
+        let members = this.foundingMembers(events);
+        for (const event of events) {
+          if (event.joinConversation) {
+            members = new Set(event.joinConversation.participantsSnapshot ?? []);
           }
+          for (const id of event.participantsJoin?.userIds ?? []) members.add(id);
+          for (const id of event.participantsLeave?.userIds ?? []) members.delete(id);
+
+          const msg = event.messageCreate;
+          if (!msg) continue;
+          messages.push({
+            created_at: msg.createdAt,
+            data: {
+              type: 'group-direct-message',
+              id: msg.id,
+              conversationId: conversation.conversationId,
+              senderId: msg.senderId,
+              // Who was in the group when it was sent, the sender among them.
+              participants: [...members],
+              text: msg.text || '',
+              created_at: msg.createdAt,
+              mediaUrls: msg.mediaUrls || [],
+              urls: msg.urls || [],
+            },
+            metadata: {
+              recordType: 'group-direct-messages',
+              originalData: msg,
+            },
+          });
         }
       }
     } catch (error) {
@@ -177,6 +172,27 @@ export class TwitterArchiveDirectMessagesExtractor extends TwitterArchiveExtract
     }
 
     return messages;
+  }
+
+  /**
+   * Who was in a group from its start, before any event about it. When you
+   * joined a group, your joining says who was in it, so none are needed. A
+   * group you started has no such event: it had you and everyone who wrote in
+   * it or left it, less those X records joining later.
+   */
+  private foundingMembers(events: any[]): Set<string> {
+    if (events.some(event => event.joinConversation)) return new Set();
+    const firstSeen = new Map<string, 'there' | 'joined'>();
+    const see = (id: string, how: 'there' | 'joined') => {
+      if (!firstSeen.has(id)) firstSeen.set(id, how);
+    };
+    for (const event of events) {
+      if (event.messageCreate) see(event.messageCreate.senderId, 'there');
+      for (const id of event.participantsJoin?.userIds ?? []) see(id, 'joined');
+      for (const id of event.participantsLeave?.userIds ?? []) see(id, 'there');
+    }
+    const founders = [...firstSeen].filter(([, how]) => how === 'there').map(([id]) => id);
+    return new Set([...(this.accountInfo ? [this.accountInfo.accountId] : []), ...founders]);
   }
 
   override async determineCount(): Promise<number | null> {

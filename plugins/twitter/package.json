@@ -39,6 +39,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "dependencies": {
+    "@chronicle.app/auth": "0.5.0",
     "zod": "^3.24.1"
   },
   "peerDependencies": {
@@ -94,6 +95,16 @@
                 "via": "email"
               }
             ]
+          },
+          "api": {
+            "delivery": "api",
+            "recordTypes": [
+              "bookmarks",
+              "likes",
+              "mentions",
+              "tweets"
+            ],
+            "default": true
           }
         }
       }

@@ -1,3 +1,4 @@
+import { InputNotFound } from '@chronicle.app/logging';
 import { z } from 'zod';
 import { Extractor } from '../extractor.js';
 import { Record } from '../types.js';
@@ -21,7 +22,18 @@ export abstract class ArchiveExtractor<
 > extends Extractor<SelfClass> {
   static override delivery = 'export' as const;
 
-  static override schema = Extractor.schema.extend({
+  /**
+   * A source that can also be read another way (an API) makes `input`
+   * optional: the CLI unions the flags of a source's extractors, so a
+   * required one would be asked of the others too. `setup` asks for it then.
+   */
+  static override schema: z.ZodObject<
+    z.objectUtil.extendShape<
+      (typeof Extractor.schema)['shape'],
+      { input: z.ZodString | z.ZodOptional<z.ZodString> }
+    >,
+    'strip'
+  > = Extractor.schema.extend({
     input: z.string().describe('The export, as a folder or zip'),
   });
 
@@ -47,7 +59,13 @@ export abstract class ArchiveExtractor<
 
   override async setup(): Promise<void> {
     await super.setup();
-    this.files = await openExport((this.config as { input: string }).input, this.exportName);
+    const { input } = this.config as { input?: string };
+    if (!input) {
+      throw new InputNotFound(`No ${this.exportName} given`, {
+        hint: 'Pass the export’s folder or its zip with `--input <path>`.',
+      });
+    }
+    this.files = await openExport(input, this.exportName);
   }
 
   override async teardown(): Promise<void> {
