@@ -199,6 +199,7 @@ export function postData(tweet: ApiTweet, retweeted?: ApiTweet | { id: string })
     in_reply_to_status_id: tweet.referenced_tweets?.find(ref => ref.type === 'replied_to')?.id,
     in_reply_to_user_id: tweet.in_reply_to_user_id,
     entities: archiveEntities(tweet),
+    ...coordinatesOf(tweet),
     ...(tweet.author_id && { authorId: tweet.author_id }),
     ...(tweet.author && {
       author: { id: tweet.author.id, username: tweet.author.username, name: tweet.author.name },
@@ -208,6 +209,13 @@ export function postData(tweet: ApiTweet, retweeted?: ApiTweet | { id: string })
       retweeted: 'text' in retweeted ? postData(retweeted) : { id: retweeted.id },
     }),
   };
+}
+
+/** Where a post was posted from, when its author shared it, as the archive gives it. */
+function coordinatesOf(tweet: ApiTweet): { coordinates?: { latitude: number; longitude: number } } {
+  const [longitude, latitude] = tweet.geo?.coordinates?.coordinates ?? [];
+  if (typeof latitude !== 'number' || typeof longitude !== 'number') return {};
+  return { coordinates: { latitude, longitude } };
 }
 
 /** The post a retweet retweets, by id. */

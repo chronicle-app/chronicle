@@ -120,7 +120,31 @@ export function archiveFiles() {
               mediaUrls: [
                 'https://ton.twitter.com/dm/1300000000000000001/1500000000000000002/Map.jpg',
               ],
-              urls: [],
+              urls: [
+                {
+                  url: 'https://t.co/route',
+                  expanded: 'https://example.com/route',
+                  display: 'example.com/route',
+                },
+                {
+                  url: 'https://t.co/shared',
+                  expanded: 'https://twitter.com/alex_example/status/1234567890000000003',
+                  display: 'twitter.com/alex_example/…',
+                },
+                {
+                  url: 'https://t.co/map',
+                  expanded: 'https://twitter.com/messages/media/1300000000000000001',
+                  display: 'pic.twitter.com/map',
+                },
+              ],
+              reactions: [
+                {
+                  senderId: '222',
+                  reactionKey: 'like',
+                  eventId: '1600000000000000099',
+                  createdAt: '2025-01-11T17:12:00.000Z',
+                },
+              ],
             },
           },
         ],
@@ -145,6 +169,13 @@ export function archiveFiles() {
             },
           },
           {
+            conversationNameUpdate: {
+              initiatingUserId: '222',
+              name: 'Trail crew',
+              createdAt: '2025-01-12T08:59:45.000Z',
+            },
+          },
+          {
             participantsJoin: {
               initiatingUserId: '222',
               userIds: ['333'],
@@ -163,12 +194,170 @@ export function archiveFiles() {
     },
   ]);
 
+  writeYtd('profile', 'profile', [
+    {
+      profile: {
+        description: {
+          bio: 'Walks &amp; trails',
+          website: 'https://t.co/site',
+          location: 'Somewhere North',
+        },
+        avatarMediaUrl: 'https://pbs.twimg.com/profile_images/1/Avatar.jpg',
+        headerMediaUrl: 'https://pbs.twimg.com/profile_banners/111/1',
+      },
+    },
+  ]);
+
+  writeYtd('follower', 'follower', [
+    { follower: { accountId: '222', userLink: userLink('222') } },
+    { follower: { accountId: '333', userLink: userLink('333') } },
+  ]);
+  writeYtd('following', 'following', [
+    { following: { accountId: '222', userLink: userLink('222') } },
+  ]);
+
+  // A question and its answer, which X stamps with the question's time.
+  writeYtd('grok-chat-item', 'grok_chat_item', [
+    grok('User', 'Where should I hike this weekend?'),
+    grok('Agent', 'Try the ridge trail. **Bring water.**', { postIds: ['1234567890123456789'] }),
+  ]);
+
   // X's copies of the media, named after the tweet or message and the file.
   files['data/tweets_media/1234567890123456788-Trail1.jpg'] = 'a synthetic photo';
   files['data/direct_messages_media/1300000000000000001-Map.jpg'] = 'a synthetic photo';
+  files['data/profile_media/111-Avatar.jpg'] = 'a synthetic photo';
 
   return files;
 }
+
+/** A long post's text in full, longer than a tweet holds. */
+export const LONG_POST =
+  'Notes from the long trail, day one. The climb out of the valley took most of the ' +
+  'morning, and the ridge was windy enough that we sat in the lee of the cairn for ' +
+  'lunch. Afternoon was easier: a long descent through birch, two stream crossings, ' +
+  'and a camp by the lake just as the light went. Tomorrow, the pass.';
+
+/**
+ * The synthetic archive with tweets for its harder cases: a reply from a
+ * place, quoting a tweet; a long post, cut short, with its note; an edited
+ * tweet's two versions; and a tweet deleted lately.
+ */
+export function harderArchiveFiles() {
+  const files = archiveFiles();
+  const tweets = JSON.parse(files['data/tweets.js'].replace(/^[^=]*=\s*/, ''));
+  const versions = ['1234567890123456792', '1234567890123456793'];
+  return {
+    ...files,
+    'data/tweets.js': ytd('tweets', [
+      ...tweets,
+      tweet(
+        '1234567890123456790',
+        'Sun Jan 12 10:00:00 +0000 2025',
+        '@alex_example Agreed, see https://t.co/q1',
+        {
+          in_reply_to_status_id_str: '1234567890000000001',
+          in_reply_to_user_id_str: '222',
+          in_reply_to_screen_name: 'alex_example',
+          entities: {
+            hashtags: [],
+            symbols: [],
+            user_mentions: [{ name: 'Alex Example', screen_name: 'alex_example', id_str: '222' }],
+            urls: [
+              {
+                url: 'https://t.co/q1',
+                expanded_url: 'https://twitter.com/sam_example/status/1234567890000000002',
+              },
+            ],
+          },
+          coordinates: { type: 'Point', coordinates: ['-79.4', '43.7'] },
+          source:
+            '<a href="http://twitter.com/download/iphone" rel="nofollow">Twitter for iPhone</a>',
+        }
+      ),
+      tweet(
+        '1234567890123456791',
+        'Mon Jan 13 10:00:00 +0000 2025',
+        `${LONG_POST.slice(0, 270)}… https://t.co/long`,
+        {
+          entities: {
+            hashtags: [],
+            symbols: [],
+            user_mentions: [],
+            urls: [
+              {
+                url: 'https://t.co/long',
+                expanded_url: 'https://twitter.com/i/web/status/1234567890123456791',
+              },
+            ],
+          },
+        }
+      ),
+      tweet(versions[0], 'Tue Jan 14 10:00:00 +0000 2025', 'First take', {
+        edit_info: {
+          initial: { editTweetIds: versions, editsRemaining: '4', isEditEligible: true },
+        },
+      }),
+      tweet(versions[1], 'Tue Jan 14 10:05:00 +0000 2025', 'Second take', {
+        edit_info: {
+          edit: { initialTweetId: versions[0], editControlInitial: { editTweetIds: versions } },
+        },
+      }),
+    ]),
+    'data/note-tweet.js': ytd('note_tweet', [
+      {
+        noteTweet: {
+          noteTweetId: '1700000000000000001',
+          createdAt: '2025-01-13T10:00:00.000Z',
+          updatedAt: '2025-01-13T10:00:00.000Z',
+          lifecycle: { value: '1', name: 'Created', originalName: 'Created', annotations: {} },
+          core: {
+            styletags: [],
+            urls: [],
+            text: LONG_POST,
+            mentions: [],
+            cashtags: [],
+            hashtags: [],
+          },
+        },
+      },
+    ]),
+    'data/deleted-tweets.js': ytd('deleted_tweets', [
+      tweet('1234567890123456794', 'Wed Jan 15 10:00:00 +0000 2025', 'Never mind', {
+        deleted_at: 'Wed Jan 15 10:30:00 +0000 2025',
+      }),
+    ]),
+  };
+}
+
+/** Where X links an account by its id, in a follow list. */
+const userLink = id => `https://twitter.com/intent/user?user_id=${id}`;
+
+/** A message in a chat with Grok, from you (`User`) or Grok (`Agent`). */
+const grok = (name, message, extra = {}) => ({
+  grokChatItem: {
+    grokMode: { value: '0', name: 'Normal', originalName: 'Normal', annotations: {} },
+    accountId: '111',
+    chatId: '1800000000000000001',
+    createdAt: '2025-01-20T12:00:00.000Z',
+    sender: { value: name === 'User' ? '1' : '2', name, originalName: name, annotations: {} },
+    message,
+    ...extra,
+  },
+});
+
+/** A tweet of yours, as `tweets.js` has it, with no entities unless given. */
+const tweet = (id, createdAt, text, extra = {}) => ({
+  tweet: {
+    created_at: createdAt,
+    id_str: id,
+    full_text: text,
+    favorite_count: '0',
+    retweet_count: '0',
+    entities: { hashtags: [], symbols: [], user_mentions: [], urls: [] },
+    retweeted: false,
+    ...extra,
+  },
+});
 
 /** An archive file's content: `window.YTD.<name>.part0 = [...]`. */
 export function ytd(name, items) {

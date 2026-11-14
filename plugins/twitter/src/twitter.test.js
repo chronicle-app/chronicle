@@ -12,7 +12,10 @@ import {
   TwitterApiMentionsExtractor,
   TwitterApiTweetsExtractor,
   TwitterArchiveDirectMessagesExtractor,
+  TwitterArchiveFollowsExtractor,
+  TwitterArchiveGrokExtractor,
   TwitterArchiveLikesExtractor,
+  TwitterArchiveProfileExtractor,
   TwitterArchiveTweetsExtractor,
   TwitterTransformer,
 } from '../dist/index.js';
@@ -22,6 +25,8 @@ import {
   acted,
   archive,
   archiveFiles,
+  harderArchiveFiles,
+  LONG_POST,
   me,
   serveX,
   ytd,
@@ -94,6 +99,9 @@ const owner = {
 
 const user = sourceId => ({ '@type': 'Agent', '@key': key, source: 'twitter', sourceId });
 
+/** A conversation, by X's id for it. */
+const thread = sourceId => ({ '@type': 'Thread', '@key': key, source: 'twitter', sourceId });
+
 /** The tag a #Hiking or #hiking makes. */
 const hiking = {
   '@type': 'Tag',
@@ -121,6 +129,16 @@ test('tweets become PublishActions of Posts with their mentions, links, and hash
       // What the archive says is as of when X generated it, an old tweet's too.
       '@assertedAt': GENERATED,
       agent: owner,
+      // The app it was posted with.
+      instrument: [
+        {
+          '@type': 'SoftwareApplication',
+          '@key': ['@type', 'source', 'name'],
+          source: 'twitter',
+          name: 'Twitter Web App',
+          url: 'https://mobile.twitter.com',
+        },
+      ],
       result: {
         '@type': 'Post',
         '@key': key,
@@ -220,6 +238,140 @@ test('an archive without a manifest is asserted when X wrote its account file', 
   assert.equal(published.timestamp, '2025-01-11T17:10:28.000Z');
 });
 
+test('a reply points at the tweet it answers, and a link to a tweet is the tweet', async t => {
+  const input = archive(t, harderArchiveFiles());
+  const rows = await records(TwitterArchiveTweetsExtractor, input);
+  const byId = Object.fromEntries(rows.map(row => [row.data.id, row]));
+  const [reply] = await transform(byId['1234567890123456790']);
+  assert.deepEqual(reply.result.inReplyTo, [
+    {
+      '@type': 'Post',
+      '@key': key,
+      source: 'twitter',
+      sourceId: '1234567890000000001',
+      url: 'https://x.com/alex_example/status/1234567890000000001',
+      author: [{ ...user('222'), handle: 'alex_example', url: 'https://x.com/alex_example' }],
+    },
+  ]);
+  // The tweet it quotes is the Post, not a page.
+  assert.deepEqual(reply.result.references.at(-1), {
+    '@type': 'Post',
+    '@key': key,
+    source: 'twitter',
+    sourceId: '1234567890000000002',
+    url: 'https://x.com/sam_example/status/1234567890000000002',
+  });
+  // Where it was posted from, and with which app.
+  assert.deepEqual(reply.location, { '@type': 'Location', latitude: 43.7, longitude: -79.4 });
+  assert.equal(reply.instrument[0].name, 'Twitter for iPhone');
+});
+
+test('a long post is in full, an edited tweet is its latest version, and a deletion is dated', async t => {
+  const input = archive(t, harderArchiveFiles());
+  const rows = await records(TwitterArchiveTweetsExtractor, input);
+  const ids = new Set(rows.map(row => row.data.id));
+  // The edit's first version is left out.
+  assert.ok(ids.has('1234567890123456793'));
+  assert.ok(!ids.has('1234567890123456792'));
+  assert.equal(await count(TwitterArchiveTweetsExtractor, input), rows.length);
+
+  const long = rows.find(row => row.data.id === '1234567890123456791');
+  const [published] = await transform(long);
+  assert.equal(published.result.body, LONG_POST);
+  // Its link to the rest of itself isn't a reference.
+  assert.equal(published.result.references, undefined);
+
+  const deleted = rows.find(row => row.data.id === '1234567890123456794');
+  const [, deletion] = await transform(deleted);
+  assert.deepEqual(deletion, {
+    '@type': 'DeleteAction',
+    '@key': ['@type', 'source', 'object.sourceId'],
+    source: 'twitter',
+    timestamp: '2025-01-15T10:30:00.000Z',
+    '@assertedAt': GENERATED,
+    agent: owner,
+    object: { '@type': 'Post', '@key': key, source: 'twitter', sourceId: '1234567890123456794' },
+  });
+});
+
+test('your profile is an UpdateAction as of when X generated the archive', async t => {
+  const input = archive(t);
+  const rows = await records(TwitterArchiveProfileExtractor, input);
+  assert.equal(rows.length, 1);
+  const [update] = await transform(rows[0]);
+  assert.equal(update['@type'], 'UpdateAction');
+  assert.equal(update.timestamp, GENERATED);
+  assert.equal(update['@assertedAt'], GENERATED);
+  const { description, location, emblem } = update.object;
+  assert.equal(description, 'Walks & trails');
+  assert.equal(location.address, 'Somewhere North');
+  // The avatar, with the archive's copy; the header isn't an emblem.
+  assert.equal(emblem.url, 'https://pbs.twimg.com/profile_images/1/Avatar.jpg');
+  assert.equal(emblem.contentPath, join(input, 'data/profile_media/111-Avatar.jpg'));
+  assert.deepEqual(await survey(TwitterArchiveProfileExtractor, input), {
+    profile: { count: 1, asOf: new Date(GENERATED) },
+  });
+});
+
+test('followers and follows are FollowActions, undated, as of the archive', async t => {
+  const input = archive(t);
+  const rows = await records(TwitterArchiveFollowsExtractor, input);
+  const follows = [];
+  for (const row of rows) {
+    const [follow] = await transform(row);
+    assert.equal(follow.timestamp, undefined);
+    assert.equal(follow['@assertedAt'], GENERATED);
+    follows.push([row.extraction.recordType, follow.agent.sourceId, follow.object.sourceId]);
+  }
+  assert.deepEqual(follows, [
+    ['followers', '222', '111'],
+    ['followers', '333', '111'],
+    ['following', '111', '222'],
+  ]);
+  assert.equal(await count(TwitterArchiveFollowsExtractor, input), 3);
+});
+
+test('a chat with Grok is a Thread of messages, Grok’s authored as Claude’s are', async t => {
+  const input = archive(t);
+  const rows = await records(TwitterArchiveGrokExtractor, input);
+  const [question, answer] = await Promise.all(rows.map(async row => (await transform(row))[0]));
+  const chat = thread('1800000000000000001');
+  assert.deepEqual(question.agent, owner);
+  assert.deepEqual(question.result.isPartOf, [chat]);
+  const grok = {
+    '@type': 'SoftwareAgent',
+    '@key': ['@type', 'source', 'handle'],
+    source: 'xai',
+    handle: 'grok',
+    name: 'Grok',
+  };
+  assert.deepEqual(answer, {
+    '@type': 'MessageAction',
+    '@key': ['@type', 'source', 'result.sourceId'],
+    source: 'twitter',
+    timestamp: '2025-01-20T12:00:00.000Z',
+    '@assertedAt': GENERATED,
+    agent: grok,
+    result: {
+      '@type': 'Message',
+      '@key': key,
+      source: 'twitter',
+      // X gives a message no id, so the chat, time, and sender make one.
+      sourceId: '1800000000000000001-1737374400000-grok',
+      body: 'Try the ridge trail. **Bring water.**',
+      author: [grok],
+      isPartOf: [chat],
+      // The posts its answer drew on.
+      references: [
+        { '@type': 'Post', '@key': key, source: 'twitter', sourceId: '1234567890123456789' },
+      ],
+    },
+  });
+  const [kind] = Object.values(await survey(TwitterArchiveGrokExtractor, input));
+  assert.equal(kind.count, 2);
+  assert.deepEqual(kind.measures, [{ key: 'chats', label: 'chats', value: 1 }]);
+});
+
 test('1:1 and group DMs become MessageActions, newest first', async t => {
   const input = archive(t);
   const rows = await records(TwitterArchiveDirectMessagesExtractor, input);
@@ -246,6 +398,8 @@ test('1:1 and group DMs become MessageActions, newest first', async t => {
         body: 'Hello group, testing the archive export',
         recipient: [user('111'), user('333')],
         author: [user('222')],
+        // Part of its conversation, named as the group was last.
+        isPartOf: [{ ...thread('1400000000000000001'), name: 'Trail crew' }],
       },
     },
   ]);
@@ -266,6 +420,18 @@ test('1:1 and group DMs become MessageActions, newest first', async t => {
         body: 'Hey, testing the archive export',
         recipient: [user('222')],
         author: [user('111')],
+        isPartOf: [thread('111-222')],
+        // Its links: a tweet's is the tweet. The one to its own photo isn't one.
+        references: [
+          { '@type': 'Entity', '@key': ['@type', 'url'], url: 'https://example.com/route' },
+          {
+            '@type': 'Post',
+            '@key': key,
+            source: 'twitter',
+            sourceId: '1234567890000000003',
+            url: 'https://x.com/alex_example/status/1234567890000000003',
+          },
+        ],
         // A message's photo has no media id, so its URL keys it.
         contains: [
           {
@@ -276,6 +442,28 @@ test('1:1 and group DMs become MessageActions, newest first', async t => {
             mimeType: 'image/jpeg',
           },
         ],
+      },
+    },
+    // A reaction is a response with the reaction X names, when it was made.
+    {
+      '@type': 'RespondAction',
+      '@key': ['@type', 'source', 'result.sourceId'],
+      source: 'twitter',
+      timestamp: '2025-01-11T17:12:00.000Z',
+      '@assertedAt': GENERATED,
+      agent: user('222'),
+      object: {
+        '@type': 'Message',
+        '@key': key,
+        source: 'twitter',
+        sourceId: '1300000000000000001',
+      },
+      result: {
+        '@type': 'Response',
+        '@key': key,
+        source: 'twitter',
+        sourceId: '1600000000000000099',
+        body: 'like',
       },
     },
   ]);
@@ -726,6 +914,10 @@ test('tweets through the API take the archive’s shape', async t => {
         mentions: [{ username: 'alex_example', id: '222', start: 17, end: 30 }],
         urls: [{ url: 'https://t.co/abc123', expanded_url: 'https://example.com/trail' }],
       },
+      // The next in a thread of yours, posted from a place.
+      in_reply_to_user_id: me.id,
+      referenced_tweets: [{ type: 'replied_to', id: '1700000000000000000' }],
+      geo: { coordinates: { type: 'Point', coordinates: [-79.4, 43.7] } },
     },
   ];
   const requests = await serveX(t, { tweets });
@@ -740,6 +932,20 @@ test('tweets through the API take the archive’s shape', async t => {
     '222',
     'https://example.com/trail',
   ]);
+  // X names only who a reply answers; in a thread, that's you, so its page is known.
+  assert.deepEqual(publish.result.inReplyTo, [
+    {
+      '@type': 'Post',
+      '@key': key,
+      source: 'twitter',
+      sourceId: '1700000000000000000',
+      url: `https://x.com/${me.username}/status/1700000000000000000`,
+      author: [{ ...user(me.id), handle: me.username, url: `https://x.com/${me.username}` }],
+    },
+  ]);
+  assert.deepEqual(publish.location, { '@type': 'Location', latitude: 43.7, longitude: -79.4 });
+  // X is asked where each was posted from.
+  assert.ok(requests.at(-1).query['tweet.fields'].split(',').includes('geo'));
 });
 
 const alex = { id: '222', username: 'alex_example', name: 'Alex Example' };

@@ -14,7 +14,8 @@ The plugin reads your Twitter/X data two ways:
 
 - **archive**: the data archive X sends you (Settings, then "Download an
   archive of your data"). It has your tweets, likes, and direct messages,
-  and copies of their photos and videos.
+  and copies of their photos and videos; your profile, followers, and
+  accounts you follow; and your chats with Grok.
 - **api**: the X API, signed in as you. It has your tweets and retweets, your
   likes and bookmarks, with the time you liked or bookmarked each, which the
   archive doesn't have, and other people's tweets that mention you.
@@ -65,8 +66,9 @@ The extractor supports the following options:
 - `--input`: The Twitter/X archive, as a zip or its unzipped folder (needed for
   the archive)
 - `--type`: Which record types to read. From the archive: `tweets`, `likes`,
-  `direct-messages`, `group-direct-messages`. From the API: `tweets`, `likes`,
-  `bookmarks`, `mentions`. The default is all of them.
+  `direct-messages`, `group-direct-messages`, `profile`, `followers`,
+  `following`, `grok-chats`; the default is `tweets`. From the API: `tweets`,
+  `likes`, `bookmarks`, `mentions`; the default is all of them.
 - `--include-group-dms`: Include group direct messages (default: true)
 - `--access-token`: An OAuth 2.0 user access token to use instead of the
   stored sign-in
@@ -130,10 +132,16 @@ script wrapping a JSON array:
 - `manifest.js`: when X generated the archive
 - `account.js`: the archive owner's account ID, username, and display name
 - `tweets.js`: your tweets
+- `note-tweet.js`: the full text of your long posts, which `tweets.js` cuts
+  short
+- `deleted-tweets.js`: tweets you deleted in the last two weeks, with when
 - `like.js`: the tweets you liked
-- `direct-messages.js`: one-to-one direct messages
+- `direct-messages.js`: one-to-one direct messages, with their reactions
 - `direct-messages-group.js`: group direct messages, with when each member
-  joined or left
+  joined or left and the group's name
+- `profile.js` and `profile_media/`: your bio, location, and avatar
+- `follower.js` and `following.js`: who follows you and whom you follow
+- `grok-chat-item.js`: your chats with Grok
 
 ## Schema
 
@@ -149,6 +157,15 @@ script wrapping a JSON array:
   photo and a `VideoObject` for each video or GIF, keyed by X's media id: the
   archive's copy of the file, or where X serves it. A liked or bookmarked post
   from the API has these too.
+- A reply's post is `inReplyTo` the post it answers, which has its author and,
+  when their handle is known, its page. A link to a tweet, such as a quote, is
+  that `Post` rather than a page.
+- A tweet's `PublishAction` has its `location` when the tweet gives its
+  coordinates, and the app it was posted with, a `SoftwareApplication`, as its
+  `instrument`.
+- An edited tweet is its latest version, as X shows it. A tweet you deleted
+  lately also becomes your `DeleteAction` of the post, dated when you deleted
+  it.
 - A retweet from the API is a `ShareAction` of the post it retweets, keyed by
   the post and the account. The archive doesn't say which post a retweet was
   of, so its retweets stay tweets.
@@ -162,8 +179,21 @@ script wrapping a JSON array:
   everyone else in the conversation when it was sent. In a group you joined,
   that's who was in it then, with later joins and leaves; in one you started,
   which says nothing of its start, it's you and everyone who wrote in it. It
-  `contains` its photos and videos, from the archive's copies, keyed by their
-  URLs.
+  `isPartOf` its conversation, a `Thread` keyed by X's id for it, with a
+  group's latest name. Its `references` are its links, a tweet's being the
+  `Post`. It `contains` its photos and videos, from the archive's copies,
+  keyed by their URLs.
+- A reaction to a message is a `RespondAction` on the `Message`, whose
+  `Response` is the reaction as X names it, such as `like` or `funny`.
+- Your profile is an `UpdateAction` of your `Agent`, dated when X generated
+  the archive, with your bio as its `description`, your location, and your
+  avatar as its `emblem`.
+- A follow, of you or by you, is a `FollowAction`, keyed by the two accounts.
+  X gives no date for it.
+- A chat with Grok is a `Thread` of `MessageAction`s, as Claude's are: yours
+  authored by you, Grok's by a `SoftwareAgent` keyed by its handle, `grok`, at
+  `xai`. X doesn't say which model answered. An answer's `references` are the
+  posts it drew on.
 - A tweet's or message's `body` is its text as written: X escapes it as HTML
   (`&amp;`, `&lt;`), and the escapes are undone.
 

@@ -226,7 +226,7 @@
       "name": "twitter",
       "package": "@chronicle.app/twitter",
       "tier": "official",
-      "summary": "Twitter/X tweets, likes, bookmarks, and DMs, from the API or an archive"
+      "summary": "Twitter/X tweets, likes, bookmarks, DMs, follows, and Grok chats, from the API or an archive"
     },
     {
       "name": "whatsapp",

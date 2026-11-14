@@ -105,6 +105,7 @@ export class TwitterArchiveDirectMessagesExtractor extends TwitterArchiveExtract
                   created_at: msg.createdAt,
                   mediaUrls: msg.mediaUrls,
                   urls: msg.urls,
+                  reactions: msg.reactions ?? [],
                 },
                 metadata: { originalData: msg },
               });
@@ -135,6 +136,9 @@ export class TwitterArchiveDirectMessagesExtractor extends TwitterArchiveExtract
       for (const item of jsData) {
         const conversation = item.dmConversation;
         if (!conversation?.messages) continue;
+        // The newest first, so the first rename is the group's name now.
+        const name = conversation.messages.find((event: any) => event.conversationNameUpdate)
+          ?.conversationNameUpdate.name;
         const events = [...conversation.messages].reverse();
         let members = this.foundingMembers(events);
         for (const event of events) {
@@ -155,10 +159,12 @@ export class TwitterArchiveDirectMessagesExtractor extends TwitterArchiveExtract
               senderId: msg.senderId,
               // Who was in the group when it was sent, the sender among them.
               participants: [...members],
+              ...(name && { conversationName: name }),
               text: msg.text || '',
               created_at: msg.createdAt,
               mediaUrls: msg.mediaUrls || [],
               urls: msg.urls || [],
+              reactions: msg.reactions ?? [],
             },
             metadata: {
               recordType: 'group-direct-messages',

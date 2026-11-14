@@ -19,6 +19,8 @@ export interface ApiTweet {
   in_reply_to_user_id?: string;
   referenced_tweets?: { type: 'replied_to' | 'quoted' | 'retweeted'; id: string }[];
   attachments?: { media_keys?: string[] };
+  /** Where it was posted from, when its author shared it: `coordinates` is longitude, then latitude. */
+  geo?: { coordinates?: { type: string; coordinates: [number, number] } };
   entities?: {
     mentions?: { username: string; id?: string; start: number; end: number }[];
     /** A link to the post's own photo or video has the media's key. */
@@ -77,6 +79,7 @@ export const TWEET_FIELDS = [
   'public_metrics',
   'note_tweet',
   'lang',
+  'geo',
 ].join(',');
 
 const MEDIA_FIELDS = 'type,url,variants,width,height,alt_text';
