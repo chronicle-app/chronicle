@@ -151,6 +151,12 @@
       "summary": "Last.fm listens, loved tracks, and friends"
     },
     {
+      "name": "letterboxd",
+      "package": "@chronicle.app/letterboxd",
+      "tier": "official",
+      "summary": "Letterboxd diary, ratings, reviews, likes, and watchlist"
+    },
+    {
       "name": "linkedin",
       "package": "@chronicle.app/linkedin",
       "tier": "official",

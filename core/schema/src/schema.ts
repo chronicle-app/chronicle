@@ -114,6 +114,7 @@ export const CLASS_PARENTS: Record<string, string[]> = {
   MessageAction: ['Action'],
   MonetaryAmount: ['StructuredValue'],
   MoveAction: ['Action'],
+  Movie: ['CreativeWork'],
   MovingImage: ['CreativeWork'],
   MusicAlbum: ['CreativeWork'],
   MusicGroup: ['PerformingGroup'],
@@ -192,6 +193,7 @@ export const PROPERTY_PARENTS: Record<string, string[]> = {
   attendee: ['involvement'],
   attribution: ['relation'],
   author: [],
+  bestRating: [],
   body: [],
   caption: [],
   category: [],
@@ -247,6 +249,7 @@ export const PROPERTY_PARENTS: Record<string, string[]> = {
   path: [],
   performer: ['attribution'],
   publisher: ['creator'],
+  ratingValue: [],
   recipient: ['involvement'],
   references: ['mentions'],
   relation: [],
@@ -304,6 +307,7 @@ export interface Base {
   '@type': 'Base';
   source?: string;
   sourceId?: string;
+  tags?: string[];
   '@key'?: KeyField[];
   '@id'?: string;
   '@asserts'?: string[];
@@ -315,6 +319,7 @@ export type BaseAndChildren = Base | ActionAndChildren | EntityAndChildren;
 const BaseProperties = {
   source: z.lazy(() => z.string()).optional(),
   sourceId: z.lazy(() => z.string()).optional(),
+  tags: z.lazy(() => z.array(z.string())).optional(),
   '@key': z
     .array(z.union([z.string(), z.object({ key: z.string(), value: z.string() })]))
     .optional(),
@@ -353,7 +358,6 @@ export interface Entity extends Omit<Base, '@type'> {
   name?: string;
   references?: EntityAndChildren[];
   sameAs?: (EntityAndChildren | string)[];
-  tags?: string[];
   url?: string;
   hasPart?: EntityAndChildren[];
   resultOf?: ActionAndChildren[];
@@ -394,7 +398,6 @@ const EntityProperties = {
   name: z.lazy(() => z.string()).optional(),
   references: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
   sameAs: z.lazy(() => z.array(z.union([EntityAndChildrenSchema, z.string()]))).optional(),
-  tags: z.lazy(() => z.array(z.string())).optional(),
   url: z.lazy(() => z.string().url()).optional(),
   hasPart: z.lazy(() => z.array(EntityAndChildrenSchema)).optional(),
   resultOf: z.lazy(() => z.array(ActionAndChildrenSchema)).optional(),
@@ -434,6 +437,7 @@ export type CreativeWorkAndChildren =
   | CollectionAndChildren
   | MediaObjectAndChildren
   | MessageAndChildren
+  | MovieAndChildren
   | MovingImageAndChildren
   | MusicAlbumAndChildren
   | MusicRecordingAndChildren
@@ -1152,12 +1156,16 @@ export const CommandSchema: z.ZodType<Command> = z
 // Response, child of https://schema.chronicle.app/CreativeWork
 export interface Response extends Omit<CreativeWork, '@type'> {
   '@type': 'Response';
+  bestRating?: number;
+  ratingValue?: number;
 }
 
 export type ResponseAndChildren = Response | CommentAndChildren;
 
 const ResponseProperties = {
   ...CreativeWorkProperties,
+  bestRating: z.lazy(() => z.number()).optional(),
+  ratingValue: z.lazy(() => z.number()).optional(),
 };
 
 export const ResponseSchema: z.ZodType<Response> = z
@@ -1905,6 +1913,24 @@ export const MoveActionSchema: z.ZodType<MoveAction> = z
   .object({
     '@type': z.literal('MoveAction'),
     ...MoveActionProperties,
+  })
+  .superRefine(requireNodeIdentity);
+
+// Movie, child of https://schema.chronicle.app/CreativeWork
+export interface Movie extends Omit<CreativeWork, '@type'> {
+  '@type': 'Movie';
+}
+
+export type MovieAndChildren = Movie;
+
+const MovieProperties = {
+  ...CreativeWorkProperties,
+};
+
+export const MovieSchema: z.ZodType<Movie> = z
+  .object({
+    '@type': z.literal('Movie'),
+    ...MovieProperties,
   })
   .superRefine(requireNodeIdentity);
 
@@ -3109,6 +3135,8 @@ export const MusicAlbumAndChildrenSchema = MusicAlbumSchema;
 
 export const MovingImageAndChildrenSchema = MovingImageSchema;
 
+export const MovieAndChildrenSchema = MovieSchema;
+
 export const MoveActionAndChildrenSchema: z.ZodType<MoveActionAndChildren> = z
   .discriminatedUnion('@type', [
     z.object({
@@ -4063,6 +4091,11 @@ export const CreativeWorkAndChildrenSchema: z.ZodType<CreativeWorkAndChildren> =
     }),
 
     z.object({
+      '@type': z.literal('Movie'),
+      ...MovieProperties,
+    }),
+
+    z.object({
       '@type': z.literal('Message'),
       ...MessageProperties,
     }),
@@ -4428,6 +4461,11 @@ export const EntityAndChildrenSchema: z.ZodType<EntityAndChildren> = z
     z.object({
       '@type': z.literal('MovingImage'),
       ...MovingImageProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Movie'),
+      ...MovieProperties,
     }),
 
     z.object({
@@ -5051,6 +5089,11 @@ export const BaseAndChildrenSchema: z.ZodType<BaseAndChildren> = z
     z.object({
       '@type': z.literal('MovingImage'),
       ...MovingImageProperties,
+    }),
+
+    z.object({
+      '@type': z.literal('Movie'),
+      ...MovieProperties,
     }),
 
     z.object({

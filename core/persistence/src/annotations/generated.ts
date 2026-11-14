@@ -72,6 +72,13 @@ export const PREDICATE_ANNOTATIONS: Record<string, PredicateAnnotation> = {
     isEntityRange: true,
     metric: false,
   },
+  bestRating: {
+    predicate: 'bestRating',
+    cardinality: 'one',
+    range: 'Number',
+    isEntityRange: false,
+    metric: false,
+  },
   body: {
     predicate: 'body',
     cardinality: 'one',
@@ -441,6 +448,13 @@ export const PREDICATE_ANNOTATIONS: Record<string, PredicateAnnotation> = {
     cardinality: 'many',
     range: 'Organization',
     isEntityRange: true,
+    metric: false,
+  },
+  ratingValue: {
+    predicate: 'ratingValue',
+    cardinality: 'one',
+    range: 'Number',
+    isEntityRange: false,
     metric: false,
   },
   recipient: {
