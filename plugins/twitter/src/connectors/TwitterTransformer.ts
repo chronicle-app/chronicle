@@ -4,6 +4,7 @@ import {
   createImageObject,
   createVideoObject,
   decodeEntities,
+  xPost,
 } from '@chronicle.app/etl';
 import {
   ActionAndChildren,
@@ -143,10 +144,7 @@ export default class TwitterTransformer extends ChronicleTransformer {
     const media = this.buildMedia(data.media);
     const repliedTo = this.buildRepliedTo(data, author);
     return {
-      '@type': 'Post',
-      '@key': BY_SOURCE_ID,
-      source: SOURCE,
-      sourceId: data.id,
+      ...postById(data.id),
       ...(author?.handle && { url: postUrl(author.handle, data.id) }),
       body: plain(data.text), // Keep original text with t.co URLs
       ...(author && { author: [author] }),
@@ -170,10 +168,7 @@ export default class TwitterTransformer extends ChronicleTransformer {
       data.in_reply_to_screen_name ??
       (userId && userId === author?.sourceId ? author.handle : undefined);
     return {
-      '@type': 'Post',
-      '@key': BY_SOURCE_ID,
-      source: SOURCE,
-      sourceId: id,
+      ...postById(id),
       ...(handle && { url: postUrl(handle, id) }),
       ...(userId && {
         author: [
@@ -283,10 +278,7 @@ export default class TwitterTransformer extends ChronicleTransformer {
     const media = this.buildMedia(record.data.media);
     const author = this.buildAuthor(record.data);
     return {
-      '@type': 'Post',
-      '@key': BY_SOURCE_ID,
-      source: SOURCE,
-      sourceId: record.data.tweetId,
+      ...postById(record.data.tweetId),
       ...(author?.handle && { url: postUrl(author.handle, record.data.tweetId) }),
       body: plain(fullText),
       ...(author && { author: [author] }),
@@ -561,9 +553,12 @@ function plain(text: string | undefined): string | undefined {
   return text === undefined ? undefined : decodeEntities(text);
 }
 
-/** A post known only by its id. */
+/**
+ * A post known only by its id, keyed as a browser's visit to any of its pages
+ * is the post, so the visit is to it whether or not a source knows its handle.
+ */
 function postById(id: string): Post {
-  return { '@type': 'Post', '@key': BY_SOURCE_ID, source: SOURCE, sourceId: id };
+  return xPost(id);
 }
 
 /**

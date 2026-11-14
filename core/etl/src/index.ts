@@ -65,6 +65,7 @@ export { reference } from './reference.js';
 export * from './phone.js';
 export * from './isrc.js';
 export * from './media.js';
+export * from './pages.js';
 export * from './FilterFieldsTransformer.js';
 export * from './Base64TruncateTransformer.js';
 export * from './DownloadAttachmentsTransformer.js';

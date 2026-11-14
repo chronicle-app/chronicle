@@ -1,4 +1,4 @@
-import { ChronicleTransformer, Record } from '@chronicle.app/etl';
+import { ChronicleTransformer, Record, webPage } from '@chronicle.app/etl';
 import {
   ActionAndChildren,
   BookmarkAction,
@@ -76,11 +76,10 @@ export default class SafariTransformer extends ChronicleTransformer {
     };
   }
 
+  /** A page by its address, and a post on X by its id too, whatever its address. */
   private buildWebPage(record: Record): Entity {
     return {
-      '@type': 'Entity',
-      '@key': ['url'],
-      url: record.data.url,
+      ...webPage(record.data.url),
       ...(record.data.title && { name: record.data.title }),
     };
   }

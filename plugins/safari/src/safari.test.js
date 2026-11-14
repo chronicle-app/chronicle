@@ -102,6 +102,23 @@ test('visits become schema-valid ViewActions, newest first', async t => {
   );
 });
 
+test('a visit to a post’s page on X is to the post, under any handle', async t => {
+  const [record] = await records(fixture(t));
+  const url = 'https://twitter.com/example_author/status/2120340637035925906?s=20';
+  const [view] = await new SafariTransformer().performTransform({
+    ...record,
+    data: { ...record.data, url },
+  });
+  assert.deepEqual(view.data.object.sameAs, [
+    {
+      '@type': 'Post',
+      '@key': ['@type', 'source', 'sourceId'],
+      source: 'twitter',
+      sourceId: '2120340637035925906',
+    },
+  ]);
+});
+
 test('a survey counts the visits a run reads, when, and to how many pages', async t => {
   const input = fixture(t);
   const rows = await records(input);

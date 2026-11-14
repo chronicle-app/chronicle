@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { OAuthProviderRegistry } from '@chronicle.app/auth';
-import { countMonth, findExports, writeZip } from '@chronicle.app/etl';
+import { countMonth, findExports, webPage, writeZip } from '@chronicle.app/etl';
 import { nodeKey } from '@chronicle.app/schema';
 import {
   TwitterApiBookmarksExtractor,
@@ -223,6 +223,16 @@ test('likes become LikeActions on the liked Post', async t => {
       },
     },
   ]);
+});
+
+test('a browser’s visit to a post’s page is the post, even when the archive has no handle', async t => {
+  const input = archive(t);
+  const [like] = await transform((await records(TwitterArchiveLikesExtractor, input))[0]);
+  const [tweet] = await transform((await records(TwitterArchiveTweetsExtractor, input))[0]);
+  for (const post of [like.object, tweet.result]) {
+    const visited = webPage(`https://x.com/another_handle/status/${post.sourceId}/photo/1`);
+    assert.equal(nodeKey(visited.sameAs[0]), nodeKey(post));
+  }
 });
 
 test('an archive without a manifest is asserted when X wrote its account file', async t => {

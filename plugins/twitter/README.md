@@ -149,7 +149,9 @@ script wrapping a JSON array:
   A post's `url` is its page as a browser has it,
   `https://x.com/<handle>/status/<id>`, when its author's handle is known:
   from the API, every post; from the archive, your own tweets, but not the
-  ones you liked, as it names no author. An account's `url` is
+  ones you liked, as it names no author. A visit to a post's page in Chrome
+  or Safari is the post, under whatever handle the page's address has, so it
+  merges with the post either way. An account's `url` is
   `https://x.com/<handle>`. The post's
   `references` are the accounts it mentions and the links it contains, and
   it's `about` a `Tag` for each hashtag, keyed by the hashtag in lowercase, as
