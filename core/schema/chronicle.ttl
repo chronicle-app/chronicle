@@ -712,8 +712,20 @@
   rdfs:comment "The agent responded to the :object with content, such as an emoji reaction, a comment, a rating, or a review. Its :result is the :Response that holds the content. A response with no content is a :ReactAction.";
   rdfs:subClassOf :AssessAction .
 :Response a owl:Class;
-  rdfs:comment "A response to something, with content. It is the :result of a :RespondAction, whose :object is what it responds to. Its :body is the content as the source gives it, such as `❤️`, `LOVE`, or prose. A response in prose is a :Comment.";
+  rdfs:comment "A response to something, with content. It is the :result of a :RespondAction, whose :object is what it responds to. Its :body is the content as the source gives it, such as `❤️`, `LOVE`, or prose. A rating is its :ratingValue. A response in prose is a :Comment.";
   rdfs:subClassOf :CreativeWork .
+:ratingValue a owl:DatatypeProperty;
+  rdfs:comment "The rating the response gives, as a number on its source's scale, such as `3.5`. The top of that scale is the :bestRating.";
+  rdfs:domain :Response;
+  rdfs:range :Number;
+  skos:closeMatch schemaorg:ratingValue .
+[] a sh:PropertyShape; sh:path :ratingValue; sh:targetSubjectsOf :ratingValue; sh:maxCount 1 .
+:bestRating a owl:DatatypeProperty;
+  rdfs:comment "The highest rating the scale of the :ratingValue allows, such as `5`.";
+  rdfs:domain :Response;
+  rdfs:range :Number;
+  skos:closeMatch schemaorg:bestRating .
+[] a sh:PropertyShape; sh:path :bestRating; sh:targetSubjectsOf :bestRating; sh:maxCount 1 .
 :Comment a owl:Class;
   rdfs:comment "A response written in prose. Its :body is the text.";
   rdfs:subClassOf :Response;
@@ -959,6 +971,10 @@
   rdfs:comment "A book, in one edition.";
   rdfs:subClassOf :CreativeWork;
   skos:broadMatch schemaorg:Book .
+:Movie a owl:Class;
+  rdfs:comment "A film, such as a feature, a short, or a documentary. Its :datePublished is when it was released.";
+  rdfs:subClassOf :CreativeWork;
+  skos:broadMatch schemaorg:Movie .
 :pageCount a owl:DatatypeProperty;
   rdfs:comment "The number of pages in the document or edition.";
   rdfs:domain [ a owl:Class; owl:unionOf ( :DocumentObject :Book ) ];
@@ -1043,8 +1059,8 @@
 [] a sh:PropertyShape; sh:path :selectorLabel; sh:targetSubjectsOf :selectorLabel; sh:maxCount 1 .
 
 :tags a owl:DatatypeProperty;
-  rdfs:comment "A text label for the entity. A label that is an entity of its own is a :Tag.";
-  rdfs:domain :Entity;
+  rdfs:comment "A text label for the entity or action, such as a keyword on a photo or a tag on a diary entry. A label that is an entity of its own is a :Tag.";
+  rdfs:domain :Base;
   rdfs:range :Text;
   skos:closeMatch schemaorg:keywords .
 :caption a owl:DatatypeProperty;

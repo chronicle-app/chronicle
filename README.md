@@ -73,6 +73,7 @@ other source by name, for example `chronicle plugins install lastfm`, or let
 | Hacker News submissions, comments, and replies                                         | [hackernews](plugins/hackernews/README.md)                 | api                             |
 | Instagram data export                                                                  | [instagram](plugins/instagram/README.md)                   | archive (export)                |
 | Last.fm listens, loved tracks, and friends                                             | [lastfm](plugins/lastfm/README.md)                         | api                             |
+| Letterboxd diary, ratings, reviews, likes, and watchlist                               | [letterboxd](plugins/letterboxd/README.md)                 | archive (export)                |
 | LinkedIn data export                                                                   | [linkedin](plugins/linkedin/README.md)                     | archive (export)                |
 | Obsidian notes and links                                                               | [obsidian](plugins/obsidian/README.md)                     | vault (local)                   |
 | Pinboard bookmarks                                                                     | [pinboard](plugins/pinboard/README.md)                     | api                             |
