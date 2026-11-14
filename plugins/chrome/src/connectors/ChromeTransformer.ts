@@ -1,4 +1,4 @@
-import { ChronicleTransformer, Record, selfAgent } from '@chronicle.app/etl';
+import { ChronicleTransformer, Record, selfAgent, webPage } from '@chronicle.app/etl';
 import { googleAccount } from '@chronicle.app/google';
 import {
   ActionAndChildren,
@@ -90,7 +90,8 @@ export default class ChromeTransformer extends ChronicleTransformer {
     };
   }
 
+  /** A page by its address, and a post on X by its id too, whatever its address. */
   private pageByUrl(url: string): Entity {
-    return { '@type': 'Entity', '@key': ['url'], url };
+    return webPage(url);
   }
 }

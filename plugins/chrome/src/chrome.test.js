@@ -91,6 +91,24 @@ test('visits become schema-valid ViewActions, newest first', async t => {
   }
 });
 
+test('a visit to a post’s page on X is to the post, under any handle', async t => {
+  const { input } = fixture(t);
+  const [record] = await extract({ input });
+  const url = 'https://x.com/example_author/status/2120340637035925906/photo/1';
+  const [view] = await new ChromeTransformer().performTransform({
+    ...record,
+    data: { ...record.data, url },
+  });
+  assert.deepEqual(view.data.object.sameAs, [
+    {
+      '@type': 'Post',
+      '@key': ['@type', 'source', 'sourceId'],
+      source: 'twitter',
+      sourceId: '2120340637035925906',
+    },
+  ]);
+});
+
 async function survey(config, options = {}) {
   const extractor = new ChromeExtractor(config);
   try {

@@ -11,7 +11,8 @@
     "build": "tsc -b tsconfig.lib.json",
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint src --ext .ts,.js",
-    "test": "node --test src/*.test.js"
+    "test": "node --test src/*.test.js",
+    "shapes": "node src/shapes.test.js --update"
   },
   "keywords": [
     "chronicle",
@@ -39,6 +40,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "dependencies": {
+    "@chronicle.app/auth": "0.5.0",
     "zod": "^3.24.1"
   },
   "peerDependencies": {
@@ -77,8 +79,12 @@
             ],
             "recordTypes": [
               "direct-messages",
+              "followers",
+              "following",
+              "grok-chats",
               "group-direct-messages",
               "likes",
+              "profile",
               "tweets"
             ],
             "default": true,
@@ -94,6 +100,16 @@
                 "via": "email"
               }
             ]
+          },
+          "api": {
+            "delivery": "api",
+            "recordTypes": [
+              "bookmarks",
+              "likes",
+              "mentions",
+              "tweets"
+            ],
+            "default": true
           }
         }
       }

@@ -1832,7 +1832,7 @@ export const MembershipSchema: z.ZodType<Membership> = z
 export interface Message extends Omit<CreativeWork, '@type'> {
   '@type': 'Message';
   author?: AgentAndChildren[];
-  inReplyTo?: MessageAndChildren[];
+  inReplyTo?: (MessageAndChildren | PostAndChildren)[];
   recipient?: AgentAndChildren[];
 }
 
@@ -1841,7 +1841,9 @@ export type MessageAndChildren = Message;
 const MessageProperties = {
   ...CreativeWorkProperties,
   author: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
-  inReplyTo: z.lazy(() => z.array(MessageAndChildrenSchema)).optional(),
+  inReplyTo: z
+    .lazy(() => z.array(z.union([MessageAndChildrenSchema, PostAndChildrenSchema])))
+    .optional(),
   recipient: z.lazy(() => z.array(AgentAndChildrenSchema)).optional(),
 };
 
@@ -2301,12 +2303,16 @@ export const PodcastSeriesSchema: z.ZodType<PodcastSeries> = z
 // Post, child of https://schema.chronicle.app/CreativeWork
 export interface Post extends Omit<CreativeWork, '@type'> {
   '@type': 'Post';
+  inReplyTo?: (MessageAndChildren | PostAndChildren)[];
 }
 
 export type PostAndChildren = Post;
 
 const PostProperties = {
   ...CreativeWorkProperties,
+  inReplyTo: z
+    .lazy(() => z.array(z.union([MessageAndChildrenSchema, PostAndChildrenSchema])))
+    .optional(),
 };
 
 export const PostSchema: z.ZodType<Post> = z

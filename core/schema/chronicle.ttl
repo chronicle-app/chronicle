@@ -470,10 +470,10 @@
   rdfs:range [ a owl:Class; owl:unionOf ( :Agent :Person ) ];
   skos:exactMatch schemaorg:member .
 :inReplyTo a owl:ObjectProperty;
-  rdfs:comment "The message this message replies to.";
+  rdfs:comment "The message or post this one replies to, such as the post a reply on a social platform answers.";
   rdfs:subPropertyOf :relation;
-  rdfs:domain :Message;
-  rdfs:range :Message .
+  rdfs:domain [ a owl:Class; owl:unionOf ( :Message :Post ) ];
+  rdfs:range [ a owl:Class; owl:unionOf ( :Message :Post ) ] .
 
 :Event a owl:Class;
   rdfs:comment "A named happening with a planned start and end, such as a calendar entry, a concert, or a picnic. Its :scheduledFor gives the plan. The actions that record it give when it actually happened.";
